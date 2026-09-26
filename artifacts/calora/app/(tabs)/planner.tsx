@@ -2,7 +2,6 @@ import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-c
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -108,15 +107,15 @@ function MealCard({
   return (
     <Surface tier="flat" radius="lg" style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
 {/*@ts-ignore*/}
-      <PlannerMealImage meal={meal} style={styles.mealImage} />
+      <PlannerMealImage disableTransition meal={meal} style={styles.mealImage} />
       <View style={styles.mealCardBody}>
         <View style={styles.mealCardTop}>
           <View style={[styles.mealTypeBadge, { backgroundColor: colors.accent }]}>
             <Text style={[styles.mealTypeBadgeText, { color: colors.accentForeground }]}>{meal.meal}</Text>
           </View>
-          <ScalePressable accessibilityLabel={`More actions for ${meal.name}`} onPress={onActions} hitSlop={8} scale={0.98} haptic="none" style={styles.cardMoreButton}>
+          <Pressable accessibilityLabel={`More actions for ${meal.name}`} onPress={onActions} hitSlop={8} style={styles.cardMoreButton}>
             <Feather name="more-horizontal" size={18} color={colors.mutedForeground} />
-          </ScalePressable>
+          </Pressable>
         </View>
         <Pressable accessibilityLabel={`Open planned ${meal.meal}: ${meal.name}`} onPress={onPress}>
           <Text numberOfLines={2} style={[styles.mealName, { color: colors.foreground }]}>{meal.name}</Text>
@@ -129,10 +128,10 @@ function MealCard({
           <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatCalories(meal.calories)}</Text>
           <Text style={[styles.macroText, { color: colors.protein }]}>P {formatGrams(meal.proteinG)}</Text>
           <Text style={[styles.macroText, { color: colors.carbs }]}>C {formatGrams(meal.carbsG)}</Text>
-          <ScalePressable accessibilityLabel={isLogged ? `${meal.name} is already logged` : `Log ${meal.name} to diary`} accessibilityState={{ disabled: isLogged }} disabled={isLogged} onPress={onLog} scale={0.96} haptic="light" style={[styles.logMealButton, { backgroundColor: isLogged ? colors.muted : colors.primary }]}>
+          <Pressable accessibilityLabel={isLogged ? `${meal.name} is already logged` : `Log ${meal.name} to diary`} accessibilityState={{ disabled: isLogged }} disabled={isLogged} onPress={onLog} style={[styles.logMealButton, { backgroundColor: isLogged ? colors.muted : colors.primary }]}>
             <Feather name={isLogged ? 'check' : 'plus'} size={13} color={isLogged ? colors.foreground : colors.primaryForeground} />
             <Text style={[styles.logMealButtonText, { color: isLogged ? colors.foreground : colors.primaryForeground }]}>{isLogged ? 'Logged' : 'Log'}</Text>
-          </ScalePressable>
+          </Pressable>
             {editMode && <Pressable accessibilityLabel={`Edit ${meal.name}`} onPress={onEdit} style={[styles.editMealButton, { borderColor: colors.primary }]}><Feather name="edit-2" size={12} color={colors.primary} /><Text style={[styles.editMealButtonText, { color: colors.primary }]}>Edit</Text></Pressable>}
         </View>
       </View>
@@ -177,10 +176,10 @@ function PlannerFocusCard({
       </View>
       <View style={[styles.focusTrack, { backgroundColor: colors.border }]}><View style={[styles.focusFill, { backgroundColor: colors.primary, width: `${Math.min(selectedMeals.length / 4, 1) * 100}%` }]} /></View>
       <View style={styles.focusActions}>
-        <ScalePressable accessibilityLabel={allLogged ? 'View today in your diary' : meal ? `Log ${meal.name} to diary` : 'Add a meal to today'} onPress={onPrimary} scale={0.97} haptic="light" style={[styles.focusPrimary, { backgroundColor: colors.primary }]}>
+        <Pressable accessibilityLabel={allLogged ? 'View today in your diary' : meal ? `Log ${meal.name} to diary` : 'Add a meal to today'} onPress={onPrimary} style={[styles.focusPrimary, { backgroundColor: colors.primary }]}>
           <Feather name={allLogged || meal ? 'check-circle' : 'plus'} size={15} color={colors.primaryForeground} />
           <Text style={[styles.focusPrimaryText, { color: colors.primaryForeground }]}>{allLogged ? 'View today' : meal ? 'Log next meal' : 'Add a meal'}</Text>
-        </ScalePressable>
+        </Pressable>
       </View>
     </Surface>
   );
@@ -222,9 +221,9 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
         {eyebrow && <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{eyebrow}</Text>}
         <Text style={[styles.detailTitle, { color: colors.foreground }]}>{title}</Text>
       </View>
-      <ScalePressable accessibilityLabel={`Close ${title}`} onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+      <Pressable accessibilityLabel={`Close ${title}`} onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
         <Feather name="x" size={18} color={colors.foreground} />
-      </ScalePressable>
+      </Pressable>
     </View>
   );
 }
@@ -374,8 +373,20 @@ export default function PlannerScreen() {
   // Program already applied to the week the user is looking at — distinct from the
   // Program merely selected for a future build (plannerPreferences.primary).
   const appliedProgramForViewedWeek = useMemo(() => programAppliedToWeek(plannerPreferences, viewWeekStart), [plannerPreferences, viewWeekStart]);
-  const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
+  const plannedMealsByDay = useMemo(() => {
+    const mealsByDay = new Map<string, PlannerMeal[]>();
+    for (const day of weekDays) mealsByDay.set(day, []);
+    for (const meal of plannedWeek) mealsByDay.get(meal.day)?.push(meal);
+    for (const meals of mealsByDay.values()) {
+      meals.sort((left, right) => plannerMealTypes.indexOf(left.meal) - plannerMealTypes.indexOf(right.meal));
+    }
+    return mealsByDay;
+  }, [plannedWeek, weekDays]);
+  const loggedPlannerMealIds = useMemo(
+    () => new Set(logs.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id))),
+    [logs],
+  );
   const visibleShoppingItems = useMemo(
     () => {
       const checkedByName = shoppingChecksByName(shoppingItems, viewWeekStart);
@@ -390,7 +401,6 @@ export default function PlannerScreen() {
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;
-  const selectedMealLabel = dayFormatter.format(parseDate(selectedDay));
   const selectedProgramLabel = appliedProgramForViewedWeek
     ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId
     : plannerPreferences
@@ -878,6 +888,31 @@ export default function PlannerScreen() {
     setPlannerReviewDraftId(null);
   };
 
+  // The pager retains this day and its immediate neighbour in one native track.
+  // Never read selectedDay here: the partly revealed pane must render its own data.
+  const renderPlannerDay = useCallback((day: string) => {
+    const dayMeals = plannedMealsByDay.get(day) ?? [];
+    const dayLabel = dayFormatter.format(parseDate(day));
+    return <View style={styles.dayPane}>
+      <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
+        <View style={styles.daySummaryRow}>
+          <View style={styles.daySummaryCopy}>
+            <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayLabel}</Text>
+            {dayMeals.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - dayMeals.length} open</Text>}
+          </View>
+          <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(dayMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+          <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
+            <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.mealList}>{plannerMealTypes.map((type) => {
+        const meal = dayMeals.find((item) => item.meal === type);
+        return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={loggedPlannerMealIds.has(meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayLabel}`} onPress={() => { setSelectedDay(day); setAddingMealType(type); }} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>;
+      })}</View>
+    </View>;
+  }, [addToDiary, beginEditMeal, colors, editMode, loggedPlannerMealIds, plannedMealsByDay, selectedProgramLabel, styles]);
+
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
@@ -903,9 +938,9 @@ export default function PlannerScreen() {
               <Text style={[styles.weekOverviewTitle, { color: colors.foreground }]}>Meals for {formatRange(viewWeekStart)}</Text>
               <Text style={[styles.weekOverviewSubtitle, { color: colors.mutedForeground }]}>Review or edit meals.</Text>
             </View>
-            <ScalePressable accessibilityLabel="Close weekly meal overview" onPress={() => setWeekOverviewVisible(false)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+            <Pressable accessibilityLabel="Close weekly meal overview" onPress={() => setWeekOverviewVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
               <Feather name="x" size={18} color={colors.foreground} />
-            </ScalePressable>
+            </Pressable>
           </View>
           <View style={styles.weekOverviewList}>
             {weekDays.map((day) => {
@@ -928,9 +963,9 @@ export default function PlannerScreen() {
                             <Text style={[styles.weekOverviewMealMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ? `${meal.prepMinutes} min` : meal.serving}{isLogged ? ' · Logged' : ''}</Text>
                           </View>
                         </Pressable>
-                        <ScalePressable accessibilityLabel={`More actions for ${meal.name}`} onPress={() => { setActionMeal(meal); setActionMode(null); }} scale={0.96} haptic="none" style={styles.weekOverviewMore}>
+                        <Pressable accessibilityLabel={`More actions for ${meal.name}`} onPress={() => { setActionMeal(meal); setActionMode(null); }} style={styles.weekOverviewMore}>
                           <Feather name="more-horizontal" size={18} color={colors.mutedForeground} />
-                        </ScalePressable>
+                        </Pressable>
                       </View>
                     );
                   })}
@@ -939,16 +974,16 @@ export default function PlannerScreen() {
               );
             })}
           </View>
-          <ScalePressable accessibilityLabel="Done reviewing weekly meals" onPress={() => setWeekOverviewVisible(false)} scale={0.97} haptic="light" style={[styles.weekOverviewDone, { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityLabel="Done reviewing weekly meals" onPress={() => setWeekOverviewVisible(false)} style={[styles.weekOverviewDone, { backgroundColor: colors.primary }]}>
             <Text style={[styles.weekOverviewDoneText, { color: colors.primaryForeground }]}>Done reviewing</Text>
-          </ScalePressable>
+          </Pressable>
         </> : <>
         <View style={styles.weekHeader}>
-          <ScalePressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></ScalePressable>
+          <Pressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></Pressable>
           <View style={styles.weekRangeCopy}>
             <Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(viewWeekStart)}</Text>
           </View>
-           <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable><ScalePressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} scale={0.96} haptic="none" style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></ScalePressable></View>
+           <View style={styles.weekHeaderActions}><Pressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable><Pressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></Pressable></View>
         </View>
         <ScrollView
           horizontal
@@ -963,40 +998,26 @@ export default function PlannerScreen() {
             const mealCount = plannerMeals.filter((meal) => meal.day === day).length;
             const loggedCount = plannerMeals.filter((meal) => meal.day === day && logs.some((log) => log.plannerMealId === meal.id)).length;
             return (
-              <ScalePressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`} accessibilityState={{ selected: active }} onPress={() => setSelectedDay(day)} scale={0.97} haptic="none" style={[styles.dayCol, active && { backgroundColor: colors.accent }]}>
+              <Pressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`} accessibilityState={{ selected: active }} onPress={() => setSelectedDay(day)} style={[styles.dayCol, active && { backgroundColor: colors.accent }]}>
                 <Text style={[styles.dayName, { color: active ? colors.primary : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text>
                 <Text style={[styles.dayNumber, { color: colors.foreground }]}>{date.getDate()}</Text>
                 <View style={styles.dayCoverage}>{Array.from({ length: 4 }, (_, index) => <View key={index} style={[styles.coverageDot, { backgroundColor: index < loggedCount ? colors.success : index < mealCount ? colors.primary : colors.border }]} />)}</View>
                 {isToday && <Text style={[styles.todayTag, { color: active ? colors.primary : colors.mutedForeground }]}>Today</Text>}
-              </ScalePressable>
+              </Pressable>
             );
           })}
         </ScrollView>
-         {/* The pager's adjacent-pane implementation uses renderItem={renderPlannerDay}. */}
-         <SwipeableSectionPager
+        <SwipeableSectionPager
           items={weekDays}
           activeItem={selectedDay}
           onChange={setSelectedDay}
+          renderItem={renderPlannerDay}
+          renderWindow={1}
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
-          lockGesture
           testID="planner-day-pager"
           style={styles.dayPager}
-        >
-          <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View style={styles.daySummaryRow}>
-              <View style={styles.daySummaryCopy}>
-                <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text>
-                {selectedMeals.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - selectedMeals.length} open</Text>}
-              </View>
-              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-              <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
-                <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</View>
-        </SwipeableSectionPager>
+        />
         {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
           <MotivationalQuote colors={colors} style={{ marginTop: 16, marginBottom: 8 }} />
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
@@ -1011,10 +1032,11 @@ export default function PlannerScreen() {
            message={programCelebration.message}
            colors={colors}
            onDismiss={dismissProgramCelebration}
+           noMotion
          />
        )}
-       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
-      <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
+       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} noMotion />
+      <BottomSheet animationType="none" visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail && plannerReviewDraft ? (
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
@@ -1023,7 +1045,7 @@ export default function PlannerScreen() {
                     <Text style={[styles.detailEyebrow, { color: colors.primary }]}>PLANNER REVIEW · {dateFormatter.format(parseDate(detail.day))}</Text>
                     <Text style={[styles.detailTitle, { color: colors.foreground }]}>{plannerReviewDraft.title}</Text>
                   </View>
-                  <ScalePressable accessibilityLabel="Cancel planner review" onPress={dismissPlannerReview} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
+                  <Pressable accessibilityLabel="Cancel planner review" onPress={dismissPlannerReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
                 </View>
                 <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Set your portion before logging to your diary.</Text>
                 {plannerReviewDraft.assumptions.length > 0 && (
@@ -1062,10 +1084,10 @@ export default function PlannerScreen() {
                   <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(plannerReviewDraft.nutrition.calories)} kcal</Text></View>
                   <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(plannerReviewDraft.nutrition.proteinG)}g · C {Math.round(plannerReviewDraft.nutrition.carbsG)}g · F {Math.round(plannerReviewDraft.nutrition.fatG)}g</Text>
                 </View>
-                <ScalePressable accessibilityLabel="Approve and add planned meal to diary" onPress={acceptPlannerDraft} scale={0.96} haptic="light" style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                <Pressable accessibilityLabel="Approve and add planned meal to diary" onPress={acceptPlannerDraft} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
                   <Feather name="check-circle" size={16} color={colors.primaryForeground} />
                   <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
-                </ScalePressable>
+                </Pressable>
                 <Pressable accessibilityLabel="Cancel planned meal log" onPress={dismissPlannerReview} style={styles.dismissButton}>
                   <Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Not this meal</Text>
                 </Pressable>
@@ -1091,7 +1113,7 @@ export default function PlannerScreen() {
                         <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text>
                         <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
                       </View>
-                      <ScalePressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
+                      <Pressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
                     </View>
                     <Text style={[styles.detailDescription, { color: colors.mutedForeground }]}>{detail.description}</Text>
                     <View style={styles.detailStats}>
@@ -1102,10 +1124,10 @@ export default function PlannerScreen() {
                     </View>
                     <Text style={[styles.ingredientsLabel, { color: colors.foreground }]}>Ingredients</Text>
                     <Text style={[styles.ingredientsText, { color: colors.mutedForeground }]}>{detail.ingredients.join(' · ')}</Text>
-                    <ScalePressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} scale={0.96} haptic="light" style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                    <Pressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
                       <Feather name="plus" size={16} color={colors.primaryForeground} />
                       <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text>
-                    </ScalePressable>
+                    </Pressable>
                   </ScrollView>
                 </>
               )
@@ -1119,7 +1141,7 @@ export default function PlannerScreen() {
           onClose={() => setShoppingVisible(false)}
           onToggleItem={(name) => toggleShoppingItemByName(name, viewWeekStart)}
         />
-       <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       <BottomSheet animationType="none" visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.actionSheetContent}>
              {actionMeal && !actionMode && (
@@ -1127,41 +1149,41 @@ export default function PlannerScreen() {
                  <SheetHeader eyebrow={`${actionMeal.meal.toUpperCase()} · ${dateFormatter.format(parseDate(actionMeal.day))}`} title={actionMeal.name} onClose={() => setActionMeal(null)} colors={colors} />
                   <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Update this planned meal.</Text>
                  <View style={styles.actionGrid}>
-                   <ScalePressable accessibilityLabel={actionMealLogged ? `${actionMeal.name} is already logged` : `Log ${actionMeal.name}`} disabled={actionMealLogged} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} scale={0.96} haptic="light" style={[styles.actionTile, { backgroundColor: actionMealLogged ? colors.muted : colors.primary, opacity: actionMealLogged ? 0.7 : 1 }]}>
+                   <Pressable accessibilityLabel={actionMealLogged ? `${actionMeal.name} is already logged` : `Log ${actionMeal.name}`} disabled={actionMealLogged} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} style={[styles.actionTile, { backgroundColor: actionMealLogged ? colors.muted : colors.primary, opacity: actionMealLogged ? 0.7 : 1 }]}>
                      <Feather name="check-circle" size={18} color={actionMealLogged ? colors.foreground : colors.primaryForeground} />
                      <Text style={[styles.actionTileTitle, { color: actionMealLogged ? colors.foreground : colors.primaryForeground }]}>{actionMealLogged ? 'Logged' : 'Log to diary'}</Text>
                       <Text style={[styles.actionTileBody, { color: actionMealLogged ? colors.mutedForeground : colors.primaryForeground }]}>{actionMealLogged ? 'Already in diary' : 'Review portion first'}</Text>
-                   </ScalePressable>
-                   <ScalePressable accessibilityLabel={`Move ${actionMeal.name}`} onPress={() => setActionMode('move')} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </Pressable>
+                   <Pressable accessibilityLabel={`Move ${actionMeal.name}`} onPress={() => setActionMode('move')} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="corner-up-right" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Move</Text>
                       <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Change its day</Text>
-                   </ScalePressable>
-                   <ScalePressable accessibilityLabel={`Copy ${actionMeal.name}`} onPress={() => setActionMode('copy')} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </Pressable>
+                   <Pressable accessibilityLabel={`Copy ${actionMeal.name}`} onPress={() => setActionMode('copy')} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="copy" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Copy</Text>
                       <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Add another day</Text>
-                   </ScalePressable>
-                   <ScalePressable accessibilityLabel={`Replace ${actionMeal.name}`} onPress={() => { setReplaceMeal(actionMeal); setActionMeal(null); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </Pressable>
+                   <Pressable accessibilityLabel={`Replace ${actionMeal.name}`} onPress={() => { setReplaceMeal(actionMeal); setActionMeal(null); }} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="refresh-cw" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Replace</Text>
                       <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Choose another meal</Text>
-                   </ScalePressable>
-                    <ScalePressable accessibilityLabel={`Edit portions for ${actionMeal.name}`} onPress={() => { beginEditMeal(actionMeal); setActionMeal(null); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </Pressable>
+                    <Pressable accessibilityLabel={`Edit portions for ${actionMeal.name}`} onPress={() => { beginEditMeal(actionMeal); setActionMeal(null); }} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="sliders" size={18} color={colors.foreground} />
                       <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Portions</Text>
                        <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Serving and nutrition</Text>
-                    </ScalePressable>
-                     <ScalePressable accessibilityLabel={`View shopping ingredients for ${actionMeal.name}`} onPress={() => { setActionMeal(null); setShoppingDayFilter(actionMeal.day); setShoppingVisible(true); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    </Pressable>
+                     <Pressable accessibilityLabel={`View shopping ingredients for ${actionMeal.name}`} onPress={() => { setActionMeal(null); setShoppingDayFilter(actionMeal.day); setShoppingVisible(true); }} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="shopping-bag" size={18} color={colors.foreground} />
                       <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Shopping</Text>
                        <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>View ingredients</Text>
-                    </ScalePressable>
+                    </Pressable>
                  </View>
-                 <ScalePressable accessibilityLabel={`Remove ${actionMeal.name} from plan`} onPress={() => removeMealFromPlan(actionMeal)} scale={0.98} haptic="none" style={styles.removeAction}>
+                 <Pressable accessibilityLabel={`Remove ${actionMeal.name} from plan`} onPress={() => removeMealFromPlan(actionMeal)} style={styles.removeAction}>
                    <Feather name="minus-circle" size={15} color={colors.mutedForeground} />
                     <Text style={[styles.removeActionText, { color: colors.mutedForeground }]}>Remove from plan</Text>
-                 </ScalePressable>
+                 </Pressable>
                </>
              )}
              {actionMeal && actionMode && (
@@ -1172,19 +1194,19 @@ export default function PlannerScreen() {
                    {weekDays.map((day) => {
                      const isCurrent = day === actionMeal.day;
                       const isDisabled = isCurrent;
-                     return <ScalePressable key={day} accessibilityLabel={`${actionMode === 'copy' ? 'Copy' : 'Move'} to ${dayFormatter.format(parseDate(day))}`} disabled={isDisabled} onPress={() => moveOrCopyMeal(day, actionMode === 'copy')} scale={isDisabled ? 1 : 0.98} haptic="none" style={[styles.dayChoice, { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.45 : 1 }]}><View style={[styles.dayChoiceIcon, { backgroundColor: isCurrent ? colors.accent : colors.muted }]}><Feather name={isCurrent ? 'check' : 'calendar'} size={15} color={isCurrent ? colors.accentForeground : colors.foreground} /></View><View style={styles.dayChoiceCopy}><Text style={[styles.dayChoiceName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text><Text style={[styles.dayChoiceDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}{isCurrent ? ' · current day' : ''}</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></ScalePressable>;
+                     return <Pressable key={day} accessibilityLabel={`${actionMode === 'copy' ? 'Copy' : 'Move'} to ${dayFormatter.format(parseDate(day))}`} disabled={isDisabled} onPress={() => moveOrCopyMeal(day, actionMode === 'copy')} style={[styles.dayChoice, { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.45 : 1 }]}><View style={[styles.dayChoiceIcon, { backgroundColor: isCurrent ? colors.accent : colors.muted }]}><Feather name={isCurrent ? 'check' : 'calendar'} size={15} color={isCurrent ? colors.accentForeground : colors.foreground} /></View><View style={styles.dayChoiceCopy}><Text style={[styles.dayChoiceName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text><Text style={[styles.dayChoiceDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}{isCurrent ? ' · current day' : ''}</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></Pressable>;
                    })}
                 </View>
                </>
              )}
               </ScrollView>
        </BottomSheet>
-       <BottomSheet visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       <BottomSheet animationType="none" visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
                <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === addingMealType).map((meal) => <Pressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage disableTransition meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></Pressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes for ${addingMealType}`}
@@ -1201,12 +1223,12 @@ export default function PlannerScreen() {
                <Pressable accessibilityLabel={`Create custom ${addingMealType}`} onPress={() => openCustomMeal(addingMealType!)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
               <Pressable accessibilityLabel={`Leave ${addingMealType} open`} onPress={() => { setAddingMealType(null); acknowledge(`${addingMealType} left open.`); }} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Leave open</Text></Pressable>
        </BottomSheet>
-       <BottomSheet visible={replaceMeal !== null} onRequestClose={() => setReplaceMeal(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       <BottomSheet animationType="none" visible={replaceMeal !== null} onRequestClose={() => setReplaceMeal(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <Pressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage disableTransition meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></Pressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes to replace ${replaceMeal?.name ?? 'meal'}`}
@@ -1225,7 +1247,7 @@ export default function PlannerScreen() {
               <Pressable accessibilityLabel={`Create custom ${replaceMeal?.meal ?? 'meal'} to replace ${replaceMeal?.name ?? 'meal'}`} onPress={() => replaceMeal && openCustomMeal(replaceMeal.meal, replaceMeal)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
              <Pressable accessibilityLabel="Cancel replace meal" onPress={() => setReplaceMeal(null)} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
        </BottomSheet>
-        <BottomSheet visible={editMeal !== null} onRequestClose={() => setEditMeal(null)} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet animationType="none" visible={editMeal !== null} onRequestClose={() => setEditMeal(null)} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow="EDIT PLANNED MEAL" title={editMeal?.name ?? ''} onClose={() => setEditMeal(null)} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1243,13 +1265,13 @@ export default function PlannerScreen() {
                   {([['Calories', editCalories, setEditCalories], ['Protein g', editProtein, setEditProtein], ['Carbs g', editCarbs, setEditCarbs], ['Fat g', editFat, setEditFat]] as const).map(([label, value, setter]) => <View key={label} style={styles.formNumberField}><Text style={[styles.numberInputLabel, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={`Edit ${label}`} value={value} onChangeText={setter} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
                 </View>
                  {formError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warning }]}>{formError}</Text>}
-                <ScalePressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} scale={0.96} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
+                <Pressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></Pressable>
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
         </BottomSheet>
          {/* Program discovery and detail share one native modal. This avoids
              presenting a native modal from inside another native modal on iOS. */}
-        <BottomSheet
+        <BottomSheet animationType="none"
           visible={planTypeVisible || programDetail !== null}
           onRequestClose={() => {
             setProgramModal(closeProgramModal(programModal));
@@ -1305,9 +1327,9 @@ export default function PlannerScreen() {
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
-                <ScalePressable accessibilityLabel={detailPreview?.status === 'unavailable' ? `Apply ${programDetail.label} unavailable for ${plannerDiet}` : `Apply ${programDetail.label} to this week`} accessibilityState={{ disabled: detailPreview?.status === 'unavailable' }} disabled={detailPreview?.status === 'unavailable'} onPress={() => { const program = programDetail; setProgramModal(applyProgram(programModal)); void generate(program.id); }} scale={detailPreview?.status === 'unavailable' ? 1 : 0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10, opacity: detailPreview?.status === 'unavailable' ? 0.5 : 1 }]}>
+                <Pressable accessibilityLabel={detailPreview?.status === 'unavailable' ? `Apply ${programDetail.label} unavailable for ${plannerDiet}` : `Apply ${programDetail.label} to this week`} accessibilityState={{ disabled: detailPreview?.status === 'unavailable' }} disabled={detailPreview?.status === 'unavailable'} onPress={() => { const program = programDetail; setProgramModal(applyProgram(programModal)); void generate(program.id); }} style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10, opacity: detailPreview?.status === 'unavailable' ? 0.5 : 1 }]}>
                   <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
-                </ScalePressable>
+                </Pressable>
               </ScrollView>
             </>
           ) : (
@@ -1318,9 +1340,9 @@ export default function PlannerScreen() {
                   <Text style={[styles.planTypeSheetEyebrow, { color: colors.primary }]}>YOUR PROGRAM</Text>
                   <Text style={[styles.planTypeSheetTitle, { color: colors.foreground }]}>Choose a strategy</Text>
                 </View>
-                <ScalePressable accessibilityLabel="Close program selector" onPress={() => setProgramModal(closeProgramModal(programModal))} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Pressable accessibilityLabel="Close program selector" onPress={() => setProgramModal(closeProgramModal(programModal))} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                   <Feather name="x" size={18} color={colors.foreground} />
-                </ScalePressable>
+                </Pressable>
               </View>
               <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Choose a Program to apply to this week. Your added, edited, and logged meals stay yours.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
@@ -1346,7 +1368,7 @@ export default function PlannerScreen() {
                         <Text style={[styles.planTypeOptionSubtitle, { color: colors.mutedForeground }]}>{pt.subtitle}</Text>
                         {heroMeal && (
                           <View style={styles.programOptionPreview}>
-                            <PlannerMealImage accessibilityContext={`Program ${pt.id}; dietary preference ${plannerDiet}; canonical meal ${heroMeal.id}`} meal={heroMeal} style={styles.programOptionPreviewImage} testID={`planner-program-selector-${pt.id}-${plannerDiet}-${heroMeal.id}`} />
+                            <PlannerMealImage disableTransition accessibilityContext={`Program ${pt.id}; dietary preference ${plannerDiet}; canonical meal ${heroMeal.id}`} meal={heroMeal} style={styles.programOptionPreviewImage} testID={`planner-program-selector-${pt.id}-${plannerDiet}-${heroMeal.id}`} />
                             <View style={styles.programOptionPreviewCopy}>
                               <Text style={[styles.programOptionPreviewLabel, { color: colors.primary }]}>REPRESENTATIVE PREVIEW</Text>
                               <Text numberOfLines={1} style={[styles.programOptionPreviewName, { color: colors.foreground }]}>{heroMeal.name}</Text>
@@ -1369,7 +1391,7 @@ export default function PlannerScreen() {
             </>
           )}
         </BottomSheet>
-        <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet animationType="none" visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(customMealReplaceTarget?.day ?? selectedDay))}`} title="Create a custom meal" onClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1478,6 +1500,7 @@ function makeStyles(f: number) {
   summaryMacroValue: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
   summaryMacroLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
      dayPager: { width: '100%' },
+     dayPane: { width: '100%' },
     programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
    programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
    programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },

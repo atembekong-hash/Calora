@@ -40,6 +40,7 @@ export function PlannerMealImage({
   testID,
   accessibilityContext,
   expectedImageKey,
+  disableTransition = false,
 }: {
   meal: Pick<PlannerMeal, 'id' | 'name' | 'meal' | 'image' | 'imageAssetKey' | 'recipeId' | 'recipeSource' | 'generatedMediaId' | 'generatedImageId' | 'generatedImageUrlExpiresAt' | 'generatedImageReviewState'>;
   style: StyleProp<ImageStyle>;
@@ -49,6 +50,8 @@ export function PlannerMealImage({
   /** Identifies the Program/diet/canonical identity without changing imagery. */
   accessibilityContext?: string;
   expectedImageKey?: PlannerImageKey;
+  /** Use immediate image replacement on a no-motion planner surface. */
+  disableTransition?: boolean;
 }) {
   const colors = useColors();
   const { user } = useAuth();
@@ -102,7 +105,7 @@ export function PlannerMealImage({
         source={resolvedSource}
         style={StyleSheet.absoluteFill}
         testID={auditId ? `${auditId}-image` : testID ? `${testID}-image` : undefined}
-        transition={160}
+        transition={disableTransition ? 0 : 160}
       />
       {isFallback && (
         <View

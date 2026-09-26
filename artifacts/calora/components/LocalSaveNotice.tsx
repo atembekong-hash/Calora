@@ -18,6 +18,7 @@ export function LocalSaveNotice({
   actionLabel,
   onAction,
   countdownDuration,
+  noMotion = false,
 }: {
   visible: boolean;
   message: string;
@@ -26,18 +27,29 @@ export function LocalSaveNotice({
   onAction?: () => void;
   /** When set, renders a shrinking countdown bar for that many ms. Only use for removal notices. */
   countdownDuration?: number;
+  /** Shows immediately without notice or countdown motion. */
+  noMotion?: boolean;
 }) {
   const progress = useSharedValue(0);
   const countdown = useSharedValue(1);
 
   useEffect(() => {
+    if (noMotion) {
+      progress.value = visible ? 1 : 0;
+      return;
+    }
     progress.value = withTiming(visible ? 1 : 0, {
       duration: visible ? 260 : 180,
       easing: Easing.out(Easing.cubic),
     });
-  }, [progress, visible]);
+  }, [noMotion, progress, visible]);
 
   useEffect(() => {
+    if (noMotion) {
+      cancelAnimation(countdown);
+      countdown.value = 1;
+      return;
+    }
     if (visible && countdownDuration) {
       // Starting a fresh countdown: reset to full before animating.
       countdown.value = 1;
@@ -52,7 +64,7 @@ export function LocalSaveNotice({
       // fades out. The next removal will reset it to 1 via the branch above.
       cancelAnimation(countdown);
     }
-  }, [visible, countdownDuration, countdown]);
+  }, [visible, countdownDuration, countdown, noMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -63,10 +75,10 @@ export function LocalSaveNotice({
     width: `${countdown.value * 100}%` as `${number}%`,
   }));
 
-  const showCountdown = !!countdownDuration;
+  const showCountdown = !!countdownDuration && !noMotion;
 
   return (
-    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, animatedStyle]}>
+    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, noMotion ? undefined : animatedStyle]}>
       <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.icon, { backgroundColor: colors.success }]}>
           <Feather name="check" size={12} color="#ffffff" />

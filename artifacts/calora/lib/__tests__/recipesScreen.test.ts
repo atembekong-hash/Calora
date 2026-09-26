@@ -8,9 +8,20 @@ const source = readFileSync(
 );
 
 describe('Recipes Discover layout contracts', () => {
-  it('keeps section swipes direct instead of layering release animations', () => {
+  it('keeps adjacent section panes directly under the gesture track', () => {
     expect(source).toContain('testID="recipes-section-content"');
-    expect(source).toContain('disableAnimation');
+    expect(source).toContain('renderItem={renderRecipeSection}');
+    expect(source).toContain('renderWindow={1}');
+    expect(source).toContain('fillViewport');
+    expect(source).not.toContain('disableAnimation');
+  });
+
+  it('removes nonessential motion from Discover, Plus, and Create surfaces', () => {
+    expect(source).not.toContain('FadeInDown');
+    expect(source).toContain('transition={0}');
+    expect(source).toContain('animationType="none"');
+    expect(source).toContain('const mountedRef = useRef(true)');
+    expect(source).toContain('abortRef.current?.abort();');
   });
 
   it('gives every recipe-creation starting point a visible option tray', () => {
@@ -162,8 +173,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('const premiumScrollYRef = useRef(0)');
     expect(source).toContain('premiumScrollYRef.current = contentOffset.y');
-    expect(source).toContain("section === 'premium'");
-    expect(source).toContain('? premiumScrollYRef.current');
+    expect(source).toContain("visible={section === 'premium'}");
+    expect(source).toContain('renderItem={renderRecipeSection}');
   });
 
   it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {
