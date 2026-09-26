@@ -487,4 +487,48 @@ describe('Today dashboard — date context and display contracts', () => {
     );
     expect(macroSection).not.toContain("router.navigate('/(tabs)/profile')");
   });
+
+  it('labels a no-Health Pedometer stream as session-only and keeps Health recovery reachable', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('Live since opened — connect Health for today’s total');
+    expect(source).toContain('const sessionOnly = isLiveSessionOnly(tracking);');
+    expect(source).toContain("const needsHealthConnection = !healthConnected && (tracking.status !== 'live' || sessionOnly);");
+    expect(source).toContain("const accessibilityPrefix = sessionOnly ? 'Live session steps since Calora opened' : 'Steps today';");
+  });
+
+  it('routes a permanent motion denial to settings rather than retrying the same prompt', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("const needsMotionSettings = tracking.status === 'denied';");
+    expect(source).toContain("? 'Open motion settings'");
+    expect(source).toContain("const needsRetry = tracking.status === 'error';");
+    expect(source).toContain("? 'Retry live steps'");
+    expect(source).toContain('onOpenMotionSettings');
+    expect(source).toContain('minHeight: 44');
+  });
+
+  it('follows today across a local-day change without overwriting a deliberate historical date', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const followsTodayRef = useRef(true);');
+    expect(source).toContain('if (followsTodayRef.current) setSelectedDate(todayKey);');
+    expect(source).toContain('followsTodayRef.current = date === dateKey(new Date());');
+    expect(source).toContain('followsTodayRef.current = true;');
+  });
 });

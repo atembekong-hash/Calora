@@ -2,10 +2,12 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AccessibilityInfo,
+  AppState,
   FlatList,
   Platform,
   Pressable,
@@ -23,7 +25,7 @@ import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/Calo
 import { AppHeader } from '@/components/AppChrome';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
@@ -101,6 +103,7 @@ import { burnedStatusForDay } from '@/lib/health/burnedStatus';
 import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { ConfirmedDeletionControl } from '@/components/ConfirmedDeletionControl';
+import { isLiveSessionOnly, type LiveStepTrackingState } from '@/lib/steps/stepTracking';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -619,6 +622,105 @@ function WaterCard({
           </View>
         </View>
       </View>
+    </View>
+  );
+}
+
+function stepStatusCopy(tracking: LiveStepTrackingState, healthConnected: boolean): string {
+  if (isLiveSessionOnly(tracking)) return 'Live since opened — connect Health for today’s total';
+  if (tracking.status === 'live') return 'Live';
+  if (tracking.status === 'syncing') return 'Syncing steps…';
+  if (tracking.status === 'permission-required') return 'Enable motion access for live steps';
+  if (tracking.status === 'denied') return 'Motion access is off';
+  if (tracking.status === 'unavailable') return healthConnected ? 'Updated from Health' : 'Steps need the Calora mobile app';
+  if (tracking.status === 'error') return 'Unable to refresh live steps';
+  if (tracking.status === 'health-only') return 'Updated from Health';
+  if (!healthConnected) return 'Connect Health to retain steps';
+  return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
+}
+
+function StepsTodayCard({
+  colors,
+  tracking,
+  dailyStepGoal,
+  healthConnected,
+  onEnableLiveSteps,
+  onRetryLiveSteps,
+  onOpenMotionSettings,
+  onOpenHealth,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  tracking: LiveStepTrackingState;
+  dailyStepGoal: number;
+  healthConnected: boolean;
+  onEnableLiveSteps: () => void;
+  onRetryLiveSteps: () => void;
+  onOpenMotionSettings: () => void;
+  onOpenHealth: () => void;
+}) {
+  const steps = tracking.displayedSteps;
+  const progress = steps === null ? 0 : Math.min(steps / dailyStepGoal, 1);
+  const status = stepStatusCopy(tracking, healthConnected);
+  const sessionOnly = isLiveSessionOnly(tracking);
+  const needsMotionSettings = tracking.status === 'denied';
+  const needsMotionAccess = tracking.status === 'permission-required';
+  const needsRetry = tracking.status === 'error';
+  const needsHealthConnection = !healthConnected && (tracking.status !== 'live' || sessionOnly);
+  const actionLabel = needsMotionSettings
+    ? 'Open motion settings'
+    : needsMotionAccess
+    ? 'Enable live steps'
+    : needsRetry
+      ? 'Retry live steps'
+    : needsHealthConnection
+      ? 'Connect Health'
+      : null;
+  const onPress = needsMotionSettings
+    ? onOpenMotionSettings
+    : needsMotionAccess
+      ? onEnableLiveSteps
+      : needsRetry
+        ? onRetryLiveSteps
+      : needsHealthConnection
+        ? onOpenHealth
+        : undefined;
+  const accessibilityPrefix = sessionOnly ? 'Live session steps since Calora opened' : 'Steps today';
+
+  return (
+    <View
+      testID="dashboard-steps-card"
+      accessibilityLabel={`${accessibilityPrefix}: ${steps === null ? 'unavailable' : steps.toLocaleString()} of ${dailyStepGoal.toLocaleString()}. ${status}.`}
+      style={[styles.stepsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={styles.stepsCardHeader}>
+        <View style={[styles.stepsIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="activity" size={20} color={colors.accentForeground} />
+        </View>
+        <View style={styles.stepsCardTitleGroup}>
+          <Text style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps today</Text>
+          <Text testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? colors.success : colors.mutedForeground }]}>{status}</Text>
+        </View>
+        {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
+      </View>
+      <Text testID="dashboard-steps-value" style={[styles.stepsValue, { color: colors.foreground }]}>
+        {steps === null ? '—' : steps.toLocaleString()}
+        <Text style={[styles.stepsGoal, { color: colors.mutedForeground }]}> / {dailyStepGoal.toLocaleString()}</Text>
+      </Text>
+      <View style={[styles.stepsTrack, { backgroundColor: colors.muted }]}>
+        <View style={[styles.stepsFill, { backgroundColor: colors.primary, width: `${progress * 100}%` }]} />
+      </View>
+      {actionLabel && onPress && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          testID="dashboard-steps-action"
+          onPress={onPress}
+          style={[styles.stepsAction, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        >
+          <Text style={[styles.stepsActionText, { color: colors.primary }]}>{actionLabel}</Text>
+          <Feather name="chevron-right" size={15} color={colors.primary} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1313,7 +1415,8 @@ const gaugeStyles = makeGaugeStyles(1.0);
 export default function HomeScreen() {
   const {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
-    livingState, fontScale, profilePhotoUri, healthConnection, weights,
+    livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, dailyStepGoal,
+    startLiveStepTracking, stopLiveStepTracking, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
     updateProfile,
   } = useCalora();
@@ -1324,6 +1427,7 @@ export default function HomeScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [addFoodMode, setAddFoodMode] = useState<AddFoodEntryMode>('search');
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
+  const followsTodayRef = useRef(true);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(calendarMonthKey(dateKey(new Date())));
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
@@ -1345,6 +1449,10 @@ export default function HomeScreen() {
   const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
   const now = new Date();
   const todayKey = dateKey(now);
+  const isViewingToday = selectedDate === todayKey;
+  useEffect(() => {
+    if (followsTodayRef.current) setSelectedDate(todayKey);
+  }, [todayKey]);
   const burnedStatus = burnedStatusForDay({
     isToday: selectedDate === todayKey,
     isFuture: selectedDate > todayKey,
@@ -1399,6 +1507,28 @@ export default function HomeScreen() {
     .replace('today’s logged calories', 'logged calories')
     .replace('while more than half of daily calories are logged.', 'after half your calories are logged.');
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!hydrated || !isViewingToday) {
+        stopLiveStepTracking();
+        return undefined;
+      }
+
+      void startLiveStepTracking();
+      const subscription = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active') {
+          void startLiveStepTracking();
+        } else {
+          stopLiveStepTracking();
+        }
+      });
+      return () => {
+        subscription.remove();
+        stopLiveStepTracking();
+      };
+    }, [hydrated, isViewingToday, startLiveStepTracking, stopLiveStepTracking]),
+  );
+
   const openAdd = (mode: AddFoodEntryMode = 'search') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setAddFoodMode(mode);
@@ -1428,11 +1558,13 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const selectCalendarDate = (date: string) => {
+    followsTodayRef.current = date === dateKey(new Date());
     setSelectedDate(date);
     setCalendarVisible(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const goToToday = () => {
+    followsTodayRef.current = true;
     setSelectedDate(dateKey(new Date()));
     setCalendarVisible(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1570,7 +1702,7 @@ export default function HomeScreen() {
 
         <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.heroDateNav, { borderBottomColor: colors.border }]}>
-            <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
+            <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); const nextDate = dateKey(date); followsTodayRef.current = nextDate === dateKey(new Date()); setSelectedDate(nextDate); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
              <Pressable accessibilityLabel={`Open calendar for ${isToday(selectedDate) ? 'today' : formatShortDate(selectedDate)}`} testID="open-calendar-date-picker" onPress={openCalendar} style={styles.dateNavCenter}>
                <View style={styles.dateNavCenterLine}>
                  <Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text>
@@ -1578,7 +1710,7 @@ export default function HomeScreen() {
                </View>
                <Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text>
              </Pressable>
-            <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
+            <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); const nextDate = dateKey(date); followsTodayRef.current = nextDate === dateKey(new Date()); setSelectedDate(nextDate); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
           </View>
            {!isToday(selectedDate) && (
              <Pressable accessibilityLabel="Back to today" testID="back-to-today" onPress={goToToday} style={[styles.backToToday, { backgroundColor: colors.accent }]}>
@@ -1632,6 +1764,26 @@ export default function HomeScreen() {
             {!waterConfirmed && <Feather name="arrow-up-right" size={15} color={isProgressAction ? colors.foreground : colors.primaryForeground} />}
           </ScalePressable>
         </View>
+
+        {isViewingToday && (
+          <StepsTodayCard
+            colors={colors}
+            tracking={liveStepTracking}
+            dailyStepGoal={dailyStepGoal}
+            healthConnected={healthConnected}
+            onEnableLiveSteps={() => { void startLiveStepTracking(true); }}
+            onRetryLiveSteps={() => { void startLiveStepTracking(); }}
+            onOpenMotionSettings={() => {
+              void openMotionSettings().catch((error) => {
+                Alert.alert(
+                  'Open motion settings',
+                  error instanceof Error ? error.message : 'Could not open motion settings. Please try again.',
+                );
+              });
+            }}
+            onOpenHealth={() => router.push('/profile?tab=account&open=health')}
+          />
+        )}
 
         <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions">
           <View style={styles.quickActions}>
@@ -1843,6 +1995,19 @@ function makeStyles(f: number) {
   livingRhythmTrackLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, textTransform: 'uppercase', letterSpacing: 0.8 },
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
+  stepsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepsIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepsCardTitleGroup: { flex: 1, minWidth: 0 },
+  stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+  stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
+  stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
+  stepsValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.7, marginTop: 16 },
+  stepsGoal: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, letterSpacing: 0 },
+  stepsTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 12 },
+  stepsFill: { height: '100%', borderRadius: 4 },
+  stepsAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingHorizontal: 12 },
+  stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: 28 },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
     quickAction: { flex: 1, minWidth: 0, minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },

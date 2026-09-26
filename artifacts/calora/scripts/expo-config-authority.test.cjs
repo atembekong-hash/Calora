@@ -37,6 +37,15 @@ test('Expo configuration requests only implemented health capabilities', () => {
 
   assert.equal(packageJson.devDependencies?.['expo-location'], undefined);
   assert.equal(infoPlist.NSHealthUpdateUsageDescription, undefined);
+  assert.equal(
+    infoPlist.NSMotionUsageDescription,
+    'Calora uses Motion & Fitness activity to show your live steps while the dashboard is open.',
+  );
+  assert.equal(packageJson.dependencies?.['expo-sensors'], '~15.0.8');
+  assert.ok(
+    appJson.expo?.android?.permissions?.includes('android.permission.ACTIVITY_RECOGNITION'),
+    'Android live step tracking requires ACTIVITY_RECOGNITION in the generated manifest',
+  );
   assert.ok(Array.isArray(healthKitPlugin));
   assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, false);
 });

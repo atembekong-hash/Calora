@@ -46,6 +46,7 @@ const harness = vi.hoisted(() => {
     openHealthSettings: vi.fn(async () => undefined),
     syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
     disconnectHealth: vi.fn(),
+    dailyStepGoal: 10000, setDailyStepGoal: vi.fn(),
     exportData: vi.fn(async () => '{}'), clearAllData: vi.fn(async () => undefined), isClearing: false, syncState: 'local',
     savedMeals: state.savedMeals, saveMeal: vi.fn(), deleteSavedMeal: vi.fn(),
     notificationPreferences, updateNotificationPreferences, livingMemory: { mealObservations: {}, waterObservations: {}, moodObservations: {}, activityObservations: {}, plannerObservations: {} },
@@ -147,6 +148,7 @@ beforeEach(() => {
   harness.calora.savedMeals = harness.state.savedMeals;
   harness.calora.healthConnected = true;
   harness.calora.healthConnection = { provider: 'health-connect', authorization: 'partial', granted: ['steps'] };
+  harness.calora.dailyStepGoal = 10000;
   harness.calora.onboardingComplete = true;
   harness.calora.onboardingStep = 0;
   harness.useSubscription.mockReturnValue(makeSubscription());
@@ -330,6 +332,16 @@ describe('Profile rendered interactions', () => {
     expect(screen.getByRole('button', { name: 'Open Health Connect settings' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect health data' })).toBeTruthy();
+  });
+
+  it('saves a bounded daily step target from the Health settings sheet', async () => {
+    const view = render(<ProfileScreen />);
+    harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
+    const input = await screen.findByTestId('daily-step-goal-input');
+    fireEvent.change(input, { target: { value: '9,200' } });
+    fireEvent.click(screen.getByTestId('save-daily-step-goal'));
+    expect(harness.calora.setDailyStepGoal).toHaveBeenCalledWith(9200);
   });
 
   it('re-requests missing Active Calories access from a partial Health Connect grant', async () => {
