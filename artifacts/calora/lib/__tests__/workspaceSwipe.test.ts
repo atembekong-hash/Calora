@@ -157,11 +157,33 @@ describe('planner day pager rendering', () => {
       resolve(__dirname, '../../components/SwipeableTabList.tsx'),
       'utf8',
     );
+    const swipeMathSource = readFileSync(
+      resolve(__dirname, '../workspaceSwipe.ts'),
+      'utf8',
+    );
 
     expect(plannerSource).toContain('renderItem={renderPlannerDay}');
+    expect(plannerSource).toContain('renderWindow={1}');
+    expect(plannerSource).toContain('plannedMealsByDay');
     expect(plannerSource).not.toContain('disableAnimation');
     expect(pagerSource).toContain('styles.pagerTrack');
-    expect(pagerSource).toContain('const pageOffset = renderItemRef.current');
-    expect(pagerSource).toContain('translateX.value = pageOffset + dragOffset');
+    expect(pagerSource).toContain('Gesture.Pan()');
+    expect(pagerSource).toContain('.manualActivation(true)');
+    expect(pagerSource).toContain('getWorkspacePagerRestingOffset');
+    expect(pagerSource).toContain('translateX.value =');
+    expect(swipeMathSource).toContain("'worklet';");
+  });
+
+  it('uses static Plan feedback and sheets while the direct pager is active', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const plannerSource = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/planner.tsx'),
+      'utf8',
+    );
+
+    expect(plannerSource).toContain('animationType="none"');
+    expect(plannerSource).toContain('noMotion');
+    expect(plannerSource).not.toContain('ScalePressable');
   });
 });

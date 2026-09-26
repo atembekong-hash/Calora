@@ -15,6 +15,7 @@ export function isWorkspaceSwipeIntent(
   dy: number,
   minimumDistance = WORKSPACE_SWIPE_ACTIVATION_DISTANCE,
 ): boolean {
+  'worklet';
   const horizontalDistance = Math.abs(dx);
   const verticalDistance = Math.abs(dy);
 
@@ -30,6 +31,7 @@ export function isWorkspaceSwipeVelocityIntent(
   velocityX: number,
   velocityY: number,
 ): boolean {
+  'worklet';
   return (
     Number.isFinite(dx)
     && Number.isFinite(dy)
@@ -57,6 +59,7 @@ export function getWorkspaceSwipeTargetIndex(
   velocityX = 0,
   velocityY = 0,
 ): number | null {
+  'worklet';
   const committedByDistance = isWorkspaceSwipeIntent(
     dx,
     dy,
@@ -94,6 +97,7 @@ export function getWorkspaceSwipeOffset(
   itemCount: number,
   dx: number,
 ): number {
+  'worklet';
   if (!Number.isFinite(dx) || itemCount <= 0 || currentIndex < 0 || currentIndex >= itemCount) {
     return 0;
   }
@@ -117,6 +121,7 @@ export function getWorkspacePagerRestingOffset(
   pageWidth: number,
   hasAdjacentPages: boolean,
 ): number {
+  'worklet';
   if (!hasAdjacentPages) return 0;
   if (!Number.isInteger(currentIndex) || currentIndex < 0) return 0;
   if (!Number.isFinite(pageWidth) || pageWidth <= 0) return 0;

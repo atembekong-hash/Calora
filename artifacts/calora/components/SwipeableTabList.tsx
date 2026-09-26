@@ -1,27 +1,23 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   StyleSheet,
   useWindowDimensions,
   View,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import Animated, {
-  Easing,
-  ReduceMotion,
-  cancelAnimation,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import {
   getWorkspacePagerRestingOffset,
   getWorkspaceSwipeOffset,
   getWorkspaceSwipeTargetIndex,
   isWorkspaceSwipeIntent,
   isWorkspaceSwipeVelocityIntent,
+  WORKSPACE_SWIPE_ACTIVATION_DISTANCE,
+  WORKSPACE_SWIPE_DOMINANCE_RATIO,
 } from '@/lib/workspaceSwipe';
 
 type SwipeableTabListProps<T extends string> = {
@@ -39,17 +35,26 @@ type SwipeableSectionPagerProps<T extends string> = {
   activeItem: T;
   onChange: (item: T) => void;
   children?: React.ReactNode;
+  /** Renders real adjacent panes in one horizontal track. */
   renderItem?: (item: T) => React.ReactNode;
+  /** Number of adjacent pane bodies to retain on either side. */
+  renderWindow?: number;
+  /** Lets section panes fill the available height of the parent screen. */
+  fillViewport?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
   accessibilityHint?: string;
+  /** Retained for existing callers; native cancellation owns gesture release. */
   lockGesture?: boolean;
+  /** Retained for callers; this pager always releases without a timing animation. */
   disableAnimation?: boolean;
   testID?: string;
 };
 
-const SwipeGestureExclusionContext = React.createContext<(() => void) | null>(null);
+type SwipeGestureExclusionContextValue = { setExcluded: (excluded: boolean) => void };
+const SwipeGestureExclusionContext = React.createContext<SwipeGestureExclusionContextValue | null>(null);
 
+/** Marks nested horizontal controls so the page pan can fail before capturing them. */
 export function SwipeGestureExclusion({
   children,
   style,
@@ -57,15 +62,15 @@ export function SwipeGestureExclusion({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const excludeCurrentGesture = React.useContext(SwipeGestureExclusionContext);
+  const exclusion = React.useContext(SwipeGestureExclusionContext);
+  if (!exclusion) return <>{children}</>;
 
   return (
     <View
       collapsable={false}
-      onStartShouldSetResponderCapture={() => {
-        excludeCurrentGesture?.();
-        return false;
-      }}
+      onTouchCancel={() => exclusion.setExcluded(false)}
+      onTouchEnd={() => exclusion.setExcluded(false)}
+      onTouchStart={() => exclusion.setExcluded(true)}
       style={style}
     >
       {children}
@@ -73,14 +78,18 @@ export function SwipeGestureExclusion({
   );
 }
 
-/**
- * A tablist that preserves ordinary tab presses while allowing a deliberate
- * horizontal swipe across the strip to select the adjacent tab.
- *
- * The gesture surface is intentionally limited to the tab strip. Screens can
- * therefore keep vertical scrolling, horizontal carousels, charts, and form
- * controls without the submenu gesture competing for those touches.
- */
+function getActiveIndex<T extends string>(items: readonly T[], activeItem: T) {
+  const index = items.indexOf(activeItem);
+  return index >= 0 ? index : 0;
+}
+
+function isClearlyVertical(dx: number, dy: number) {
+  'worklet';
+  return Math.abs(dy) >= WORKSPACE_SWIPE_ACTIVATION_DISTANCE
+    && Math.abs(dy) > Math.abs(dx) * WORKSPACE_SWIPE_DOMINANCE_RATIO;
+}
+
+/** Keeps tab presses intact while allowing a deliberate swipe across the tab strip. */
 export function SwipeableTabList<T extends string>({
   items,
   activeItem,
@@ -93,9 +102,6 @@ export function SwipeableTabList<T extends string>({
   const itemsRef = useRef(items);
   const activeItemRef = useRef(activeItem);
   const onChangeRef = useRef(onChange);
-
-  // PanResponder is intentionally stable; refs keep its release handler aligned
-  // with the latest active tab and callback without rebuilding it each render.
   itemsRef.current = items;
   activeItemRef.current = activeItem;
   onChangeRef.current = onChange;
@@ -121,10 +127,7 @@ export function SwipeableTabList<T extends string>({
           gesture.vx,
           gesture.vy,
         );
-
-        if (targetIndex !== null) {
-          onChangeRef.current(currentItems[targetIndex]);
-        }
+        if (targetIndex !== null) onChangeRef.current(currentItems[targetIndex]);
       },
       onPanResponderTerminationRequest: () => true,
     }),
@@ -146,11 +149,9 @@ export function SwipeableTabList<T extends string>({
 }
 
 /**
- * A full-content gesture surface for peer submenu sections.
- *
- * It intentionally does not capture in the responder capture phase. Native
- * horizontal ScrollViews nested inside the section therefore keep ownership of
- * their own drags, while ordinary section content can still page left or right.
+ * Native direct-manipulation pager. It holds the active and adjacent panes in a
+ * horizontal track and applies the exact finger translation on the UI thread.
+ * It never fades, springs, or starts a release timing animation.
  */
 export function SwipeableSectionPager<T extends string>({
   items,
@@ -158,267 +159,159 @@ export function SwipeableSectionPager<T extends string>({
   onChange,
   children,
   renderItem,
+  renderWindow = 1,
+  fillViewport = false,
   style,
   accessibilityLabel,
   accessibilityHint = 'Swipe left or right to switch sections',
-  lockGesture = false,
-  disableAnimation = false,
   testID,
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
-  const reduceMotion = useReducedMotion();
-  const [surfaceWidth, setSurfaceWidth] = React.useState(windowWidth);
-  const translateX = useSharedValue(0);
-  const opacity = useSharedValue(1);
+  const [surfaceWidth, setSurfaceWidth] = useState(windowWidth);
+  const activeIndex = getActiveIndex(items, activeItem);
+  const hasAdjacentPages = Boolean(renderItem);
+  const pageWidth = useSharedValue(windowWidth);
+  const translateX = useSharedValue(getWorkspacePagerRestingOffset(activeIndex, windowWidth, hasAdjacentPages));
+  const activeIndexValue = useSharedValue(activeIndex);
+  const itemCountValue = useSharedValue(items.length);
+  const excluded = useSharedValue(false);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
   const itemsRef = useRef(items);
-  const activeItemRef = useRef(activeItem);
   const onChangeRef = useRef(onChange);
-  const widthRef = useRef(windowWidth);
-  const reduceMotionRef = useRef(reduceMotion);
-  const lockGestureRef = useRef(lockGesture);
-  const disableAnimationRef = useRef(disableAnimation);
-  const excludedGestureRef = useRef(false);
-  const renderItemRef = useRef(renderItem);
-  const surfaceWidthRef = useRef(windowWidth);
-
   itemsRef.current = items;
-  activeItemRef.current = activeItem;
   onChangeRef.current = onChange;
-  surfaceWidthRef.current = surfaceWidth || windowWidth;
-  widthRef.current = surfaceWidthRef.current;
-  reduceMotionRef.current = reduceMotion;
-  lockGestureRef.current = lockGesture;
-  disableAnimationRef.current = disableAnimation;
-  renderItemRef.current = renderItem;
 
-  React.useEffect(() => {
-    if (!renderItemRef.current) {
-      if (reduceMotionRef.current || disableAnimationRef.current) {
-        translateX.value = 0;
-        opacity.value = 1;
-        return;
-      }
-      translateX.value = withTiming(0, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      });
-      opacity.value = withTiming(1, {
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      });
-      return;
-    }
-    const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
-    if (currentIndex < 0) return;
-    const targetOffset = getWorkspacePagerRestingOffset(
-      currentIndex,
-      surfaceWidthRef.current,
-      true,
-    );
-    if (reduceMotionRef.current || disableAnimationRef.current) {
-      translateX.value = targetOffset;
-      return;
-    }
-    translateX.value = withTiming(targetOffset, {
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.System,
-    });
-  }, [activeItem, surfaceWidth, translateX]);
+  useEffect(() => {
+    activeIndexValue.value = activeIndex;
+    itemCountValue.value = items.length;
+    translateX.value = getWorkspacePagerRestingOffset(activeIndex, pageWidth.value, hasAdjacentPages);
+  }, [activeIndex, activeIndexValue, hasAdjacentPages, itemCountValue, items.length, pageWidth, translateX]);
 
-  const restingOffset = () => {
-    const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
-    return getWorkspacePagerRestingOffset(
-      currentIndex,
-      widthRef.current,
-      Boolean(renderItemRef.current),
-    );
-  };
+  const commitIndex = useCallback((index: number) => {
+    const nextItem = itemsRef.current[index];
+    if (nextItem) onChangeRef.current(nextItem);
+  }, []);
 
-  const settleAtRest = () => {
-    const targetOffset = restingOffset();
-    if (disableAnimationRef.current) {
-      translateX.value = targetOffset;
-      opacity.value = 1;
-      return;
-    }
-    translateX.value = withTiming(targetOffset, {
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.System,
-    });
-    opacity.value = withTiming(1, {
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.System,
-    });
-  };
+  const setExcluded = useCallback((isExcluded: boolean) => {
+    excluded.value = isExcluded;
+  }, [excluded]);
 
-  const showTarget = (targetItem: T, direction: number) => {
-    const targetIndex = itemsRef.current.indexOf(targetItem);
-    const targetOffset = renderItemRef.current && targetIndex >= 0
-      ? -targetIndex * widthRef.current
-      : direction * Math.min(widthRef.current * 0.22, 88);
-    onChangeRef.current(targetItem);
-    if (reduceMotionRef.current || disableAnimationRef.current) {
-      // In children mode the next section replaces the current child at
-      // offset zero. Do not leave it parked at the directional preview offset
-      // when settle animation is disabled.
-      translateX.value = renderItemRef.current ? targetOffset : 0;
-      opacity.value = 1;
-      return;
-    }
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = event.nativeEvent.layout.width;
+    if (!Number.isFinite(nextWidth) || nextWidth <= 0 || Math.abs(nextWidth - pageWidth.value) <= 0.5) return;
+    setSurfaceWidth(nextWidth);
+    pageWidth.value = nextWidth;
+    translateX.value = getWorkspacePagerRestingOffset(activeIndexValue.value, nextWidth, hasAdjacentPages);
+  }, [activeIndexValue, hasAdjacentPages, pageWidth, translateX]);
 
-    // When renderItem is provided, adjacent pages are already beside the active
-    // page, so the release animation only needs to finish the drag to its target.
-    // The legacy children mode keeps its short directional entrance animation.
-    opacity.value = 0.92;
-    translateX.value = withTiming(targetOffset, {
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.System,
-    });
-    opacity.value = withTiming(1, {
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-      reduceMotion: ReduceMotion.System,
-    });
-  };
-
-  const commitTarget = (targetItem: T, direction: number) => {
-    showTarget(targetItem, direction);
-  };
-
-  const panResponder = useMemo(
-    () => PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => {
-        excludedGestureRef.current = false;
-        return false;
-      },
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        !excludedGestureRef.current && (
-          isWorkspaceSwipeIntent(gesture.dx, gesture.dy)
-          || isWorkspaceSwipeVelocityIntent(gesture.dx, gesture.dy, gesture.vx, gesture.vy)
-        ),
-      onMoveShouldSetPanResponderCapture: () => false,
-      onPanResponderGrant: () => {
-        cancelAnimation(translateX);
-        cancelAnimation(opacity);
-        opacity.value = 1;
-      },
-      onPanResponderMove: (_event, gesture) => {
-        const currentItems = itemsRef.current;
-        const currentIndex = currentItems.indexOf(activeItemRef.current);
-        const dragOffset = getWorkspaceSwipeOffset(
-          currentIndex,
-          currentItems.length,
-          gesture.dx,
-        );
-        const pageOffset = renderItemRef.current && currentIndex >= 0
-          ? -currentIndex * widthRef.current
-          : 0;
-        translateX.value = pageOffset + dragOffset;
-        opacity.value = disableAnimationRef.current
-          ? 1
-          : Math.max(0.84, 1 - Math.abs(dragOffset) / Math.max(widthRef.current, 1) * 0.16);
-      },
-      onPanResponderRelease: (_event, gesture) => {
-        const currentItems = itemsRef.current;
-        const currentIndex = currentItems.indexOf(activeItemRef.current);
-        const targetIndex = getWorkspaceSwipeTargetIndex(
-          currentIndex,
-          currentItems.length,
-          gesture.dx,
-          gesture.dy,
-          gesture.vx,
-          gesture.vy,
-        );
-
-        if (targetIndex === null) {
-          settleAtRest();
+  const pagerSwipe = useMemo(
+    () => Gesture.Pan()
+      .manualActivation(true)
+      .maxPointers(1)
+      .averageTouches(true)
+      .onTouchesDown((event) => {
+        const touch = event.allTouches[0];
+        if (!touch) return;
+        startX.value = touch.absoluteX;
+        startY.value = touch.absoluteY;
+      })
+      .onTouchesMove((event, manager) => {
+        const touch = event.allTouches[0];
+        if (!touch) return;
+        if (excluded.value) {
+          manager.fail();
           return;
         }
-
-        const direction = targetIndex > currentIndex ? 1 : -1;
-        commitTarget(currentItems[targetIndex], direction);
-      },
-      onPanResponderTerminate: settleAtRest,
-      onPanResponderTerminationRequest: () => !lockGestureRef.current,
-    }),
-    [],
+        const dx = touch.absoluteX - startX.value;
+        const dy = touch.absoluteY - startY.value;
+        if (isClearlyVertical(dx, dy)) {
+          manager.fail();
+          return;
+        }
+        if (isWorkspaceSwipeIntent(dx, dy)) manager.activate();
+      })
+      .onUpdate((event) => {
+        const dragOffset = getWorkspaceSwipeOffset(
+          activeIndexValue.value,
+          itemCountValue.value,
+          event.translationX,
+        );
+        translateX.value = getWorkspacePagerRestingOffset(
+          activeIndexValue.value,
+          pageWidth.value,
+          hasAdjacentPages,
+        ) + dragOffset;
+      })
+      .onEnd((event) => {
+        const currentIndex = activeIndexValue.value;
+        const targetIndex = getWorkspaceSwipeTargetIndex(
+          currentIndex,
+          itemCountValue.value,
+          event.translationX,
+          event.translationY,
+          event.velocityX,
+          event.velocityY,
+        );
+        const settledIndex = targetIndex ?? currentIndex;
+        activeIndexValue.value = settledIndex;
+        translateX.value = getWorkspacePagerRestingOffset(settledIndex, pageWidth.value, hasAdjacentPages);
+        if (targetIndex !== null) runOnJS(commitIndex)(targetIndex);
+      })
+      .onFinalize(() => {
+        translateX.value = getWorkspacePagerRestingOffset(
+          activeIndexValue.value,
+          pageWidth.value,
+          hasAdjacentPages,
+        );
+      }),
+    [activeIndexValue, commitIndex, excluded, hasAdjacentPages, itemCountValue, pageWidth, startX, startY, translateX],
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+  const trackStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
-  const exclusionContextValue = useMemo(
-    () => () => {
-      excludedGestureRef.current = true;
-    },
-    [],
-  );
+  const exclusionValue = useMemo<SwipeGestureExclusionContextValue>(() => ({ setExcluded }), [setExcluded]);
+  const safeWindow = Math.max(1, Math.floor(renderWindow));
 
   return (
-    <SwipeGestureExclusionContext.Provider value={exclusionContextValue}>
-      <Animated.View
-        {...panResponder.panHandlers}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint={accessibilityHint}
-        onLayout={(event) => {
-          const nextWidth = event.nativeEvent.layout.width;
-          if (nextWidth > 0 && Math.abs(nextWidth - surfaceWidthRef.current) > 0.5) {
-            surfaceWidthRef.current = nextWidth;
-            setSurfaceWidth(nextWidth);
-            const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
-            if (renderItemRef.current && currentIndex >= 0) {
-              translateX.value = getWorkspacePagerRestingOffset(
-                currentIndex,
-                nextWidth,
-                true,
+    <SwipeGestureExclusionContext.Provider value={exclusionValue}>
+      <GestureDetector gesture={pagerSwipe}>
+        <View
+          accessibilityLabel={accessibilityLabel}
+          accessibilityHint={accessibilityHint}
+          onLayout={handleLayout}
+          style={[styles.pager, style]}
+          testID={testID}
+        >
+          <Animated.View style={[styles.pagerTrack, fillViewport && styles.pagerTrackFill, trackStyle]}>
+            {hasAdjacentPages && renderItem ? items.map((item, index) => {
+              const shouldRenderBody = Math.abs(index - activeIndex) <= safeWindow;
+              return (
+                <View
+                  key={item}
+                  style={[styles.pagerPage, fillViewport && styles.pagerPageFill, { width: surfaceWidth }]}
+                  testID={testID ? `${testID}-pane-${item}` : undefined}
+                >
+                  {shouldRenderBody ? renderItem(item) : <View pointerEvents="none" style={styles.pagerPlaceholder} />}
+                </View>
               );
-            }
-          }
-        }}
-        style={[style, styles.gestureSurface]}
-        testID={testID}
-      >
-        {renderItem ? (
-          <Animated.View
-            style={[
-              styles.pagerTrack,
-              { width: surfaceWidthRef.current * items.length },
-              animatedStyle,
-            ]}
-          >
-            {items.map((item) => (
-              <View key={item} style={{ width: surfaceWidthRef.current }}>
-                {renderItemRef.current?.(item)}
-              </View>
-            ))}
+            }) : (
+              <View style={[styles.pagerPage, fillViewport && styles.pagerPageFill, { width: surfaceWidth }]}>{children}</View>
+            )}
           </Animated.View>
-        ) : (
-          <Animated.View style={[styles.pagerContent, animatedStyle]}>{children}</Animated.View>
-        )}
-      </Animated.View>
+        </View>
+      </GestureDetector>
     </SwipeGestureExclusionContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  gestureSurface: {
-    overflow: 'hidden',
-    minHeight: 0,
-    userSelect: 'none',
-  },
-  pagerContent: {
-    flex: 1,
-    minHeight: 0,
-  },
-  pagerTrack: {
-    flexDirection: 'row',
-  },
+  gestureSurface: { overflow: 'hidden', minHeight: 0, userSelect: 'none' },
+  pager: { overflow: 'hidden', minHeight: 0, width: '100%' },
+  pagerTrack: { alignItems: 'flex-start', flexDirection: 'row' },
+  pagerTrackFill: { flex: 1 },
+  pagerPage: { flexShrink: 0 },
+  pagerPageFill: { height: '100%' },
+  pagerPlaceholder: { minHeight: 1 },
 });

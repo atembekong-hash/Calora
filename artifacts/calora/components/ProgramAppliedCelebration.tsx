@@ -22,12 +22,15 @@ export function ProgramAppliedCelebration({
   message,
   colors,
   onDismiss,
+  noMotion = false,
 }: {
   visible: boolean;
   programLabel: string;
   message: string;
   colors: Colors;
   onDismiss: () => void;
+  /** Uses a static banner without entry, exit, or icon motion. */
+  noMotion?: boolean;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
@@ -35,6 +38,14 @@ export function ProgramAppliedCelebration({
 
   useEffect(() => {
     if (!visible) return;
+
+    if (noMotion) {
+      opacity.value = 1;
+      scale.value = 1;
+      iconScale.value = 1;
+      const dismissTimer = setTimeout(onDismiss, 3200);
+      return () => clearTimeout(dismissTimer);
+    }
 
     opacity.value = withDelay(40, withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }));
     scale.value = withDelay(40, withSpring(1, { damping: 15, stiffness: 180 }));
@@ -53,7 +64,7 @@ export function ProgramAppliedCelebration({
     }, 3200);
 
     return () => clearTimeout(dismissTimer);
-  }, [iconScale, onDismiss, opacity, scale, visible]);
+  }, [iconScale, noMotion, onDismiss, opacity, scale, visible]);
 
   const bannerStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
