@@ -14,7 +14,7 @@
         "resourceClass": "medium"
       },
       "ios": {
-        "image": "macos-sonoma-14.5-xcode-15.4",
+        "image": "macos-sequoia-15.6-xcode-16.4",
         "resourceClass": "m-medium"
       }
     },

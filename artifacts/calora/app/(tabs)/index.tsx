@@ -626,16 +626,18 @@ function WaterCard({
   );
 }
 
-function stepStatusCopy(tracking: LiveStepTrackingState, healthConnected: boolean): string {
-  if (isLiveSessionOnly(tracking)) return 'Live since opened — connect Health for today’s total';
+function stepStatusCopy(tracking: LiveStepTrackingState, hasDailyProviderTotal: boolean): string {
+  if (isLiveSessionOnly(tracking)) return tracking.status === 'live'
+    ? 'Live since opened — connect Health for today’s total'
+    : 'Session steps since opened — connect Health for today’s total';
   if (tracking.status === 'live') return 'Live';
   if (tracking.status === 'syncing') return 'Syncing steps…';
   if (tracking.status === 'permission-required') return 'Enable motion access for live steps';
   if (tracking.status === 'denied') return 'Motion access is off';
-  if (tracking.status === 'unavailable') return healthConnected ? 'Updated from Health' : 'Steps need the Calora mobile app';
+  if (tracking.status === 'unavailable') return hasDailyProviderTotal ? 'Updated from Health' : 'Connect Health for today’s total';
   if (tracking.status === 'error') return 'Unable to refresh live steps';
   if (tracking.status === 'health-only') return 'Updated from Health';
-  if (!healthConnected) return 'Connect Health to retain steps';
+  if (!hasDailyProviderTotal) return 'Connect Health for today’s total';
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
@@ -643,7 +645,7 @@ function StepsTodayCard({
   colors,
   tracking,
   dailyStepGoal,
-  healthConnected,
+  healthConnection,
   onEnableLiveSteps,
   onRetryLiveSteps,
   onOpenMotionSettings,
@@ -652,7 +654,7 @@ function StepsTodayCard({
   colors: ReturnType<typeof useCalora>['colors'];
   tracking: LiveStepTrackingState;
   dailyStepGoal: number;
-  healthConnected: boolean;
+  healthConnection: ReturnType<typeof useCalora>['healthConnection'];
   onEnableLiveSteps: () => void;
   onRetryLiveSteps: () => void;
   onOpenMotionSettings: () => void;
@@ -660,20 +662,31 @@ function StepsTodayCard({
 }) {
   const steps = tracking.displayedSteps;
   const progress = steps === null ? 0 : Math.min(steps / dailyStepGoal, 1);
-  const status = stepStatusCopy(tracking, healthConnected);
   const sessionOnly = isLiveSessionOnly(tracking);
+  const hasDailyProviderTotal = tracking.providerSteps !== null;
+  const needsStepsAccess = healthConnection.provider === 'health-connect'
+    && healthConnection.authorization === 'partial'
+    && !healthConnection.granted.includes('steps');
+  const hasReadyHealthConnection = healthConnection.authorization === 'requested'
+    || healthConnection.authorization === 'authorized'
+    || healthConnection.authorization === 'partial';
+  const status = stepStatusCopy(tracking, hasDailyProviderTotal);
   const needsMotionSettings = tracking.status === 'denied';
   const needsMotionAccess = tracking.status === 'permission-required';
   const needsRetry = tracking.status === 'error';
-  const needsHealthConnection = !healthConnected && (tracking.status !== 'live' || sessionOnly);
+  const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);
   const actionLabel = needsMotionSettings
     ? 'Open motion settings'
     : needsMotionAccess
     ? 'Enable live steps'
     : needsRetry
       ? 'Retry live steps'
-    : needsHealthConnection
-      ? 'Connect Health'
+    : needsDailyStepTotal
+      ? needsStepsAccess
+        ? 'Update Health access'
+        : hasReadyHealthConnection
+          ? 'Sync Health'
+          : 'Connect Health'
       : null;
   const onPress = needsMotionSettings
     ? onOpenMotionSettings
@@ -681,15 +694,21 @@ function StepsTodayCard({
       ? onEnableLiveSteps
       : needsRetry
         ? onRetryLiveSteps
-      : needsHealthConnection
-        ? onOpenHealth
+      : needsDailyStepTotal
+        ? needsStepsAccess || !hasReadyHealthConnection
+          ? onOpenHealth
+          : onRetryLiveSteps
         : undefined;
-  const accessibilityPrefix = sessionOnly ? 'Live session steps since Calora opened' : 'Steps today';
+  const accessibilityPrefix = sessionOnly
+    ? tracking.status === 'live'
+      ? 'Live session steps since Calora opened'
+      : 'Session steps since Calora opened'
+    : 'Steps today';
+  const accessibilitySummary = `${accessibilityPrefix}: ${steps === null ? 'unavailable' : steps.toLocaleString()} of ${dailyStepGoal.toLocaleString()}. ${status}.`;
 
   return (
     <View
       testID="dashboard-steps-card"
-      accessibilityLabel={`${accessibilityPrefix}: ${steps === null ? 'unavailable' : steps.toLocaleString()} of ${dailyStepGoal.toLocaleString()}. ${status}.`}
       style={[styles.stepsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={styles.stepsCardHeader}>
@@ -697,12 +716,12 @@ function StepsTodayCard({
           <Feather name="activity" size={20} color={colors.accentForeground} />
         </View>
         <View style={styles.stepsCardTitleGroup}>
-          <Text style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps today</Text>
+          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps today</Text>
           <Text testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? colors.success : colors.mutedForeground }]}>{status}</Text>
         </View>
         {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
       </View>
-      <Text testID="dashboard-steps-value" style={[styles.stepsValue, { color: colors.foreground }]}>
+      <Text accessible accessibilityRole="text" accessibilityLabel={accessibilitySummary} testID="dashboard-steps-value" style={[styles.stepsValue, { color: colors.foreground }]}>
         {steps === null ? '—' : steps.toLocaleString()}
         <Text style={[styles.stepsGoal, { color: colors.mutedForeground }]}> / {dailyStepGoal.toLocaleString()}</Text>
       </Text>
@@ -1770,7 +1789,7 @@ export default function HomeScreen() {
             colors={colors}
             tracking={liveStepTracking}
             dailyStepGoal={dailyStepGoal}
-            healthConnected={healthConnected}
+            healthConnection={healthConnection}
             onEnableLiveSteps={() => { void startLiveStepTracking(true); }}
             onRetryLiveSteps={() => { void startLiveStepTracking(); }}
             onOpenMotionSettings={() => {

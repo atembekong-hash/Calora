@@ -69,6 +69,13 @@ export function needsActiveEnergyAuthorization(connection: HealthConnection): bo
     && !connection.granted.includes('activeEnergy');
 }
 
+/** Whether Android can sync some data but still needs Steps read access. */
+export function needsStepsAuthorization(connection: HealthConnection): boolean {
+  return connection.provider === 'health-connect'
+    && connection.authorization === 'partial'
+    && !connection.granted.includes('steps');
+}
+
 export function normalizeHealthConnection(value?: boolean | Partial<HealthConnection>): HealthConnection {
   if (!value || typeof value === 'boolean') return EMPTY_HEALTH_CONNECTION;
   const provider = providers.has(value.provider as HealthProvider) ? value.provider as HealthProvider : 'unsupported';

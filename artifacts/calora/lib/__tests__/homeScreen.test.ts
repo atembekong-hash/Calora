@@ -497,9 +497,16 @@ describe('Today dashboard — date context and display contracts', () => {
     );
 
     expect(source).toContain('Live since opened — connect Health for today’s total');
+    expect(source).toContain('Session steps since opened — connect Health for today’s total');
     expect(source).toContain('const sessionOnly = isLiveSessionOnly(tracking);');
-    expect(source).toContain("const needsHealthConnection = !healthConnected && (tracking.status !== 'live' || sessionOnly);");
-    expect(source).toContain("const accessibilityPrefix = sessionOnly ? 'Live session steps since Calora opened' : 'Steps today';");
+    expect(source).toContain('const hasDailyProviderTotal = tracking.providerSteps !== null;');
+    expect(source).toContain("healthConnection.granted.includes('steps')");
+    expect(source).toContain("const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);");
+    expect(source).toContain("? 'Update Health access'");
+    expect(source).toContain("? 'Sync Health'");
+    expect(source).toContain('const accessibilitySummary = `${accessibilityPrefix}:');
+    expect(source).toContain('accessible accessibilityRole="text" accessibilityLabel={accessibilitySummary}');
+    expect(source).toContain('accessibilityRole="header"');
   });
 
   it('routes a permanent motion denial to settings rather than retrying the same prompt', async () => {

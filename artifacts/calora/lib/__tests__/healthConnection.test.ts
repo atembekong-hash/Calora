@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { needsActiveEnergyAuthorization, normalizeHealthConnection } from '../healthConnection';
+import { needsActiveEnergyAuthorization, needsStepsAuthorization, normalizeHealthConnection } from '../healthConnection';
 
 describe('normalizeHealthConnection', () => {
   it('does not trust a legacy connected flag without provider metadata', () => {
@@ -47,9 +47,13 @@ describe('normalizeHealthConnection', () => {
     expect(invalid.syncError).toContain('invalid');
   });
 
-  it('identifies only an Android partial grant missing active energy as updateable access', () => {
+  it('identifies only missing Android partial-grant categories as updateable access', () => {
     expect(needsActiveEnergyAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['steps'] })).toBe(true);
     expect(needsActiveEnergyAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['activeEnergy'] })).toBe(false);
     expect(needsActiveEnergyAuthorization({ provider: 'healthkit', authorization: 'requested', granted: [] })).toBe(false);
+
+    expect(needsStepsAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['activeEnergy'] })).toBe(true);
+    expect(needsStepsAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['steps'] })).toBe(false);
+    expect(needsStepsAuthorization({ provider: 'healthkit', authorization: 'requested', granted: [] })).toBe(false);
   });
 });

@@ -122,6 +122,22 @@ describe("live step tracking reconciliation", () => {
     expect(suspended.displayedSteps).toBe(408);
     expect(suspended.providerSteps).toBe(400);
     expect(suspended.status).toBe("syncing");
+    expect(isLiveSessionOnly(suspended)).toBe(false);
+  });
+
+  it("retains the session-only qualifier after a no-Health listener is suspended", () => {
+    const suspended = suspendLiveStepSession(
+      projectLiveSteps(
+        beginLiveStepSession(createLiveStepTrackingState(day), "granted", startedAt),
+        8,
+        startedAt,
+      ),
+    );
+
+    expect(suspended.status).toBe("syncing");
+    expect(suspended.providerSteps).toBeNull();
+    expect(suspended.displayedSteps).toBe(8);
+    expect(isLiveSessionOnly(suspended)).toBe(true);
   });
 
   it("never turns unavailable data into a fabricated measured zero", () => {

@@ -193,9 +193,17 @@ export function suspendLiveStepSession(
   };
 }
 
-/** True only while the card represents a live session rather than a full day. */
+/**
+ * True while the card represents a foreground-session projection rather than a
+ * provider-confirmed daily total. This remains true after a listener is
+ * suspended so the UI never relabels a provisional value as all-day steps.
+ */
 export function isLiveSessionOnly(state: LiveStepTrackingState): boolean {
-  return state.status === "live" && state.providerSteps === null;
+  return state.providerSteps === null
+    && state.sessionBaseSteps !== null
+    && state.sessionSteps !== null
+    && state.displayedSteps !== null
+    && (state.status === "live" || state.status === "syncing");
 }
 
 /** A Health total that trails an active projection needs bounded convergence retries. */

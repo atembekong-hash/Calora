@@ -354,6 +354,22 @@ describe('Profile rendered interactions', () => {
     await waitFor(() => expect(harness.calora.connectHealth).toHaveBeenCalledTimes(1));
   });
 
+  it('recovers a partial Health Connect grant that lacks Steps', async () => {
+    harness.calora.healthConnection = {
+      provider: 'health-connect',
+      authorization: 'partial',
+      granted: ['activeEnergy'],
+    };
+    const view = render(<ProfileScreen />);
+    harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
+
+    await waitFor(() => expect(screen.getByText(/Steps are not allowed yet/)).toBeTruthy());
+    expect(screen.getByText(/allow Steps/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Update Health Connect access' }));
+    await waitFor(() => expect(harness.calora.connectHealth).toHaveBeenCalledTimes(1));
+  });
+
   it('opens native Health Connect settings from the partial-access recovery path', async () => {
     const view = render(<ProfileScreen />);
     harness.state.open = 'health';

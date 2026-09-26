@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 import { BRAND, EMAILS, SUBSCRIPTION, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
 import { formatGrams, formatWhole } from '@/lib/formatters';
-import { needsActiveEnergyAuthorization } from '@/lib/healthConnection';
+import { needsActiveEnergyAuthorization, needsStepsAuthorization } from '@/lib/healthConnection';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -772,6 +772,7 @@ export default function ProfileScreen() {
       : `${formatQuantity(profile.weightKg)} kg`
     : null;
   const needsActiveEnergyAccess = needsActiveEnergyAuthorization(healthConnection);
+  const needsStepsAccess = needsStepsAuthorization(healthConnection);
 
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
@@ -1782,7 +1783,7 @@ export default function ProfileScreen() {
                     : healthConnection.authorization === 'requested'
                       ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose Calora.'
                       : healthConnected
-                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${needsActiveEnergyAccess ? 'Active calories are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'} Live motion, when allowed, only updates Today while the app is in the foreground.`
+                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${needsStepsAccess ? 'Steps are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : needsActiveEnergyAccess ? 'Active calories are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'} Live motion, when allowed, only updates Today while the app is in the foreground.`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}
                 </Text>
                 <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -1825,7 +1826,7 @@ export default function ProfileScreen() {
                 )}
                 {healthConnected && (
                   <>
-                    {needsActiveEnergyAccess && (
+                    {(needsActiveEnergyAccess || needsStepsAccess) && (
                       <>
                         <Pressable accessibilityRole="button" accessibilityLabel="Update Health Connect access" testID="update-health-access" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                           {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Update Health access</Text>}
@@ -1833,7 +1834,9 @@ export default function ProfileScreen() {
                         <Pressable accessibilityRole="button" accessibilityLabel="Open Health Connect settings" testID="open-health-connect-settings" onPress={handleOpenHealthSettings} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10, opacity: healthBusy ? 0.6 : 1 }]}>
                           <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Open Health Connect settings</Text>
                         </Pressable>
-                        <Text style={[styles.settingBody, { color: colors.mutedForeground, marginTop: 10 }]}>If Android does not show another permission prompt, open Health Connect settings, choose App permissions, select Calora, and allow Active calories.</Text>
+                        <Text style={[styles.settingBody, { color: colors.mutedForeground, marginTop: 10 }]}>{needsStepsAccess
+                          ? 'If Android does not show another permission prompt, open Health Connect settings, choose App permissions, select Calora, and allow Steps.'
+                          : 'If Android does not show another permission prompt, open Health Connect settings, choose App permissions, select Calora, and allow Active calories.'}</Text>
                       </>
                     )}
                     <Pressable accessibilityRole="button" accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
