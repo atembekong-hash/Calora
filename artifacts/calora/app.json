@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.etiendem.caloraapp",
       "buildNumber": "8",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMotionUsageDescription": "Calora uses Motion & Fitness activity to show your live steps while the dashboard is open."
       },
       "associatedDomains": [
         "applinks:mycaloraapp.com"
@@ -28,6 +29,7 @@
       "package": "com.etiendem.caloraapp",
       "versionCode": 24,
       "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
         "android.permission.health.READ_EXERCISE",

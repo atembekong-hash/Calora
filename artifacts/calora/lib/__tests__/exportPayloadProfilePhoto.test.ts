@@ -35,6 +35,7 @@ function state(profilePhotoUri: string | null): CaloraExportState {
     notificationPreferences: {},
     healthConnected: false,
     healthConnection: null,
+    dailyStepGoal: 10000,
     consentAccepted: true,
     outbox: [],
     coachConsentAccepted: false,

@@ -21,6 +21,7 @@ import { type MealReminderPrefs } from '@/lib/mealReminders';
 import { type GoalReminderPrefs } from '@/lib/goalReminder';
 import { normalizeNotificationPreferences } from '@/lib/notificationPreferences';
 import { reconcileUserNotificationPlan } from '@/lib/notificationLifecycle';
+import { normalizeDailyStepGoal } from '@/lib/steps/stepTracking';
 import type { NotificationReconciliationResult } from '@/lib/notificationReconciliation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
@@ -96,6 +97,7 @@ export default function ProfileScreen() {
     colors, themePreference, setThemePreference,
     profile, onboardingComplete, onboardingStep, updateProfile,
     healthConnected, healthConnection, connectHealth, openHealthSettings, syncHealth, disconnectHealth,
+    dailyStepGoal, setDailyStepGoal,
     exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
     notificationPreferences, updateNotificationPreferences,
@@ -202,6 +204,7 @@ export default function ProfileScreen() {
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthSyncFeedback, setHealthSyncFeedback] = useState<HealthSyncOutcome | null>(null);
+  const [dailyStepGoalDraft, setDailyStepGoalDraft] = useState(String(dailyStepGoal));
   const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
@@ -295,8 +298,12 @@ export default function ProfileScreen() {
   }, [open]);
 
   useEffect(() => {
-    if (infoModal !== 'health') setHealthSyncFeedback(null);
-  }, [infoModal]);
+    if (infoModal !== 'health') {
+      setHealthSyncFeedback(null);
+      return;
+    }
+    setDailyStepGoalDraft(String(dailyStepGoal));
+  }, [dailyStepGoal, infoModal]);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -629,6 +636,17 @@ export default function ProfileScreen() {
     } finally {
       setHealthBusy(false);
     }
+  };
+  const handleSaveDailyStepGoal = () => {
+    const parsed = Number(dailyStepGoalDraft.replace(/,/g, '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      Alert.alert('Choose a step goal', 'Enter a daily goal between 100 and 100,000 steps.');
+      return;
+    }
+    const next = normalizeDailyStepGoal(parsed);
+    setDailyStepGoal(next);
+    setDailyStepGoalDraft(String(next));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   /** Profile edit */
@@ -1756,7 +1774,7 @@ export default function ProfileScreen() {
               <>
                 <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
                   {healthConnection.authorization === 'unavailable'
-                    ? 'Health data is unavailable on this device. Calora will continue to work locally without it.'
+                    ? 'Health data is unavailable on this device. Calora will continue to work locally without it. Live steps, when your device supports Motion & Fitness, are requested separately only while Today is open.'
                     : healthConnection.authorization === 'error'
                       ? healthConnection.syncError ?? 'Health access could not be completed. Try connecting again.'
                     : healthConnection.authorization === 'denied'
@@ -1764,7 +1782,7 @@ export default function ProfileScreen() {
                     : healthConnection.authorization === 'requested'
                       ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose Calora.'
                       : healthConnected
-                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${needsActiveEnergyAccess ? 'Active calories are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
+                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${needsActiveEnergyAccess ? 'Active calories are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'} Live motion, when allowed, only updates Today while the app is in the foreground.`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}
                 </Text>
                 <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -1772,6 +1790,33 @@ export default function ProfileScreen() {
                   <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>
                     {healthConnection.syncError ?? (healthConnection.lastSyncedAt ? `Last synced ${new Date(healthConnection.lastSyncedAt).toLocaleString()}` : 'Permission is requested only after you press Connect.')}
                   </Text>
+                </View>
+                <View style={[styles.stepGoalSetting, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                  <View style={styles.stepGoalCopy}>
+                    <Text style={[styles.settingTitle, { color: colors.foreground }]}>Daily step goal</Text>
+                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Your local dashboard target. Live motion is used only while Today is open.</Text>
+                  </View>
+                  <View style={styles.stepGoalControls}>
+                    <TextInput
+                      accessibilityLabel="Daily step goal"
+                      testID="daily-step-goal-input"
+                      value={dailyStepGoalDraft}
+                      onChangeText={setDailyStepGoalDraft}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      selectTextOnFocus
+                      style={[styles.stepGoalInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Save daily step goal"
+                      testID="save-daily-step-goal"
+                      onPress={handleSaveDailyStepGoal}
+                      style={[styles.stepGoalSave, { backgroundColor: colors.primary }]}
+                    >
+                      <Text style={[styles.stepGoalSaveText, { color: colors.primaryForeground }]}>Save</Text>
+                    </Pressable>
+                  </View>
                 </View>
                 {healthConnection.authorization !== 'unavailable' && !healthConnected && (
                   <Pressable accessibilityRole="button" accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
@@ -2020,6 +2065,12 @@ function makeStyles(f: number) {
   dialogButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 13, paddingVertical: 13, marginTop: 16 },
   dialogButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   healthSyncButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stepGoalSetting: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 13, padding: 12, marginTop: 12 },
+  stepGoalCopy: { minWidth: 0 },
+  stepGoalControls: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  stepGoalInput: { flex: 1, minWidth: 0, height: 42, borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, paddingHorizontal: 11, fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+  stepGoalSave: { height: 42, borderRadius: 11, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  stepGoalSaveText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   healthSyncFeedback: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, padding: 10, marginTop: 10 },
   healthSyncFeedbackText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 * f },
   dialogSecondaryButton: { alignItems: 'center', paddingTop: 14 },

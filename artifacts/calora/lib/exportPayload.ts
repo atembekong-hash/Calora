@@ -47,6 +47,8 @@ export interface CaloraExportState {
   notificationPreferences: unknown;
   healthConnected: boolean;
   healthConnection: unknown;
+  /** User-local display target; measured step data remains provider-owned. */
+  dailyStepGoal: number;
   consentAccepted: boolean;
   outbox: unknown[];
   coachConsentAccepted: boolean;
