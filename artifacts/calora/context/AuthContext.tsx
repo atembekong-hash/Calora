@@ -10,9 +10,9 @@
  *  • onAuthStateChange is the single source of truth for session updates.
  *  • restoreStatus makes encrypted session-read failures explicit; only a
  *    successful null read may mount the guest account scope.
- *  • isPasswordRecovery: true when Supabase fires PASSWORD_RECOVERY (after the
- *    user taps a reset-password email link). It enables the reset form, while
- *    routing is decided from validated callback intent rather than listener timing.
+ *  • isPasswordRecovery: true when Supabase fires PASSWORD_RECOVERY after a
+ *    validated reset-password link. Root navigation prioritizes that trusted
+ *    event if the final PKCE redirect lacks an explicit recovery hint.
  *  • Identity separation: this context exposes the Supabase session/user
  *    (external identity).  The internal calora_users.id is resolved server-side.
  */

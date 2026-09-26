@@ -32,6 +32,7 @@ import { getRootAccessGateState } from '@/lib/rootAccessGate';
 import {
   createPostAuthNavigationCoordinator,
   getPostAuthNavigationPlan,
+  resolvePostAuthIntent,
 } from '@/lib/postAuthNavigation';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -319,7 +320,7 @@ function RootLayoutNav() {
   const { mode } = useGlobalSearchParams<{ mode?: string | string[] }>();
   const router = useRouter();
   const segments = useSegments();
-  const { user, restoreStatus, postAuthIntent } = useAuth();
+  const { user, restoreStatus, postAuthIntent, isPasswordRecovery } = useAuth();
   const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
   const reviewRequested = mode === 'review';
   const { allowApplication, allowOnboarding } = getRootAccessGateState({
@@ -330,11 +331,11 @@ function RootLayoutNav() {
     reviewRequested,
   });
   const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
-  // This closes the listener-before-effect gap on cold associated-link
-  // delivery. The callback screen subsequently supplies its validated intent.
-  const effectivePostAuthIntent = callbackRouteIsActive && postAuthIntent === 'none'
-    ? 'pending'
-    : postAuthIntent;
+  const effectivePostAuthIntent = resolvePostAuthIntent({
+    callbackRouteIsActive,
+    isPasswordRecovery,
+    postAuthIntent,
+  });
   const postAuthPlan = getPostAuthNavigationPlan({
     restoreStatus,
     hasSession: !!user,
