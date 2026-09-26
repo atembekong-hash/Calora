@@ -107,6 +107,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const activeUserId = useRef<string | null>(null);
   const authStateChangeGeneration = useRef(0);
 
+  /**
+   * A completed Supabase sign-in action already owns a verified session. Adopt
+   * it immediately instead of waiting for a later listener delivery, which is
+   * especially important on web while the initial empty-session notification
+   * is still settling.
+   */
+  const adoptAuthenticatedSession = useCallback((nextSession: Session) => {
+    authStateChangeGeneration.current += 1;
+    activeUserId.current = nextSession.user.id;
+    setSession(nextSession);
+    setUser(nextSession.user);
+    setRestoreError(null);
+    setRestoreStatus('ready');
+  }, []);
+
   const retrySessionRestore = useCallback(async () => {
     const bootstrapGeneration = authStateChangeGeneration.current;
     setRestoreStatus('loading');
@@ -142,6 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // here leaves restoreStatus at "loading" forever when it later settles.
         // Authenticated sessions and every conclusive later event still win.
         const isInconclusiveInitialSession = event === 'INITIAL_SESSION' && !newSession;
+        // The explicit getSession read decides whether this startup state is a
+        // guest scope. Never let an out-of-order empty INITIAL_SESSION erase a
+        // session that a completed sign-in action or a later auth event owns.
+        if (isInconclusiveInitialSession) return;
         if (!isInconclusiveInitialSession) {
           authStateChangeGeneration.current += 1;
         }
@@ -194,24 +213,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPostAuthIntent('pending');
     try {
       const result = await doGoogleSignIn();
-      setPostAuthIntent(result.success ? (result.callbackIntent ?? 'ordinary') : 'none');
+      if (result.success) {
+        adoptAuthenticatedSession(result.session);
+        setPostAuthIntent(result.callbackIntent ?? 'ordinary');
+      } else {
+        setPostAuthIntent('none');
+      }
       return result;
     } finally {
       signingIn.current = false;
     }
-  }, []);
+  }, [adoptAuthenticatedSession]);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const result = await doEmailSignIn(email, password);
-    if (result.success) setPostAuthIntent('ordinary');
+    if (result.success) {
+      adoptAuthenticatedSession(result.session);
+      setPostAuthIntent('ordinary');
+    }
     return result;
-  }, []);
+  }, [adoptAuthenticatedSession]);
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     const result = await doEmailSignUp(email, password);
-    if (result.success) setPostAuthIntent('ordinary');
+    if (result.success) {
+      adoptAuthenticatedSession(result.session);
+      setPostAuthIntent('ordinary');
+    }
     return result;
-  }, []);
+  }, [adoptAuthenticatedSession]);
 
   const sendPasswordReset = useCallback(
     (email: string) => doPasswordReset(email),
@@ -244,8 +274,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOutAction = useCallback(async () => doSignOut(), []);
   const beginAuthCallback = useCallback(() => setPostAuthIntent('pending'), []);
   const completeAuthCallback = useCallback((result: AuthResult) => {
-    setPostAuthIntent(result.success ? (result.callbackIntent ?? 'ordinary') : 'none');
-  }, []);
+    if (result.success) {
+      adoptAuthenticatedSession(result.session);
+      setPostAuthIntent(result.callbackIntent ?? 'ordinary');
+    } else {
+      setPostAuthIntent('none');
+    }
+  }, [adoptAuthenticatedSession]);
 
   // -------------------------------------------------------------------------
   // Value
