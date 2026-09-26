@@ -28,8 +28,17 @@ const TRUSTED_OAUTH_CALLBACK_URLS = [
  */
 type OAuthPlatform = typeof Platform.OS;
 
-export function getGoogleOAuthRedirectUri(platform: OAuthPlatform = Platform.OS): string {
+/**
+ * Chooses the HTTPS callback that owns the initiating platform's PKCE verifier.
+ * Browser email and OAuth flows return to the dedicated web origin, while
+ * installed apps continue to use the OS-claimed associated-link route.
+ */
+export function getAuthCallbackRedirectUri(platform: OAuthPlatform = Platform.OS): string {
   return platform === 'web' ? WEB_OAUTH_CALLBACK_URI : OAUTH_REDIRECT_URI;
+}
+
+export function getGoogleOAuthRedirectUri(platform: OAuthPlatform = Platform.OS): string {
+  return getAuthCallbackRedirectUri(platform);
 }
 
 export type AuthErrorCode =
@@ -345,12 +354,16 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
 // Email/Password Flows
 // ---------------------------------------------------------------------------
 
-export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  platform: OAuthPlatform = Platform.OS,
+): Promise<AuthResult> {
   try {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
-      options: { emailRedirectTo: OAUTH_REDIRECT_URI },
+      options: { emailRedirectTo: getAuthCallbackRedirectUri(platform) },
     });
     if (error) return { success: false, error: { code: 'unknown', message: error.message } };
     if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email for a confirmation link.' } };
@@ -374,16 +387,22 @@ export async function signInWithEmail(email: string, password: string): Promise<
 // Account Recovery & Management
 // ---------------------------------------------------------------------------
 
-export async function sendPasswordReset(email: string) {
-  return supabase.auth.resetPasswordForEmail(email, { redirectTo: OAUTH_REDIRECT_URI });
+export async function sendPasswordReset(email: string, platform: OAuthPlatform = Platform.OS) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthCallbackRedirectUri(platform),
+  });
 }
 
 export async function updatePassword(newPassword: string) {
   return supabase.auth.updateUser({ password: newPassword });
 }
 
-export async function resendVerificationEmail(email: string) {
-  return supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: OAUTH_REDIRECT_URI } });
+export async function resendVerificationEmail(email: string, platform: OAuthPlatform = Platform.OS) {
+  return supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: getAuthCallbackRedirectUri(platform) },
+  });
 }
 
 export async function signOut() {

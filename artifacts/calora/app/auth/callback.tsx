@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useURL } from 'expo-linking';
-import { handleOAuthCallbackUrl, OAUTH_REDIRECT_URI } from '@/lib/auth';
+import { getAuthCallbackRedirectUri, handleOAuthCallbackUrl } from '@/lib/auth';
 import {
   getSafeAuthErrorMessage,
   routeForOAuthCallbackError,
@@ -38,7 +38,7 @@ export default function AuthCallbackScreen() {
       Object.entries(params).forEach(([key, value]) => {
         if (typeof value === 'string') search.append(key, value);
       });
-      return `${OAUTH_REDIRECT_URI}?${search.toString()}`;
+      return `${getAuthCallbackRedirectUri()}?${search.toString()}`;
     }
     
     return null;

@@ -2,10 +2,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   clearSettledOAuthCodeExchanges,
+  getAuthCallbackRedirectUri,
   getGoogleOAuthRedirectUri,
   handleOAuthCallbackUrl,
   isValidEmail,
   OAUTH_REDIRECT_URI,
+  resendVerificationEmail,
+  sendPasswordReset,
+  signUpWithEmail,
   signInWithGoogle,
   WEB_OAUTH_CALLBACK_URI,
 } from '../auth';
@@ -15,6 +19,9 @@ const mockExchange = vi.fn();
 const mockSetSession = vi.fn();
 const mockGetSession = vi.fn();
 const mockSignInWithOAuth = vi.fn();
+const mockSignUp = vi.fn();
+const mockPasswordReset = vi.fn();
+const mockResend = vi.fn();
 vi.mock('../supabase', () => ({
   supabase: {
     auth: {
@@ -22,6 +29,9 @@ vi.mock('../supabase', () => ({
       setSession: (session: { access_token: string; refresh_token: string }) => mockSetSession(session),
       getSession: () => mockGetSession(),
       signInWithOAuth: (options: unknown) => mockSignInWithOAuth(options),
+      signUp: (options: unknown) => mockSignUp(options),
+      resetPasswordForEmail: (...args: unknown[]) => mockPasswordReset(...args),
+      resend: (options: unknown) => mockResend(options),
       storage: {
         setItem: vi.fn(),
         getItem: vi.fn(),
@@ -59,9 +69,62 @@ describe('Auth Logic Verification', () => {
   });
 
   it('selects the dedicated web callback without changing the native HTTPS app-link callback', () => {
+    expect(getAuthCallbackRedirectUri('web')).toBe(WEB_OAUTH_CALLBACK_URI);
+    expect(getAuthCallbackRedirectUri('ios')).toBe(OAUTH_REDIRECT_URI);
+    expect(getAuthCallbackRedirectUri('android')).toBe(OAUTH_REDIRECT_URI);
     expect(getGoogleOAuthRedirectUri('web')).toBe(WEB_OAUTH_CALLBACK_URI);
     expect(getGoogleOAuthRedirectUri('ios')).toBe(OAUTH_REDIRECT_URI);
     expect(getGoogleOAuthRedirectUri('android')).toBe(OAUTH_REDIRECT_URI);
+  });
+
+  it('keeps web email confirmation, resend, and recovery callbacks on the dedicated web origin', async () => {
+    mockSignUp.mockResolvedValue({ data: { session: null }, error: null });
+    mockPasswordReset.mockResolvedValue({ data: {}, error: null });
+    mockResend.mockResolvedValue({ data: {}, error: null });
+
+    await signUpWithEmail('Person@Example.com', 'password', 'web');
+    expect(mockSignUp).toHaveBeenLastCalledWith({
+      email: 'person@example.com',
+      password: 'password',
+      options: { emailRedirectTo: WEB_OAUTH_CALLBACK_URI },
+    });
+
+    await resendVerificationEmail('person@example.com', 'web');
+    expect(mockResend).toHaveBeenLastCalledWith({
+      type: 'signup',
+      email: 'person@example.com',
+      options: { emailRedirectTo: WEB_OAUTH_CALLBACK_URI },
+    });
+
+    await sendPasswordReset('person@example.com', 'web');
+    expect(mockPasswordReset).toHaveBeenLastCalledWith('person@example.com', {
+      redirectTo: WEB_OAUTH_CALLBACK_URI,
+    });
+  });
+
+  it('keeps native email confirmation, resend, and recovery callbacks on the app-link origin', async () => {
+    mockSignUp.mockResolvedValue({ data: { session: null }, error: null });
+    mockPasswordReset.mockResolvedValue({ data: {}, error: null });
+    mockResend.mockResolvedValue({ data: {}, error: null });
+
+    await signUpWithEmail('person@example.com', 'password', 'android');
+    expect(mockSignUp).toHaveBeenLastCalledWith({
+      email: 'person@example.com',
+      password: 'password',
+      options: { emailRedirectTo: OAUTH_REDIRECT_URI },
+    });
+
+    await resendVerificationEmail('person@example.com', 'ios');
+    expect(mockResend).toHaveBeenLastCalledWith({
+      type: 'signup',
+      email: 'person@example.com',
+      options: { emailRedirectTo: OAUTH_REDIRECT_URI },
+    });
+
+    await sendPasswordReset('person@example.com', 'android');
+    expect(mockPasswordReset).toHaveBeenLastCalledWith('person@example.com', {
+      redirectTo: OAUTH_REDIRECT_URI,
+    });
   });
 
   it('requests and completes Google OAuth on the matching platform callback', async () => {
