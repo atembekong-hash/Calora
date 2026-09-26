@@ -29,6 +29,7 @@ afterEach(() => {
   else process.env.REVENUECAT_PROJECT_ID = originalProjectId;
   if (originalSecretApiKey === undefined) delete process.env.REVENUECAT_SECRET_API_KEY;
   else process.env.REVENUECAT_SECRET_API_KEY = originalSecretApiKey;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -123,6 +124,44 @@ describe("deleteRevenueCatSubscriber", () => {
       "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
       expect.objectContaining({ method: "DELETE" }),
     );
+  });
+
+  it("waits for a bounded propagation window before treating a successful delete as incomplete", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+
+    const deletion = deleteRevenueCatSubscriber("customer-123");
+    await vi.runAllTimersAsync();
+
+    await expect(deletion).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("keeps deletion retryable when the provider has not converged within the bounded verification window", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValue(jsonResponse({ id: "customer-123" }));
+
+    const deletion = deleteRevenueCatSubscriber("customer-123");
+    const rejection = expect(deletion).rejects.toThrow(
+      "RevenueCat customer verification failed (customer still exists)",
+    );
+    await vi.runAllTimersAsync();
+
+    await rejection;
+    expect(fetchMock).toHaveBeenCalledTimes(8);
   });
 
   it("treats an absent customer as already erased", async () => {
