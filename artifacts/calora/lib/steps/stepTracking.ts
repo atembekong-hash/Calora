@@ -139,12 +139,16 @@ export function beginLiveStepSession(
   permission: MotionStepPermission,
   updatedAt: string,
 ): LiveStepTrackingState {
-  const base = state.displayedSteps ?? state.providerSteps;
+  // A foreground Pedometer session must also work before a Health provider has
+  // supplied a daily aggregate. Zero is a real session baseline here, not a
+  // claim that the user has taken zero steps today; the dashboard distinguishes
+  // that session-only state from a confirmed day total.
+  const base = state.displayedSteps ?? state.providerSteps ?? 0;
   return {
     ...state,
     sessionBaseSteps: base,
     sessionSteps: 0,
-    displayedSteps: base ?? 0,
+    displayedSteps: base,
     status: "live",
     motionAvailable: true,
     motionPermission: permission,
@@ -162,6 +166,12 @@ export function projectLiveSteps(
   const normalizedSession = nonNegativeInteger(sessionSteps);
   if (normalizedSession === null || state.sessionBaseSteps === null)
     return state;
+  // Android sensor resets and delayed platform events must never make a
+  // foreground total go backward. The Context schedules provider convergence
+  // when it observes this condition.
+  if (state.sessionSteps !== null && normalizedSession < state.sessionSteps) {
+    return state;
+  }
   const projection = state.sessionBaseSteps + normalizedSession;
   return {
     ...state,
@@ -181,6 +191,36 @@ export function suspendLiveStepSession(
     ...state,
     status: state.displayedSteps === null ? "idle" : "syncing",
   };
+}
+
+/** True only while the card represents a live session rather than a full day. */
+export function isLiveSessionOnly(state: LiveStepTrackingState): boolean {
+  return state.status === "live" && state.providerSteps === null;
+}
+
+/** A Health total that trails an active projection needs bounded convergence retries. */
+export function needsProviderReconciliation(
+  state: LiveStepTrackingState,
+): boolean {
+  return (
+    state.status === "live" &&
+    state.providerSteps !== null &&
+    state.displayedSteps !== null &&
+    state.displayedSteps > state.providerSteps
+  );
+}
+
+/** Detect a non-monotonic native callback without modifying the projection. */
+export function isLiveStepCounterRegression(
+  state: LiveStepTrackingState,
+  sessionSteps: number,
+): boolean {
+  const normalizedSession = nonNegativeInteger(sessionSteps);
+  return (
+    normalizedSession !== null &&
+    state.sessionSteps !== null &&
+    normalizedSession < state.sessionSteps
+  );
 }
 
 export function motionUnavailableState(

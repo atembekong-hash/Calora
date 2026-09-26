@@ -1,4 +1,5 @@
 import { Pedometer } from "expo-sensors";
+import { Linking } from "react-native";
 import type { MotionStepPermission } from "./stepTracking";
 import type {
   MotionStepCapability,
@@ -33,6 +34,9 @@ export const stepMotionService: StepMotionService = {
     if (!available) return { available: false, permission: "unavailable" };
     const permission = await Pedometer.requestPermissionsAsync();
     return { available: true, permission: permissionFrom(permission) };
+  },
+  async openSettings() {
+    await Linking.openSettings();
   },
   watchSteps(onSteps) {
     return Pedometer.watchStepCount((result) => {

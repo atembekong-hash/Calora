@@ -16,8 +16,10 @@ import {
   beginLiveStepSession,
   createLiveStepTrackingState,
   DEFAULT_DAILY_STEP_GOAL,
+  isLiveStepCounterRegression,
   localStepDay,
   motionUnavailableState,
+  needsProviderReconciliation,
   normalizeDailyStepGoal,
   projectLiveSteps,
   reconcileProviderSteps,
@@ -393,6 +395,8 @@ type CaloraContextValue = {
   /** Begins a foreground-only motion session; permission requests stay user initiated. */
   startLiveStepTracking: (requestPermission?: boolean) => Promise<void>;
   stopLiveStepTracking: () => void;
+  /** Opens the device settings page only after motion access was denied. */
+  openMotionSettings: () => Promise<void>;
   hydrationReminders: HydrationReminderPrefs;
   mealReminders: MealReminderPrefs;
   goalReminder: GoalReminderPrefs;
@@ -600,6 +604,9 @@ export function CaloraProvider({
   const liveStepTrackingRef = useRef(liveStepTracking);
   const liveStepSubscriptionRef = useRef<MotionStepSubscription | null>(null);
   const liveStepEpochRef = useRef(0);
+  const liveStepRetryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const restartLiveStepTrackingRef = useRef<(() => void) | null>(null);
+  const liveStepDayRef = useRef(localStepDay());
   const appStateRef = useRef(AppState.currentState);
   const healthSyncPromiseRef = useRef<Promise<HealthSyncOutcome> | null>(null);
   const healthSyncEpochRef = useRef(0);
@@ -1090,12 +1097,18 @@ export function CaloraProvider({
     setLiveStepTracking(next);
   }, []);
 
+  const clearLiveStepReconciliationRetries = useCallback(() => {
+    liveStepRetryTimersRef.current.forEach((timer) => clearTimeout(timer));
+    liveStepRetryTimersRef.current = [];
+  }, []);
+
   const stopLiveStepTracking = useCallback(() => {
     liveStepEpochRef.current += 1;
+    clearLiveStepReconciliationRetries();
     liveStepSubscriptionRef.current?.remove();
     liveStepSubscriptionRef.current = null;
     commitLiveStepTracking(suspendLiveStepSession(liveStepTrackingRef.current));
-  }, [commitLiveStepTracking]);
+  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking]);
 
   // ── Health sync ───────────────────────────────────────────────────────────
   // Dependency array is intentionally empty because every value closed over is
@@ -1163,9 +1176,55 @@ export function CaloraProvider({
     }
   }, [patchExportSnapshot, updateExportField]);
 
+  const scheduleLiveStepReconciliationRetries = useCallback((epoch: number) => {
+    const tracking = liveStepTrackingRef.current;
+    if (
+      !canSyncHealthConnection(healthConnectionRef.current)
+      || !needsProviderReconciliation(tracking)
+    ) return;
+
+    clearLiveStepReconciliationRetries();
+    const day = tracking.day;
+    const retry = async () => {
+      if (
+        clearingRef.current
+        || appStateRef.current !== 'active'
+        || epoch !== liveStepEpochRef.current
+        || day !== localStepDay()
+      ) return;
+
+      const outcome = await syncHealth();
+      if (
+        outcome.status !== 'synced'
+        || clearingRef.current
+        || appStateRef.current !== 'active'
+        || epoch !== liveStepEpochRef.current
+        || day !== localStepDay()
+      ) return;
+
+      const snapshot = healthConnectionRef.current.snapshot;
+      if (snapshot?.steps === null || snapshot?.steps === undefined) return;
+      const reconciled = reconcileProviderSteps(
+        liveStepTrackingRef.current,
+        snapshot.steps,
+        snapshot.syncedAt,
+      );
+      commitLiveStepTracking(reconciled);
+      if (!needsProviderReconciliation(reconciled)) {
+        clearLiveStepReconciliationRetries();
+      }
+    };
+
+    liveStepRetryTimersRef.current = [
+      setTimeout(() => { void retry(); }, 60_000),
+      setTimeout(() => { void retry(); }, 300_000),
+    ];
+  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking, syncHealth]);
+
   const startLiveStepTracking = useCallback(async (requestPermission = false) => {
     if (clearingRef.current || appStateRef.current !== 'active') return;
 
+    clearLiveStepReconciliationRetries();
     const epoch = ++liveStepEpochRef.current;
     liveStepSubscriptionRef.current?.remove();
     liveStepSubscriptionRef.current = null;
@@ -1177,7 +1236,7 @@ export function CaloraProvider({
     let tracking = liveStepTrackingRef.current;
     const currentDay = localStepDay();
     if (tracking.day !== currentDay) {
-      tracking = createLiveStepTrackingState(currentDay, healthConnectionRef.current.snapshot?.steps ?? null);
+      tracking = createLiveStepTrackingState(currentDay);
       commitLiveStepTracking(tracking);
     }
 
@@ -1211,14 +1270,40 @@ export function CaloraProvider({
         if (!isCurrent()) return;
         const current = liveStepTrackingRef.current;
         if (current.day !== localStepDay()) return;
-        commitLiveStepTracking(projectLiveSteps(current, steps, new Date().toISOString()));
+        const counterRegressed = isLiveStepCounterRegression(current, steps);
+        if (counterRegressed) {
+          // A sensor counter may restart after a platform or hardware reset.
+          // Begin a fresh subscription from the displayed projection so no
+          // previously observed movement is lost or counted twice.
+          restartLiveStepTrackingRef.current?.();
+          return;
+        }
+        const projected = projectLiveSteps(current, steps, new Date().toISOString());
+        commitLiveStepTracking(projected);
+        if (needsProviderReconciliation(projected)) {
+          scheduleLiveStepReconciliationRetries(epoch);
+        }
       });
     } catch (error) {
       if (!isCurrent()) return;
       const message = error instanceof Error ? error.message : 'Live steps could not be started.';
       commitLiveStepTracking(motionUnavailableState(tracking, 'unavailable', false, message));
     }
-  }, [commitLiveStepTracking, syncHealth]);
+  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking, scheduleLiveStepReconciliationRetries, syncHealth]);
+
+  restartLiveStepTrackingRef.current = () => {
+    void startLiveStepTracking();
+  };
+
+  const openMotionSettings = useCallback(async () => {
+    if (clearingRef.current) {
+      throw new Error('Motion settings are temporarily unavailable while data is being cleared.');
+    }
+    if (liveStepTrackingRef.current.motionPermission !== 'denied') {
+      throw new Error('Motion settings can be opened after motion access is denied.');
+    }
+    await stepMotionService.openSettings();
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1232,7 +1317,10 @@ export function CaloraProvider({
       }
       stopLiveStepTracking();
     });
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      stopLiveStepTracking();
+    };
   }, [hydrated, stopLiveStepTracking, syncHealth]);
 
   const clockNow = useClock();
@@ -1283,6 +1371,26 @@ export function CaloraProvider({
     lastHealthRefreshDayRef.current = healthDayKey;
     void syncHealth();
   }, [healthConnection.authorization, healthDayKey, hydrated, syncHealth]);
+
+  // An active foreground process can cross midnight without an AppState change.
+  // Tear down the prior day before refreshing the new aggregate; Home restarts
+  // exactly one listener when the user is following today.
+  useEffect(() => {
+    if (!hydrated || clearingRef.current) return;
+    const currentDay = localStepDay(clockNow);
+    if (liveStepDayRef.current === currentDay) return;
+
+    liveStepDayRef.current = currentDay;
+    lastHealthRefreshDayRef.current = currentDay;
+    liveStepEpochRef.current += 1;
+    clearLiveStepReconciliationRetries();
+    liveStepSubscriptionRef.current?.remove();
+    liveStepSubscriptionRef.current = null;
+    commitLiveStepTracking(createLiveStepTrackingState(currentDay));
+    if (canSyncHealthConnection(healthConnectionRef.current)) {
+      void syncHealth();
+    }
+  }, [clearLiveStepReconciliationRetries, clockNow, commitLiveStepTracking, hydrated, syncHealth]);
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
@@ -1496,6 +1604,7 @@ export function CaloraProvider({
     },
     startLiveStepTracking,
     stopLiveStepTracking,
+    openMotionSettings,
     connectHealth: async () => {
       if (clearingRef.current) return healthConnectionRef.current;
       const connectEpoch = ++healthSyncEpochRef.current;
@@ -2059,6 +2168,7 @@ export function CaloraProvider({
       // repopulate state or trigger an autosave after the durable removal.
       healthSyncEpochRef.current += 1;
       liveStepEpochRef.current += 1;
+      clearLiveStepReconciliationRetries();
       liveStepSubscriptionRef.current?.remove();
       liveStepSubscriptionRef.current = null;
        // Invalidate any planner generation before the destructive work starts,
@@ -2319,7 +2429,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

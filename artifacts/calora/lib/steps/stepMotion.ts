@@ -25,6 +25,9 @@ export const stepMotionService: StepMotionService = {
   async requestPermission() {
     return unsupported;
   },
+  async openSettings() {
+    throw new Error("Motion settings are unavailable in this environment.");
+  },
   watchSteps() {
     return { remove() {} };
   },

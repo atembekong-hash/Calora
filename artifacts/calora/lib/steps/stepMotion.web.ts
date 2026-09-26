@@ -8,6 +8,11 @@ export const stepMotionService: StepMotionService = {
   async requestPermission() {
     return { available: false, permission: "unavailable" };
   },
+  async openSettings() {
+    throw new Error(
+      "Motion settings are available only in the Calora mobile app.",
+    );
+  },
   watchSteps() {
     return { remove() {} };
   },

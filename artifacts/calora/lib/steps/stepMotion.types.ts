@@ -10,5 +10,7 @@ export type MotionStepCapability = {
 export type StepMotionService = {
   getCapability: () => Promise<MotionStepCapability>;
   requestPermission: () => Promise<MotionStepCapability>;
+  /** Opens this app's native settings page after a permanent permission denial. */
+  openSettings: () => Promise<void>;
   watchSteps: (onSteps: (steps: number) => void) => MotionStepSubscription;
 };

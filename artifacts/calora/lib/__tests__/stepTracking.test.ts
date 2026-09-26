@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   beginLiveStepSession,
   createLiveStepTrackingState,
+  isLiveSessionOnly,
+  isLiveStepCounterRegression,
   localStepDay,
   motionUnavailableState,
+  needsProviderReconciliation,
   normalizeDailyStepGoal,
   projectLiveSteps,
   reconcileProviderSteps,
@@ -21,6 +24,19 @@ describe("live step tracking reconciliation", () => {
 
     expect(projected.displayedSteps).toBe(1_005);
     expect(projected.status).toBe("live");
+  });
+
+  it("counts a real foreground session before Health has supplied a day total", () => {
+    const live = beginLiveStepSession(
+      createLiveStepTrackingState(day),
+      "granted",
+      startedAt,
+    );
+    const projected = projectLiveSteps(live, 5, startedAt);
+
+    expect(projected.displayedSteps).toBe(5);
+    expect(projected.providerSteps).toBeNull();
+    expect(isLiveSessionOnly(projected)).toBe(true);
   });
 
   it("does not double-count a provider total that is behind the live projection", () => {
@@ -42,6 +58,7 @@ describe("live step tracking reconciliation", () => {
     expect(reconciled.displayedSteps).toBe(1_005);
     expect(reconciled.providerSteps).toBe(1_004);
     expect(reconciled.status).toBe("live");
+    expect(needsProviderReconciliation(reconciled)).toBe(true);
   });
 
   it("adopts a provider total that catches up beyond the live projection", () => {
@@ -70,6 +87,24 @@ describe("live step tracking reconciliation", () => {
       "2026-09-26T09:01:01.000Z",
     );
     expect(nextMotionEvent.displayedSteps).toBe(1_011);
+    expect(needsProviderReconciliation(reconciled)).toBe(false);
+  });
+
+  it("never regresses a live projection when a native counter restarts", () => {
+    const projected = projectLiveSteps(
+      beginLiveStepSession(
+        createLiveStepTrackingState(day, 1_000),
+        "granted",
+        startedAt,
+      ),
+      8,
+      startedAt,
+    );
+    const next = projectLiveSteps(projected, 2, "2026-09-26T09:02:00.000Z");
+
+    expect(isLiveStepCounterRegression(projected, 2)).toBe(true);
+    expect(next).toEqual(projected);
+    expect(next.displayedSteps).toBe(1_008);
   });
 
   it("retains a provisional projection after the listener is suspended without persisting it as provider data", () => {
