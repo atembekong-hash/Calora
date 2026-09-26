@@ -8,12 +8,14 @@ const {
   getSessionMock,
   onAuthStateChangeMock,
   clearSettledOAuthCodeExchangesMock,
+  signInWithGoogleMock,
   signInWithEmailMock,
   signUpWithEmailMock,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
   clearSettledOAuthCodeExchangesMock: vi.fn(),
+  signInWithGoogleMock: vi.fn(),
   signInWithEmailMock: vi.fn(),
   signUpWithEmailMock: vi.fn(),
 }));
@@ -29,7 +31,7 @@ vi.mock('../supabase', () => ({
 
 vi.mock('../auth', () => ({
   clearSettledOAuthCodeExchanges: clearSettledOAuthCodeExchangesMock,
-  signInWithGoogle: vi.fn(),
+  signInWithGoogle: signInWithGoogleMock,
   signInWithEmail: signInWithEmailMock,
   signUpWithEmail: signUpWithEmailMock,
   sendPasswordReset: vi.fn(),
@@ -141,7 +143,7 @@ describe('AuthProvider bootstrap ordering', () => {
     });
   });
 
-  it('marks successful email and signup actions as ordinary post-auth transitions', async () => {
+  it('adopts successful email and signup sessions without waiting for a listener event', async () => {
     getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
     signInWithEmailMock.mockResolvedValue({ success: true, session: { user: { id: 'email-user' } } });
     signUpWithEmailMock.mockResolvedValue({ success: true, session: { user: { id: 'signup-user' } } });
@@ -151,6 +153,7 @@ describe('AuthProvider bootstrap ordering', () => {
         postAuthIntent,
         restoreStatus,
         restoreError,
+        user,
         signInWithEmail,
         signUpWithEmail,
       } = useAuth();
@@ -158,6 +161,7 @@ describe('AuthProvider bootstrap ordering', () => {
         <>
           <output data-testid="post-auth-intent">{postAuthIntent}</output>
           <output data-testid="action-restore-state">{restoreStatus}:{restoreError ?? 'none'}</output>
+          <output data-testid="action-identity-state">{user?.id ?? 'signed-out'}</output>
           <button onClick={() => { void signInWithEmail('email@example.com', 'password'); }}>email</button>
           <button onClick={() => { void signUpWithEmail('signup@example.com', 'password'); }}>signup</button>
         </>
@@ -169,9 +173,58 @@ describe('AuthProvider bootstrap ordering', () => {
 
     await act(async () => { screen.getByRole('button', { name: 'email' }).click(); });
     expect(screen.getByTestId('post-auth-intent').textContent).toBe('ordinary');
+    expect(screen.getByTestId('action-identity-state').textContent).toBe('email-user');
 
     await act(async () => { screen.getByRole('button', { name: 'signup' }).click(); });
     expect(screen.getByTestId('post-auth-intent').textContent).toBe('ordinary');
+    expect(screen.getByTestId('action-identity-state').textContent).toBe('signup-user');
+  });
+
+  it('keeps a completed sign-in session when an empty initial-session event arrives late', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    signInWithEmailMock.mockResolvedValue({ success: true, session: { user: { id: 'late-event-user' } } });
+
+    function AuthActions() {
+      const { user, signInWithEmail } = useAuth();
+      return (
+        <>
+          <output data-testid="late-event-identity">{user?.id ?? 'signed-out'}</output>
+          <button onClick={() => { void signInWithEmail('email@example.com', 'password'); }}>email</button>
+        </>
+      );
+    }
+
+    render(<AuthProvider><AuthActions /></AuthProvider>);
+    await waitFor(() => expect(onAuthStateChangeMock).toHaveBeenCalled());
+
+    await act(async () => { screen.getByRole('button', { name: 'email' }).click(); });
+    expect(screen.getByTestId('late-event-identity').textContent).toBe('late-event-user');
+
+    act(() => {
+      authStateChangeCallback('INITIAL_SESSION', null);
+    });
+    expect(screen.getByTestId('late-event-identity').textContent).toBe('late-event-user');
+  });
+
+  it('adopts a completed Google callback session without waiting for a listener event', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    signInWithGoogleMock.mockResolvedValue({ success: true, session: { user: { id: 'google-user' } } });
+
+    function AuthActions() {
+      const { user, signInWithGoogle } = useAuth();
+      return (
+        <>
+          <output data-testid="google-identity">{user?.id ?? 'signed-out'}</output>
+          <button onClick={() => { void signInWithGoogle(); }}>google</button>
+        </>
+      );
+    }
+
+    render(<AuthProvider><AuthActions /></AuthProvider>);
+    await waitFor(() => expect(onAuthStateChangeMock).toHaveBeenCalled());
+
+    await act(async () => { screen.getByRole('button', { name: 'google' }).click(); });
+    expect(screen.getByTestId('google-identity').textContent).toBe('google-user');
   });
 
   it('treats a refreshed session as an ordinary authenticated transition', async () => {
