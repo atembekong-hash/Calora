@@ -7,6 +7,10 @@
 const ENTITLEMENT_ID = "caloraapp_pro";
 const REVENUECAT_V2_ORIGIN = "https://api.revenuecat.com";
 const REVENUECAT_REQUEST_TIMEOUT_MS = 10_000;
+// RevenueCat customer deletion is asynchronous. Keep the account-deletion saga
+// fail-closed, but allow a short bounded window for its read model to converge
+// before recording a retryable provider-stage failure.
+const REVENUECAT_DELETION_VERIFICATION_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000, 4_000] as const;
 
 type SubscriberEntitlement = { expires_date: string | null };
 type SubscriberResponse = {
@@ -152,6 +156,27 @@ async function verifyExistingRevenueCatCustomer(
   }
 }
 
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function verifyRevenueCatCustomerDeletion(customerPath: string): Promise<void> {
+  for (let attempt = 0; attempt <= REVENUECAT_DELETION_VERIFICATION_RETRY_DELAYS_MS.length; attempt += 1) {
+    const verificationResponse = await revenueCatRequest(customerPath, "GET", "customer verification");
+    if (verificationResponse.status === 404) return;
+    if (!verificationResponse.ok) {
+      throw new Error(`RevenueCat customer verification failed (${verificationResponse.status})`);
+    }
+
+    const retryDelay = REVENUECAT_DELETION_VERIFICATION_RETRY_DELAYS_MS[attempt];
+    if (retryDelay !== undefined) {
+      await delay(retryDelay);
+    }
+  }
+
+  throw new Error("RevenueCat customer verification failed (customer still exists)");
+}
+
 /** Removes and positively verifies absence of the RevenueCat customer for a deleted account. */
 export async function deleteRevenueCatSubscriber(appUserId: string): Promise<void> {
   const { projectId } = revenueCatConfig();
@@ -169,10 +194,5 @@ export async function deleteRevenueCatSubscriber(appUserId: string): Promise<voi
     throw new Error(`RevenueCat customer deletion failed (${deletionResponse.status})`);
   }
 
-  const verificationResponse = await revenueCatRequest(customerPath, "GET", "customer verification");
-  if (verificationResponse.status === 404) return;
-  if (!verificationResponse.ok) {
-    throw new Error(`RevenueCat customer verification failed (${verificationResponse.status})`);
-  }
-  throw new Error("RevenueCat customer verification failed (customer still exists)");
+  await verifyRevenueCatCustomerDeletion(customerPath);
 }
