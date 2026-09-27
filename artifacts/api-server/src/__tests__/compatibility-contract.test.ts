@@ -12,6 +12,7 @@ const captureApprovalSync = readFileSync(
   "utf8",
 );
 const mobileRecipes = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/recipes.tsx"), "utf8");
+const mobileCoach = readFileSync(resolve(root, "artifacts/calora/app/coach.tsx"), "utf8");
 const referralActivator = readFileSync(
   resolve(root, "artifacts/calora/components/ReferralActivator.tsx"),
   "utf8",
@@ -69,8 +70,7 @@ describe("released mobile API compatibility contract", () => {
       ["analyzeCapture", "/v1/capture/analyze"],
       ["approveCapture", "/v1/capture/:sessionId/approve"],
       ["generatePlanner", "/v1/planner/generate"],
-      ["respondCoachFactContext", "/v1/coach/fact-context/respond"],
-      ["getCoachFactContextConsent", "/v1/coach/fact-context/consent"],
+      ["sendCoachV2Message", "/v1/coach/v2/chat"],
       ["syncOutbox", "/v1/sync"],
       ["getReferral", "/v1/referral"],
       ["redeemReferral", "/v1/referral/redeem"],
@@ -117,17 +117,15 @@ describe("released mobile API compatibility contract", () => {
     expect(referralActivator).toContain("SERVER_CAPTURE_SESSION_ID.test");
   });
 
-  it("keeps Coach consent wording aligned with its bounded fact allowlist", () => {
-    expect(mobileSources).toContain(
-      "logged nutrition, hydration, meal distribution, recent logging coverage, weight trend",
-    );
-    expect(mobileSources).toContain(
-      "It does not include food names, notes, photos, recipes, raw timelines, account IDs, or your full history.",
-    );
-    expect(mobileSources).toContain("'daily.water_consumed'");
-    expect(mobileSources).toContain("'weight.short_trend'");
-    expect(mobileSources).not.toContain(
-      "It does not use mood, hydration, weight, plans, or Food Memory.",
-    );
+  it("aligns clean-room Coach with the documented server-owned contract", () => {
+    expect(apiSpec).toContain("/v1/coach/v2/chat:");
+    expect(apiSpec).toContain("operationId: sendCoachV2Message");
+    expect(generatedClient).toContain("sendCoachV2Message");
+    expect(generatedZod).toContain("SendCoachV2MessageBody");
+    expect(mobileCoach).toContain("sendCoachV2Message");
+    expect(mobileCoach).toContain("getCoachV2Conversation");
+    expect(mobileCoach).not.toContain("useCoachSendAdapter");
+    expect(mobileCoach).not.toContain("CoachFactContextConsentPanel");
+    expect(serverRoutes).toContain("/v1/coach/v2/chat");
   });
 });

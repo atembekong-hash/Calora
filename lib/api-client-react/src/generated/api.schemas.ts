@@ -1622,6 +1622,73 @@ export interface CoachMessage {
   content: string;
 }
 
+export interface CoachV2ChatInput {
+  /**
+     * @minLength 1
+     * @maxLength 1200
+     */
+  message: string;
+}
+
+export type CoachV2ChatResponseConversationMode = typeof CoachV2ChatResponseConversationMode[keyof typeof CoachV2ChatResponseConversationMode];
+
+
+export const CoachV2ChatResponseConversationMode = {
+  guest: 'guest',
+  account: 'account',
+} as const;
+
+export type CoachV2ChatResponseSafetyNotice = typeof CoachV2ChatResponseSafetyNotice[keyof typeof CoachV2ChatResponseSafetyNotice];
+
+
+export const CoachV2ChatResponseSafetyNotice = {
+  wellness_not_medical_care: 'wellness_not_medical_care',
+} as const;
+
+export interface CoachV2ChatResponse {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  message: string;
+  conversationMode: CoachV2ChatResponseConversationMode;
+  persisted: boolean;
+  safetyNotice: CoachV2ChatResponseSafetyNotice;
+}
+
+export type CoachV2TurnRole = typeof CoachV2TurnRole[keyof typeof CoachV2TurnRole];
+
+
+export const CoachV2TurnRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface CoachV2Turn {
+  id: string;
+  role: CoachV2TurnRole;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  content: string;
+  createdAt: string;
+}
+
+export interface CoachV2Conversation {
+  /** @maxItems 100 */
+  turns: CoachV2Turn[];
+  personalizationEnabled: boolean;
+}
+
+export interface CoachV2SettingsInput {
+  personalizationEnabled: boolean;
+}
+
+export interface CoachV2Settings {
+  personalizationEnabled: boolean;
+}
+
 export type CoachFactContextFactValuesState = typeof CoachFactContextFactValuesState[keyof typeof CoachFactContextFactValuesState];
 
 

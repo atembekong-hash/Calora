@@ -28,6 +28,11 @@ import type {
   CoachFactConsentStatus,
   CoachFactContextRequest,
   CoachFactContextResponse,
+  CoachV2ChatInput,
+  CoachV2ChatResponse,
+  CoachV2Conversation,
+  CoachV2Settings,
+  CoachV2SettingsInput,
   DiaryEntry,
   DiaryEntryInput,
   DiaryEntryPatch,
@@ -2641,6 +2646,378 @@ export const useRevokeCoachFactContextConsent = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRevokeCoachFactContextConsentMutationOptions(options));
+    }
+
+export const getSendCoachV2MessageUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/chat`
+}
+
+/**
+ * Available to guests and signed-in users. Signed-in requests derive a
+ * bounded current-state snapshot on the server and persist only the
+ * account conversation turns. Guest requests do not persist a
+ * conversation or app snapshot. This endpoint is general wellness
+ * information and not medical care.
+ * @summary Send a clean-room Calora Coach message
+ */
+export const sendCoachV2Message = async (coachV2ChatInput: CoachV2ChatInput, options?: Parameters<typeof customFetch>[1]): Promise<CoachV2ChatResponse> => {
+
+  return customFetch<CoachV2ChatResponse>(getSendCoachV2MessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(coachV2ChatInput)
+  }
+);}
+
+
+
+
+
+export const getSendCoachV2MessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendCoachV2Message>>, TError,{data: BodyType<CoachV2ChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendCoachV2Message>>, TError,{data: BodyType<CoachV2ChatInput>}, TContext> => {
+
+const mutationKey = ['sendCoachV2Message'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendCoachV2Message>>, {data: BodyType<CoachV2ChatInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendCoachV2Message(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendCoachV2MessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendCoachV2Message>>>
+    export type SendCoachV2MessageMutationBody = BodyType<CoachV2ChatInput>
+    export type SendCoachV2MessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a clean-room Calora Coach message
+ */
+export const useSendCoachV2Message = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendCoachV2Message>>, TError,{data: BodyType<CoachV2ChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendCoachV2Message>>,
+        TError,
+        {data: BodyType<CoachV2ChatInput>},
+        TContext
+      > => {
+      return useMutation(getSendCoachV2MessageMutationOptions(options));
+    }
+
+export const getGetCoachV2ConversationUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/conversation`
+}
+
+/**
+ * @summary Read the signed-in account's current Coach conversation
+ */
+export const getCoachV2Conversation = async ( options?: Parameters<typeof customFetch>[1]): Promise<CoachV2Conversation> => {
+
+  return customFetch<CoachV2Conversation>(getGetCoachV2ConversationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCoachV2ConversationQueryKey = () => {
+    return [
+    `/api/v1/coach/v2/conversation`
+    ] as const;
+    }
+
+
+export const getGetCoachV2ConversationQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCoachV2ConversationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoachV2Conversation>>> = ({ signal }) => getCoachV2Conversation({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCoachV2ConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachV2Conversation>>>
+export type GetCoachV2ConversationQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the signed-in account's current Coach conversation
+ */
+
+export function useGetCoachV2Conversation<TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCoachV2ConversationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClearCoachV2ConversationUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/conversation`
+}
+
+/**
+ * @summary Delete the signed-in account's Coach conversation history
+ */
+export const clearCoachV2Conversation = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getClearCoachV2ConversationUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext> => {
+
+const mutationKey = ['clearCoachV2Conversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearCoachV2Conversation>>, void> = () => {
+
+
+          return  clearCoachV2Conversation(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof clearCoachV2Conversation>>>
+
+    export type ClearCoachV2ConversationMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete the signed-in account's Coach conversation history
+ */
+export const useClearCoachV2Conversation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearCoachV2Conversation>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClearCoachV2ConversationMutationOptions(options));
+    }
+
+export const getGetCoachV2SettingsUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/settings`
+}
+
+/**
+ * @summary Read signed-in Coach personalization settings
+ */
+export const getCoachV2Settings = async ( options?: Parameters<typeof customFetch>[1]): Promise<CoachV2Settings> => {
+
+  return customFetch<CoachV2Settings>(getGetCoachV2SettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCoachV2SettingsQueryKey = () => {
+    return [
+    `/api/v1/coach/v2/settings`
+    ] as const;
+    }
+
+
+export const getGetCoachV2SettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCoachV2SettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoachV2Settings>>> = ({ signal }) => getCoachV2Settings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCoachV2SettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachV2Settings>>>
+export type GetCoachV2SettingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read signed-in Coach personalization settings
+ */
+
+export function useGetCoachV2Settings<TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCoachV2SettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCoachV2SettingsUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/settings`
+}
+
+/**
+ * @summary Update signed-in Coach personalization settings
+ */
+export const updateCoachV2Settings = async (coachV2SettingsInput: CoachV2SettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<CoachV2Settings> => {
+
+  return customFetch<CoachV2Settings>(getUpdateCoachV2SettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(coachV2SettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCoachV2SettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext> => {
+
+const mutationKey = ['updateCoachV2Settings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCoachV2Settings>>, {data: BodyType<CoachV2SettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCoachV2Settings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCoachV2SettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCoachV2Settings>>>
+    export type UpdateCoachV2SettingsMutationBody = BodyType<CoachV2SettingsInput>
+    export type UpdateCoachV2SettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update signed-in Coach personalization settings
+ */
+export const useUpdateCoachV2Settings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCoachV2Settings>>,
+        TError,
+        {data: BodyType<CoachV2SettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCoachV2SettingsMutationOptions(options));
     }
 
 export const getDeleteAccountUrl = () => {

@@ -749,6 +749,92 @@ paths:
               schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
         "401":
           description: Not signed in
+  /v1/coach/v2/chat:
+    post:
+      operationId: sendCoachV2Message
+      tags: [coach]
+      summary: Send a clean-room Calora Coach message
+      description: |
+        Available to guests and signed-in users. Signed-in requests derive a
+        bounded current-state snapshot on the server and persist only the
+        account conversation turns. Guest requests do not persist a
+        conversation or app snapshot. This endpoint is general wellness
+        information and not medical care.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CoachV2ChatInput" }
+      responses:
+        "200":
+          description: Bounded Coach reply
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachV2ChatResponse" }
+        "400":
+          description: Invalid message
+        "429":
+          description: Too many Coach requests
+        "503":
+          description: Coach is temporarily unavailable
+  /v1/coach/v2/conversation:
+    get:
+      operationId: getCoachV2Conversation
+      tags: [coach]
+      summary: Read the signed-in account's current Coach conversation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current persisted Coach conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachV2Conversation" }
+        "401":
+          description: Not signed in
+    delete:
+      operationId: clearCoachV2Conversation
+      tags: [coach]
+      summary: Delete the signed-in account's Coach conversation history
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Conversation history cleared
+        "401":
+          description: Not signed in
+  /v1/coach/v2/settings:
+    get:
+      operationId: getCoachV2Settings
+      tags: [coach]
+      summary: Read signed-in Coach personalization settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current Coach settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachV2Settings" }
+        "401":
+          description: Not signed in
+    put:
+      operationId: updateCoachV2Settings
+      tags: [coach]
+      summary: Update signed-in Coach personalization settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CoachV2SettingsInput" }
+      responses:
+        "200":
+          description: Updated Coach settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachV2Settings" }
+        "400":
+          description: Invalid settings input
+        "401":
+          description: Not signed in
   /v1/account:
     delete:
       operationId: deleteAccount
@@ -1722,6 +1808,52 @@ components:
       properties:
         role: { type: string, enum: [user, assistant] }
         content: { type: string, minLength: 1, maxLength: 3000 }
+    CoachV2ChatInput:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 1200 }
+    CoachV2ChatResponse:
+      type: object
+      additionalProperties: false
+      required: [message, conversationMode, persisted, safetyNotice]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000 }
+        conversationMode: { type: string, enum: [guest, account] }
+        persisted: { type: boolean }
+        safetyNotice: { type: string, enum: [wellness_not_medical_care] }
+    CoachV2Turn:
+      type: object
+      additionalProperties: false
+      required: [id, role, content, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string, minLength: 1, maxLength: 4000 }
+        createdAt: { type: string, format: date-time }
+    CoachV2Conversation:
+      type: object
+      additionalProperties: false
+      required: [turns, personalizationEnabled]
+      properties:
+        turns:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/CoachV2Turn" }
+        personalizationEnabled: { type: boolean }
+    CoachV2SettingsInput:
+      type: object
+      additionalProperties: false
+      required: [personalizationEnabled]
+      properties:
+        personalizationEnabled: { type: boolean }
+    CoachV2Settings:
+      type: object
+      additionalProperties: false
+      required: [personalizationEnabled]
+      properties:
+        personalizationEnabled: { type: boolean }
     CoachFactContextFactValues:
       type: object
       additionalProperties: false
