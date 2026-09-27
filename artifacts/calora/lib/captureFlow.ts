@@ -10,6 +10,7 @@ export type CaptureFailureKind =
   | 'timeout'
   | 'provider'
   | 'server'
+  | 'endpoint'
   | 'offline'
   | 'malformed_response'
   | 'invalid_input'
@@ -136,6 +137,15 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
   }
   if (status === 502) {
     return { kind: 'provider', message: 'The analysis service is temporarily unavailable. Your camera photo was captured successfully; retry later.' };
+  }
+  // A valid-but-stale native build can point at a host or proxy that does not
+  // expose the current capture route. Retrying cannot repair that delivery
+  // mismatch, so make the safe recovery action explicit.
+  if (status === 404 || status === 405 || (status !== undefined && status >= 300 && status < 400)) {
+    return {
+      kind: 'endpoint',
+      message: 'This Calora build cannot reach the current analysis service. Install the latest build, then sign in again.',
+    };
   }
   if (status === 503 || (status !== undefined && status >= 500)) {
     return { kind: 'server', message: 'Calora’s capture service is temporarily unavailable. Your camera photo was captured successfully; retry later.' };

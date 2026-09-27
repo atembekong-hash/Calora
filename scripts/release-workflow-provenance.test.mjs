@@ -63,8 +63,8 @@ function run(overrides = {}) {
 const expected = readExpectedEasIdentity(
   {
     expo: {
-      version: "1.0.0",
-      ios: { bundleIdentifier: "com.etiendem.caloraapp", buildNumber: "8" },
+      version: "1.0.1",
+      ios: { bundleIdentifier: "com.etiendem.caloraapp", buildNumber: "9" },
       extra: { eas: { projectId } },
     },
   },
@@ -82,8 +82,8 @@ function easBuild(overrides = {}) {
     status: "FINISHED",
     buildProfile: "production",
     gitCommitHash: sha,
-    appVersion: "1.0.0",
-    appBuildVersion: "8",
+    appVersion: "1.0.1",
+    appBuildVersion: "9",
     distribution: "STORE",
     isForIosSimulator: false,
     artifacts: { applicationArchiveUrl: "https://expo.example.test/archive.ipa?temporary=opaque" },

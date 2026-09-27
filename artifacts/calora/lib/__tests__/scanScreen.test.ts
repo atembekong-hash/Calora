@@ -26,4 +26,8 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('accessibilityLabel="Sign in again for Scan"');
     expect(source).toContain("router.push('/auth/sign-in')");
   });
+
+  it("does not invite a futile retry when an installed build targets a stale endpoint", () => {
+    expect(source).toContain("captureFlow.failure.kind === 'endpoint' ? null");
+  });
 });

@@ -28,8 +28,7 @@
       }
     },
     "development-device": {
-      "extends": "base",
-      "environment": "development",
+      "extends": "production",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -37,8 +36,7 @@
       }
     },
     "preview": {
-      "extends": "base",
-      "environment": "preview",
+      "extends": "production",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
