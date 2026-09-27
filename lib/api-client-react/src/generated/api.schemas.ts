@@ -1201,6 +1201,12 @@ export interface CaptureAnalyzeInput {
   clientCorrelationId?: string;
 }
 
+export interface CaptureError {
+  message: string;
+  /** @minimum 1 */
+  retryAfterSecs?: number;
+}
+
 export interface CaptureCandidate {
   id: string;
   name: string;

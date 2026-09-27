@@ -680,7 +680,8 @@ describe('accessibility labels — static invariants', () => {
   });
 
   it('recovers cleanly when native photo capture throws', () => {
-    expect(scanSource).toMatch(/try \{\s*const photo = await cameraRef\.current\.takePictureAsync/);
+    expect(scanSource).toMatch(/try \{\s*const photo = await withCaptureDeadline\(\s*\(\) => cameraRef\.current!\.takePictureAsync/);
+    expect(scanSource).toContain('CAPTURE_CAMERA_TIMEOUT_MS');
     expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*failCaptureOperation\(operationId, error\);/);
     expect(scanSource).toContain("error.name = 'CaptureCameraError'");
   });

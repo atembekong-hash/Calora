@@ -64,6 +64,13 @@
       "when": 1790497292331,
       "tag": "0009_recipe_nutrition_cache_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790503986270,
+      "tag": "0010_capture_rate_limits",
+      "breakpoints": true
     }
   ]
 }

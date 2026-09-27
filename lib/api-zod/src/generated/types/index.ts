@@ -18,6 +18,7 @@ export * from './captureAnalyzeInputMode';
 export * from './captureCandidate';
 export * from './captureComponent';
 export * from './captureConfidence';
+export * from './captureError';
 export * from './captureNutritionRange';
 export * from './coachAction';
 export * from './coachActionDestination';

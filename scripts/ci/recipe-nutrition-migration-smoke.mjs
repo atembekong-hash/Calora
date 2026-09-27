@@ -113,7 +113,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 9) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 10) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -156,12 +156,53 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 9) {
   }
 }
 
+async function verifyCaptureRateLimiter(client, scenario) {
+  const columns = await client.query(
+    `SELECT column_name, data_type
+       FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'calora_capture_rate_limits'`,
+  );
+  const actual = new Map(columns.rows.map((row) => [row.column_name, row.data_type]));
+  assert.equal(actual.get('key'), 'text', `${scenario} must retain the limiter key`);
+  assert.equal(actual.get('count'), 'integer', `${scenario} must add the limiter count`);
+  assert.equal(actual.get('reset_at'), 'timestamp with time zone', `${scenario} must add the limiter reset time`);
+
+  const index = await client.query(
+    `SELECT indexdef
+       FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = 'calora_capture_rate_limits'
+        AND indexname = 'calora_capture_rate_limits_key_idx'`,
+  );
+  assert.match(
+    index.rows[0]?.indexdef ?? '',
+    /CREATE UNIQUE INDEX/i,
+    `${scenario} must make the limiter key suitable for atomic upsert`,
+  );
+
+  const trigger = await client.query(
+    `SELECT 1
+       FROM pg_trigger trigger
+       JOIN pg_class table_ref ON table_ref.oid = trigger.tgrelid
+      WHERE table_ref.relname = 'calora_capture_rate_limits'
+        AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+        AND NOT trigger.tgisinternal`,
+  );
+  assert.equal(
+    trigger.rowCount,
+    1,
+    `${scenario} must retain the account-deletion write fence on the limiter`,
+  );
+}
+
 // A fresh nutrition-cache deployment must receive the canonical table from
 // forward migration 0009 after the existing Calora base schema is present.
 await resetDatabase(prerequisiteSchema);
 runMigrations("fresh cache schema");
 const fresh = await verifyExpectedColumns("fresh cache schema");
 try {
+  await verifyCaptureRateLimiter(fresh, 'fresh cache schema');
   const rows = await fresh.query(
     "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
   );
@@ -176,6 +217,7 @@ await resetDatabase(legacySchema);
 runMigrations("legacy schema");
 const legacy = await verifyExpectedColumns("legacy schema");
 try {
+  await verifyCaptureRateLimiter(legacy, 'legacy schema');
   const rows = await legacy.query(
     `SELECT calories, protein_g, carbs_g, fat_g, fiber_g, iron_mg
        FROM calora_recipe_nutrition
@@ -229,13 +271,20 @@ try {
     );
     INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
     VALUES ('historical-0008-recorded-without-cache', 1790483200000);
+    -- The abbreviated historical fixture records the immutable 0006 fence
+    -- migration without replaying every managed base migration. Recreate its
+    -- trigger function so forward-only 0010 can safely attach the limiter
+    -- fence exactly as it would on a real upgraded database.
+    CREATE FUNCTION calora_account_deletion_write_fence()
+    RETURNS trigger AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
   `);
 } finally {
   await historical.end();
 }
 runMigrations("historical 0008 no-cache upgrade");
-const historicalUpgrade = await verifyExpectedColumns("historical 0008 no-cache upgrade", 2);
+const historicalUpgrade = await verifyExpectedColumns("historical 0008 no-cache upgrade", 3);
 try {
+  await verifyCaptureRateLimiter(historicalUpgrade, 'historical 0008 no-cache upgrade');
   const rows = await historicalUpgrade.query(
     "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
   );
@@ -243,7 +292,7 @@ try {
   const history = await historicalUpgrade.query(
     "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations",
   );
-  assert.equal(history.rows[0]?.count, 2, "historical upgrade must append only 0009");
+  assert.equal(history.rows[0]?.count, 3, "historical upgrade must append only 0009 and 0010");
 } finally {
   await historicalUpgrade.end();
 }

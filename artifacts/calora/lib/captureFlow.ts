@@ -71,6 +71,11 @@ export function isCaptureBusy(state: CaptureFlowState): boolean {
   return state.stage === 'preparing' || state.stage === 'uploading';
 }
 
+/** Native image pickers can transiently set AppState to inactive. */
+export function shouldInterruptCaptureForAppState(nextState: string): boolean {
+  return nextState === 'background';
+}
+
 type ApiErrorShape = {
   name?: unknown;
   message?: unknown;
@@ -103,6 +108,9 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
   }
   if (name === 'CaptureCameraError') {
     return { kind: 'local_camera', message: message || 'The camera could not capture a photo. Check camera access and try again.' };
+  }
+  if (name === 'CaptureOperationTimeoutError') {
+    return { kind: 'timeout', message: 'Analysis took too long. Your photo is still private on this device; retry when ready.' };
   }
   if (name === 'ResponseParseError' || /failed to parse response|unexpected token/i.test(message)) {
     return { kind: 'malformed_response', message: 'Calora received an invalid analysis response. Please try again.' };
