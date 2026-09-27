@@ -31,6 +31,7 @@ import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { enterMotion } from '@/lib/motion';
+import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -1551,7 +1552,7 @@ export default function HomeScreen() {
     waterLogs,
     weights,
   ]);
-  const todayInsightMessage = todayInsight?.message
+  const todayInsightMessage = formatCoachPlainText(todayInsight?.message)
     ?.replace('Across your logged 28-day comparison window, ', '')
     .replace(' local-calendar', '')
     .replace('today’s logged calories', 'logged calories')
@@ -1923,14 +1924,14 @@ export default function HomeScreen() {
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
             accessibilityRole="summary"
-            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsightMessage}`}
+            accessibilityLabel={`Today insight: ${formatCoachPlainText(todayInsight.title)}. ${todayInsightMessage}`}
             style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
             </View>
             <View style={styles.todayInsightCopy}>
-              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{formatCoachPlainText(todayInsight.title)}</Text>
               <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsightMessage}</Text>
             </View>
           </Surface>

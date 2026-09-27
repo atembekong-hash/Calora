@@ -5,8 +5,10 @@ import {
   getCoachV2Settings,
   sendCoachV2Message,
   updateCoachV2Settings,
+  ApiError,
   type CoachV2Turn,
 } from "@workspace/api-client-react";
+import { formatCoachPlainText } from "@workspace/api-zod/coach-text-presentation";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -40,7 +42,14 @@ const starterPrompts = [
 ];
 
 function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
+  if (error instanceof ApiError) {
+    if (error.status === 400)
+      return "Please enter a valid Coach message and try again.";
+    if (error.status === 401)
+      return "Your account session needs to be refreshed. Please sign in again.";
+    if (error.status === 429)
+      return "Coach is busy right now. Please wait a moment and try again.";
+  }
   return "Coach is temporarily unavailable. Please try again.";
 }
 
@@ -70,6 +79,7 @@ export default function CoachScreen() {
       setNotice(null);
       return;
     }
+    setTurns([]);
     setIsLoadingHistory(true);
     setNotice(null);
     void Promise.all([getCoachV2Conversation(), getCoachV2Settings()])
@@ -79,7 +89,10 @@ export default function CoachScreen() {
           conversation.turns.map((turn) => ({
             id: turn.id,
             role: turn.role,
-            content: turn.content,
+            content:
+              turn.role === "assistant"
+                ? formatCoachPlainText(turn.content, { removeEmoji: true })
+                : turn.content,
           })),
         );
         setPersonalizationEnabled(settings.personalizationEnabled);
@@ -123,7 +136,9 @@ export default function CoachScreen() {
         {
           id: `coach-${requestId}`,
           role: "assistant",
-          content: response.message,
+          content: formatCoachPlainText(response.message, {
+            removeEmoji: true,
+          }),
           announce: true,
         },
       ]);
@@ -307,7 +322,9 @@ export default function CoachScreen() {
                   },
                 ]}
               >
-                {turn.content}
+                {turn.role === "assistant"
+                  ? formatCoachPlainText(turn.content, { removeEmoji: true })
+                  : turn.content}
               </Text>
             </View>
           </View>
@@ -340,7 +357,7 @@ export default function CoachScreen() {
           >
             <Feather name="info" size={15} color={colors.mutedForeground} />
             <Text style={[styles.noticeText, { color: colors.foreground }]}>
-              {notice}
+              {formatCoachPlainText(notice, { removeEmoji: true })}
             </Text>
           </View>
         ) : null}
