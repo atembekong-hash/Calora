@@ -24,6 +24,4 @@ export type PremiumRecipe = Recipe & ({
   dietary?: string[];
   allergens?: string[];
   equipment?: string[];
-  fiberG?: number | null;
-  sodiumMg?: number | null;
 });

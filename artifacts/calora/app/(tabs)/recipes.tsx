@@ -20,6 +20,7 @@ import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } 
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
+import { RecipeNutritionDetails } from '@/components/RecipeNutritionDetails';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
@@ -33,6 +34,7 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
+import type { RecipeNutritionFacts } from '@workspace/api-zod/recipe-nutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
@@ -377,8 +379,8 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
     try {
-      const generated = await requestGeneratedRecipe<{ name: string; description: string; ingredients: string[]; instructions: string[]; prepMinutes: number | null; servings: number; allergens?: string[]; nutrition?: { calories?: number; proteinG?: number; carbsG?: number; fatG?: number } }>({ title: concept.title, summary: concept.summary, servings: Number(servings) });
-      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
+      const generated = await requestGeneratedRecipe<{ name: string; description: string; ingredients: string[]; instructions: string[]; prepMinutes: number | null; servings: number; allergens?: string[]; nutrition?: ({ calories?: number; proteinG?: number; carbsG?: number; fatG?: number } & RecipeNutritionFacts) }>({ title: concept.title, summary: concept.summary, servings: Number(servings) });
+      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, ...(generated.nutrition ?? {}), source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
     } catch {
       // Creating a local draft preserves the user's chosen concept without
       // pretending that unavailable AI output was received.
@@ -1185,6 +1187,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                     <Pressable accessibilityLabel="Increase servings" onPress={() => setServingCount((c) => Math.min(8, Math.round((c + 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
                   </View>
                 </View>
+
+                <RecipeNutritionDetails nutrition={detail} servingCount={servingCount} colors={colors} />
 
                 {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
                 {(detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType) ? (

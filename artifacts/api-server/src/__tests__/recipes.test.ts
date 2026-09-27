@@ -107,6 +107,28 @@ describe("AI nutrition estimate parsing", () => {
   ] as const)("keeps missing and invalid values unavailable while preserving real values", (input, expected) => {
     expect(parseNutritionEstimate(input)).toEqual(expected);
   });
+
+  it("preserves supported micronutrients without converting absent or invalid values to zero", () => {
+    expect(parseNutritionEstimate({
+      calories: 450,
+      proteinG: 15,
+      carbsG: 70,
+      fatG: 12,
+      fiberG: 8.25,
+      sodiumMg: 680,
+      vitaminB12McG: 1.2,
+      vitaminCMg: -2,
+      zincMg: "not-a-number",
+    })).toEqual({
+      calories: 450,
+      proteinG: 15,
+      carbsG: 70,
+      fatG: 12,
+      fiberG: 8.25,
+      sodiumMg: 680,
+      vitaminB12McG: 1.2,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

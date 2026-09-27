@@ -29,9 +29,12 @@ function createIsolatedAppRoot() {
 }
 
 function prebuildAndroid(appRoot) {
+  // Resolve from the authoritative app root. `pnpm exec` can otherwise walk
+  // above the disposable fixture and select a stale outer workspace link.
+  const expoCli = require.resolve("expo/bin/cli", { paths: [sourceAppRoot] });
   execFileSync(
-    "pnpm",
-    ["exec", "expo", "prebuild", "--platform", "android", "--no-install"],
+    process.execPath,
+    [expoCli, "prebuild", "--platform", "android", "--no-install"],
     {
       cwd: appRoot,
       env: { ...process.env, CI: "1" },

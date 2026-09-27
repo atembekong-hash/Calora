@@ -18,6 +18,10 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/planner-program-eligibility.ts',
       ),
+      '@workspace/api-zod/recipe-nutrition': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/recipe-nutrition.ts',
+      ),
       // Resolve the @ alias used in calora source
       '@': path.resolve(__dirname),
       // Map react-native to react-native-web for jsdom rendering tests.

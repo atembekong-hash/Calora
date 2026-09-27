@@ -272,7 +272,7 @@ describe("AI recipe creation endpoints", () => {
       instructions: ["Cook the lentils.", "Wilt the spinach.", "Finish with lemon."],
       prepMinutes: 25,
       servings: 3,
-      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14, fiberG: 16, ironMg: 5.8, vitaminCMg: 24 },
       allergens: ["legumes"],
     }));
 
@@ -287,7 +287,7 @@ describe("AI recipe creation endpoints", () => {
       name: "Lemony lentil bowl",
       servings: 3,
       prepMinutes: 25,
-      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14, fiberG: 16, ironMg: 5.8, vitaminCMg: 24 },
     });
     expect(response.body.nutritionNote).toMatch(/AI-estimated/i);
   });

@@ -26,6 +26,10 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/planner-program-pools.ts',
       ),
+      '@workspace/api-zod/recipe-nutrition': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/recipe-nutrition.ts',
+      ),
       '@workspace/api-zod/image-source-policy': path.resolve(
         __dirname,
         '../../lib/api-zod/src/image-source-policy.ts',

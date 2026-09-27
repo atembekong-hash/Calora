@@ -179,13 +179,13 @@ describe("Premium recipe routes", () => {
   });
 
   it("normalizes a configured provider list and forwards filters/pagination", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, proteinG: 18, carbsG: 52, fatG: 14, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, proteinG: 18, carbsG: 52, fatG: 14, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, saturatedFatG: 2.1, magnesiumMg: 74, vitaminCMg: 16 }], nextOffset: 18 }) });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
     const res = await request(app).get("/v1/premium-recipes?query=miso&category=Dinner&limit=18&offset=0");
     expect(res.status).toBe(200);
     expect(res.body.recipes[0]).toMatchObject({ id: "premium:Premium provider:42", sourceType: "premium", nutritionConfidence: "verified" });
-    expect(res.body.recipes[0]).toMatchObject({ servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, sodiumMg: null });
+    expect(res.body.recipes[0]).toMatchObject({ servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, saturatedFatG: 2.1, magnesiumMg: 74, vitaminCMg: 16, sodiumMg: null });
     expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0][0])).toContain("query=miso");
     expect(String(fetchMock.mock.calls[0][0])).toContain("offset=0");
