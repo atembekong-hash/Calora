@@ -68,7 +68,11 @@ jobs:
           git diff --exit-code -- lib/api-client-react/src/generated lib/api-zod/src/generated
 
       - name: Run Expo Doctor
-        run: pnpm --dir artifacts/calora exec expo-doctor
+        # `pnpm exec` injects pnpm-only npm configuration into child processes.
+        # npm 11 (bundled with Node 24) warns on those keys, which makes Expo
+        # Doctor's internal JSON dependency check fail despite a clean graph.
+        working-directory: artifacts/calora
+        run: node node_modules/expo-doctor/build/index.js
 
       - name: Smoke-test recipe nutrition migrations
         env:
