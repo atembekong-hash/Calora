@@ -32,6 +32,8 @@ import type {
   DiaryEntryPatch,
   DiaryFirstLogInput,
   DiaryFirstLogResult,
+  GeneratedRecipeInput,
+  GeneratedRecipeResponse,
   HealthStatus,
   ListDiaryEntries200,
   ListDiaryEntriesParams,
@@ -46,6 +48,8 @@ import type {
   Profile,
   ProfileInput,
   Recipe,
+  RecipeConceptInput,
+  RecipeConceptResponse,
   RecipeList,
   RecipeMedia,
   RecipeMediaError,
@@ -924,6 +928,219 @@ export function useListRecipes<TData = Awaited<ReturnType<typeof listRecipes>>, 
 
 
 
+
+export const getGenerateRecipeConceptsUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/concepts`
+}
+
+/**
+ * @summary Generate bounded recipe concepts for an authenticated user
+ */
+export const generateRecipeConcepts = async (recipeConceptInput: RecipeConceptInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeConceptResponse> => {
+
+  return customFetch<RecipeConceptResponse>(getGenerateRecipeConceptsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipeConceptInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateRecipeConceptsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext> => {
+
+const mutationKey = ['generateRecipeConcepts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateRecipeConcepts>>, {data: BodyType<RecipeConceptInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateRecipeConcepts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateRecipeConceptsMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipeConcepts>>>
+    export type GenerateRecipeConceptsMutationBody = BodyType<RecipeConceptInput>
+    export type GenerateRecipeConceptsMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate bounded recipe concepts for an authenticated user
+ */
+export const useGenerateRecipeConcepts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateRecipeConcepts>>,
+        TError,
+        {data: BodyType<RecipeConceptInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateRecipeConceptsMutationOptions(options));
+    }
+
+export const getGenerateGuestRecipeConceptsUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/guest-concepts`
+}
+
+/**
+ * @summary Generate bounded recipe concepts without an account
+ */
+export const generateGuestRecipeConcepts = async (recipeConceptInput: RecipeConceptInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeConceptResponse> => {
+
+  return customFetch<RecipeConceptResponse>(getGenerateGuestRecipeConceptsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipeConceptInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateGuestRecipeConceptsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext> => {
+
+const mutationKey = ['generateGuestRecipeConcepts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, {data: BodyType<RecipeConceptInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateGuestRecipeConcepts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateGuestRecipeConceptsMutationResult = NonNullable<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>>
+    export type GenerateGuestRecipeConceptsMutationBody = BodyType<RecipeConceptInput>
+    export type GenerateGuestRecipeConceptsMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate bounded recipe concepts without an account
+ */
+export const useGenerateGuestRecipeConcepts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateGuestRecipeConcepts>>,
+        TError,
+        {data: BodyType<RecipeConceptInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateGuestRecipeConceptsMutationOptions(options));
+    }
+
+export const getGenerateRecipeUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/generated`
+}
+
+/**
+ * @summary Expand an authenticated recipe concept into a complete estimated recipe
+ */
+export const generateRecipe = async (generatedRecipeInput: GeneratedRecipeInput, options?: Parameters<typeof customFetch>[1]): Promise<GeneratedRecipeResponse> => {
+
+  return customFetch<GeneratedRecipeResponse>(getGenerateRecipeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generatedRecipeInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateRecipeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext> => {
+
+const mutationKey = ['generateRecipe'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateRecipe>>, {data: BodyType<GeneratedRecipeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateRecipe(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateRecipeMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipe>>>
+    export type GenerateRecipeMutationBody = BodyType<GeneratedRecipeInput>
+    export type GenerateRecipeMutationError = ErrorType<void>
+
+    /**
+ * @summary Expand an authenticated recipe concept into a complete estimated recipe
+ */
+export const useGenerateRecipe = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateRecipe>>,
+        TError,
+        {data: BodyType<GeneratedRecipeInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateRecipeMutationOptions(options));
+    }
 
 export const getGenerateRecipePhotoUrl = () => {
 

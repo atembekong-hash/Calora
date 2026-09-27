@@ -42,14 +42,28 @@ function parseSecureImageUrl(value: unknown): ParsedUrl | undefined {
 
 function isPrivateNetworkHostname(hostname: string): boolean {
   const value = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (value === 'localhost' || value === '::1' || value.endsWith('.local')) return true;
-  if (/^(?:0|10|127)\./.test(value) || /^169\.254\./.test(value) || /^192\.168\./.test(value)) return true;
-  if (/^172\.(?:1[6-9]|2\d|3[01])\./.test(value) || /^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(value)) return true;
-  return /^198\.(?:1[89])\./.test(value);
+  if (value === 'localhost' || value.endsWith('.localhost') || value.endsWith('.local')) return true;
+  // External provider metadata is never a capability to contact an IP literal.
+  // Rejecting every IP literal is safer than attempting to classify every IPv4
+  // and IPv6 special-use range or trusting a future DNS resolution.
+  if (value.includes(':') || /^\d+(?:\.\d+){3}$/.test(value)) return true;
+  return false;
+}
+
+/**
+ * Normalizes a display-only third-party link. This parser does not resolve,
+ * fetch, proxy, or follow the URL, so it cannot authorize server-side egress.
+ */
+export function normalizeExternalHttpsUrl(value: unknown): string | undefined {
+  const parsed = parseSecureImageUrl(value);
+  if (!parsed || isPrivateNetworkHostname(parsed.hostname)) return undefined;
+  return parsed.toString();
 }
 
 export function normalizeTrustedFoodImageUrl(value: unknown): string | undefined {
-  const parsed = parseSecureImageUrl(value);
+  const normalized = normalizeExternalHttpsUrl(value);
+  if (!normalized) return undefined;
+  const parsed = parseSecureImageUrl(normalized);
   if (!parsed) return undefined;
   const hostname = parsed.hostname.toLowerCase();
   if (!TRUSTED_FOOD_IMAGE_DOMAINS.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`))) {

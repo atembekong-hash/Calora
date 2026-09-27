@@ -191,7 +191,7 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
-  it("allows bounded guest concepts without resolving authentication or account context", async () => {
+  it("allows a documented guest concept payload without resolving authentication", async () => {
     mockOpenAiCreate.mockResolvedValueOnce(completion({
       concepts: [{ title: "Lentil bowl", summary: "A quick dinner.", whyItFits: "Uses lentils.", keyIngredients: ["lentils"], estimatedMinutes: 25 }],
     }));
@@ -199,7 +199,7 @@ describe("AI recipe creation endpoints", () => {
     const response = await request(app)
       .post("/v1/recipes/guest-concepts")
       .set("Authorization", "Bearer ignored-by-guest-route")
-      .send({ ingredients: ["lentils"], mealType: "Dinner", preferences: ["Vegan"], profile: { email: "must-not-forward@example.com" } });
+      .send({ ingredients: ["lentils"], mealType: "Dinner", preferences: ["Vegan"] });
 
     expect(response.status).toBe(200);
     expect(verifyBearerToken).not.toHaveBeenCalled();
@@ -208,8 +208,20 @@ describe("AI recipe creation endpoints", () => {
       expect.stringContaining("guest-recipes:daily:ip:"),
     ]));
     const payload = JSON.parse(mockOpenAiCreate.mock.calls[0][0].messages[1].content);
-    expect(payload).not.toHaveProperty("profile");
     expect(payload).toMatchObject({ ingredients: ["lentils"], preferences: ["Vegan"] });
+  });
+
+  it("rejects unknown, blank, or malformed documented inputs before model work", async () => {
+    const [unknownField, blankIngredient, invalidNumber] = await Promise.all([
+      request(app).post("/v1/recipes/guest-concepts").send({ request: "Dinner", profile: { email: "must-not-forward@example.com" } }),
+      request(app).post("/v1/recipes/concepts").send({ ingredients: ["   "] }),
+      request(app).post("/v1/recipes/concepts").send({ request: "Dinner", servings: 2.5 }),
+    ]);
+
+    expect(unknownField.status).toBe(400);
+    expect(blankIngredient.status).toBe(400);
+    expect(invalidNumber.status).toBe(400);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
   it("fails closed before model work when a guest limiter is unavailable", async () => {
@@ -240,7 +252,7 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
-  it("returns bounded, structured concepts and normalizes invalid numeric input", async () => {
+  it("returns bounded, structured concepts for documented finite input", async () => {
     mockOpenAiCreate.mockResolvedValueOnce(completion({
       concepts: [
         { title: "Lemony lentil bowl", summary: "A bright one-pan dinner.", whyItFits: "Uses your lentils.", keyIngredients: ["lentils", "lemon"], estimatedMinutes: 27.6 },
@@ -251,8 +263,8 @@ describe("AI recipe creation endpoints", () => {
 
     const response = await request(app).post("/v1/recipes/concepts").send({
       ingredients: ["lentils", "spinach"],
-      servings: Number.NaN,
-      maxMinutes: Number.POSITIVE_INFINITY,
+      servings: 2,
+      maxMinutes: 30,
     });
 
     expect(response.status).toBe(200);
@@ -272,7 +284,7 @@ describe("AI recipe creation endpoints", () => {
       instructions: ["Cook the lentils.", "Wilt the spinach.", "Finish with lemon."],
       prepMinutes: 25,
       servings: 3,
-      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14, fiberG: 16, ironMg: 5.8, vitaminCMg: 24 },
       allergens: ["legumes"],
     }));
 
@@ -287,9 +299,32 @@ describe("AI recipe creation endpoints", () => {
       name: "Lemony lentil bowl",
       servings: 3,
       prepMinutes: 25,
-      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14, fiberG: 16, ironMg: 5.8, vitaminCMg: 24 },
     });
     expect(response.body.nutritionNote).toMatch(/AI-estimated/i);
+  });
+
+  it("preserves two-decimal generated nutrients and requests qualified FDA bases", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      name: "Precise lentil bowl",
+      description: "A precise dinner.",
+      ingredients: ["1 cup lentils", "1 lemon"],
+      instructions: ["Cook lentils.", "Season.", "Serve."],
+      prepMinutes: 20,
+      servings: 2,
+      nutrition: { calories: 480.25, proteinG: 24.55, carbsG: 62.44, fatG: 14.1, vitaminAMcG: 90, vitaminEMg: 1.5, niacinMg: 3.2, folateMcG: 40 },
+      allergens: [],
+    }));
+
+    const response = await request(app).post("/v1/recipes/generated").send({ title: "Precise lentil bowl", servings: 2 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.nutrition).toMatchObject({ calories: 480.25, proteinG: 24.55, carbsG: 62.44, fatG: 14.1 });
+    const prompt = mockOpenAiCreate.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("mcg RAE");
+    expect(prompt).toContain("mg alpha-tocopherol");
+    expect(prompt).toContain("mg NE");
+    expect(prompt).toContain("mcg DFE");
   });
 
   it("rejects incomplete model output without leaking an invalid recipe", async () => {

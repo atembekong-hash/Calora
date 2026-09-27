@@ -1,3 +1,13 @@
+import {
+  normalizeRecipeNutritionFacts,
+  type RecipeNutritionFacts,
+  type RecipeNutrientKey,
+} from "@workspace/api-zod/recipe-nutrition";
+import {
+  normalizeExternalHttpsUrl,
+  normalizeTrustedFoodImageUrl,
+} from "@workspace/api-zod/image-source-policy";
+
 export type PremiumRecipe = {
   id: string;
   name: string;
@@ -18,8 +28,6 @@ export type PremiumRecipe = {
   dietary: string[];
   allergens: string[];
   equipment: string[];
-  fiberG: number | null;
-  sodiumMg: number | null;
   calories: number | null;
   proteinG: number | null;
   carbsG: number | null;
@@ -31,7 +39,7 @@ export type PremiumRecipe = {
   sourceId: string;
   nutritionConfidence: "verified" | "estimated" | "unavailable";
   nutritionSource: string;
-};
+} & RecipeNutritionFacts;
 
 export type RestaurantFoodServing = {
   servingId: string | null;
@@ -133,7 +141,36 @@ async function fatSecretAccessToken() {
 
 function fatSecretNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+/**
+ * FatSecret labels the fields below in its documented units. Facts whose units
+ * are ambiguous in the provider payload are intentionally not converted or
+ * displayed; an absent fact is safer than a mislabeled real value.
+ */
+const FATSECRET_NUTRIENT_ALIASES: Partial<Record<RecipeNutrientKey, readonly string[]>> = {
+  saturatedFatG: ["saturated_fat"],
+  transFatG: ["trans_fat"],
+  monounsaturatedFatG: ["monounsaturated_fat"],
+  polyunsaturatedFatG: ["polyunsaturated_fat"],
+  fiberG: ["fiber"],
+  sugarsG: ["sugar"],
+  cholesterolMg: ["cholesterol"],
+  sodiumMg: ["sodium"],
+  potassiumMg: ["potassium"],
+  calciumMg: ["calcium"],
+  ironMg: ["iron"],
+  vitaminCMg: ["vitamin_c"],
+};
+
+function fatSecretNutritionFacts(raw: Record<string, unknown>): RecipeNutritionFacts {
+  const facts: RecipeNutritionFacts = {};
+  for (const [key, aliases] of Object.entries(FATSECRET_NUTRIENT_ALIASES) as Array<[RecipeNutrientKey, readonly string[]]>) {
+    const value = aliases.map((alias) => fatSecretNumber(raw[alias])).find((candidate) => candidate !== null);
+    if (value !== undefined && value !== null && value >= 0) facts[key] = value;
+  }
+  return facts;
 }
 
 function fatSecretIngredient(row: unknown): string | null {
@@ -180,14 +217,15 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
       return parsed !== null && parsed >= 0 ? parsed : null;
     });
   const nutritionComplete = normalizedNutrition.every((value) => value !== null);
+  const nutritionFacts = fatSecretNutritionFacts(nutrients);
   return {
     id: `premium:FatSecret:${recipeId}`, name, image: recipeImage(raw.recipe_image) ?? recipeImage(raw.image), category: null, area: null,
     description: string(raw.recipe_description), instructions: directionList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).direction_description) : null).filter((v): v is string => Boolean(v)).join("\n") || null,
     ingredients: ingredientList.map(fatSecretIngredient).filter((v): v is string => Boolean(v)),
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
-    cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], fiberG: fatSecretNumber(nutrients.fiber), sodiumMg: fatSecretNumber(nutrients.sodium),
+    cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], ...nutritionFacts,
     calories: normalizedNutrition[0], proteinG: normalizedNutrition[1], carbsG: normalizedNutrition[2], fatG: normalizedNutrition[3],
-    source: "FatSecret", sourceUrl: string(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
+    source: "FatSecret", sourceUrl: recipeSourceUrl(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
     nutritionConfidence: nutritionComplete ? "verified" : "unavailable",
     nutritionSource: nutritionComplete
       ? "FatSecret nutrition data"
@@ -269,7 +307,7 @@ export function normalizeFatSecretFood(input: unknown): RestaurantFood | null {
     sourceId,
     name,
     brandName: string(raw.brand_name),
-    foodUrl: string(raw.food_url),
+    foodUrl: normalizeExternalHttpsUrl(raw.food_url) ?? null,
     serving: primary.description,
     servingId: primary.servingId,
     calories: primary.calories,
@@ -393,15 +431,14 @@ async function fatSecretGatewayFetch(path: string, params: Record<string, string
 function string(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+
+/** The public API emits display-only, public HTTPS recipe links. */
+function recipeSourceUrl(value: unknown): string | null {
+  return normalizeExternalHttpsUrl(value) ?? null;
+}
+
 function recipeImage(value: unknown): string | null {
-  const candidate = string(value);
-  if (!candidate) return null;
-  try {
-    const url = new URL(candidate);
-    return url.protocol === "https:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
+  return normalizeTrustedFoodImageUrl(value) ?? null;
 }
 function recipeImageIdentity(value: string | null): string | null {
   if (!value) return null;
@@ -470,13 +507,14 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
   const raw = input as Record<string, unknown>;
   const providerId = string(raw.id) ?? string(raw.sourceId);
   const name = string(raw.name);
-  const sourceUrl = string(raw.sourceUrl);
+  const sourceUrl = recipeSourceUrl(raw.sourceUrl);
   if (!providerId || !name || !sourceUrl) return null;
   const rawNutritionValues = [raw.calories, raw.proteinG, raw.carbsG, raw.fatG];
   const nutritionValues = rawNutritionValues.map((value) => {
     const parsed = number(value);
     return parsed !== null && parsed >= 0 ? parsed : null;
   });
+  const nutritionFacts = normalizeRecipeNutritionFacts(raw);
   const nutritionComplete = nutritionValues.every((value) => value !== null && value >= 0);
   const confidence = nutritionComplete && (raw.nutritionConfidence === "verified" || raw.nutritionConfidence === "estimated")
     ? raw.nutritionConfidence
@@ -501,8 +539,11 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
     dietary: strings(raw.dietary),
     allergens: strings(raw.allergens),
     equipment: strings(raw.equipment),
-    fiberG: number(raw.fiberG),
-    sodiumMg: number(raw.sodiumMg),
+    ...nutritionFacts,
+    // Preserve the pre-existing nullable fields for installed clients while
+    // leaving newly introduced facts absent when their source omitted them.
+    fiberG: nutritionFacts.fiberG ?? null,
+    sodiumMg: nutritionFacts.sodiumMg ?? null,
     calories: nutritionValues[0],
     proteinG: nutritionValues[1],
     carbsG: nutritionValues[2],

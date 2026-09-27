@@ -262,6 +262,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecipeList"
+  /v1/recipes/concepts:
+    post:
+      operationId: generateRecipeConcepts
+      tags: [recipes]
+      summary: Generate bounded recipe concepts for an authenticated user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeConceptInput" }
+      responses:
+        "200":
+          description: Generated recipe concepts
+          content: { application/json: { schema: { $ref: "#/components/schemas/RecipeConceptResponse" } } }
+        "401": { description: Authentication is required }
+        "429": { description: Recipe-generation quota exceeded }
+  /v1/recipes/guest-concepts:
+    post:
+      operationId: generateGuestRecipeConcepts
+      tags: [recipes]
+      summary: Generate bounded recipe concepts without an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeConceptInput" }
+      responses:
+        "200":
+          description: Generated recipe concepts
+          content: { application/json: { schema: { $ref: "#/components/schemas/RecipeConceptResponse" } } }
+        "429": { description: Guest recipe-generation quota exceeded }
+  /v1/recipes/generated:
+    post:
+      operationId: generateRecipe
+      tags: [recipes]
+      summary: Expand an authenticated recipe concept into a complete estimated recipe
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GeneratedRecipeInput" }
+      responses:
+        "200":
+          description: Complete generated recipe with optional source-backed nutrient estimates
+          content: { application/json: { schema: { $ref: "#/components/schemas/GeneratedRecipeResponse" } } }
+        "401": { description: Authentication is required }
+        "429": { description: Recipe-generation quota exceeded }
   /v1/recipes/photo:
     post:
       operationId: generateRecipePhoto
@@ -1031,6 +1080,93 @@ components:
         conflicts: { type: array, items: { $ref: "#/components/schemas/SyncConflict" } }
         records: { type: array, items: { $ref: "#/components/schemas/SyncDiaryRecord" } }
         nextCursor: { type: string }
+    RecipeConceptInput:
+      type: object
+      additionalProperties: false
+      anyOf:
+        - required: [ingredients]
+        - required: [request]
+      properties:
+        ingredients: { type: array, minItems: 1, maxItems: 18, items: { type: string, minLength: 1, maxLength: 80 } }
+        mealType: { type: string, minLength: 1, maxLength: 40 }
+        servings: { type: integer, minimum: 1, maximum: 12 }
+        maxMinutes: { type: integer, minimum: 5, maximum: 180 }
+        preferences: { type: array, maxItems: 8, items: { type: string, minLength: 1, maxLength: 60 } }
+        request: { type: string, minLength: 1, maxLength: 500 }
+    RecipeConcept:
+      type: object
+      required: [title, summary, whyItFits, keyIngredients, estimatedMinutes]
+      properties:
+        title: { type: string }
+        summary: { type: string }
+        whyItFits: { type: string }
+        keyIngredients: { type: array, items: { type: string } }
+        estimatedMinutes: { type: [integer, "null"] }
+    RecipeConceptResponse:
+      type: object
+      required: [concepts, nutritionNote]
+      properties:
+        concepts: { type: array, minItems: 1, maxItems: 5, items: { $ref: "#/components/schemas/RecipeConcept" } }
+        nutritionNote: { type: string, minLength: 1, maxLength: 240 }
+    GeneratedRecipeInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        summary: { type: string, minLength: 1, maxLength: 220 }
+        servings: { type: integer, minimum: 1, maximum: 12 }
+    GeneratedRecipeNutrition:
+      type: object
+      required: [calories, proteinG, carbsG, fatG]
+      properties:
+        calories: { type: [number, "null"], minimum: 0 }
+        proteinG: { type: [number, "null"], minimum: 0 }
+        carbsG: { type: [number, "null"], minimum: 0 }
+        fatG: { type: [number, "null"], minimum: 0 }
+        saturatedFatG: { type: [number, "null"], minimum: 0 }
+        transFatG: { type: [number, "null"], minimum: 0 }
+        monounsaturatedFatG: { type: [number, "null"], minimum: 0 }
+        polyunsaturatedFatG: { type: [number, "null"], minimum: 0 }
+        fiberG: { type: [number, "null"], minimum: 0 }
+        sugarsG: { type: [number, "null"], minimum: 0 }
+        addedSugarsG: { type: [number, "null"], minimum: 0 }
+        cholesterolMg: { type: [number, "null"], minimum: 0 }
+        sodiumMg: { type: [number, "null"], minimum: 0 }
+        potassiumMg: { type: [number, "null"], minimum: 0 }
+        calciumMg: { type: [number, "null"], minimum: 0 }
+        ironMg: { type: [number, "null"], minimum: 0 }
+        magnesiumMg: { type: [number, "null"], minimum: 0 }
+        zincMg: { type: [number, "null"], minimum: 0 }
+        phosphorusMg: { type: [number, "null"], minimum: 0 }
+        seleniumMcG: { type: [number, "null"], minimum: 0 }
+        copperMg: { type: [number, "null"], minimum: 0 }
+        vitaminAMcG: { type: [number, "null"], minimum: 0, description: "Vitamin A in mcg RAE." }
+        vitaminCMg: { type: [number, "null"], minimum: 0 }
+        vitaminDMcG: { type: [number, "null"], minimum: 0 }
+        vitaminEMg: { type: [number, "null"], minimum: 0, description: "Vitamin E in mg alpha-tocopherol." }
+        vitaminKMcG: { type: [number, "null"], minimum: 0 }
+        thiaminMg: { type: [number, "null"], minimum: 0 }
+        riboflavinMg: { type: [number, "null"], minimum: 0 }
+        niacinMg: { type: [number, "null"], minimum: 0, description: "Niacin in mg NE." }
+        vitaminB5Mg: { type: [number, "null"], minimum: 0 }
+        vitaminB6Mg: { type: [number, "null"], minimum: 0 }
+        vitaminB12McG: { type: [number, "null"], minimum: 0 }
+        folateMcG: { type: [number, "null"], minimum: 0, description: "Folate in mcg DFE." }
+        cholineMg: { type: [number, "null"], minimum: 0 }
+    GeneratedRecipeResponse:
+      type: object
+      required: [name, description, ingredients, instructions, servings, prepMinutes, nutrition, allergens, nutritionNote]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        ingredients: { type: array, minItems: 2, maxItems: 20, items: { type: string } }
+        instructions: { type: array, minItems: 3, maxItems: 10, items: { type: string } }
+        servings: { type: integer, minimum: 1, maximum: 12 }
+        prepMinutes: { type: [integer, "null"], minimum: 1, maximum: 180 }
+        nutrition: { $ref: "#/components/schemas/GeneratedRecipeNutrition" }
+        allergens: { type: array, maxItems: 8, items: { type: string } }
+        nutritionNote: { type: string, minLength: 1, maxLength: 240 }
     RecipeList:
       type: object
       required: [recipes, source]
@@ -1130,6 +1266,36 @@ components:
         proteinG: { type: number, nullable: true }
         carbsG: { type: number, nullable: true }
         fatG: { type: number, nullable: true }
+        saturatedFatG: { type: number, nullable: true }
+        transFatG: { type: number, nullable: true }
+        monounsaturatedFatG: { type: number, nullable: true }
+        polyunsaturatedFatG: { type: number, nullable: true }
+        fiberG: { type: number, nullable: true }
+        sugarsG: { type: number, nullable: true }
+        addedSugarsG: { type: number, nullable: true }
+        cholesterolMg: { type: number, nullable: true }
+        sodiumMg: { type: number, nullable: true }
+        potassiumMg: { type: number, nullable: true }
+        calciumMg: { type: number, nullable: true }
+        ironMg: { type: number, nullable: true }
+        magnesiumMg: { type: number, nullable: true }
+        zincMg: { type: number, nullable: true }
+        phosphorusMg: { type: number, nullable: true }
+        seleniumMcG: { type: number, nullable: true }
+        copperMg: { type: number, nullable: true }
+        vitaminAMcG: { type: number, nullable: true, description: "Vitamin A in mcg RAE." }
+        vitaminCMg: { type: number, nullable: true }
+        vitaminDMcG: { type: number, nullable: true }
+        vitaminEMg: { type: number, nullable: true, description: "Vitamin E in mg alpha-tocopherol." }
+        vitaminKMcG: { type: number, nullable: true }
+        thiaminMg: { type: number, nullable: true }
+        riboflavinMg: { type: number, nullable: true }
+        niacinMg: { type: number, nullable: true, description: "Niacin in mg NE." }
+        vitaminB5Mg: { type: number, nullable: true }
+        vitaminB6Mg: { type: number, nullable: true }
+        vitaminB12McG: { type: number, nullable: true }
+        folateMcG: { type: number, nullable: true, description: "Folate in mcg DFE." }
+        cholineMg: { type: number, nullable: true }
         nutritionUnavailable:
           type: boolean
           description: >
@@ -1169,8 +1335,6 @@ components:
             dietary: { type: array, items: { type: string } }
             allergens: { type: array, items: { type: string } }
             equipment: { type: array, items: { type: string } }
-            fiberG: { type: number, nullable: true }
-            sodiumMg: { type: number, nullable: true }
     RestaurantFoodList:
       type: object
       required: [status, provider, foods]

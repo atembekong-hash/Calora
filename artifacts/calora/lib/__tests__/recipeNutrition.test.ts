@@ -9,6 +9,7 @@ describe('recipe nutrition states', () => {
     expect(getRecipeNutritionState({ pending: true })).toBe('loading');
     expect(getRecipeNutritionState({ error: true })).toBe('error');
     expect(hasCompleteNutrition({ calories: 100, proteinG: null, carbsG: 1, fatG: 1 })).toBe(false);
+    expect(hasCompleteNutrition({ calories: -1, proteinG: 1, carbsG: 1, fatG: 1 })).toBe(false);
   });
 
   it.each([

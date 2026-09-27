@@ -16,6 +16,20 @@ jobs:
     name: Run release validation suite
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16.15@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
+        env:
+          POSTGRES_USER: calora_test
+          POSTGRES_PASSWORD: calora_test
+          POSTGRES_DB: calora_recipe_migration
+        options: >-
+          --health-cmd "pg_isready -U calora_test -d calora_recipe_migration"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Check out source
@@ -46,6 +60,24 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify generated API clients are current
+        run: |
+          pnpm --filter @workspace/api-spec run codegen
+          git diff --check
+          git diff --exit-code -- lib/api-client-react/src/generated lib/api-zod/src/generated
+
+      - name: Run Expo Doctor
+        # `pnpm exec` injects pnpm-only npm configuration into child processes.
+        # npm 11 (bundled with Node 24) warns on those keys, which makes Expo
+        # Doctor's internal JSON dependency check fail despite a clean graph.
+        working-directory: artifacts/calora
+        run: node node_modules/expo-doctor/build/index.js
+
+      - name: Smoke-test recipe nutrition migrations
+        env:
+          DATABASE_URL: postgresql://calora_test:calora_test@127.0.0.1:5432/calora_recipe_migration
+        run: node scripts/ci/recipe-nutrition-migration-smoke.mjs
 
       - name: Validate authoritative Expo configuration
         run: node scripts/ci/validate-expo-config.mjs artifacts/calora/app.json

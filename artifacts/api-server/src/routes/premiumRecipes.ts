@@ -3,6 +3,7 @@ import { FatSecretProviderError, getPremiumRecipe, listPremiumRecipes, premiumPr
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { checkRateLimit } from "../lib/rate-limit";
+import { parseRecipeListFilters } from "../lib/recipeQuery";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -99,6 +100,11 @@ function validatedFreshnessDay(value: unknown): string | undefined {
 router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
   const accountId = await requirePremiumAccess(req, res);
   if (!accountId) return;
+  const filters = parseRecipeListFilters(req.query as Record<string, unknown>);
+  if (!filters.ok) {
+    res.status(400).json({ message: filters.message });
+    return;
+  }
   const parsedLimit = Number(req.query.limit ?? 18);
   const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(Math.floor(parsedLimit), 1), 30) : 18;
   const parsedOffset = Number(req.query.offset ?? 0);
@@ -110,8 +116,8 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
   }
   try {
     const result = await listPremiumRecipes({
-      query: typeof req.query.query === "string" ? req.query.query.trim() : undefined,
-      category: typeof req.query.category === "string" ? req.query.category.trim() : undefined,
+      query: filters.value.query || undefined,
+      category: filters.value.category || undefined,
       freshnessDay,
       accountId,
       limit,

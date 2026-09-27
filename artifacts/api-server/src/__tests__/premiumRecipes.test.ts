@@ -109,6 +109,21 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects overlong premium query and category values before provider work", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const queryResult = await request(app).get(`/v1/premium-recipes?query=${"x".repeat(121)}`);
+    const categoryResult = await request(app).get(`/v1/premium-recipes?category=${"x".repeat(81)}`);
+
+    expect(queryResult.status).toBe(400);
+    expect(queryResult.body).toEqual({ message: "query must be at most 120 characters." });
+    expect(categoryResult.status).toBe(400);
+    expect(categoryResult.body).toEqual({ message: "category must be at most 80 characters." });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("clears reused provider photos from later recipes", async () => {
     const { clearDuplicateRecipeImages } = await import("../lib/premiumRecipes.js");
     const recipes = [
@@ -179,13 +194,13 @@ describe("Premium recipe routes", () => {
   });
 
   it("normalizes a configured provider list and forwards filters/pagination", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, proteinG: 18, carbsG: 52, fatG: 14, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, proteinG: 18, carbsG: 52, fatG: 14, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, saturatedFatG: 2.1, magnesiumMg: 74, vitaminCMg: 16 }], nextOffset: 18 }) });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
     const res = await request(app).get("/v1/premium-recipes?query=miso&category=Dinner&limit=18&offset=0");
     expect(res.status).toBe(200);
     expect(res.body.recipes[0]).toMatchObject({ id: "premium:Premium provider:42", sourceType: "premium", nutritionConfidence: "verified" });
-    expect(res.body.recipes[0]).toMatchObject({ servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, sodiumMg: null });
+    expect(res.body.recipes[0]).toMatchObject({ servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, saturatedFatG: 2.1, magnesiumMg: 74, vitaminCMg: 16, sodiumMg: null });
     expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0][0])).toContain("query=miso");
     expect(String(fetchMock.mock.calls[0][0])).toContain("offset=0");
@@ -270,6 +285,18 @@ describe("Premium recipe routes", () => {
       calories: Number.POSITIVE_INFINITY, proteinG: 10, carbsG: 12, fatG: 4, nutritionConfidence: "verified",
     });
     expect(nonFinite).toMatchObject({ calories: null, nutritionConfidence: "unavailable" });
+  });
+
+  it("drops generic provider recipes whose source URL violates the public URI contract", async () => {
+    const { normalizePremiumRecipe } = await import("../lib/premiumRecipes.js");
+
+    expect(normalizePremiumRecipe({ id: "unsafe", name: "Unsafe", sourceUrl: "javascript:alert(1)" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "relative", name: "Relative", sourceUrl: "/recipes/relative" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "http", name: "HTTP", sourceUrl: "http://provider.example/recipes/http" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "loopback", name: "Loopback", sourceUrl: "https://127.0.0.1/recipes/private" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "credentials", name: "Credentials", sourceUrl: "https://user:pass@provider.example/recipes/private" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "safe", name: "Safe", sourceUrl: "https://provider.example/recipes/safe" }))
+      .toMatchObject({ sourceUrl: "https://provider.example/recipes/safe" });
   });
 
   it("deduplicates provider rows by stable recipe identity", async () => {
@@ -598,5 +625,38 @@ describe("Premium recipe routes", () => {
       nutritionSource: "FatSecret nutrition data",
     });
     expect(food?.servings).toHaveLength(1);
+  });
+
+  it("rejects negative and non-finite FatSecret food nutrients before verified completeness", async () => {
+    const { normalizeFatSecretFood } = await import("../lib/premiumRecipes.js");
+    const food = normalizeFatSecretFood({
+      food_id: "bad-food",
+      food_name: "Invalid nutrition bowl",
+      servings: {
+        serving: [{
+          serving_id: "bad-serving",
+          serving_description: "1 bowl",
+          calories: "-1",
+          protein: Number.NaN,
+          carbohydrate: "Infinity",
+          fat: -7,
+          fiber: -2,
+          sugar: "NaN",
+          sodium: "-3",
+        }],
+      },
+    });
+
+    expect(food).toMatchObject({
+      calories: null,
+      proteinG: null,
+      carbsG: null,
+      fatG: null,
+      fiberG: null,
+      sugarG: null,
+      sodiumMg: null,
+      nutritionConfidence: "unavailable",
+      nutritionSource: "Nutrition not supplied",
+    });
   });
 });

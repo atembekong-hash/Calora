@@ -1,6 +1,18 @@
 /** Authenticated recipe and durable generated-media requests. */
 import { supabase } from '@/lib/supabase';
 import { getApiBaseUrl } from '@/lib/api-config';
+import {
+  parseGeneratedRecipeInput,
+  parseGuestRecipeConceptInput,
+  parseRecipeConceptInput,
+  GeneratedRecipeResponseSchema,
+  GuestRecipeConceptResponseSchema,
+  RecipeConceptResponseSchema,
+  type RecipeGenerationConceptInput,
+  type RecipeGenerationGeneratedInput,
+  type StrictGeneratedRecipeResponse,
+  type StrictRecipeConceptResponse,
+} from '@workspace/api-zod/recipe-generation';
 
 export const SIGN_IN_MESSAGE = 'Please sign in to generate recipe ideas.';
 
@@ -17,6 +29,14 @@ export class RecipeApiError extends Error {
     readonly retryable = false,
     readonly retryAfterMs?: number,
   ) { super(message); this.name = 'RecipeApiError'; }
+}
+
+function validatedRecipeContract<T>(
+  result: { success: true; data: T } | { success: false },
+  message: string,
+): T {
+  if (result.success) return result.data;
+  throw new RecipeApiError(message, 0, 'invalid_recipe_contract');
 }
 
 export type RecipeMediaStatus = 'generating' | 'stored' | 'url_ready' | 'retryable_error' | 'superseded';
@@ -136,15 +156,24 @@ export async function authedJsonRequest<T>({ path, body, method = 'POST', signal
 }
 
 export const postWithAuthRetry = <T>(request: AuthedJsonRequest) => authedJsonRequest<T>(request);
-export type ConceptPayload = { ingredients: string[]; mealType: string; servings: number; maxMinutes: number; preferences: string[]; request: string };
-export function requestRecipeConcepts<T>(payload: ConceptPayload, signal?: AbortSignal) { return authedJsonRequest<T>({ path: '/api/v1/recipes/concepts', body: payload, signal, signInMessage: SIGN_IN_MESSAGE, fallbackMessage: 'Ideas are unavailable.' }); }
-export async function requestGuestRecipeConcepts<T>(payload: ConceptPayload, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/guest-concepts`, { method: 'POST', headers: { 'content-type': 'application/json' }, signal, body: JSON.stringify(payload) });
-  const data = (await response.json().catch(() => ({}))) as T & { message?: string };
-  if (!response.ok) throw new Error(data.message ?? 'Guest recipe ideas are unavailable.');
-  return data;
+export type ConceptPayload = RecipeGenerationConceptInput;
+export async function requestRecipeConcepts(payload: ConceptPayload, signal?: AbortSignal): Promise<StrictRecipeConceptResponse> {
+  const input = validatedRecipeContract(parseRecipeConceptInput(payload), 'Check the recipe details and try again.');
+  const response = await authedJsonRequest<unknown>({ path: '/api/v1/recipes/concepts', body: input, signal, signInMessage: SIGN_IN_MESSAGE, fallbackMessage: 'Ideas are unavailable.' });
+  return validatedRecipeContract(RecipeConceptResponseSchema.safeParse(response), 'Calora returned invalid recipe ideas. Please try again.');
 }
-export function requestGeneratedRecipe<T>(payload: { title: string; summary: string; servings: number }) { return authedJsonRequest<T>({ path: '/api/v1/recipes/generated', body: payload, signInMessage: 'Please sign in to finish a recipe.', fallbackMessage: 'Recipe generation is unavailable.' }); }
+export async function requestGuestRecipeConcepts(payload: ConceptPayload, signal?: AbortSignal): Promise<StrictRecipeConceptResponse> {
+  const input = validatedRecipeContract(parseGuestRecipeConceptInput(payload), 'Check the recipe details and try again.');
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/guest-concepts`, { method: 'POST', headers: { 'content-type': 'application/json' }, signal, body: JSON.stringify(input) });
+  const data = (await response.json().catch(() => ({}))) as { message?: string };
+  if (!response.ok) throw new Error(data.message ?? 'Guest recipe ideas are unavailable.');
+  return validatedRecipeContract(GuestRecipeConceptResponseSchema.safeParse(data), 'Calora returned invalid recipe ideas. Please try again.');
+}
+export async function requestGeneratedRecipe(payload: RecipeGenerationGeneratedInput): Promise<StrictGeneratedRecipeResponse> {
+  const input = validatedRecipeContract(parseGeneratedRecipeInput(payload), 'Check the recipe details and try again.');
+  const response = await authedJsonRequest<unknown>({ path: '/api/v1/recipes/generated', body: input, signInMessage: 'Please sign in to finish a recipe.', fallbackMessage: 'Recipe generation is unavailable.' });
+  return validatedRecipeContract(GeneratedRecipeResponseSchema.safeParse(response), 'Calora returned an invalid recipe. Please try again.');
+}
 export function requestGeneratedRecipePhoto(payload: GeneratedRecipePhotoInput, options: { signal?: AbortSignal; maxRetries?: number } = {}) {
   return authedJsonRequest<GeneratedRecipePhoto>({
     path: '/api/v1/recipes/photo', body: payload, signal: options.signal,

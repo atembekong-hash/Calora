@@ -36,6 +36,7 @@ import type { MotionStepSubscription } from '@/lib/steps/stepMotion.types';
 import { AppState, useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
+import type { RecipeNutritionFacts } from '@workspace/api-zod/recipe-nutrition';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
@@ -212,9 +213,11 @@ export type CaloraRecipe = {
   sourceId?: string;
   nutritionConfidence?: import('@/lib/recipeModel').NutritionConfidence;
   nutritionSource?: string;
+  /** Server-authored disclosure retained with an AI-generated recipe. */
+  nutritionNote?: string;
   createdAt?: string;
   updatedAt?: string;
-};
+} & RecipeNutritionFacts;
 export type ShoppingItem = {
   id: string;
   name: string;
@@ -525,7 +528,7 @@ type CaloraContextValue = {
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
-  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft;
+  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; servingLabel?: string }, date?: string, meal?: MealType) => FoodMemoryDraft | null;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   updateFoodMemoryDraftMeal: (draftId: string, meal: MealType) => void;
@@ -1846,6 +1849,7 @@ export function CaloraProvider({
     },
     createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
       const draft = recipeToDraft(recipe, date, meal, new Date().toISOString(), accountId);
+      if (!draft) return null;
       foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);

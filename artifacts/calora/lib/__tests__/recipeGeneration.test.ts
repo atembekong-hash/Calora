@@ -40,6 +40,27 @@ function jsonResponse(status: number, body: unknown) {
 
 const CONCEPT_PAYLOAD = { ingredients: ['chicken'], mealType: 'Dinner', servings: 2, maxMinutes: 30, preferences: [], request: 'high-protein lemon herb chicken bowl' };
 
+function conceptResponse(title: string) {
+  return {
+    concepts: [{ title, summary: 'A bright, high-protein dinner.', whyItFits: 'Uses the selected ingredients.', keyIngredients: ['chicken', 'lemon'], estimatedMinutes: 30 }],
+    nutritionNote: 'These are AI-generated ideas, not nutrition guidance or full recipes.',
+  };
+}
+
+function generatedRecipeResponse() {
+  return {
+    name: 'Lemon herb chicken bowl',
+    description: 'A bright, high-protein dinner.',
+    ingredients: ['2 chicken breasts', '1 lemon'],
+    instructions: ['Season the chicken.', 'Cook until done.', 'Finish with lemon.'],
+    servings: 2,
+    prepMinutes: 30,
+    nutrition: { calories: 420, proteinG: 35, carbsG: 28, fatG: 18 },
+    allergens: [],
+    nutritionNote: 'AI-estimated nutrition per serving; confirm ingredients and portions for your needs.',
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
@@ -75,9 +96,9 @@ describe('getFreshAccessToken', () => {
 describe('requestRecipeConcepts (authenticated generation path)', () => {
   it('attaches the Bearer token and returns concepts for a signed-in user', async () => {
     mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Lemon herb chicken bowl' }] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, conceptResponse('Lemon herb chicken bowl')));
 
-    const result = await requestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    const result = await requestRecipeConcepts(CONCEPT_PAYLOAD);
 
     expect(result.concepts[0].title).toBe('Lemon herb chicken bowl');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -103,9 +124,9 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
     mockRefreshSession.mockResolvedValue({ data: { session: session('refreshed-token') } });
     fetchMock
       .mockResolvedValueOnce(jsonResponse(401, { message: SIGN_IN_MESSAGE }))
-      .mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Recovered idea' }] }));
+      .mockResolvedValueOnce(jsonResponse(200, conceptResponse('Recovered idea')));
 
-    const result = await requestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    const result = await requestRecipeConcepts(CONCEPT_PAYLOAD);
 
     expect(result.concepts[0].title).toBe('Recovered idea');
     expect(mockRefreshSession).toHaveBeenCalledTimes(1);
@@ -139,12 +160,31 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(mockRefreshSession).not.toHaveBeenCalled();
   });
+
+  it('rejects empty or unknown client input before a network request', async () => {
+    await expect(requestRecipeConcepts({ ingredients: ['   '] } as never)).rejects.toMatchObject({
+      code: 'invalid_recipe_contract',
+    });
+    await expect(requestRecipeConcepts({ request: 'Dinner', unexpected: true } as never)).rejects.toMatchObject({
+      code: 'invalid_recipe_contract',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed concept response instead of accepting a partial object', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Partial only' }] }));
+
+    await expect(requestRecipeConcepts(CONCEPT_PAYLOAD)).rejects.toMatchObject({
+      code: 'invalid_recipe_contract',
+    });
+  });
 });
 
 describe('requestGuestRecipeConcepts', () => {
   it('posts only the creator payload to the guest endpoint without a bearer token', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Lentil bowl' }] }));
-    const result = await requestGuestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, conceptResponse('Lentil bowl')));
+    const result = await requestGuestRecipeConcepts(CONCEPT_PAYLOAD);
     expect(result.concepts[0].title).toBe('Lentil bowl');
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.example.com/api/v1/recipes/guest-concepts');
@@ -156,9 +196,9 @@ describe('requestGuestRecipeConcepts', () => {
 describe('requestGeneratedRecipe', () => {
   it('posts the concept to the generated endpoint with auth', async () => {
     mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { name: 'Lemon herb chicken bowl', servings: 2 }));
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, generatedRecipeResponse()));
 
-    const result = await requestGeneratedRecipe<{ name: string }>({ title: 'Lemon herb chicken bowl', summary: 'Bright dinner', servings: 2 });
+    const result = await requestGeneratedRecipe({ title: 'Lemon herb chicken bowl', summary: 'Bright dinner', servings: 2 });
 
     expect(result.name).toBe('Lemon herb chicken bowl');
     const [url, init] = fetchMock.mock.calls[0];
@@ -172,6 +212,15 @@ describe('requestGeneratedRecipe', () => {
       message: 'Please sign in to finish a recipe.',
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed generated recipe response', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { name: 'Incomplete recipe' }));
+
+    await expect(requestGeneratedRecipe({ title: 'Complete title' })).rejects.toMatchObject({
+      code: 'invalid_recipe_contract',
+    });
   });
 });
 

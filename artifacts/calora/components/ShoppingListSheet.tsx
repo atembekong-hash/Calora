@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '@/components/BottomSheet';
 import { useCalora, type ShoppingItem } from '@/context/CaloraContext';
+import { shoppingItemUsageLabel } from '@/lib/shoppingItemPresentation';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 
@@ -96,7 +97,7 @@ export function ShoppingListSheet({ visible, items, weekDays, initialDayFilter =
               <Text style={[styles.name, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>
               {!!formatShoppingDays(item.days) && <Text style={[styles.days, { color: item.checked ? colors.mutedForeground : colors.primary, opacity: item.checked ? 0.55 : 0.75 }]}>{formatShoppingDays(item.days)}</Text>}
             </View>
-            <Text style={[styles.quantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text>
+            <Text style={[styles.quantity, { color: colors.mutedForeground }]}>{shoppingItemUsageLabel(item)}</Text>
           </Pressable>
         ))}
         {filteredItems.length === 0 && (

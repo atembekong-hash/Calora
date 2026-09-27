@@ -823,6 +823,36 @@ export const ListRecipesResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "saturatedFatG": zod.number().nullish(),
+  "transFatG": zod.number().nullish(),
+  "monounsaturatedFatG": zod.number().nullish(),
+  "polyunsaturatedFatG": zod.number().nullish(),
+  "fiberG": zod.number().nullish(),
+  "sugarsG": zod.number().nullish(),
+  "addedSugarsG": zod.number().nullish(),
+  "cholesterolMg": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish(),
+  "potassiumMg": zod.number().nullish(),
+  "calciumMg": zod.number().nullish(),
+  "ironMg": zod.number().nullish(),
+  "magnesiumMg": zod.number().nullish(),
+  "zincMg": zod.number().nullish(),
+  "phosphorusMg": zod.number().nullish(),
+  "seleniumMcG": zod.number().nullish(),
+  "copperMg": zod.number().nullish(),
+  "vitaminAMcG": zod.number().nullish().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().nullish(),
+  "vitaminDMcG": zod.number().nullish(),
+  "vitaminEMg": zod.number().nullish().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().nullish(),
+  "thiaminMg": zod.number().nullish(),
+  "riboflavinMg": zod.number().nullish(),
+  "niacinMg": zod.number().nullish().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().nullish(),
+  "vitaminB6Mg": zod.number().nullish(),
+  "vitaminB12McG": zod.number().nullish(),
+  "folateMcG": zod.number().nullish().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
@@ -830,6 +860,253 @@ export const ListRecipesResponse = zod.object({
   "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n'),
   "nextOffset": zod.number().int().nullish().describe('Offset for the next page, or null when this is the terminal page.'),
   "terminalReason": zod.string().nullish().describe('Stable human-readable reason included when no next page exists.')
+})
+
+
+/**
+ * @summary Generate bounded recipe concepts for an authenticated user
+ */
+export const generateRecipeConceptsBodyThreeIngredientsItemMax = 80;
+
+export const generateRecipeConceptsBodyThreeIngredientsMax = 18;
+
+export const generateRecipeConceptsBodyThreeMealTypeMax = 40;
+
+export const generateRecipeConceptsBodyThreeServingsMax = 12;
+
+export const generateRecipeConceptsBodyThreeMaxMinutesMin = 5;
+export const generateRecipeConceptsBodyThreeMaxMinutesMax = 180;
+
+export const generateRecipeConceptsBodyThreePreferencesItemMax = 60;
+
+export const generateRecipeConceptsBodyThreePreferencesMax = 8;
+
+export const generateRecipeConceptsBodyThreeRequestMax = 500;
+
+
+
+export const GenerateRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
+  "ingredients": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateRecipeConceptsBodyThreeIngredientsMax).optional(),
+  "mealType": zod.string().min(1).max(generateRecipeConceptsBodyThreeMealTypeMax).optional(),
+  "servings": zod.number().int().min(1).max(generateRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.number().int().min(generateRecipeConceptsBodyThreeMaxMinutesMin).max(generateRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "preferences": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreePreferencesItemMax)).max(generateRecipeConceptsBodyThreePreferencesMax).optional(),
+  "request": zod.string().min(1).max(generateRecipeConceptsBodyThreeRequestMax).optional()
+}))
+
+export const generateRecipeConceptsResponseConceptsMax = 5;
+
+export const generateRecipeConceptsResponseNutritionNoteMax = 240;
+
+
+
+export const GenerateRecipeConceptsResponse = zod.object({
+  "concepts": zod.array(zod.object({
+  "title": zod.string(),
+  "summary": zod.string(),
+  "whyItFits": zod.string(),
+  "keyIngredients": zod.array(zod.string()),
+  "estimatedMinutes": zod.number().int().nullable()
+})).min(1).max(generateRecipeConceptsResponseConceptsMax),
+  "nutritionNote": zod.string().min(1).max(generateRecipeConceptsResponseNutritionNoteMax)
+})
+
+
+/**
+ * @summary Generate bounded recipe concepts without an account
+ */
+export const generateGuestRecipeConceptsBodyThreeIngredientsItemMax = 80;
+
+export const generateGuestRecipeConceptsBodyThreeIngredientsMax = 18;
+
+export const generateGuestRecipeConceptsBodyThreeMealTypeMax = 40;
+
+export const generateGuestRecipeConceptsBodyThreeServingsMax = 12;
+
+export const generateGuestRecipeConceptsBodyThreeMaxMinutesMin = 5;
+export const generateGuestRecipeConceptsBodyThreeMaxMinutesMax = 180;
+
+export const generateGuestRecipeConceptsBodyThreePreferencesItemMax = 60;
+
+export const generateGuestRecipeConceptsBodyThreePreferencesMax = 8;
+
+export const generateGuestRecipeConceptsBodyThreeRequestMax = 500;
+
+
+
+export const GenerateGuestRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
+  "ingredients": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsMax).optional(),
+  "mealType": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeMealTypeMax).optional(),
+  "servings": zod.number().int().min(1).max(generateGuestRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.number().int().min(generateGuestRecipeConceptsBodyThreeMaxMinutesMin).max(generateGuestRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "preferences": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreePreferencesItemMax)).max(generateGuestRecipeConceptsBodyThreePreferencesMax).optional(),
+  "request": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeRequestMax).optional()
+}))
+
+export const generateGuestRecipeConceptsResponseConceptsMax = 5;
+
+export const generateGuestRecipeConceptsResponseNutritionNoteMax = 240;
+
+
+
+export const GenerateGuestRecipeConceptsResponse = zod.object({
+  "concepts": zod.array(zod.object({
+  "title": zod.string(),
+  "summary": zod.string(),
+  "whyItFits": zod.string(),
+  "keyIngredients": zod.array(zod.string()),
+  "estimatedMinutes": zod.number().int().nullable()
+})).min(1).max(generateGuestRecipeConceptsResponseConceptsMax),
+  "nutritionNote": zod.string().min(1).max(generateGuestRecipeConceptsResponseNutritionNoteMax)
+})
+
+
+/**
+ * @summary Expand an authenticated recipe concept into a complete estimated recipe
+ */
+export const generateRecipeBodyTitleMax = 100;
+
+export const generateRecipeBodySummaryMax = 220;
+
+export const generateRecipeBodyServingsMax = 12;
+
+
+
+export const GenerateRecipeBody = zod.object({
+  "title": zod.string().min(1).max(generateRecipeBodyTitleMax),
+  "summary": zod.string().min(1).max(generateRecipeBodySummaryMax).optional(),
+  "servings": zod.number().int().min(1).max(generateRecipeBodyServingsMax).optional()
+})
+
+export const generateRecipeResponseIngredientsMin = 2;
+export const generateRecipeResponseIngredientsMax = 20;
+
+export const generateRecipeResponseInstructionsMin = 3;
+export const generateRecipeResponseInstructionsMax = 10;
+
+export const generateRecipeResponseServingsMax = 12;
+
+export const generateRecipeResponsePrepMinutesMax = 180;
+
+export const generateRecipeResponseNutritionCaloriesMin = 0;
+
+export const generateRecipeResponseNutritionProteinGMin = 0;
+
+export const generateRecipeResponseNutritionCarbsGMin = 0;
+
+export const generateRecipeResponseNutritionFatGMin = 0;
+
+export const generateRecipeResponseNutritionSaturatedFatGMin = 0;
+
+export const generateRecipeResponseNutritionTransFatGMin = 0;
+
+export const generateRecipeResponseNutritionMonounsaturatedFatGMin = 0;
+
+export const generateRecipeResponseNutritionPolyunsaturatedFatGMin = 0;
+
+export const generateRecipeResponseNutritionFiberGMin = 0;
+
+export const generateRecipeResponseNutritionSugarsGMin = 0;
+
+export const generateRecipeResponseNutritionAddedSugarsGMin = 0;
+
+export const generateRecipeResponseNutritionCholesterolMgMin = 0;
+
+export const generateRecipeResponseNutritionSodiumMgMin = 0;
+
+export const generateRecipeResponseNutritionPotassiumMgMin = 0;
+
+export const generateRecipeResponseNutritionCalciumMgMin = 0;
+
+export const generateRecipeResponseNutritionIronMgMin = 0;
+
+export const generateRecipeResponseNutritionMagnesiumMgMin = 0;
+
+export const generateRecipeResponseNutritionZincMgMin = 0;
+
+export const generateRecipeResponseNutritionPhosphorusMgMin = 0;
+
+export const generateRecipeResponseNutritionSeleniumMcGMin = 0;
+
+export const generateRecipeResponseNutritionCopperMgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminAMcGMin = 0;
+
+export const generateRecipeResponseNutritionVitaminCMgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminDMcGMin = 0;
+
+export const generateRecipeResponseNutritionVitaminEMgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminKMcGMin = 0;
+
+export const generateRecipeResponseNutritionThiaminMgMin = 0;
+
+export const generateRecipeResponseNutritionRiboflavinMgMin = 0;
+
+export const generateRecipeResponseNutritionNiacinMgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminB5MgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminB6MgMin = 0;
+
+export const generateRecipeResponseNutritionVitaminB12McGMin = 0;
+
+export const generateRecipeResponseNutritionFolateMcGMin = 0;
+
+export const generateRecipeResponseNutritionCholineMgMin = 0;
+
+export const generateRecipeResponseAllergensMax = 8;
+
+export const generateRecipeResponseNutritionNoteMax = 240;
+
+
+
+export const GenerateRecipeResponse = zod.object({
+  "name": zod.string(),
+  "description": zod.string(),
+  "ingredients": zod.array(zod.string()).min(generateRecipeResponseIngredientsMin).max(generateRecipeResponseIngredientsMax),
+  "instructions": zod.array(zod.string()).min(generateRecipeResponseInstructionsMin).max(generateRecipeResponseInstructionsMax),
+  "servings": zod.number().int().min(1).max(generateRecipeResponseServingsMax),
+  "prepMinutes": zod.number().int().min(1).max(generateRecipeResponsePrepMinutesMax).nullable(),
+  "nutrition": zod.object({
+  "calories": zod.number().min(generateRecipeResponseNutritionCaloriesMin).nullable(),
+  "proteinG": zod.number().min(generateRecipeResponseNutritionProteinGMin).nullable(),
+  "carbsG": zod.number().min(generateRecipeResponseNutritionCarbsGMin).nullable(),
+  "fatG": zod.number().min(generateRecipeResponseNutritionFatGMin).nullable(),
+  "saturatedFatG": zod.number().min(generateRecipeResponseNutritionSaturatedFatGMin).nullish(),
+  "transFatG": zod.number().min(generateRecipeResponseNutritionTransFatGMin).nullish(),
+  "monounsaturatedFatG": zod.number().min(generateRecipeResponseNutritionMonounsaturatedFatGMin).nullish(),
+  "polyunsaturatedFatG": zod.number().min(generateRecipeResponseNutritionPolyunsaturatedFatGMin).nullish(),
+  "fiberG": zod.number().min(generateRecipeResponseNutritionFiberGMin).nullish(),
+  "sugarsG": zod.number().min(generateRecipeResponseNutritionSugarsGMin).nullish(),
+  "addedSugarsG": zod.number().min(generateRecipeResponseNutritionAddedSugarsGMin).nullish(),
+  "cholesterolMg": zod.number().min(generateRecipeResponseNutritionCholesterolMgMin).nullish(),
+  "sodiumMg": zod.number().min(generateRecipeResponseNutritionSodiumMgMin).nullish(),
+  "potassiumMg": zod.number().min(generateRecipeResponseNutritionPotassiumMgMin).nullish(),
+  "calciumMg": zod.number().min(generateRecipeResponseNutritionCalciumMgMin).nullish(),
+  "ironMg": zod.number().min(generateRecipeResponseNutritionIronMgMin).nullish(),
+  "magnesiumMg": zod.number().min(generateRecipeResponseNutritionMagnesiumMgMin).nullish(),
+  "zincMg": zod.number().min(generateRecipeResponseNutritionZincMgMin).nullish(),
+  "phosphorusMg": zod.number().min(generateRecipeResponseNutritionPhosphorusMgMin).nullish(),
+  "seleniumMcG": zod.number().min(generateRecipeResponseNutritionSeleniumMcGMin).nullish(),
+  "copperMg": zod.number().min(generateRecipeResponseNutritionCopperMgMin).nullish(),
+  "vitaminAMcG": zod.number().min(generateRecipeResponseNutritionVitaminAMcGMin).nullish().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().min(generateRecipeResponseNutritionVitaminCMgMin).nullish(),
+  "vitaminDMcG": zod.number().min(generateRecipeResponseNutritionVitaminDMcGMin).nullish(),
+  "vitaminEMg": zod.number().min(generateRecipeResponseNutritionVitaminEMgMin).nullish().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().min(generateRecipeResponseNutritionVitaminKMcGMin).nullish(),
+  "thiaminMg": zod.number().min(generateRecipeResponseNutritionThiaminMgMin).nullish(),
+  "riboflavinMg": zod.number().min(generateRecipeResponseNutritionRiboflavinMgMin).nullish(),
+  "niacinMg": zod.number().min(generateRecipeResponseNutritionNiacinMgMin).nullish().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().min(generateRecipeResponseNutritionVitaminB5MgMin).nullish(),
+  "vitaminB6Mg": zod.number().min(generateRecipeResponseNutritionVitaminB6MgMin).nullish(),
+  "vitaminB12McG": zod.number().min(generateRecipeResponseNutritionVitaminB12McGMin).nullish(),
+  "folateMcG": zod.number().min(generateRecipeResponseNutritionFolateMcGMin).nullish().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().min(generateRecipeResponseNutritionCholineMgMin).nullish()
+}),
+  "allergens": zod.array(zod.string()).max(generateRecipeResponseAllergensMax),
+  "nutritionNote": zod.string().min(1).max(generateRecipeResponseNutritionNoteMax)
 })
 
 
@@ -1079,6 +1356,36 @@ export const GetRecipeResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "saturatedFatG": zod.number().nullish(),
+  "transFatG": zod.number().nullish(),
+  "monounsaturatedFatG": zod.number().nullish(),
+  "polyunsaturatedFatG": zod.number().nullish(),
+  "fiberG": zod.number().nullish(),
+  "sugarsG": zod.number().nullish(),
+  "addedSugarsG": zod.number().nullish(),
+  "cholesterolMg": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish(),
+  "potassiumMg": zod.number().nullish(),
+  "calciumMg": zod.number().nullish(),
+  "ironMg": zod.number().nullish(),
+  "magnesiumMg": zod.number().nullish(),
+  "zincMg": zod.number().nullish(),
+  "phosphorusMg": zod.number().nullish(),
+  "seleniumMcG": zod.number().nullish(),
+  "copperMg": zod.number().nullish(),
+  "vitaminAMcG": zod.number().nullish().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().nullish(),
+  "vitaminDMcG": zod.number().nullish(),
+  "vitaminEMg": zod.number().nullish().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().nullish(),
+  "thiaminMg": zod.number().nullish(),
+  "riboflavinMg": zod.number().nullish(),
+  "niacinMg": zod.number().nullish().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().nullish(),
+  "vitaminB6Mg": zod.number().nullish(),
+  "vitaminB12McG": zod.number().nullish(),
+  "folateMcG": zod.number().nullish().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
@@ -1128,6 +1435,36 @@ export const ListPremiumRecipesResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "saturatedFatG": zod.number().nullish(),
+  "transFatG": zod.number().nullish(),
+  "monounsaturatedFatG": zod.number().nullish(),
+  "polyunsaturatedFatG": zod.number().nullish(),
+  "fiberG": zod.number().nullish(),
+  "sugarsG": zod.number().nullish(),
+  "addedSugarsG": zod.number().nullish(),
+  "cholesterolMg": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish(),
+  "potassiumMg": zod.number().nullish(),
+  "calciumMg": zod.number().nullish(),
+  "ironMg": zod.number().nullish(),
+  "magnesiumMg": zod.number().nullish(),
+  "zincMg": zod.number().nullish(),
+  "phosphorusMg": zod.number().nullish(),
+  "seleniumMcG": zod.number().nullish(),
+  "copperMg": zod.number().nullish(),
+  "vitaminAMcG": zod.number().nullish().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().nullish(),
+  "vitaminDMcG": zod.number().nullish(),
+  "vitaminEMg": zod.number().nullish().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().nullish(),
+  "thiaminMg": zod.number().nullish(),
+  "riboflavinMg": zod.number().nullish(),
+  "niacinMg": zod.number().nullish().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().nullish(),
+  "vitaminB6Mg": zod.number().nullish(),
+  "vitaminB12McG": zod.number().nullish(),
+  "folateMcG": zod.number().nullish().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
@@ -1145,9 +1482,7 @@ export const ListPremiumRecipesResponse = zod.object({
   "difficulty": zod.string().nullish(),
   "dietary": zod.array(zod.string()).optional(),
   "allergens": zod.array(zod.string()).optional(),
-  "equipment": zod.array(zod.string()).optional(),
-  "fiberG": zod.number().nullish(),
-  "sodiumMg": zod.number().nullish()
+  "equipment": zod.array(zod.string()).optional()
 }))),
   "nextOffset": zod.number().int().nullish(),
   "terminalReason": zod.string().nullish()
@@ -1179,6 +1514,36 @@ export const GetPremiumRecipeResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "saturatedFatG": zod.number().nullish(),
+  "transFatG": zod.number().nullish(),
+  "monounsaturatedFatG": zod.number().nullish(),
+  "polyunsaturatedFatG": zod.number().nullish(),
+  "fiberG": zod.number().nullish(),
+  "sugarsG": zod.number().nullish(),
+  "addedSugarsG": zod.number().nullish(),
+  "cholesterolMg": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish(),
+  "potassiumMg": zod.number().nullish(),
+  "calciumMg": zod.number().nullish(),
+  "ironMg": zod.number().nullish(),
+  "magnesiumMg": zod.number().nullish(),
+  "zincMg": zod.number().nullish(),
+  "phosphorusMg": zod.number().nullish(),
+  "seleniumMcG": zod.number().nullish(),
+  "copperMg": zod.number().nullish(),
+  "vitaminAMcG": zod.number().nullish().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().nullish(),
+  "vitaminDMcG": zod.number().nullish(),
+  "vitaminEMg": zod.number().nullish().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().nullish(),
+  "thiaminMg": zod.number().nullish(),
+  "riboflavinMg": zod.number().nullish(),
+  "niacinMg": zod.number().nullish().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().nullish(),
+  "vitaminB6Mg": zod.number().nullish(),
+  "vitaminB12McG": zod.number().nullish(),
+  "folateMcG": zod.number().nullish().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
@@ -1196,9 +1561,7 @@ export const GetPremiumRecipeResponse = zod.object({
   "difficulty": zod.string().nullish(),
   "dietary": zod.array(zod.string()).optional(),
   "allergens": zod.array(zod.string()).optional(),
-  "equipment": zod.array(zod.string()).optional(),
-  "fiberG": zod.number().nullish(),
-  "sodiumMg": zod.number().nullish()
+  "equipment": zod.array(zod.string()).optional()
 }))
 
 
