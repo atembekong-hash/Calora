@@ -311,6 +311,31 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/GeneratedRecipeResponse" } } }
         "401": { description: Authentication is required }
         "429": { description: Recipe-generation quota exceeded }
+  /v1/recipes/nutrition-estimate:
+    post:
+      operationId: estimateRecipeNutrition
+      tags: [recipes]
+      summary: Generate a bounded AI nutrition estimate for one recipe detail view
+      description: >
+        Returns an ingredient-based AI estimate only. It is neither provider-verified
+        nor clinical nutrition data. Requests are bounded, rate-limited, and cached
+        by a hash of normalized recipe content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipeNutritionEstimateInput" }
+      responses:
+        "200":
+          description: AI-generated nutrition estimate per source or typical serving
+          content: { application/json: { schema: { $ref: "#/components/schemas/RecipeNutritionEstimate" } } }
+        "400": { description: Invalid or incomplete bounded recipe input }
+        "429":
+          description: Nutrition-estimate quota exceeded
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+        "503": { description: Nutrition estimation is temporarily unavailable }
+        "502": { description: The AI nutrition estimate could not be completed }
   /v1/recipes/photo:
     post:
       operationId: generateRecipePhoto
@@ -1195,6 +1220,75 @@ components:
         nutrition: { $ref: "#/components/schemas/GeneratedRecipeNutrition" }
         allergens: { type: array, maxItems: 8, items: { type: string } }
         nutritionNote: { type: string, minLength: 1, maxLength: 240 }
+    RecipeNutritionEstimateInput:
+      type: object
+      additionalProperties: false
+      required: [recipeId, title, ingredients]
+      properties:
+        recipeId: { type: string, minLength: 1, maxLength: 180 }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        ingredients:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items: { type: string, minLength: 1, maxLength: 160 }
+        sourceYield:
+          type: [number, "null"]
+          minimum: 0.25
+          maximum: 100
+          description: >
+            Optional source recipe yield. When available, the AI estimate must
+            be expressed per one source serving; otherwise it is per one
+            typical serving.
+    RecipeNutritionEstimate:
+      type: object
+      required: [calories, proteinG, carbsG, fatG, nutritionConfidence, nutritionNote, servingBasis]
+      properties:
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        saturatedFatG: { type: number, minimum: 0 }
+        transFatG: { type: number, minimum: 0 }
+        monounsaturatedFatG: { type: number, minimum: 0 }
+        polyunsaturatedFatG: { type: number, minimum: 0 }
+        fiberG: { type: number, minimum: 0 }
+        sugarsG: { type: number, minimum: 0 }
+        addedSugarsG: { type: number, minimum: 0 }
+        cholesterolMg: { type: number, minimum: 0 }
+        sodiumMg: { type: number, minimum: 0 }
+        potassiumMg: { type: number, minimum: 0 }
+        calciumMg: { type: number, minimum: 0 }
+        ironMg: { type: number, minimum: 0 }
+        magnesiumMg: { type: number, minimum: 0 }
+        zincMg: { type: number, minimum: 0 }
+        phosphorusMg: { type: number, minimum: 0 }
+        seleniumMcG: { type: number, minimum: 0 }
+        copperMg: { type: number, minimum: 0 }
+        vitaminAMcG: { type: number, minimum: 0, description: "Vitamin A in mcg RAE." }
+        vitaminCMg: { type: number, minimum: 0 }
+        vitaminDMcG: { type: number, minimum: 0 }
+        vitaminEMg: { type: number, minimum: 0, description: "Vitamin E in mg alpha-tocopherol." }
+        vitaminKMcG: { type: number, minimum: 0 }
+        thiaminMg: { type: number, minimum: 0 }
+        riboflavinMg: { type: number, minimum: 0 }
+        niacinMg: { type: number, minimum: 0, description: "Niacin in mg NE." }
+        vitaminB5Mg: { type: number, minimum: 0 }
+        vitaminB6Mg: { type: number, minimum: 0 }
+        vitaminB12McG: { type: number, minimum: 0 }
+        folateMcG: { type: number, minimum: 0, description: "Folate in mcg DFE." }
+        cholineMg: { type: number, minimum: 0 }
+        nutritionConfidence: { type: string, enum: [estimated] }
+        nutritionNote:
+          type: string
+          description: Plain-language AI-estimate disclosure.
+          minLength: 1
+          maxLength: 240
+        servingBasis:
+          type: string
+          description: Per-source-serving or per-typical-serving display basis.
+          minLength: 1
+          maxLength: 120
     RecipeList:
       type: object
       required: [recipes, source]

@@ -11,7 +11,8 @@
     "./planner-program-pools": "./src/planner-program-pools.ts",
     "./planner-program-eligibility": "./src/planner-program-eligibility.ts",
     "./recipe-nutrition": "./src/recipe-nutrition.ts",
-    "./recipe-generation": "./src/recipe-generation.ts"
+    "./recipe-generation": "./src/recipe-generation.ts",
+    "./recipe-nutrition-estimate": "./src/recipe-nutrition-estimate.ts"
   },
   "dependencies": {
     "zod": "catalog:"

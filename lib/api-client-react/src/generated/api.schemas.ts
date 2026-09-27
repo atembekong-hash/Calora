@@ -766,6 +766,136 @@ export interface GeneratedRecipeResponse {
   nutritionNote: string;
 }
 
+export interface RecipeNutritionEstimateInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  recipeId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  ingredients: string[];
+  /**
+     * Optional source recipe yield. When available, the AI estimate must be expressed per one source serving; otherwise it is per one typical serving.
+     * @minimum 0.25
+     * @maximum 100
+     * @nullable
+     */
+  sourceYield?: number | null;
+}
+
+export type RecipeNutritionEstimateNutritionConfidence = typeof RecipeNutritionEstimateNutritionConfidence[keyof typeof RecipeNutritionEstimateNutritionConfidence];
+
+
+export const RecipeNutritionEstimateNutritionConfidence = {
+  estimated: 'estimated',
+} as const;
+
+export interface RecipeNutritionEstimate {
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  /** @minimum 0 */
+  saturatedFatG?: number;
+  /** @minimum 0 */
+  transFatG?: number;
+  /** @minimum 0 */
+  monounsaturatedFatG?: number;
+  /** @minimum 0 */
+  polyunsaturatedFatG?: number;
+  /** @minimum 0 */
+  fiberG?: number;
+  /** @minimum 0 */
+  sugarsG?: number;
+  /** @minimum 0 */
+  addedSugarsG?: number;
+  /** @minimum 0 */
+  cholesterolMg?: number;
+  /** @minimum 0 */
+  sodiumMg?: number;
+  /** @minimum 0 */
+  potassiumMg?: number;
+  /** @minimum 0 */
+  calciumMg?: number;
+  /** @minimum 0 */
+  ironMg?: number;
+  /** @minimum 0 */
+  magnesiumMg?: number;
+  /** @minimum 0 */
+  zincMg?: number;
+  /** @minimum 0 */
+  phosphorusMg?: number;
+  /** @minimum 0 */
+  seleniumMcG?: number;
+  /** @minimum 0 */
+  copperMg?: number;
+  /**
+     * Vitamin A in mcg RAE.
+     * @minimum 0
+     */
+  vitaminAMcG?: number;
+  /** @minimum 0 */
+  vitaminCMg?: number;
+  /** @minimum 0 */
+  vitaminDMcG?: number;
+  /**
+     * Vitamin E in mg alpha-tocopherol.
+     * @minimum 0
+     */
+  vitaminEMg?: number;
+  /** @minimum 0 */
+  vitaminKMcG?: number;
+  /** @minimum 0 */
+  thiaminMg?: number;
+  /** @minimum 0 */
+  riboflavinMg?: number;
+  /**
+     * Niacin in mg NE.
+     * @minimum 0
+     */
+  niacinMg?: number;
+  /** @minimum 0 */
+  vitaminB5Mg?: number;
+  /** @minimum 0 */
+  vitaminB6Mg?: number;
+  /** @minimum 0 */
+  vitaminB12McG?: number;
+  /**
+     * Folate in mcg DFE.
+     * @minimum 0
+     */
+  folateMcG?: number;
+  /** @minimum 0 */
+  cholineMg?: number;
+  nutritionConfidence: RecipeNutritionEstimateNutritionConfidence;
+  /**
+     * Plain-language AI-estimate disclosure.
+     * @minLength 1
+     * @maxLength 240
+     */
+  nutritionNote: string;
+  /**
+     * Per-source-serving or per-typical-serving display basis.
+     * @minLength 1
+     * @maxLength 120
+     */
+  servingBasis: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;

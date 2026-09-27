@@ -1111,6 +1111,145 @@ export const GenerateRecipeResponse = zod.object({
 
 
 /**
+ * Returns an ingredient-based AI estimate only. It is neither provider-verified nor clinical nutrition data. Requests are bounded, rate-limited, and cached by a hash of normalized recipe content.
+ * @summary Generate a bounded AI nutrition estimate for one recipe detail view
+ */
+export const estimateRecipeNutritionBodyRecipeIdMax = 180;
+
+export const estimateRecipeNutritionBodyTitleMax = 120;
+
+export const estimateRecipeNutritionBodyIngredientsItemMax = 160;
+
+export const estimateRecipeNutritionBodyIngredientsMax = 30;
+
+export const estimateRecipeNutritionBodySourceYieldMin = 0.25;
+export const estimateRecipeNutritionBodySourceYieldMax = 100;
+
+
+
+export const EstimateRecipeNutritionBody = zod.object({
+  "recipeId": zod.string().min(1).max(estimateRecipeNutritionBodyRecipeIdMax),
+  "title": zod.string().min(1).max(estimateRecipeNutritionBodyTitleMax),
+  "ingredients": zod.array(zod.string().min(1).max(estimateRecipeNutritionBodyIngredientsItemMax)).min(1).max(estimateRecipeNutritionBodyIngredientsMax),
+  "sourceYield": zod.number().min(estimateRecipeNutritionBodySourceYieldMin).max(estimateRecipeNutritionBodySourceYieldMax).nullish().describe('Optional source recipe yield. When available, the AI estimate must be expressed per one source serving; otherwise it is per one typical serving.\n')
+})
+
+export const estimateRecipeNutritionResponseCaloriesMin = 0;
+
+export const estimateRecipeNutritionResponseProteinGMin = 0;
+
+export const estimateRecipeNutritionResponseCarbsGMin = 0;
+
+export const estimateRecipeNutritionResponseFatGMin = 0;
+
+export const estimateRecipeNutritionResponseSaturatedFatGMin = 0;
+
+export const estimateRecipeNutritionResponseTransFatGMin = 0;
+
+export const estimateRecipeNutritionResponseMonounsaturatedFatGMin = 0;
+
+export const estimateRecipeNutritionResponsePolyunsaturatedFatGMin = 0;
+
+export const estimateRecipeNutritionResponseFiberGMin = 0;
+
+export const estimateRecipeNutritionResponseSugarsGMin = 0;
+
+export const estimateRecipeNutritionResponseAddedSugarsGMin = 0;
+
+export const estimateRecipeNutritionResponseCholesterolMgMin = 0;
+
+export const estimateRecipeNutritionResponseSodiumMgMin = 0;
+
+export const estimateRecipeNutritionResponsePotassiumMgMin = 0;
+
+export const estimateRecipeNutritionResponseCalciumMgMin = 0;
+
+export const estimateRecipeNutritionResponseIronMgMin = 0;
+
+export const estimateRecipeNutritionResponseMagnesiumMgMin = 0;
+
+export const estimateRecipeNutritionResponseZincMgMin = 0;
+
+export const estimateRecipeNutritionResponsePhosphorusMgMin = 0;
+
+export const estimateRecipeNutritionResponseSeleniumMcGMin = 0;
+
+export const estimateRecipeNutritionResponseCopperMgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminAMcGMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminCMgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminDMcGMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminEMgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminKMcGMin = 0;
+
+export const estimateRecipeNutritionResponseThiaminMgMin = 0;
+
+export const estimateRecipeNutritionResponseRiboflavinMgMin = 0;
+
+export const estimateRecipeNutritionResponseNiacinMgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminB5MgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminB6MgMin = 0;
+
+export const estimateRecipeNutritionResponseVitaminB12McGMin = 0;
+
+export const estimateRecipeNutritionResponseFolateMcGMin = 0;
+
+export const estimateRecipeNutritionResponseCholineMgMin = 0;
+
+export const estimateRecipeNutritionResponseNutritionNoteMax = 240;
+
+export const estimateRecipeNutritionResponseServingBasisMax = 120;
+
+
+
+export const EstimateRecipeNutritionResponse = zod.object({
+  "calories": zod.number().min(estimateRecipeNutritionResponseCaloriesMin),
+  "proteinG": zod.number().min(estimateRecipeNutritionResponseProteinGMin),
+  "carbsG": zod.number().min(estimateRecipeNutritionResponseCarbsGMin),
+  "fatG": zod.number().min(estimateRecipeNutritionResponseFatGMin),
+  "saturatedFatG": zod.number().min(estimateRecipeNutritionResponseSaturatedFatGMin).optional(),
+  "transFatG": zod.number().min(estimateRecipeNutritionResponseTransFatGMin).optional(),
+  "monounsaturatedFatG": zod.number().min(estimateRecipeNutritionResponseMonounsaturatedFatGMin).optional(),
+  "polyunsaturatedFatG": zod.number().min(estimateRecipeNutritionResponsePolyunsaturatedFatGMin).optional(),
+  "fiberG": zod.number().min(estimateRecipeNutritionResponseFiberGMin).optional(),
+  "sugarsG": zod.number().min(estimateRecipeNutritionResponseSugarsGMin).optional(),
+  "addedSugarsG": zod.number().min(estimateRecipeNutritionResponseAddedSugarsGMin).optional(),
+  "cholesterolMg": zod.number().min(estimateRecipeNutritionResponseCholesterolMgMin).optional(),
+  "sodiumMg": zod.number().min(estimateRecipeNutritionResponseSodiumMgMin).optional(),
+  "potassiumMg": zod.number().min(estimateRecipeNutritionResponsePotassiumMgMin).optional(),
+  "calciumMg": zod.number().min(estimateRecipeNutritionResponseCalciumMgMin).optional(),
+  "ironMg": zod.number().min(estimateRecipeNutritionResponseIronMgMin).optional(),
+  "magnesiumMg": zod.number().min(estimateRecipeNutritionResponseMagnesiumMgMin).optional(),
+  "zincMg": zod.number().min(estimateRecipeNutritionResponseZincMgMin).optional(),
+  "phosphorusMg": zod.number().min(estimateRecipeNutritionResponsePhosphorusMgMin).optional(),
+  "seleniumMcG": zod.number().min(estimateRecipeNutritionResponseSeleniumMcGMin).optional(),
+  "copperMg": zod.number().min(estimateRecipeNutritionResponseCopperMgMin).optional(),
+  "vitaminAMcG": zod.number().min(estimateRecipeNutritionResponseVitaminAMcGMin).optional().describe('Vitamin A in mcg RAE.'),
+  "vitaminCMg": zod.number().min(estimateRecipeNutritionResponseVitaminCMgMin).optional(),
+  "vitaminDMcG": zod.number().min(estimateRecipeNutritionResponseVitaminDMcGMin).optional(),
+  "vitaminEMg": zod.number().min(estimateRecipeNutritionResponseVitaminEMgMin).optional().describe('Vitamin E in mg alpha-tocopherol.'),
+  "vitaminKMcG": zod.number().min(estimateRecipeNutritionResponseVitaminKMcGMin).optional(),
+  "thiaminMg": zod.number().min(estimateRecipeNutritionResponseThiaminMgMin).optional(),
+  "riboflavinMg": zod.number().min(estimateRecipeNutritionResponseRiboflavinMgMin).optional(),
+  "niacinMg": zod.number().min(estimateRecipeNutritionResponseNiacinMgMin).optional().describe('Niacin in mg NE.'),
+  "vitaminB5Mg": zod.number().min(estimateRecipeNutritionResponseVitaminB5MgMin).optional(),
+  "vitaminB6Mg": zod.number().min(estimateRecipeNutritionResponseVitaminB6MgMin).optional(),
+  "vitaminB12McG": zod.number().min(estimateRecipeNutritionResponseVitaminB12McGMin).optional(),
+  "folateMcG": zod.number().min(estimateRecipeNutritionResponseFolateMcGMin).optional().describe('Folate in mcg DFE.'),
+  "cholineMg": zod.number().min(estimateRecipeNutritionResponseCholineMgMin).optional(),
+  "nutritionConfidence": zod.enum(['estimated']),
+  "nutritionNote": zod.string().min(1).max(estimateRecipeNutritionResponseNutritionNoteMax).describe('Plain-language AI-estimate disclosure.'),
+  "servingBasis": zod.string().min(1).max(estimateRecipeNutritionResponseServingBasisMax).describe('Per-source-serving or per-typical-serving display basis.')
+})
+
+
+/**
  * @summary Idempotently create or recover generated media for one recipe-content version
  */
 export const generateRecipePhotoBodyClientRecipeIdMax = 128;

@@ -55,6 +55,8 @@ import type {
   RecipeMedia,
   RecipeMediaError,
   RecipeMediaReviewInput,
+  RecipeNutritionEstimate,
+  RecipeNutritionEstimateInput,
   RecipePhotoGenerateInput,
   RecipePhotoUrlInput,
   ReferralActivateResult,
@@ -1141,6 +1143,78 @@ export const useGenerateRecipe = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGenerateRecipeMutationOptions(options));
+    }
+
+export const getEstimateRecipeNutritionUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/nutrition-estimate`
+}
+
+/**
+ * Returns an ingredient-based AI estimate only. It is neither provider-verified nor clinical nutrition data. Requests are bounded, rate-limited, and cached by a hash of normalized recipe content.
+ * @summary Generate a bounded AI nutrition estimate for one recipe detail view
+ */
+export const estimateRecipeNutrition = async (recipeNutritionEstimateInput: RecipeNutritionEstimateInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeNutritionEstimate> => {
+
+  return customFetch<RecipeNutritionEstimate>(getEstimateRecipeNutritionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipeNutritionEstimateInput)
+  }
+);}
+
+
+
+
+
+export const getEstimateRecipeNutritionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof estimateRecipeNutrition>>, TError,{data: BodyType<RecipeNutritionEstimateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof estimateRecipeNutrition>>, TError,{data: BodyType<RecipeNutritionEstimateInput>}, TContext> => {
+
+const mutationKey = ['estimateRecipeNutrition'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof estimateRecipeNutrition>>, {data: BodyType<RecipeNutritionEstimateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  estimateRecipeNutrition(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EstimateRecipeNutritionMutationResult = NonNullable<Awaited<ReturnType<typeof estimateRecipeNutrition>>>
+    export type EstimateRecipeNutritionMutationBody = BodyType<RecipeNutritionEstimateInput>
+    export type EstimateRecipeNutritionMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate a bounded AI nutrition estimate for one recipe detail view
+ */
+export const useEstimateRecipeNutrition = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof estimateRecipeNutrition>>, TError,{data: BodyType<RecipeNutritionEstimateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof estimateRecipeNutrition>>,
+        TError,
+        {data: BodyType<RecipeNutritionEstimateInput>},
+        TContext
+      > => {
+      return useMutation(getEstimateRecipeNutritionMutationOptions(options));
     }
 
 export const getGenerateRecipePhotoUrl = () => {

@@ -20,7 +20,7 @@ import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } 
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
-import { RecipeNutritionDetails } from '@/components/RecipeNutritionDetails';
+import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
 import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
@@ -1167,6 +1167,15 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                   )}
                 </Surface>
 
+                <RecipeAiNutritionWidget
+                  recipeId={detail.id}
+                  title={detail.name}
+                  ingredients={detail.ingredients ?? []}
+                  sourceYield={sourceYield}
+                  servingCount={servingCount}
+                  colors={colors}
+                />
+
                 {/* Portions affect this detail view, shopping selection, and the plan draft. */}
                 <View style={[styles.servingRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
                   <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Portions</Text>
@@ -1181,13 +1190,6 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                     ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities are listed as supplied; adjust them for your portions.`
                     : 'Source recipe yield is unavailable. Ingredient quantities are listed as supplied; adjust them for your portions.'}
                 </Text>
-
-                <RecipeNutritionDetails
-                  nutrition={detail}
-                  servingCount={servingCount}
-                  primaryNutritionAvailable={nutritionState === 'available'}
-                  colors={colors}
-                />
 
                 {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
                 {(detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType) ? (
