@@ -2,7 +2,7 @@
   "expo": {
     "name": "Calora",
     "slug": "calora",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "caloraapp",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.etiendem.caloraapp",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMotionUsageDescription": "Calora uses Motion & Fitness activity to show your live steps while the dashboard is open."
@@ -27,7 +27,7 @@
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 24,
+      "versionCode": 25,
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.health.READ_STEPS",

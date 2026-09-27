@@ -50,8 +50,18 @@ describe('classifyCaptureError', () => {
     [{ status: 504, message: 'deadline exceeded' }, 'timeout'],
     [{ name: 'CaptureOperationTimeoutError' }, 'timeout'],
     [{ status: 401, message: 'sign in' }, 'authentication'],
+    [{ status: 404, message: 'route missing' }, 'endpoint'],
   ] as const)('classifies %o as %s', (error, expectedKind) => {
     expect(classifyCaptureError(error).kind).toBe(expectedKind);
+  });
+
+  it('keeps authentication and stale-endpoint recovery actions distinct', () => {
+    expect(classifyCaptureError({ status: 401 }).message).toBe(
+      'Sign in again before analyzing a photo.',
+    );
+    expect(classifyCaptureError({ status: 404 }).message).toContain(
+      'Install the latest build',
+    );
   });
 });
 

@@ -18,6 +18,7 @@ const sha = "[0-9a-f]{40}";
 test("release validation preserves the required job and emits an attested same-SHA gate", () => {
   assert.match(release, /name: Run release validation suite/);
   assert.match(release, /node scripts\/ci\/validate-expo-config\.mjs artifacts\/calora\/app\.json/);
+  assert.match(release, /node scripts\/ci\/validate-eas-native-profiles\.mjs artifacts\/calora\/eas\.json/);
   assert.match(release, /node scripts\/verify-db-source-provenance\.mjs/);
   assert.match(release, /pnpm --filter @workspace\/api-server run test:offline/);
   assert.match(release, /name: Attest release validation gate/);
