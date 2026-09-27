@@ -191,16 +191,24 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('formatRecipeNutrition(scaledProtein');
   });
 
-  it('keeps detail, shopping, planning, and diary portion math explicit', () => {
+  it('persists and renders the server-authored AI nutrition disclosure', () => {
+    expect(source).toContain('nutritionNote: generated.nutritionNote');
+    expect(source).toContain('const aiNutritionNote = isLocalRecipe(detail)');
+    expect(source).toContain('accessibilityLabel="Estimated nutrition disclosure"');
+  });
+
+  it('keeps nutrition portions explicit without guessing ingredient quantities', () => {
     expect(source).toContain("import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing'");
-    expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipeIngredientMultiplier, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing'");
+    expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing'");
     expect(source).toContain('const sourceYield = sourceRecipeYield(detail);');
-    expect(source).toContain('const ingredientMultiplier = recipeIngredientMultiplier(servingCount, sourceYield);');
     expect(source).toContain('scaleRecipeNutritionForDiary(detail, diaryServings)');
     expect(source).toContain('setDiaryServings(servingCount);');
-    expect(source).toContain('scaleIngredient(ingredient, ingredientMultiplier)');
+    expect(source).not.toContain('scaleIngredient(');
+    expect(source).toContain('addIngredientsToShopping(ingredients, detail.id);');
+    expect(source).toContain('ingredients: detail.ingredients ?? []');
     expect(source).toContain('serving: `${servingLabel} ${recipePortionLabel(servingCount)}`');
-    expect(source).toContain('Source recipe yield is unavailable');
+    expect(source).toContain('Ingredient quantities are listed as supplied; adjust them for your portions.');
+    expect(source).toContain('const canLog = hasCompleteNutrition(detail);');
   });
 
   it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {

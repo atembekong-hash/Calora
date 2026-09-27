@@ -13,5 +13,9 @@ export interface RecipeConceptResponse {
      * @maxItems 5
      */
   concepts: RecipeConcept[];
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
   nutritionNote: string;
 }

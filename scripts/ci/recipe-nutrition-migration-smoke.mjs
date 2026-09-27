@@ -17,9 +17,11 @@ if (!databaseUrl) {
   );
 }
 
-// Migrations 0001–0007 are forward-only additions to Calora's existing base
+// Migrations 0001–0008 are forward-only additions to Calora's existing base
 // application schema. This is the smallest representative base required by
-// those immutable migrations; it deliberately omits the nutrition cache.
+// those immutable migrations; it deliberately omits the nutrition cache. A
+// blank public schema is not a supported migration input because the historic
+// chain references the existing managed Calora application tables.
 const prerequisiteSchema = `
   CREATE EXTENSION IF NOT EXISTS pgcrypto;
   CREATE TABLE calora_users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), external_id text NOT NULL);
@@ -111,7 +113,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 9) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -143,8 +145,8 @@ async function verifyExpectedColumns(scenario) {
     );
     assert.equal(
       history.rows[0]?.count,
-      8,
-      `${scenario} must record all eight immutable migrations`,
+      expectedMigrationCount,
+      `${scenario} must record the expected immutable migration history`,
     );
 
     return client;
@@ -155,8 +157,7 @@ async function verifyExpectedColumns(scenario) {
 }
 
 // A fresh nutrition-cache deployment must receive the canonical table from
-// source after the existing Calora base schema is present. This guards against
-// the historical ALTER TABLE IF EXISTS no-op risk.
+// forward migration 0009 after the existing Calora base schema is present.
 await resetDatabase(prerequisiteSchema);
 runMigrations("fresh cache schema");
 const fresh = await verifyExpectedColumns("fresh cache schema");
@@ -212,4 +213,39 @@ try {
   await legacy.end();
 }
 
-console.info("recipe nutrition fresh and legacy migration smoke tests passed");
+// A deployed database may have recorded the original 0008 guarded ALTER TABLE
+// while the cache did not exist. Drizzle will not replay historical migration
+// bytes, so simulate that ledger state and prove forward-only 0009 repairs it.
+await resetDatabase(prerequisiteSchema);
+const historical = new Client({ connectionString: databaseUrl });
+await historical.connect();
+try {
+  await historical.query(`
+    CREATE SCHEMA drizzle;
+    CREATE TABLE drizzle.__drizzle_migrations (
+      id serial PRIMARY KEY,
+      hash text NOT NULL,
+      created_at bigint
+    );
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    VALUES ('historical-0008-recorded-without-cache', 1790483200000);
+  `);
+} finally {
+  await historical.end();
+}
+runMigrations("historical 0008 no-cache upgrade");
+const historicalUpgrade = await verifyExpectedColumns("historical 0008 no-cache upgrade", 2);
+try {
+  const rows = await historicalUpgrade.query(
+    "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
+  );
+  assert.equal(rows.rows[0]?.count, 0, "historical repair must not fabricate rows");
+  const history = await historicalUpgrade.query(
+    "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations",
+  );
+  assert.equal(history.rows[0]?.count, 2, "historical upgrade must append only 0009");
+} finally {
+  await historicalUpgrade.end();
+}
+
+console.info("recipe nutrition fresh, legacy, and historical-upgrade migration smoke tests passed");

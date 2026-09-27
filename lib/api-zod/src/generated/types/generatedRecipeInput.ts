@@ -12,7 +12,10 @@ export interface GeneratedRecipeInput {
      * @maxLength 100
      */
   title: string;
-  /** @maxLength 220 */
+  /**
+     * @minLength 1
+     * @maxLength 220
+     */
   summary?: string;
   /**
      * @minimum 1

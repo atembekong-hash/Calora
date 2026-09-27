@@ -6,6 +6,15 @@ import {
   RECIPE_NUTRIENT_KEYS,
   type RecipeNutritionFacts,
 } from "@workspace/api-zod/recipe-nutrition";
+import {
+  parseGeneratedRecipeInput,
+  parseGuestRecipeConceptInput,
+  parseRecipeConceptInput,
+  GeneratedRecipeResponseSchema,
+  RecipeConceptResponseSchema,
+  RECIPE_GENERATION_NUTRITION_NOTE,
+  type RecipeGenerationConceptInput,
+} from "@workspace/api-zod/recipe-generation";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
@@ -215,15 +224,6 @@ function nutritionFactsForDatabase(nutrition: RecipeNutritionFacts): Required<Re
   ) as Required<RecipeNutritionFacts>;
 }
 
-type ConceptRequest = {
-  ingredients?: unknown;
-  mealType?: unknown;
-  servings?: unknown;
-  maxMinutes?: unknown;
-  preferences?: unknown;
-  request?: unknown;
-};
-
 function conceptText(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -238,17 +238,13 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
     : fallback;
 }
 
-async function generateConcepts(body: ConceptRequest, res: Response) {
-  const ingredients = Array.isArray(body.ingredients) ? body.ingredients.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 18) : [];
-  const mealType = conceptText(body.mealType, 40);
-  const preferences = Array.isArray(body.preferences) ? body.preferences.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 60)).filter(Boolean).slice(0, 8) : [];
-  const request = conceptText(body.request, 500);
-  const servings = boundedInteger(body.servings, 2, 1, 12);
-  const maxMinutes = boundedInteger(body.maxMinutes, 30, 5, 180);
-  if (!ingredients.length && !request) {
-    res.status(400).json({ message: "Add an ingredient or tell Calora what you’d like to make." });
-    return;
-  }
+async function generateConcepts(body: RecipeGenerationConceptInput, res: Response) {
+  const ingredients = body.ingredients?.map((item) => item.trim()) ?? [];
+  const mealType = body.mealType?.trim() ?? "";
+  const preferences = body.preferences?.map((item) => item.trim()) ?? [];
+  const request = body.request?.trim() ?? "";
+  const servings = body.servings ?? 2;
+  const maxMinutes = body.maxMinutes ?? 30;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONCEPT_TIMEOUT_MS);
   try {
@@ -271,7 +267,12 @@ async function generateConcepts(body: ConceptRequest, res: Response) {
       estimatedMinutes: typeof item.estimatedMinutes === "number" ? Math.min(Math.max(Math.round(item.estimatedMinutes), 1), 180) : null,
     })).filter((item) => item.title && item.summary);
     if (concepts.length < 1) throw new Error("Invalid concept response");
-    res.json({ concepts, nutritionNote: "These are AI-generated ideas, not nutrition guidance or full recipes." });
+    const response = RecipeConceptResponseSchema.safeParse({
+      concepts,
+      nutritionNote: "These are AI-generated ideas, not nutrition guidance or full recipes.",
+    });
+    if (!response.success) throw new Error("Invalid concept response contract");
+    res.json(response.data);
     return;
   } catch (error) {
     logger.warn({ err: error }, "Recipe concept generation failed");
@@ -282,6 +283,13 @@ async function generateConcepts(body: ConceptRequest, res: Response) {
   }
 }
 
+function invalidRecipeInput(res: Response) {
+  return res.status(400).json({
+    code: "invalid_recipe_input",
+    message: "Check the recipe details and try again.",
+  });
+}
+
 router.post("/v1/recipes/concepts", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) {
@@ -289,25 +297,27 @@ router.post("/v1/recipes/concepts", async (req, res) => {
     return;
   }
   if (!(await enforceRecipeGenLimit("recipes-concepts", "/v1/recipes/concepts", user.id, res))) return;
-  await generateConcepts(requestBody(req.body) as ConceptRequest, res);
+  const input = parseRecipeConceptInput(req.body);
+  if (!input.success) return invalidRecipeInput(res);
+  return generateConcepts(input.data, res);
 });
 
 router.post("/v1/recipes/guest-concepts", async (req, res) => {
   if (!(await enforceGuestRecipeLimit(req, res))) return;
-  // Intentionally ignore every field except the bounded generic concept inputs.
-  // This route never resolves a session or receives account-derived context.
-  await generateConcepts(requestBody(req.body) as ConceptRequest, res);
+  const input = parseGuestRecipeConceptInput(req.body);
+  if (!input.success) return invalidRecipeInput(res);
+  return generateConcepts(input.data, res);
 });
 
 router.post("/v1/recipes/generated", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to finish a recipe." });
   if (!(await enforceRecipeGenLimit("recipes-generated", "/v1/recipes/generated", user.id, res))) return;
-  const body = requestBody(req.body);
-  const title = conceptText(body.title, 100);
-  const summary = conceptText(body.summary, 220);
-  const servings = boundedInteger(body.servings, 2, 1, 12);
-  if (!title) return res.status(400).json({ message: "Choose a recipe idea first." });
+  const input = parseGeneratedRecipeInput(req.body);
+  if (!input.success) return invalidRecipeInput(res);
+  const title = input.data.title.trim();
+  const summary = input.data.summary?.trim() ?? "";
+  const servings = input.data.servings ?? 2;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONCEPT_TIMEOUT_MS);
   try {
@@ -329,7 +339,7 @@ router.post("/v1/recipes/generated", async (req, res) => {
     if (ingredients.length < 2 || instructions.length < 3) throw new Error("Invalid recipe response");
     const nutrition = parsed.nutrition && typeof parsed.nutrition === "object" ? parsed.nutrition as Record<string, unknown> : {};
     const number = (value: unknown) => normalizeRecipeNutritionValue(value);
-    return res.json({
+    const response = GeneratedRecipeResponseSchema.safeParse({
       name: conceptText(parsed.name, 100) || title, description: conceptText(parsed.description, 300) || summary,
       ingredients, instructions, servings: boundedInteger(parsed.servings, servings, 1, 12),
       prepMinutes: typeof parsed.prepMinutes === "number" && Number.isFinite(parsed.prepMinutes) ? Math.min(Math.max(Math.round(parsed.prepMinutes), 1), 180) : null,
@@ -341,8 +351,10 @@ router.post("/v1/recipes/generated", async (req, res) => {
         ...normalizeRecipeNutritionFacts(nutrition),
       },
       allergens: Array.isArray(parsed.allergens) ? parsed.allergens.filter((v): v is string => typeof v === "string").map((v) => conceptText(v, 50)).filter(Boolean).slice(0, 8) : [],
-      nutritionNote: "AI-estimated nutrition only; confirm ingredients and portions for your needs.",
+      nutritionNote: RECIPE_GENERATION_NUTRITION_NOTE,
     });
+    if (!response.success) throw new Error("Invalid generated recipe response contract");
+    return res.json(response.data);
   } catch {
     return res.status(502).json({ message: "Calora couldn’t finish that recipe right now. Your idea is still available to retry." });
   } finally {

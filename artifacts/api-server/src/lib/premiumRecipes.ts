@@ -3,6 +3,10 @@ import {
   type RecipeNutritionFacts,
   type RecipeNutrientKey,
 } from "@workspace/api-zod/recipe-nutrition";
+import {
+  normalizeExternalHttpsUrl,
+  normalizeTrustedFoodImageUrl,
+} from "@workspace/api-zod/image-source-policy";
 
 export type PremiumRecipe = {
   id: string;
@@ -303,7 +307,7 @@ export function normalizeFatSecretFood(input: unknown): RestaurantFood | null {
     sourceId,
     name,
     brandName: string(raw.brand_name),
-    foodUrl: string(raw.food_url),
+    foodUrl: normalizeExternalHttpsUrl(raw.food_url) ?? null,
     serving: primary.description,
     servingId: primary.servingId,
     calories: primary.calories,
@@ -428,29 +432,13 @@ function string(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-/** The public API promises an absolute HTTP(S) recipe URI, never a provider-controlled scheme. */
+/** The public API emits display-only, public HTTPS recipe links. */
 function recipeSourceUrl(value: unknown): string | null {
-  const candidate = string(value);
-  if (!candidate) return null;
-  try {
-    const parsed = new URL(candidate);
-    return parsed.protocol === "https:" || parsed.protocol === "http:"
-      ? parsed.toString()
-      : null;
-  } catch {
-    return null;
-  }
+  return normalizeExternalHttpsUrl(value) ?? null;
 }
 
 function recipeImage(value: unknown): string | null {
-  const candidate = string(value);
-  if (!candidate) return null;
-  try {
-    const url = new URL(candidate);
-    return url.protocol === "https:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
+  return normalizeTrustedFoodImageUrl(value) ?? null;
 }
 function recipeImageIdentity(value: string | null): string | null {
   if (!value) return null;

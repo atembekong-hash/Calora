@@ -213,6 +213,8 @@ export type CaloraRecipe = {
   sourceId?: string;
   nutritionConfidence?: import('@/lib/recipeModel').NutritionConfidence;
   nutritionSource?: string;
+  /** Server-authored disclosure retained with an AI-generated recipe. */
+  nutritionNote?: string;
   createdAt?: string;
   updatedAt?: string;
 } & RecipeNutritionFacts;
@@ -526,7 +528,7 @@ type CaloraContextValue = {
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
-  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft;
+  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft | null;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   updateFoodMemoryDraftMeal: (draftId: string, meal: MealType) => void;
@@ -1847,6 +1849,7 @@ export function CaloraProvider({
     },
     createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
       const draft = recipeToDraft(recipe, date, meal, new Date().toISOString(), accountId);
+      if (!draft) return null;
       foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);

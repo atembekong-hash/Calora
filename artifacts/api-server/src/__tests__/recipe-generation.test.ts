@@ -191,7 +191,7 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
-  it("allows bounded guest concepts without resolving authentication or account context", async () => {
+  it("allows a documented guest concept payload without resolving authentication", async () => {
     mockOpenAiCreate.mockResolvedValueOnce(completion({
       concepts: [{ title: "Lentil bowl", summary: "A quick dinner.", whyItFits: "Uses lentils.", keyIngredients: ["lentils"], estimatedMinutes: 25 }],
     }));
@@ -199,7 +199,7 @@ describe("AI recipe creation endpoints", () => {
     const response = await request(app)
       .post("/v1/recipes/guest-concepts")
       .set("Authorization", "Bearer ignored-by-guest-route")
-      .send({ ingredients: ["lentils"], mealType: "Dinner", preferences: ["Vegan"], profile: { email: "must-not-forward@example.com" } });
+      .send({ ingredients: ["lentils"], mealType: "Dinner", preferences: ["Vegan"] });
 
     expect(response.status).toBe(200);
     expect(verifyBearerToken).not.toHaveBeenCalled();
@@ -208,8 +208,20 @@ describe("AI recipe creation endpoints", () => {
       expect.stringContaining("guest-recipes:daily:ip:"),
     ]));
     const payload = JSON.parse(mockOpenAiCreate.mock.calls[0][0].messages[1].content);
-    expect(payload).not.toHaveProperty("profile");
     expect(payload).toMatchObject({ ingredients: ["lentils"], preferences: ["Vegan"] });
+  });
+
+  it("rejects unknown, blank, or malformed documented inputs before model work", async () => {
+    const [unknownField, blankIngredient, invalidNumber] = await Promise.all([
+      request(app).post("/v1/recipes/guest-concepts").send({ request: "Dinner", profile: { email: "must-not-forward@example.com" } }),
+      request(app).post("/v1/recipes/concepts").send({ ingredients: ["   "] }),
+      request(app).post("/v1/recipes/concepts").send({ request: "Dinner", servings: 2.5 }),
+    ]);
+
+    expect(unknownField.status).toBe(400);
+    expect(blankIngredient.status).toBe(400);
+    expect(invalidNumber.status).toBe(400);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
   it("fails closed before model work when a guest limiter is unavailable", async () => {
@@ -240,7 +252,7 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
-  it("returns bounded, structured concepts and normalizes invalid numeric input", async () => {
+  it("returns bounded, structured concepts for documented finite input", async () => {
     mockOpenAiCreate.mockResolvedValueOnce(completion({
       concepts: [
         { title: "Lemony lentil bowl", summary: "A bright one-pan dinner.", whyItFits: "Uses your lentils.", keyIngredients: ["lentils", "lemon"], estimatedMinutes: 27.6 },
@@ -251,8 +263,8 @@ describe("AI recipe creation endpoints", () => {
 
     const response = await request(app).post("/v1/recipes/concepts").send({
       ingredients: ["lentils", "spinach"],
-      servings: Number.NaN,
-      maxMinutes: Number.POSITIVE_INFINITY,
+      servings: 2,
+      maxMinutes: 30,
     });
 
     expect(response.status).toBe(200);

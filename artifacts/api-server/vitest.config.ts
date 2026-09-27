@@ -30,6 +30,10 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/recipe-nutrition.ts',
       ),
+      '@workspace/api-zod/recipe-generation': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/recipe-generation.ts',
+      ),
       '@workspace/api-zod/image-source-policy': path.resolve(
         __dirname,
         '../../lib/api-zod/src/image-source-policy.ts',

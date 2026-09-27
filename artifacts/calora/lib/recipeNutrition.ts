@@ -15,6 +15,10 @@ export function isFiniteNutritionValue(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+export function isNonnegativeNutritionValue(value: unknown): value is number {
+  return isFiniteNutritionValue(value) && value >= 0;
+}
+
 export function parseNutritionInput(value: string): number | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -23,7 +27,7 @@ export function parseNutritionInput(value: string): number | null {
 }
 
 export function hasCompleteNutrition(input: RecipeNutritionInput): boolean {
-  return [input.calories, input.proteinG, input.carbsG, input.fatG].every(isFiniteNutritionValue);
+  return [input.calories, input.proteinG, input.carbsG, input.fatG].every(isNonnegativeNutritionValue);
 }
 
 export function getRecipeNutritionState(input: RecipeNutritionInput): RecipeNutritionState {

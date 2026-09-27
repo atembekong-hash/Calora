@@ -34,5 +34,9 @@ export interface GeneratedRecipeResponse {
   nutrition: GeneratedRecipeNutrition;
   /** @maxItems 8 */
   allergens: string[];
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
   nutritionNote: string;
 }

@@ -11,7 +11,7 @@ import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumR
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
-import { formatCalories, formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
+import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -22,7 +22,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { RecipeNutritionDetails } from '@/components/RecipeNutritionDetails';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
-import { formatRecipePortions, nextRecipePortions, recipeIngredientMultiplier, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
+import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
@@ -43,6 +43,8 @@ import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
 import { handleGeneratedRecipeImageError, markGeneratedRecipeImageRendered, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
+import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
+import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -381,7 +383,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     setFinishingTitle(concept.title); setError('');
     try {
       const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: Number(servings) });
-      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
+      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', nutritionNote: generated.nutritionNote, createdAt: new Date().toISOString() }));
     } catch {
       // Creating a local draft preserves the user's chosen concept without
       // pretending that unavailable AI output was received.
@@ -835,28 +837,6 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
     </View>
   );
 }
-// Scale a leading numeric quantity in an ingredient string by a multiplier.
-// Handles integers and simple fractions (1/2, 1/4). Returns original on failure.
-function scaleIngredient(ingredient: string, multiplier: number): string {
-  if (multiplier === 1) return ingredient;
-  const match = ingredient.match(/^(\d+(?:\/\d+)?)\s*/);
-  if (!match) return ingredient;
-  const raw = match[1];
-  let qty: number;
-  if (raw.includes('/')) {
-    const [num, den] = raw.split('/');
-    qty = parseInt(num, 10) / parseInt(den, 10);
-  } else {
-    qty = parseInt(raw, 10);
-  }
-  if (!isFinite(qty) || qty <= 0) return ingredient;
-  const scaled = Math.round(qty * multiplier * 100) / 100;
-  const formatted =
-    scaled === 0.25 ? '¼' : scaled === 0.5 ? '½' : scaled === 0.75 ? '¾' :
-    scaled === 1.25 ? '1¼' : scaled === 1.5 ? '1½' : scaled === 1.75 ? '1¾' :
-    Number.isInteger(scaled) ? String(scaled) : formatQuantity(scaled, 1);
-  return ingredient.replace(match[0], `${formatted} `).trimEnd();
-}
 
 export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
@@ -968,7 +948,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   }
 
   if (!detail) return null;
-  const canLog = isFiniteNutritionValue(detail.calories) && detail.calories >= 0;
+  const canLog = hasCompleteNutrition(detail);
   // True when the server returned nutritionPending: the recipe is loaded but
   // AI estimation is running in the background — poll until it lands.
   const nutritionPending = !local && !premium && Boolean((detailQuery.data as (Recipe & { nutritionPending?: boolean }) | undefined)?.nutritionPending);
@@ -978,9 +958,16 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const isFetchingDetail = premium ? (premiumDetailQuery.isLoading || premiumDetailQuery.isFetching) : (detailQuery.isLoading || detailQuery.isFetching);
   const premiumFields = premium ? detail as PremiumRecipe : null;
   const provenance = recipeProvenance(detail);
+  const aiNutritionNote = isLocalRecipe(detail)
+    && provenance.sourceType === 'calora_ai'
+    && provenance.nutritionConfidence === 'estimated'
+    ? (typeof detail.nutritionNote === 'string' && detail.nutritionNote.trim()
+      ? detail.nutritionNote.trim()
+      : RECIPE_GENERATION_NUTRITION_NOTE)
+    : null;
   const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
   const sourceName = detail.source.trim() || provenance.sourceProvider;
-  const sourceUrl = /^https?:\/\//i.test(detail.sourceUrl ?? '') ? detail.sourceUrl : null;
+  const sourceUrl = normalizeExternalHttpsUrl(detail.sourceUrl);
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
@@ -991,7 +978,6 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const scaledFat = isFiniteNutritionValue(detail.fatG) ? detail.fatG * servingCount : null;
   const nutritionIncomplete = nutritionState === 'available' && !hasCompleteNutrition(detail);
   const sourceYield = sourceRecipeYield(detail);
-  const ingredientMultiplier = recipeIngredientMultiplier(servingCount, sourceYield);
   const servingLabel = formatRecipePortions(servingCount);
   const diaryNutrition = scaleRecipeNutritionForDiary(detail, diaryServings);
 
@@ -999,6 +985,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const openReview = () => {
     if (!canLog) return;
     const draft = createRecipeDraft(detail, dateKey(), 'Dinner');
+    if (!draft) return;
     setReviewDraftId(draft.id);
   };
   const updateComponent = (component: FoodMemoryComponent) => {
@@ -1032,6 +1019,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
     const scaled = { ...detail, ...diaryNutrition };
     const draft = createRecipeDraft(scaled, dateKey(), diaryMealType);
+    if (!draft) return;
     // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
     // queued and not yet reflected in the foodDrafts closure that
     // acceptFoodMemory reads from. Passing draftOverride bypasses that lookup.
@@ -1052,7 +1040,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // prevents the modal from getting stuck open when React Query refetches
     // on window-focus at the same moment the user taps Add.
     if (ingredients.length > 0) {
-      addIngredientsToShopping(ingredients.map((ingredient) => scaleIngredient(ingredient, ingredientMultiplier)), detail.id);
+      addIngredientsToShopping(ingredients, detail.id);
     }
     setShopVisible(false);
   };
@@ -1094,7 +1082,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       } : {}),
       serving: `${servingLabel} ${recipePortionLabel(servingCount)}`,
       calories, proteinG, carbsG, fatG,
-      ingredients: (detail.ingredients ?? []).map((ingredient) => scaleIngredient(ingredient, ingredientMultiplier)),
+      ingredients: detail.ingredients ?? [],
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
     };
@@ -1192,8 +1180,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 </View>
                 <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>
                   {sourceYield
-                    ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities match your selected portions.`
-                    : 'Source recipe yield is unavailable. Ingredient quantities are scaled relative to the listed recipe.'}
+                    ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities are listed as supplied; adjust them for your portions.`
+                    : 'Source recipe yield is unavailable. Ingredient quantities are listed as supplied; adjust them for your portions.'}
                 </Text>
 
                 <RecipeNutritionDetails
@@ -1220,6 +1208,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 ) : null}
 
                 {/* Notices */}
+                {aiNutritionNote && <View style={[styles.notice, { backgroundColor: colors.muted }]} accessibilityLabel="Estimated nutrition disclosure"><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>{aiNutritionNote}</Text></View>}
                 {!local && canLog && recipeProvenance(detail).nutritionConfidence === 'estimated' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Estimated per serving; values may vary.</Text></View>}
                 {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="check-circle" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Verified nutrition: {recipeProvenance(detail).nutritionSource}</Text></View>}
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text></View>}
@@ -1242,7 +1231,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                     {detail.ingredients.map((ingredient, idx) => (
                       <View key={idx} style={styles.ingredientRow}>
                         <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
-                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}</Text>
+                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text>
                       </View>
                     ))}
                   </>
@@ -1406,14 +1395,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
           <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
             {detail.ingredients?.map((ingredient, idx) => (
               <Pressable key={idx}
-                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}`}
+                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
                 onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
                 style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
               >
                 <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
                   {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
                 </View>
-                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}</Text>
+                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
               </Pressable>
             ))}
           </ScrollView>

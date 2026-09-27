@@ -8,6 +8,7 @@ import {
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
 import { plannerImageRenderDecision } from '@/lib/plannerImageRendering';
+import { hasCompleteNutrition } from '@/lib/recipeNutrition';
 
 export const FOOD_MEMORY_SCHEMA_VERSION = 1;
 
@@ -361,7 +362,22 @@ export function recipeToDraft(
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
   accountScope?: string | null,
-): FoodMemoryDraft {
+): FoodMemoryDraft | null {
+  // Food-memory and diary snapshots require concrete primary macros. Do not
+  // turn unavailable recipe facts into zeroes, which would misstate nutrition.
+  const primaryNutrition = {
+    calories: recipe.calories,
+    proteinG: recipe.proteinG,
+    carbsG: recipe.carbsG,
+    fatG: recipe.fatG,
+  };
+  if (!hasCompleteNutrition(primaryNutrition)) return null;
+  const completeNutrition = primaryNutrition as {
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+  };
   const inputType: FoodMemoryInputType = 'recipe';
   const provenance: FoodMemoryProvenance = recipe.isLocal ? 'recipe_personal' : 'recipe_imported';
   const confidence = recipe.isLocal ? 92 : 68;
@@ -385,10 +401,10 @@ export function recipeToDraft(
     id: `${recipe.id}-component`,
     name: recipe.name,
     serving: '1 recipe serving',
-    calories: recipe.calories ?? 0,
-    proteinG: recipe.proteinG ?? 0,
-    carbsG: recipe.carbsG ?? 0,
-    fatG: recipe.fatG ?? 0,
+    calories: completeNutrition.calories,
+    proteinG: completeNutrition.proteinG,
+    carbsG: completeNutrition.carbsG,
+    fatG: completeNutrition.fatG,
     included: true,
     eatenFraction: 1,
     provenance,

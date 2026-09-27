@@ -1,12 +1,21 @@
--- Migration: 0008_recipe_nutrition_facts
--- Description: Add optional source-backed micronutrients to the recipe nutrition cache.
+-- Migration: 0009_recipe_nutrition_cache_baseline
+-- Description: Forward-only repair for the recipe nutrition cache foundation.
 --
--- Existing rows are intentionally preserved. NULL means the source did not
--- provide a fact, which is distinct from a measured zero and must remain so.
---
--- Immutability guarantee: once applied, this file must never be edited.
+-- Historical migration 0008 intentionally remains immutable. Some databases
+-- may have recorded its earlier guarded ALTER TABLE while the cache table did
+-- not exist. This forward migration converges that supported application
+-- baseline without rewriting migration history or fabricating nutrition data.
 
-ALTER TABLE IF EXISTS calora_recipe_nutrition
+CREATE TABLE IF NOT EXISTS calora_recipe_nutrition (
+  meal_id text PRIMARY KEY,
+  calories integer NOT NULL,
+  protein_g integer NOT NULL,
+  carbs_g integer NOT NULL,
+  fat_g integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE calora_recipe_nutrition
   ADD COLUMN IF NOT EXISTS saturated_fat_g double precision,
   ADD COLUMN IF NOT EXISTS trans_fat_g double precision,
   ADD COLUMN IF NOT EXISTS monounsaturated_fat_g double precision,

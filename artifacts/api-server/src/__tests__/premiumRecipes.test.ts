@@ -277,6 +277,9 @@ describe("Premium recipe routes", () => {
 
     expect(normalizePremiumRecipe({ id: "unsafe", name: "Unsafe", sourceUrl: "javascript:alert(1)" })).toBeNull();
     expect(normalizePremiumRecipe({ id: "relative", name: "Relative", sourceUrl: "/recipes/relative" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "http", name: "HTTP", sourceUrl: "http://provider.example/recipes/http" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "loopback", name: "Loopback", sourceUrl: "https://127.0.0.1/recipes/private" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "credentials", name: "Credentials", sourceUrl: "https://user:pass@provider.example/recipes/private" })).toBeNull();
     expect(normalizePremiumRecipe({ id: "safe", name: "Safe", sourceUrl: "https://provider.example/recipes/safe" }))
       .toMatchObject({ sourceUrl: "https://provider.example/recipes/safe" });
   });

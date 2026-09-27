@@ -866,35 +866,37 @@ export const ListRecipesResponse = zod.object({
 /**
  * @summary Generate bounded recipe concepts for an authenticated user
  */
-export const generateRecipeConceptsBodyIngredientsItemMax = 80;
+export const generateRecipeConceptsBodyThreeIngredientsItemMax = 80;
 
-export const generateRecipeConceptsBodyIngredientsMax = 18;
+export const generateRecipeConceptsBodyThreeIngredientsMax = 18;
 
-export const generateRecipeConceptsBodyMealTypeMax = 40;
+export const generateRecipeConceptsBodyThreeMealTypeMax = 40;
 
-export const generateRecipeConceptsBodyServingsMax = 12;
+export const generateRecipeConceptsBodyThreeServingsMax = 12;
 
-export const generateRecipeConceptsBodyMaxMinutesMin = 5;
-export const generateRecipeConceptsBodyMaxMinutesMax = 180;
+export const generateRecipeConceptsBodyThreeMaxMinutesMin = 5;
+export const generateRecipeConceptsBodyThreeMaxMinutesMax = 180;
 
-export const generateRecipeConceptsBodyPreferencesItemMax = 60;
+export const generateRecipeConceptsBodyThreePreferencesItemMax = 60;
 
-export const generateRecipeConceptsBodyPreferencesMax = 8;
+export const generateRecipeConceptsBodyThreePreferencesMax = 8;
 
-export const generateRecipeConceptsBodyRequestMax = 500;
+export const generateRecipeConceptsBodyThreeRequestMax = 500;
 
 
 
-export const GenerateRecipeConceptsBody = zod.object({
-  "ingredients": zod.array(zod.string().max(generateRecipeConceptsBodyIngredientsItemMax)).max(generateRecipeConceptsBodyIngredientsMax).optional(),
-  "mealType": zod.string().max(generateRecipeConceptsBodyMealTypeMax).optional(),
-  "servings": zod.number().int().min(1).max(generateRecipeConceptsBodyServingsMax).optional(),
-  "maxMinutes": zod.number().int().min(generateRecipeConceptsBodyMaxMinutesMin).max(generateRecipeConceptsBodyMaxMinutesMax).optional(),
-  "preferences": zod.array(zod.string().max(generateRecipeConceptsBodyPreferencesItemMax)).max(generateRecipeConceptsBodyPreferencesMax).optional(),
-  "request": zod.string().max(generateRecipeConceptsBodyRequestMax).optional()
-})
+export const GenerateRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
+  "ingredients": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateRecipeConceptsBodyThreeIngredientsMax).optional(),
+  "mealType": zod.string().min(1).max(generateRecipeConceptsBodyThreeMealTypeMax).optional(),
+  "servings": zod.number().int().min(1).max(generateRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.number().int().min(generateRecipeConceptsBodyThreeMaxMinutesMin).max(generateRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "preferences": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreePreferencesItemMax)).max(generateRecipeConceptsBodyThreePreferencesMax).optional(),
+  "request": zod.string().min(1).max(generateRecipeConceptsBodyThreeRequestMax).optional()
+}))
 
 export const generateRecipeConceptsResponseConceptsMax = 5;
+
+export const generateRecipeConceptsResponseNutritionNoteMax = 240;
 
 
 
@@ -906,42 +908,44 @@ export const GenerateRecipeConceptsResponse = zod.object({
   "keyIngredients": zod.array(zod.string()),
   "estimatedMinutes": zod.number().int().nullable()
 })).min(1).max(generateRecipeConceptsResponseConceptsMax),
-  "nutritionNote": zod.string()
+  "nutritionNote": zod.string().min(1).max(generateRecipeConceptsResponseNutritionNoteMax)
 })
 
 
 /**
  * @summary Generate bounded recipe concepts without an account
  */
-export const generateGuestRecipeConceptsBodyIngredientsItemMax = 80;
+export const generateGuestRecipeConceptsBodyThreeIngredientsItemMax = 80;
 
-export const generateGuestRecipeConceptsBodyIngredientsMax = 18;
+export const generateGuestRecipeConceptsBodyThreeIngredientsMax = 18;
 
-export const generateGuestRecipeConceptsBodyMealTypeMax = 40;
+export const generateGuestRecipeConceptsBodyThreeMealTypeMax = 40;
 
-export const generateGuestRecipeConceptsBodyServingsMax = 12;
+export const generateGuestRecipeConceptsBodyThreeServingsMax = 12;
 
-export const generateGuestRecipeConceptsBodyMaxMinutesMin = 5;
-export const generateGuestRecipeConceptsBodyMaxMinutesMax = 180;
+export const generateGuestRecipeConceptsBodyThreeMaxMinutesMin = 5;
+export const generateGuestRecipeConceptsBodyThreeMaxMinutesMax = 180;
 
-export const generateGuestRecipeConceptsBodyPreferencesItemMax = 60;
+export const generateGuestRecipeConceptsBodyThreePreferencesItemMax = 60;
 
-export const generateGuestRecipeConceptsBodyPreferencesMax = 8;
+export const generateGuestRecipeConceptsBodyThreePreferencesMax = 8;
 
-export const generateGuestRecipeConceptsBodyRequestMax = 500;
+export const generateGuestRecipeConceptsBodyThreeRequestMax = 500;
 
 
 
-export const GenerateGuestRecipeConceptsBody = zod.object({
-  "ingredients": zod.array(zod.string().max(generateGuestRecipeConceptsBodyIngredientsItemMax)).max(generateGuestRecipeConceptsBodyIngredientsMax).optional(),
-  "mealType": zod.string().max(generateGuestRecipeConceptsBodyMealTypeMax).optional(),
-  "servings": zod.number().int().min(1).max(generateGuestRecipeConceptsBodyServingsMax).optional(),
-  "maxMinutes": zod.number().int().min(generateGuestRecipeConceptsBodyMaxMinutesMin).max(generateGuestRecipeConceptsBodyMaxMinutesMax).optional(),
-  "preferences": zod.array(zod.string().max(generateGuestRecipeConceptsBodyPreferencesItemMax)).max(generateGuestRecipeConceptsBodyPreferencesMax).optional(),
-  "request": zod.string().max(generateGuestRecipeConceptsBodyRequestMax).optional()
-})
+export const GenerateGuestRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
+  "ingredients": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsMax).optional(),
+  "mealType": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeMealTypeMax).optional(),
+  "servings": zod.number().int().min(1).max(generateGuestRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.number().int().min(generateGuestRecipeConceptsBodyThreeMaxMinutesMin).max(generateGuestRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "preferences": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreePreferencesItemMax)).max(generateGuestRecipeConceptsBodyThreePreferencesMax).optional(),
+  "request": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeRequestMax).optional()
+}))
 
 export const generateGuestRecipeConceptsResponseConceptsMax = 5;
+
+export const generateGuestRecipeConceptsResponseNutritionNoteMax = 240;
 
 
 
@@ -953,7 +957,7 @@ export const GenerateGuestRecipeConceptsResponse = zod.object({
   "keyIngredients": zod.array(zod.string()),
   "estimatedMinutes": zod.number().int().nullable()
 })).min(1).max(generateGuestRecipeConceptsResponseConceptsMax),
-  "nutritionNote": zod.string()
+  "nutritionNote": zod.string().min(1).max(generateGuestRecipeConceptsResponseNutritionNoteMax)
 })
 
 
@@ -970,7 +974,7 @@ export const generateRecipeBodyServingsMax = 12;
 
 export const GenerateRecipeBody = zod.object({
   "title": zod.string().min(1).max(generateRecipeBodyTitleMax),
-  "summary": zod.string().max(generateRecipeBodySummaryMax).optional(),
+  "summary": zod.string().min(1).max(generateRecipeBodySummaryMax).optional(),
   "servings": zod.number().int().min(1).max(generateRecipeBodyServingsMax).optional()
 })
 
@@ -1054,6 +1058,8 @@ export const generateRecipeResponseNutritionCholineMgMin = 0;
 
 export const generateRecipeResponseAllergensMax = 8;
 
+export const generateRecipeResponseNutritionNoteMax = 240;
+
 
 
 export const GenerateRecipeResponse = zod.object({
@@ -1100,7 +1106,7 @@ export const GenerateRecipeResponse = zod.object({
   "cholineMg": zod.number().min(generateRecipeResponseNutritionCholineMgMin).nullish()
 }),
   "allergens": zod.array(zod.string()).max(generateRecipeResponseAllergensMax),
-  "nutritionNote": zod.string()
+  "nutritionNote": zod.string().min(1).max(generateRecipeResponseNutritionNoteMax)
 })
 
 

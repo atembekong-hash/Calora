@@ -6,13 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RecipeConceptInput {
+export type RecipeConceptInput = (unknown & {
   /**
+     * @minItems 1
      * @maxItems 18
+     * @items.minLength 1
      * @items.maxLength 80
      */
   ingredients?: string[];
-  /** @maxLength 40 */
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
   mealType?: string;
   /**
      * @minimum 1
@@ -26,9 +31,13 @@ export interface RecipeConceptInput {
   maxMinutes?: number;
   /**
      * @maxItems 8
+     * @items.minLength 1
      * @items.maxLength 60
      */
   preferences?: string[];
-  /** @maxLength 500 */
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
   request?: string;
-}
+});

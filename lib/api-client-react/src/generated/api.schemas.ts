@@ -479,13 +479,18 @@ export interface SyncResponse {
   nextCursor: string;
 }
 
-export interface RecipeConceptInput {
+export type RecipeConceptInput = (unknown & {
   /**
+     * @minItems 1
      * @maxItems 18
+     * @items.minLength 1
      * @items.maxLength 80
      */
   ingredients?: string[];
-  /** @maxLength 40 */
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
   mealType?: string;
   /**
      * @minimum 1
@@ -499,12 +504,16 @@ export interface RecipeConceptInput {
   maxMinutes?: number;
   /**
      * @maxItems 8
+     * @items.minLength 1
      * @items.maxLength 60
      */
   preferences?: string[];
-  /** @maxLength 500 */
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
   request?: string;
-}
+});
 
 export interface RecipeConcept {
   title: string;
@@ -521,6 +530,10 @@ export interface RecipeConceptResponse {
      * @maxItems 5
      */
   concepts: RecipeConcept[];
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
   nutritionNote: string;
 }
 
@@ -530,7 +543,10 @@ export interface GeneratedRecipeInput {
      * @maxLength 100
      */
   title: string;
-  /** @maxLength 220 */
+  /**
+     * @minLength 1
+     * @maxLength 220
+     */
   summary?: string;
   /**
      * @minimum 1
@@ -743,6 +759,10 @@ export interface GeneratedRecipeResponse {
   nutrition: GeneratedRecipeNutrition;
   /** @maxItems 8 */
   allergens: string[];
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
   nutritionNote: string;
 }
 

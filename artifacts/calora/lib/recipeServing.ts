@@ -20,24 +20,6 @@ export function sourceRecipeYield(recipe: unknown): number | null {
   return Math.round(servings * 100) / 100;
 }
 
-/**
- * Recipe nutrition is stored and displayed as one serving. Ingredient amounts,
- * however, describe the whole source recipe. This multiplier aligns the two.
- *
- * If the source omitted its yield, ingredient scaling remains relative to the
- * source recipe and the UI explicitly labels that limitation.
- */
-export function recipeIngredientMultiplier(
-  selectedPortions: number,
-  sourceYield: number | null,
-): number {
-  const safePortions =
-    Number.isFinite(selectedPortions) && selectedPortions > 0
-      ? selectedPortions
-      : 1;
-  return sourceYield ? safePortions / sourceYield : safePortions;
-}
-
 export function nextRecipePortions(
   current: number,
   direction: -1 | 1,

@@ -335,6 +335,7 @@ export function RecipeNutritionDetails({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         accessibilityLabel={
           expanded
             ? "Show less nutrition information"

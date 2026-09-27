@@ -624,7 +624,7 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Dinner',
       NOW,
-    );
+    )!;
     expect(draft.inputType).toBe('recipe');
     expect(draft.provenance).toBe('recipe_imported');
   });
@@ -635,7 +635,7 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Lunch',
       NOW,
-    );
+    )!;
     expect(draft.provenance).toBe('recipe_personal');
   });
 
@@ -645,13 +645,13 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Dinner',
       NOW,
-    );
+    )!;
     const imported = recipeToDraft(
       { id: 'r4', name: 'Ramen', calories: 600, proteinG: 25, carbsG: 80, fatG: 20, source: 'TheMealDB', isLocal: false },
       '2026-08-06',
       'Dinner',
       NOW,
-    );
+    )!;
     expect(local.confidence).toBe(92);
     expect(imported.confidence).toBe(68);
   });
@@ -662,7 +662,7 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Lunch',
       NOW,
-    );
+    )!;
     expect(draft.assumptions.some((a) => a.includes('OpenMeals'))).toBe(true);
   });
 
@@ -672,20 +672,19 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Dinner',
       NOW,
-    );
+    )!;
     expect(draft.nutrition.calories).toBeCloseTo(450);
     expect(draft.nutrition.proteinG).toBeCloseTo(30);
   });
 
-  it('falls back to zero for null nutrition values', () => {
+  it('refuses a diary draft when primary recipe nutrition is unavailable', () => {
     const draft = recipeToDraft(
       { id: 'r7', name: 'Mystery dish', calories: null, proteinG: null, carbsG: null, fatG: null, source: 'Unknown', isLocal: false },
       '2026-08-06',
       'Snack',
       NOW,
     );
-    expect(draft.nutrition.calories).toBe(0);
-    expect(draft.nutrition.proteinG).toBe(0);
+    expect(draft).toBeNull();
   });
 
   it('preserves a durable recipe image for the accepted diary flow', () => {
@@ -703,7 +702,7 @@ describe('recipeToDraft', () => {
       '2026-08-06',
       'Dinner',
       NOW,
-    );
+    )!;
     expect(draft.imageUrl).toBe('https://www.themealdb.com/images/media/meals/recipe.jpg');
     expect(draft.imageSource).toBe('recipe');
   });
@@ -728,7 +727,7 @@ describe('recipeToDraft', () => {
       'Dinner',
       NOW,
       'account-a',
-    );
+    )!;
 
     expect(draft).toMatchObject({
       imageUrl: signedImageUrl,

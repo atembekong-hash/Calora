@@ -10,7 +10,8 @@
     "./planner-image-identity": "./src/planner-image-identity.ts",
     "./planner-program-pools": "./src/planner-program-pools.ts",
     "./planner-program-eligibility": "./src/planner-program-eligibility.ts",
-    "./recipe-nutrition": "./src/recipe-nutrition.ts"
+    "./recipe-nutrition": "./src/recipe-nutrition.ts",
+    "./recipe-generation": "./src/recipe-generation.ts"
   },
   "dependencies": {
     "zod": "catalog:"
