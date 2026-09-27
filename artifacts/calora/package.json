@@ -10,7 +10,7 @@
     "serve": "node server/serve.js",
     "serve:web": "node server/serve-web.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run && node --test server/serve.security.cjs server/serve-web.test.cjs scripts/build-web.test.mjs scripts/expo-config-authority.test.cjs",
+    "test": "vitest run && node --test server/serve.security.cjs server/serve-web.test.cjs scripts/build-web.test.mjs scripts/expo-config-authority.test.cjs scripts/health-connect-privacy-policy.test.cjs",
     "test:server": "node --test server/serve.security.cjs",
     "test:web": "node --test server/serve-web.test.cjs scripts/build-web.test.mjs",
     "test:watch": "vitest",

@@ -5,6 +5,7 @@ import type {
 
 export type {
   MotionStepCapability,
+  MotionStepEvent,
   MotionStepSubscription,
   StepMotionService,
 } from "./stepMotion.types";

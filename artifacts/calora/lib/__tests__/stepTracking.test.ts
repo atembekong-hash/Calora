@@ -12,6 +12,7 @@ import {
   reconcileProviderSteps,
   suspendLiveStepSession,
 } from "../steps/stepTracking";
+import { normalizeMotionStepEvent } from "../steps/stepMotion.types";
 
 describe("live step tracking reconciliation", () => {
   const day = "2026-09-26";
@@ -107,6 +108,15 @@ describe("live step tracking reconciliation", () => {
     expect(next.displayedSteps).toBe(1_008);
   });
 
+  it("turns a negative Android bridge callback into a reset signal, not a total", () => {
+    expect(normalizeMotionStepEvent(-1)).toEqual({ type: "counter-reset" });
+    expect(normalizeMotionStepEvent(12.8)).toEqual({
+      type: "steps",
+      steps: 12,
+    });
+    expect(normalizeMotionStepEvent(Number.NaN)).toBeNull();
+  });
+
   it("retains a provisional projection after the listener is suspended without persisting it as provider data", () => {
     const projected = projectLiveSteps(
       beginLiveStepSession(
@@ -128,7 +138,11 @@ describe("live step tracking reconciliation", () => {
   it("retains the session-only qualifier after a no-Health listener is suspended", () => {
     const suspended = suspendLiveStepSession(
       projectLiveSteps(
-        beginLiveStepSession(createLiveStepTrackingState(day), "granted", startedAt),
+        beginLiveStepSession(
+          createLiveStepTrackingState(day),
+          "granted",
+          startedAt,
+        ),
         8,
         startedAt,
       ),

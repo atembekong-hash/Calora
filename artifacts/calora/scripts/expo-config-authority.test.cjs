@@ -55,6 +55,15 @@ test('Expo configuration requests only implemented health capabilities', () => {
     appJson.expo?.android?.permissions?.includes('android.permission.ACTIVITY_RECOGNITION'),
     'Android live step tracking requires ACTIVITY_RECOGNITION in the generated manifest',
   );
+  assert.ok(
+    appJson.expo?.plugins?.includes('./plugins/withHealthConnectPrivacyPolicy.cjs'),
+    'Health Connect requires a generated privacy-rationale route',
+  );
+  assert.ok(
+    appJson.expo?.plugins?.indexOf('./plugins/withHealthConnectPrivacyPolicy.cjs')
+      < appJson.expo?.plugins?.indexOf('react-native-health-connect'),
+    'The privacy route plugin must run before the Health Connect manifest plugin',
+  );
   assert.ok(Array.isArray(healthKitPlugin));
   assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, false);
 });

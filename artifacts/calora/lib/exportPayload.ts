@@ -22,6 +22,8 @@
 export interface CaloraExportState {
   onboardingComplete: boolean;
   onboardingStep?: number;
+  /** Owned in-progress setup data is exportable even before a profile exists. */
+  onboardingDraft?: unknown;
   profile: unknown;
   logs: unknown[];
   weights: unknown[];
@@ -113,9 +115,17 @@ export function buildExportPayload(
   // profilePhotoUri is a device-local implementation detail, not portable data.
   // Exports contain the owned JPEG bytes when they can be read, or an explicit
   // reason when they cannot, and never disclose a sandbox/filesystem path.
-  const { profilePhotoUri: _profilePhotoUri, ...portableState } = state;
+  const {
+    profilePhotoUri: _profilePhotoUri,
+    onboardingDraft = null,
+    ...portableState
+  } = state;
   void _profilePhotoUri;
-  return JSON.stringify({ schemaVersion, ...portableState, profilePhoto }, null, 2);
+  return JSON.stringify(
+    { schemaVersion, ...portableState, onboardingDraft, profilePhoto },
+    null,
+    2,
+  );
 }
 
 /**

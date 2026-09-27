@@ -71,6 +71,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
   return {
     onboardingComplete:    false,
     onboardingStep:        0,
+    onboardingDraft:       null,
     profile:              null,
     logs:                 [],
     weights:              [],

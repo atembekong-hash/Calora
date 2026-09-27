@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   AccessibilityInfo,
-  AppState,
   FlatList,
   Platform,
   Pressable,
@@ -633,6 +632,9 @@ function stepStatusCopy(
   needsStepsAccess: boolean,
   healthStepsProvider: string,
 ): string {
+  if (Platform.OS === 'web') {
+    return 'Live device steps are available in the Calora mobile app';
+  }
   if (isLiveSessionOnly(tracking)) {
     const healthMessage = needsStepsAccess
       ? 'update Health access for today’s total'
@@ -700,7 +702,9 @@ function StepsTodayCard({
   const needsMotionAccess = tracking.status === 'permission-required';
   const needsRetry = tracking.status === 'error';
   const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);
-  const actionLabel = needsMotionSettings
+  const actionLabel = Platform.OS === 'web'
+    ? null
+    : needsMotionSettings
     ? 'Open motion settings'
     : needsMotionAccess
     ? 'Enable live steps'
@@ -713,7 +717,9 @@ function StepsTodayCard({
           ? 'Sync Health'
           : 'Connect Health'
       : null;
-  const onPress = needsMotionSettings
+  const onPress = Platform.OS === 'web'
+    ? undefined
+    : needsMotionSettings
     ? onOpenMotionSettings
     : needsMotionAccess
       ? onEnableLiveSteps
@@ -1460,7 +1466,7 @@ export default function HomeScreen() {
   const {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
     livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, dailyStepGoal,
-    startLiveStepTracking, stopLiveStepTracking, openMotionSettings, weights,
+    startLiveStepTracking, setLiveStepsDashboardFocused, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
     updateProfile,
   } = useCalora();
@@ -1554,23 +1560,15 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!hydrated || !isViewingToday) {
-        stopLiveStepTracking();
+        setLiveStepsDashboardFocused(false);
         return undefined;
       }
 
-      void startLiveStepTracking();
-      const subscription = AppState.addEventListener('change', (nextState) => {
-        if (nextState === 'active') {
-          void startLiveStepTracking();
-        } else {
-          stopLiveStepTracking();
-        }
-      });
+      setLiveStepsDashboardFocused(true);
       return () => {
-        subscription.remove();
-        stopLiveStepTracking();
+        setLiveStepsDashboardFocused(false);
       };
-    }, [hydrated, isViewingToday, startLiveStepTracking, stopLiveStepTracking]),
+    }, [hydrated, isViewingToday, setLiveStepsDashboardFocused]),
   );
 
   const openAdd = (mode: AddFoodEntryMode = 'search') => {

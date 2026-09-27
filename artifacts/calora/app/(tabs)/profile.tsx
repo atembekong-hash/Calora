@@ -95,7 +95,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
-    profile, onboardingComplete, onboardingStep, updateProfile,
+    profile, onboardingComplete, onboardingStep, onboardingDraft, updateProfile,
     healthConnected, healthConnection, connectHealth, openHealthSettings, syncHealth, disconnectHealth,
     dailyStepGoal, setDailyStepGoal,
     exportData, clearAllData, isClearing, syncState,
@@ -107,7 +107,7 @@ export default function ProfileScreen() {
   } = useCalora();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
 
-  const hasExportData = deriveExportHasData(profile, logs);
+  const hasExportData = deriveExportHasData(profile, logs, onboardingDraft);
   const insets = useSafeAreaInsets();
 
   // Billing — the live RevenueCat offering is the price authority.

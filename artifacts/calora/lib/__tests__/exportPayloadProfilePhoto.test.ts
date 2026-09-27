@@ -101,6 +101,19 @@ describe('portable profile photo export', () => {
     expect(parsed.profilePhotoUri).toBeUndefined();
   });
 
+  it('preserves an incomplete onboarding draft in the portable payload', () => {
+    const snapshot = state(null);
+    snapshot.onboardingComplete = false;
+    snapshot.onboardingDraft = {
+      name: 'Alex', age: '30', height: '170', weight: '72', targetWeight: '68',
+      consent: true, goal: 'lose', activity: 'moderate', diet: 'Everything',
+    };
+
+    const parsed = JSON.parse(buildExportPayload(2, snapshot));
+
+    expect(parsed.onboardingDraft).toEqual(snapshot.onboardingDraft);
+  });
+
   it('records an explicit unavailable marker without leaking a stale local path', () => {
     const localUri = 'file:///private/calora-profile-photo-stale.jpg';
     const payload = buildExportPayload(2, state(localUri));

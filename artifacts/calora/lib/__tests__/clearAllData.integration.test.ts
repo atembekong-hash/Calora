@@ -1453,6 +1453,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
   const staleClosedOver: CaloraExportState = {
     onboardingComplete:    true,
     onboardingStep:        4,
+    onboardingDraft:       null,
     profile:              { name: 'Alex', goal: 'lose', weightKg: 76 },
     logs:                 [
       { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },

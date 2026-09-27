@@ -97,6 +97,7 @@
           "microphonePermission": "Calora uses your microphone only while you record a short meal description."
         }
       ],
+      "./plugins/withHealthConnectPrivacyPolicy.cjs",
       "react-native-health-connect",
       [
         "@kingstinct/react-native-healthkit",

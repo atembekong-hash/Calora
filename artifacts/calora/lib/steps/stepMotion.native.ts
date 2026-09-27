@@ -1,5 +1,6 @@
 import { Pedometer } from "expo-sensors";
 import { Linking } from "react-native";
+import { normalizeMotionStepEvent } from "./stepMotion.types";
 import type { MotionStepPermission } from "./stepTracking";
 import type {
   MotionStepCapability,
@@ -38,15 +39,10 @@ export const stepMotionService: StepMotionService = {
   async openSettings() {
     await Linking.openSettings();
   },
-  watchSteps(onSteps) {
+  watchSteps(onEvent) {
     return Pedometer.watchStepCount((result) => {
-      if (
-        typeof result.steps === "number" &&
-        Number.isFinite(result.steps) &&
-        result.steps >= 0
-      ) {
-        onSteps(Math.floor(result.steps));
-      }
+      const event = normalizeMotionStepEvent(result.steps);
+      if (event) onEvent(event);
     });
   },
 };

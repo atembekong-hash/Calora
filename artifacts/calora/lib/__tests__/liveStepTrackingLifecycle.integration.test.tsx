@@ -9,7 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const asyncStore = vi.hoisted(() => ({ values: {} as Record<string, string> }));
 const motion = vi.hoisted(() => {
-  let onSteps: ((steps: number) => void) | null = null;
+  let listeners: Array<
+    (
+      event: { type: "steps"; steps: number } | { type: "counter-reset" },
+    ) => void
+  > = [];
   const remove = vi.fn();
   return {
     capability: {
@@ -23,10 +27,16 @@ const motion = vi.hoisted(() => {
     remove,
     openSettings: vi.fn(async () => undefined),
     emit(steps: number) {
-      onSteps?.(steps);
+      listeners.at(-1)?.({ type: "steps", steps });
+    },
+    emitCounterReset() {
+      listeners.at(-1)?.({ type: "counter-reset" });
+    },
+    emitStale(steps: number) {
+      listeners[0]?.({ type: "steps", steps });
     },
     reset() {
-      onSteps = null;
+      listeners = [];
       remove.mockReset();
       this.openSettings.mockReset();
       this.openSettings.mockResolvedValue(undefined);
@@ -37,10 +47,16 @@ const motion = vi.hoisted(() => {
       getCapability: vi.fn(async () => motion.capability),
       requestPermission: vi.fn(async () => motion.requestCapability),
       openSettings: vi.fn(async () => motion.openSettings()),
-      watchSteps: vi.fn((callback: (steps: number) => void) => {
-        onSteps = callback;
-        return { remove };
-      }),
+      watchSteps: vi.fn(
+        (
+          callback: (
+            event: { type: "steps"; steps: number } | { type: "counter-reset" },
+          ) => void,
+        ) => {
+          listeners.push(callback);
+          return { remove };
+        },
+      ),
     },
   };
 });
@@ -138,7 +154,9 @@ vi.mock("@/lib/steps/stepMotion", () => ({
   stepMotionService: motion.service,
 }));
 
-vi.mock("@/lib/health/healthService", () => ({ healthService: health.service }));
+vi.mock("@/lib/health/healthService", () => ({
+  healthService: health.service,
+}));
 
 import { act, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
@@ -154,6 +172,15 @@ async function renderAndAwaitHydration() {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
   });
   return handle;
+}
+
+async function focusDashboard(
+  handle: Awaited<ReturnType<typeof renderAndAwaitHydration>>,
+) {
+  await act(async () => {
+    handle.result.current.setLiveStepsDashboardFocused(true);
+    await Promise.resolve();
+  });
 }
 
 beforeEach(() => {
@@ -177,9 +204,7 @@ describe("foreground live-step lifecycle", () => {
   it("counts a no-Health foreground session, then removes the listener on background", async () => {
     const handle = await renderAndAwaitHydration();
 
-    await act(async () => {
-      await handle.result.current.startLiveStepTracking();
-    });
+    await focusDashboard(handle);
     expect(motion.service.getCapability).toHaveBeenCalledTimes(1);
     expect(motion.service.watchSteps).toHaveBeenCalledTimes(1);
 
@@ -197,11 +222,12 @@ describe("foreground live-step lifecycle", () => {
     expect(handle.result.current.liveStepTracking.status).toBe("syncing");
   });
 
-  it('opens app settings after permanent motion denial instead of requesting permission again', async () => {
+  it("opens app settings after permanent motion denial instead of requesting permission again", async () => {
     motion.capability = { available: true, permission: "denied" };
     const handle = await renderAndAwaitHydration();
 
     await act(async () => {
+      handle.result.current.setLiveStepsDashboardFocused(true);
       await handle.result.current.startLiveStepTracking();
     });
     expect(handle.result.current.liveStepTracking.status).toBe("denied");
@@ -214,17 +240,18 @@ describe("foreground live-step lifecycle", () => {
     expect(motion.service.watchSteps).not.toHaveBeenCalled();
   });
 
-  it('restarts the foreground listener when a native counter resets', async () => {
+  it("restarts the foreground listener when a native counter resets", async () => {
     const handle = await renderAndAwaitHydration();
 
     await act(async () => {
-      await handle.result.current.startLiveStepTracking();
+      handle.result.current.setLiveStepsDashboardFocused(true);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       motion.emit(5);
     });
     expect(handle.result.current.liveStepTracking.displayedSteps).toBe(5);
 
     await act(async () => {
-      motion.emit(2);
+      motion.emitCounterReset();
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
     expect(motion.remove).toHaveBeenCalledTimes(1);
@@ -237,14 +264,14 @@ describe("foreground live-step lifecycle", () => {
     expect(handle.result.current.liveStepTracking.displayedSteps).toBe(8);
   });
 
-  it('reconciles a lagging provider aggregate through the first bounded retry', async () => {
+  it("reconciles a lagging provider aggregate through the first bounded retry", async () => {
     health.connection = {
-      provider: 'healthkit',
-      authorization: 'authorized',
-      granted: ['steps'],
+      provider: "healthkit",
+      authorization: "authorized",
+      granted: ["steps"],
     };
     health.snapshot = {
-      syncedAt: '2026-09-26T09:00:00.000Z',
+      syncedAt: "2026-09-26T09:00:00.000Z",
       steps: 1_000,
       activeEnergyKcal: null,
       workouts: [],
@@ -254,7 +281,8 @@ describe("foreground live-step lifecycle", () => {
     vi.useFakeTimers();
 
     await act(async () => {
-      await handle.result.current.startLiveStepTracking();
+      handle.result.current.setLiveStepsDashboardFocused(true);
+      await vi.advanceTimersByTimeAsync(0);
       motion.emit(5);
     });
     expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_005);
@@ -262,7 +290,7 @@ describe("foreground live-step lifecycle", () => {
 
     health.snapshot = {
       ...health.snapshot,
-      syncedAt: '2026-09-26T09:01:00.000Z',
+      syncedAt: "2026-09-26T09:01:00.000Z",
       steps: 1_005,
     };
     await act(async () => {
@@ -272,5 +300,58 @@ describe("foreground live-step lifecycle", () => {
     expect(health.service.sync).toHaveBeenCalled();
     expect(handle.result.current.liveStepTracking.providerSteps).toBe(1_005);
     expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_005);
+  });
+
+  it("starts one fresh stream after repeated background-to-active transitions and ignores stale callbacks", async () => {
+    const handle = await renderAndAwaitHydration();
+    await focusDashboard(handle);
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      native.emit("background");
+      native.emit("active");
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      motion.emitStale(99);
+    });
+    expect(handle.result.current.liveStepTracking.displayedSteps).not.toBe(99);
+
+    await act(async () => {
+      motion.emit(2);
+    });
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(2);
+
+    await act(async () => {
+      native.emit("background");
+      native.emit("active");
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(3);
+    expect(motion.remove).toHaveBeenCalledTimes(2);
+  });
+
+  it("replaces the foreground subscription at the next local-day boundary", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 26, 23, 59, 59));
+    const handle = renderHook(() => useCalora(), { wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await focusDashboard(handle);
+    await act(async () => {
+      motion.emit(5);
+    });
+    expect(handle.result.current.liveStepTracking.day).toBe("2026-09-26");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(motion.remove).toHaveBeenCalledTimes(1);
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(2);
+    expect(handle.result.current.liveStepTracking.day).toBe("2026-09-27");
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(0);
   });
 });
