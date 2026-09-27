@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { burnedStatusForDay } from '../health/burnedStatus';
 import { currentLocalDayRange } from '../health/dayRange';
-import { healthConnectActiveEnergyKcal, healthConnectDayRange } from '../health/healthService.android';
+import { healthConnectActiveEnergyKcal, healthConnectDayRange, healthConnectSteps } from '../health/healthService.android';
 import { AuthorizationRequestStatus } from '@kingstinct/react-native-healthkit';
 import { HEALTH_KIT_BODY_WEIGHT_UNIT, healthKitActiveEnergyOptions, healthKitAuthorizationForRequestStatus, healthKitCumulativeQuantity, healthKitDayFilter } from '../health/healthService.ios';
 import type { HealthConnection } from '../health/types';
@@ -76,6 +76,16 @@ describe('currentLocalDayRange', () => {
     expect(() => healthConnectActiveEnergyKcal({
       ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
     })).toThrow('invalid active calorie evidence');
+  });
+
+  it('keeps absent Health Connect Steps distinct from a measured zero', () => {
+    expect(healthConnectSteps({ dataOrigins: [], COUNT_TOTAL: 0 })).toBeNull();
+    expect(healthConnectSteps({ dataOrigins: ['com.example.fitness'], COUNT_TOTAL: 0 })).toBe(0);
+    expect(healthConnectSteps({ dataOrigins: ['com.example.fitness'], COUNT_TOTAL: 347 })).toBe(347);
+    expect(() => healthConnectSteps({ dataOrigins: ['com.example.fitness'] })).toThrow('invalid Steps total');
+    expect(() => healthConnectSteps({ dataOrigins: ['com.example.fitness'], COUNT_TOTAL: -1 })).toThrow('invalid Steps total');
+    expect(() => healthConnectSteps({ dataOrigins: ['com.example.fitness'], COUNT_TOTAL: 1.5 })).toThrow('invalid Steps total');
+    expect(() => healthConnectSteps({ COUNT_TOTAL: 0 })).toThrow('invalid Steps evidence');
   });
 
   it('keeps HealthKit request completion distinct from confirmed read access', () => {

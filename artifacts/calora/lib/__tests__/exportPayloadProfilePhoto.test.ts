@@ -35,6 +35,7 @@ function state(profilePhotoUri: string | null): CaloraExportState {
     notificationPreferences: {},
     healthConnected: false,
     healthConnection: null,
+    dailyStepGoal: 10000,
     consentAccepted: true,
     outbox: [],
     coachConsentAccepted: false,
@@ -98,6 +99,19 @@ describe('portable profile photo export', () => {
 
     expect(parsed.profilePhoto).toEqual({ included: false, reason: 'not-set' });
     expect(parsed.profilePhotoUri).toBeUndefined();
+  });
+
+  it('preserves an incomplete onboarding draft in the portable payload', () => {
+    const snapshot = state(null);
+    snapshot.onboardingComplete = false;
+    snapshot.onboardingDraft = {
+      name: 'Alex', age: '30', height: '170', weight: '72', targetWeight: '68',
+      consent: true, goal: 'lose', activity: 'moderate', diet: 'Everything',
+    };
+
+    const parsed = JSON.parse(buildExportPayload(2, snapshot));
+
+    expect(parsed.onboardingDraft).toEqual(snapshot.onboardingDraft);
   });
 
   it('records an explicit unavailable marker without leaking a stale local path', () => {

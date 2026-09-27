@@ -153,20 +153,33 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         await clearAllData();
       } catch (error) {
         localCleanupError = error;
-      } finally {
-        await signOut();
+      }
+
+      // Server deletion is already accepted or complete at this point. A local
+      // auth-storage failure must not turn that irreversible success into a
+      // false failure or invite a destructive retry against a deleted identity.
+      let localSignOutError: unknown = null;
+      try {
+        const { error } = await signOut();
+        if (error) localSignOutError = error;
+      } catch (error) {
+        localSignOutError = error;
       }
 
       setDeleteModal(false);
 
       setTimeout(() => {
+        const localCleanupMessage = localCleanupError
+          ? ' Some on-device data could not be cleared automatically; restart the app before using it again.'
+          : '';
+        const signOutMessage = localSignOutError
+          ? ' Local sign-out did not finish. Close and restart Calora. If this device still shows an account afterward, contact support.'
+          : ' This device was signed out.';
         Alert.alert(
           deletionPending ? 'Deletion in progress' : 'Account deleted',
           deletionPending
-            ? `Your deletion request is securely in progress. This device has been signed out, and the server will finish removing your account even if you cannot reopen the app.`
-            : localCleanupError
-            ? `Your ${BRAND.name} account was permanently removed and this device was signed out. Some on-device data could not be cleared automatically; restart the app before using it again.`
-            : `Your ${BRAND.name} account and all associated data have been permanently removed.`,
+            ? `Your deletion request is securely in progress. The server will finish removing your account even if you cannot reopen the app.${localCleanupMessage}${signOutMessage}`
+            : `Your ${BRAND.name} account and associated server data were permanently removed.${localCleanupMessage}${signOutMessage}`,
         );
       }, 300);
     } catch (err: unknown) {

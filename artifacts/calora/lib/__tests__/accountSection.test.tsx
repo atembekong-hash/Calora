@@ -11,7 +11,7 @@ const session = {
 };
 const harness = vi.hoisted(() => ({
   clearProfilePhoto: vi.fn(async () => undefined),
-  signOut: vi.fn(async () => ({ error: null })),
+  signOut: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
 }));
 
 vi.mock('react-native', () => {
@@ -62,6 +62,10 @@ describe('AccountSection account deletion timeout', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    harness.clearProfilePhoto.mockReset();
+    harness.clearProfilePhoto.mockResolvedValue(undefined);
+    harness.signOut.mockReset();
+    harness.signOut.mockResolvedValue({ error: null });
   });
 
   it('aborts a request that does not settle and returns the user to an actionable state', async () => {
@@ -79,5 +83,28 @@ describe('AccountSection account deletion timeout', () => {
       method: 'DELETE',
       signal: expect.any(AbortSignal),
     }));
+  });
+
+  it('reports local sign-out failure truthfully after accepted server deletion', async () => {
+    const { Alert } = await import('react-native');
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 204 })));
+    harness.signOut.mockResolvedValueOnce({ error: new Error('secure storage unavailable') });
+
+    render(<AccountSection clearAllData={vi.fn(async () => undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    fireEvent.change(screen.getByPlaceholderText('Type DELETE to confirm'), { target: { value: 'DELETE' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm account deletion' }));
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Account deleted',
+      expect.stringContaining('Local sign-out did not finish'),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('secure storage unavailable')).toBeNull();
   });
 });

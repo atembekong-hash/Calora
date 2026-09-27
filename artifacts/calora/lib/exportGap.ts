@@ -23,6 +23,7 @@
 
 import { buildExportPayload, type CaloraExportState } from './exportPayload';
 import { emptyLivingMemory } from './livingMemory';
+import { DEFAULT_DAILY_STEP_GOAL } from './steps/stepTracking';
 import {
   DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
   legacyReminderMirrors,
@@ -70,6 +71,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
   return {
     onboardingComplete:    false,
     onboardingStep:        0,
+    onboardingDraft:       null,
     profile:              null,
     logs:                 [],
     weights:              [],
@@ -96,6 +98,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     notificationPreferences,
     healthConnected:      opts.healthConnected,
     healthConnection:     opts.healthConnection ?? null,
+    dailyStepGoal:        DEFAULT_DAILY_STEP_GOAL,
     consentAccepted:      false,
     outbox:                [],
     coachConsentAccepted: false,

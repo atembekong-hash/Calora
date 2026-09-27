@@ -39,6 +39,29 @@ export function healthConnectActiveEnergyKcal(result: unknown): number | null {
   return value;
 }
 
+/**
+ * Health Connect's Steps bridge emits COUNT_TOTAL: 0 for a missing metric;
+ * dataOrigins records whether a Steps record actually contributed. A measured
+ * zero is valid, while an empty origin list is unavailable data and is null.
+ */
+export function healthConnectSteps(result: unknown): number | null {
+  const aggregate = result as {
+    dataOrigins?: unknown;
+    COUNT_TOTAL?: unknown;
+  } | null | undefined;
+  const origins = aggregate?.dataOrigins;
+  if (!Array.isArray(origins) || !origins.every((origin) => typeof origin === 'string')) {
+    throw new Error('Health Connect returned invalid Steps evidence.');
+  }
+  if (origins.length === 0) return null;
+
+  const value = aggregate?.COUNT_TOTAL;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    throw new Error('Health Connect returned an invalid Steps total.');
+  }
+  return value;
+}
+
 async function native() {
   return require('react-native-health-connect') as any;
 }
@@ -100,7 +123,7 @@ export const healthService: HealthService = {
     return {
       syncedAt,
       steps: connection.granted.includes('steps')
-        ? Number(steps?.COUNT_TOTAL ?? steps?.count ?? 0)
+        ? healthConnectSteps(steps)
         : null,
       activeEnergyKcal: connection.granted.includes('activeEnergy')
         ? healthConnectActiveEnergyKcal(calories)

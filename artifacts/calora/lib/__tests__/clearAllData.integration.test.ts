@@ -11,7 +11,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
-import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } from '../clearAllData';
+import { performClearAllData, DEFAULT_HYDRATION_PREFS, runAuxiliaryCleanupTasks, type ClearAllDataCtx } from '../clearAllData';
 import { emptyLivingMemory } from '../livingMemory';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '../storageSchema';
 import {
@@ -83,6 +83,37 @@ let pm: PersistenceManager;
 beforeEach(() => {
   storage = makeStore();
   pm = new PersistenceManager(storage, STORAGE_KEY);
+});
+
+describe('runAuxiliaryCleanupTasks: exact failure attribution', () => {
+  const taskNames = ['native schedules', 'notification inbox', 'coach cache', 'diary sync', 'capture approval', 'profile photo'];
+
+  it.each(taskNames)('reports %s when only that cleanup rejects', async (failedName) => {
+    const attempted: string[] = [];
+    const failures = await runAuxiliaryCleanupTasks(taskNames.map((name) => ({
+      name,
+      run: async () => {
+        attempted.push(name);
+        if (name === failedName) throw new Error(`${name} failed`);
+      },
+    })));
+
+    expect(attempted).toEqual(taskNames);
+    expect(failures).toEqual([failedName]);
+  });
+
+  it('retains every failing task label in task order', async () => {
+    const failures = await runAuxiliaryCleanupTasks(taskNames.map((name) => ({
+      name,
+      run: async () => {
+        if (name === 'notification inbox' || name === 'capture approval' || name === 'profile photo') {
+          throw new Error(`${name} failed`);
+        }
+      },
+    })));
+
+    expect(failures).toEqual(['notification inbox', 'capture approval', 'profile photo']);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1422,6 +1453,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
   const staleClosedOver: CaloraExportState = {
     onboardingComplete:    true,
     onboardingStep:        4,
+    onboardingDraft:       null,
     profile:              { name: 'Alex', goal: 'lose', weightKg: 76 },
     logs:                 [
       { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
@@ -1450,6 +1482,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
     healthConnected:      false,
     healthConnection:     null,
+    dailyStepGoal:        9000,
     consentAccepted:      true,
     outbox:                [],
     coachConsentAccepted: true,
@@ -1528,6 +1561,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     expect(snap.goalReminder).toBeDefined();
     expect(snap.notificationPreferences).toMatchObject({ version: 1, delivery: 'local' });
     expect(snap.healthConnected).toBe(false);
+    expect(snap.dailyStepGoal).toBe(10000);
     expect(snap.consentAccepted).toBe(false);
     expect(snap.coachConsentAccepted).toBe(false);
     expect(snap.coachMessages).toEqual([]);
@@ -1778,7 +1812,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
       goalReminder: { enabled: false, hour: 20, minute: 0 },
       notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
       healthConnected: false,
-      healthConnection: null, consentAccepted: false, outbox: [],
+      healthConnection: null, dailyStepGoal: 10000, consentAccepted: false, outbox: [],
       coachConsentAccepted: false, coachMessages: [],
       goalCelebrationSeenTargetKg: null, plannerPreferences: null,
       fontSizeScale: 'default', profilePhotoUri: null,
@@ -1848,6 +1882,7 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
       notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
       healthConnected:      false,
       healthConnection:     null,
+      dailyStepGoal:        10000,
       consentAccepted:      captured.consentAccepted      as boolean,
       outbox:                [],
       coachConsentAccepted: captured.coachConsentAccepted as boolean,

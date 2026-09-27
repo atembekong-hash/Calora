@@ -771,6 +771,15 @@ describe('deriveExportHasData: export row interactive guard', () => {
     expect(deriveExportHasData(null, [])).toBe(false);
   });
 
+  it('returns true for a saved incomplete onboarding draft with no profile or diary', () => {
+    expect(
+      deriveExportHasData(null, [], {
+        name: 'Alex', age: '30', height: '170', weight: '72', targetWeight: '68',
+        consent: true, goal: 'lose', activity: 'moderate', diet: 'Everything',
+      }),
+    ).toBe(true);
+  });
+
   it('the row is non-interactive when hasData is false — onPress must be undefined', () => {
     const hasData = deriveExportHasData(null, []);
     const handleExportMock = vi.fn();

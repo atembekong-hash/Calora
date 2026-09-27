@@ -27,6 +27,15 @@ test('Calora has one authoritative Expo project root', () => {
   assert.equal(appJson.expo?.android?.package, 'com.etiendem.caloraapp');
 });
 
+test('Expo SDK 54 uses a supported iOS EAS build image', () => {
+  const easJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'eas.json'), 'utf8'));
+  assert.equal(
+    easJson.build?.base?.ios?.image,
+    'macos-sequoia-15.6-xcode-16.4',
+    'Expo SDK 54 requires Xcode 16.1 or later; do not regress to the legacy Xcode 15.4 image',
+  );
+});
+
 test('Expo configuration requests only implemented health capabilities', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const appJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'app.json'), 'utf8'));
@@ -37,6 +46,24 @@ test('Expo configuration requests only implemented health capabilities', () => {
 
   assert.equal(packageJson.devDependencies?.['expo-location'], undefined);
   assert.equal(infoPlist.NSHealthUpdateUsageDescription, undefined);
+  assert.equal(
+    infoPlist.NSMotionUsageDescription,
+    'Calora uses Motion & Fitness activity to show your live steps while the dashboard is open.',
+  );
+  assert.equal(packageJson.dependencies?.['expo-sensors'], '~15.0.8');
+  assert.ok(
+    appJson.expo?.android?.permissions?.includes('android.permission.ACTIVITY_RECOGNITION'),
+    'Android live step tracking requires ACTIVITY_RECOGNITION in the generated manifest',
+  );
+  assert.ok(
+    appJson.expo?.plugins?.includes('./plugins/withHealthConnectPrivacyPolicy.cjs'),
+    'Health Connect requires a generated privacy-rationale route',
+  );
+  assert.ok(
+    appJson.expo?.plugins?.indexOf('./plugins/withHealthConnectPrivacyPolicy.cjs')
+      < appJson.expo?.plugins?.indexOf('react-native-health-connect'),
+    'The privacy route plugin must run before the Health Connect manifest plugin',
+  );
   assert.ok(Array.isArray(healthKitPlugin));
   assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, false);
 });

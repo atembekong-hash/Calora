@@ -80,16 +80,19 @@ export interface FileShareAdapter {
  * Returns true when there is at least one piece of shareable local data.
  *
  * The export row should be interactive only when this is true.
- * Rule: profile set OR at least one diary log present.
+ * Rule: profile set, in-progress onboarding draft present, OR at least one
+ * diary log present.
  *
  * @param profile - CaloraContext.profile (null when onboarding not complete)
  * @param logs    - CaloraContext.logs (FoodLog array)
+ * @param onboardingDraft - CaloraContext.onboardingDraft
  */
 export function deriveExportHasData(
   profile: { name: string } | null,
   logs: unknown[],
+  onboardingDraft: unknown = null,
 ): boolean {
-  return profile !== null || logs.length > 0;
+  return profile !== null || logs.length > 0 || onboardingDraft !== null;
 }
 
 /**
