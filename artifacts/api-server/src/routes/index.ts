@@ -7,6 +7,7 @@ import plannerRouter from "./planner";
 import coachRouter from "./coach";
 import coachFactContextRouter from "./coachFactContext";
 import coachFactConsentRouter from "./coachFactConsent";
+import coachV2Router from "./coachV2";
 import accountRouter from "./account";
 import referralRouter from "./referral";
 import diaryRouter from "./diary";
@@ -22,12 +23,12 @@ router.use(versionRouter);
 router.use(recipesRouter);
 router.use(captureRouter);
 router.use(plannerRouter);
-// Register the controlled Fact Context path first. Its endpoint is exact and
-// terminal; a request that enters it cannot fall through to the legacy Coach
-// provider route.
+// Retained only as a documented compatibility surface for older installed
+// clients. The current mobile Coach UI uses only the clean-room V2 route.
 router.use(coachFactContextRouter);
 router.use(coachRouter);
 router.use(coachFactConsentRouter);
+router.use(coachV2Router);
 router.use(accountRouter);
 router.use(referralRouter);
 router.use(diaryRouter);

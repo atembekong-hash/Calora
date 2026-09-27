@@ -71,6 +71,13 @@
       "when": 1790503986270,
       "tag": "0010_capture_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790539676157,
+      "tag": "0011_coach_v2_conversations",
+      "breakpoints": true
     }
   ]
 }

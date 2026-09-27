@@ -1,393 +1,174 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather } from "@expo/vector-icons";
 import {
-  useAcceptCoachFactContextConsent,
-  CoachAction,
-  CoachFactContextResponse,
-  CoachMessage,
-} from '@workspace/api-client-react';
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import Animated from 'react-native-reanimated';
+  clearCoachV2Conversation,
+  getCoachV2Conversation,
+  getCoachV2Settings,
+  sendCoachV2Message,
+  updateCoachV2Settings,
+  type CoachV2Turn,
+} from "@workspace/api-client-react";
+import { router } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BRAND } from '@/lib/brand';
-import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { useCalora } from '@/context/CaloraContext';
-import { useAuth } from '@/context/AuthContext';
-import { AppHeader } from '@/components/AppChrome';
-import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
-import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
-import {
-  coachFactConsentCache,
-  useCoachSendAdapter,
-  buildDailyIntelligenceFacts,
-  createIntelligenceContext,
-} from '@/lib/intelligence';
-import type { IntelligenceFact } from '@/lib/intelligence';
-import { dateKey } from '@/lib/dates';
-import { enterMotion } from '@/lib/motion';
-import { guestCoachReply } from '@/lib/guestCoach';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppHeader } from "@/components/AppChrome";
+import { CaloraFeatureIcon } from "@/components/CaloraFeatureIcon";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { useAuth } from "@/context/AuthContext";
+import { useCalora } from "@/context/CaloraContext";
+import { BRAND } from "@/lib/brand";
 
-type DisplayTurn = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  response?: CoachFactContextResponse;
+type DisplayTurn = Pick<CoachV2Turn, "id" | "role" | "content"> & {
   announce?: boolean;
 };
 
 const starterPrompts = [
-  'How many calories have I logged today?',
-  'How much protein have I logged today?',
-  'How is my hydration looking today?',
-  'What patterns do my recent records show?',
-  'Can you help me think of a flexible dinner idea?',
+  "How is my nutrition today?",
+  "Help me plan a balanced dinner.",
+  "What can I focus on this week?",
+  "How do I use Calora to log a meal?",
 ];
-function actionIcon(destination: CoachAction['destination']): keyof typeof Feather.glyphMap {
-  if (destination === 'recipes') return 'book-open';
-  if (destination === 'planner') return 'calendar';
-  if (destination === 'scan') return 'camera';
-  if (destination === 'profile') return 'sliders';
-  if (destination === 'home') return 'home';
-  return 'bar-chart-2';
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Coach is temporarily unavailable. Please try again.";
 }
 
-function navigateToAction(action: CoachAction) {
-  if (action.kind !== 'navigate') return;
-  if (action.destination === 'home') router.navigate('/(tabs)');
-  if (action.destination === 'progress') router.navigate('/(tabs)/insights');
-  if (action.destination === 'recipes') router.navigate('/(tabs)/recipes');
-  if (action.destination === 'planner') router.navigate('/(tabs)/planner');
-  if (action.destination === 'scan') router.navigate('/(tabs)/scan');
-  if (action.destination === 'profile') router.navigate('/(tabs)/profile');
-}
-
-function EvidenceCard({ response, colors }: { response: CoachFactContextResponse; colors: ReturnType<typeof useCalora>['colors'] }) {
-  if (!response.observations.length && !response.limitations.length) return null;
-  return (
-    <View style={[styles.evidenceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={styles.evidenceHeader}>
-        <View style={[styles.evidenceIcon, { backgroundColor: colors.accent }]}>
-          <Feather name="activity" size={15} color={colors.accentForeground} />
-        </View>
-        <View>
-          <Text style={[styles.evidenceTitle, { color: colors.foreground }]}>What I’m using</Text>
-          <Text style={[styles.evidenceSubtitle, { color: colors.mutedForeground }]}>Signals, not scores</Text>
-        </View>
-      </View>
-      {response.observations.map((observation, index) => (
-        <View key={`${observation.text}-${index}`} style={[styles.observation, { borderTopColor: colors.border }]}>
-          <View style={[styles.confidenceDot, { backgroundColor: observation.confidence === 'high' ? colors.success : observation.confidence === 'medium' ? colors.warning : colors.mutedForeground }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.observationText, { color: colors.foreground }]}>{observation.text}</Text>
-            <Text style={[styles.observationMeta, { color: colors.mutedForeground }]}>
-              {observation.confidence === 'limited' ? 'Early signal' : `${observation.confidence} confidence`}
-            </Text>
-          </View>
-        </View>
-      ))}
-      {response.limitations.map((limitation, index) => (
-        <Text key={`${limitation}-${index}`} style={[styles.limitation, { color: colors.mutedForeground }]}>{limitation}</Text>
-      ))}
-    </View>
-  );
-}
-
-function ActionCard({ action, colors }: { action: CoachAction; colors: ReturnType<typeof useCalora>['colors'] }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={action.label}
-      testID={`coach-action-${action.destination}`}
-      onPress={() => navigateToAction(action)}
-      style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}
-    >
-      <View style={[styles.actionIcon, { backgroundColor: colors.card }]}>
-        <Feather name={actionIcon(action.destination)} size={15} color={colors.accentForeground} />
-      </View>
-      <Text style={[styles.actionText, { color: colors.accentForeground }]}>{action.label}</Text>
-      <Feather name="arrow-up-right" size={15} color={colors.accentForeground} />
-    </Pressable>
-  );
-}
-
-/**
- * Frozen approved Coach fact types. The full intelligence snapshot never goes
- * to Coach: only these deterministic, display-ready summaries are projected.
- */
-const COACH_FACT_TYPES = Object.freeze([
-  'daily.calories_consumed', 'daily.calorie_target', 'daily.calories_remaining',
-  'daily.protein_consumed', 'daily.protein_target', 'daily.protein_remaining',
-  'daily.carbohydrates_consumed', 'daily.carbohydrates_target', 'daily.carbohydrates_remaining',
-  'daily.fat_consumed', 'daily.fat_target', 'daily.fat_remaining',
-  'daily.fiber_consumed', 'daily.sugar_consumed', 'daily.sodium_consumed',
-  'daily.water_consumed', 'daily.meal_distribution', 'daily.logging_completeness',
-  'nutrition.seven_day_coverage', 'nutrition.seven_day_macro_record_coverage',
-  'weight.short_trend',
-] as const);
 export default function CoachScreen() {
-  const {
-    colors,
-    profile,
-    logs,
-    waterLogs,
-    moodLogs,
-    activityLogs,
-    activityMinutesLogs,
-    weights,
-    plannerMeals,
-    shoppingItems,
-    savedMeals,
-    localRecipes,
-    savedRecipeIds,
-    foodMemories,
-    repeatPatterns,
-    livingMemory,
-    healthConnection,
-    coachConsentAccepted,
-    setCoachConsentAccepted,
-    coachMessages,
-    setCoachMessages,
-    clearCoachHistory,
-    hydrated,
-    hydrationError,
-  } = useCalora();
+  const { colors } = useCalora();
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
-  const coachSendAdapter = useCoachSendAdapter();
-  const acceptCoachFactContextConsent = useAcceptCoachFactContextConsent();
   const transcriptRef = useRef<ScrollView>(null);
-  const sendRequestIdRef = useRef(0);
-  const guestMode = !authLoading && !user?.id;
-  const chatReady = guestMode || coachConsentAccepted;
-  // Track hydration generation: bumps whenever hydrated goes false→true or
-  // hydrationError changes (covers retries and clear-data resets).
-  const hydrationGenerationRef = useRef(0);
-  const prevHydratedRef = useRef(hydrated);
-  const prevHydrationErrorRef = useRef(hydrationError);
-  if (prevHydratedRef.current !== hydrated || prevHydrationErrorRef.current !== hydrationError) {
-    hydrationGenerationRef.current += 1;
-    prevHydratedRef.current = hydrated;
-    prevHydrationErrorRef.current = hydrationError;
-  }
-  const hydrationGeneration = hydrationGenerationRef.current;
-  // Runs during the render that observes an identity, hydration, or consent
-  // change, before a pending async Coach result can update this screen.
-  coachSendAdapter.syncLiveState({
-    accountId: user?.id ?? null,
-    hydrationGeneration,
-    consentAccepted: coachConsentAccepted,
-  });
-
-  const [composer, setComposer] = useState('');
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [resetConfirm, setResetConfirm] = useState<'new' | 'history' | null>(null);
+  const requestIdRef = useRef(0);
+  const signedIn = !authLoading && Boolean(user?.id);
+  const [turns, setTurns] = useState<DisplayTurn[]>([]);
+  const [composer, setComposer] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [coachConsentError, setCoachConsentError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
-    id: `saved-${index}`,
-    role: message.role,
-    content: message.content,
-  })));
-  const loadedHistoryGenerationRef = useRef<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [personalizationEnabled, setPersonalizationEnabled] = useState(true);
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!chatReady) return;
-    const frame = requestAnimationFrame(() => {
-      transcriptRef.current?.scrollToEnd({ animated: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [chatReady, isSending, turns.length]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!user?.id) {
-      loadedHistoryGenerationRef.current = `guest:${hydrationGeneration}`;
+    const loadId = ++requestIdRef.current;
+    if (!signedIn) {
       setTurns([]);
+      setPersonalizationEnabled(true);
+      setNotice(null);
       return;
     }
-    const generationKey = `${user?.id ?? 'guest'}:${hydrationGeneration}`;
-    if (loadedHistoryGenerationRef.current === generationKey) return;
-    loadedHistoryGenerationRef.current = generationKey;
-    setTurns(coachMessages.map((message, index) => ({
-      id: `saved-${generationKey}-${index}`,
-      role: message.role,
-      content: message.content,
-    })));
-  }, [coachMessages, hydrated, hydrationGeneration, user?.id]);
-
-  const sendMessage = async (value = composer.trim(), consentAcceptedOverride = coachConsentAccepted) => {
-    if (!value || isSending) return;
-    const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
-    // Capture current messages synchronously before any await so we use the
-    // state at send-time, not whatever React committed after re-renders.
-    const nextMessages = [...coachMessages, userMessage].slice(-11);
-    const userTurn: DisplayTurn = { id: `user-${Date.now()}`, role: 'user', content: userMessage.content };
-    setTurns((current) => [...current, userTurn]);
-    setComposer('');
-
-    if (guestMode) {
-      setTurns((current) => [...current, {
-        id: `guest-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: guestCoachReply(userMessage.content),
-        announce: true,
-      }]);
-      return;
-    }
-
-    // Capture epoch-relevant state synchronously at send-time.
-    // Build and freeze only the approved, display-ready Fact Context allowlist.
-    // Food names, notes, photos, recipes, raw timelines, account identifiers,
-    // and the full intelligence snapshot are never included.
-    let frozenFacts: readonly IntelligenceFact[] = Object.freeze([]);
-    if (hydrated && user?.id) {
-      try {
-        const todayKey = dateKey();
-        const intelligenceCtx = createIntelligenceContext(
-          {
-            logs,
-            profile,
-            weights,
-            waterLogs,
-            moodLogs,
-            activityLogs,
-            activityMinutesLogs,
-            plannerMeals,
-            shoppingItems,
-            localRecipes,
-            activeEnergyKcal: healthConnection.snapshot?.activeEnergyKcal ?? null,
-          },
-          { date: todayKey },
+    setIsLoadingHistory(true);
+    setNotice(null);
+    void Promise.all([getCoachV2Conversation(), getCoachV2Settings()])
+      .then(([conversation, settings]) => {
+        if (loadId !== requestIdRef.current) return;
+        setTurns(
+          conversation.turns.map((turn) => ({
+            id: turn.id,
+            role: turn.role,
+            content: turn.content,
+          })),
         );
-        const allFacts = buildDailyIntelligenceFacts(intelligenceCtx);
-        frozenFacts = Object.freeze(
-          allFacts.filter((fact) =>
-            (COACH_FACT_TYPES as readonly string[]).includes(fact.factType),
-          ),
+        setPersonalizationEnabled(settings.personalizationEnabled);
+      })
+      .catch(() => {
+        if (loadId !== requestIdRef.current) return;
+        setNotice(
+          "Your Coach history could not be loaded. You can still try a new message.",
         );
-      } catch {
-        // Fact build failure must never block the send path.
-        frozenFacts = Object.freeze([]);
-      }
-    }
-    const adapterInput = {
-      accountId: user?.id ?? null,
-      hydrationGeneration,
-      hydrated,
-      // The consent CTA starts the first request in the same event as the
-      // consent state update. Use the explicit override so the lifecycle
-      // epoch does not discard that request when React commits the update.
-      consentAccepted: consentAcceptedOverride,
-      facts: frozenFacts,
+      })
+      .finally(() => {
+        if (loadId === requestIdRef.current) setIsLoadingHistory(false);
+      });
+  }, [signedIn, user?.id]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() =>
+      transcriptRef.current?.scrollToEnd({ animated: false }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [turns.length, isSending]);
+
+  const sendMessage = async (value = composer.trim()) => {
+    const message = value.trim();
+    if (!message || isSending) return;
+    const requestId = ++requestIdRef.current;
+    const userTurn: DisplayTurn = {
+      id: `local-user-${requestId}`,
+      role: "user",
+      content: message.slice(0, 1200),
     };
-
-    const requestId = ++sendRequestIdRef.current;
+    setTurns((current) => [...current, userTurn]);
+    setComposer("");
+    setNotice(null);
     setIsSending(true);
     try {
-      const result = await coachSendAdapter.sendWithArchitecture(
-        nextMessages,
-        // Retained only for the adapter's transitional type contract. The
-        // adapter deliberately never invokes a Legacy Coach provider delegate.
-        async () => { throw new Error('Legacy Coach is retired.'); },
-        adapterInput,
-      );
-
-      if (result.kind === 'stale') {
-        // Epoch advanced; a newer state now owns the visible conversation.
-        return;
-      }
-      if (result.kind === 'unavailable') {
-        // Fact Context is deliberately terminal while its restricted server
-        // gates are closed. Explain that state instead of making Send appear
-        // to do nothing; never fall back to Legacy Coach.
-        setTurns((current) => [...current, {
-          id: `unavailable-${Date.now()}`,
-          role: 'assistant',
-          content: 'Coach isn’t available right now. Nothing changed. Your local Progress data is still available.',
+      const response = await sendCoachV2Message({ message: userTurn.content });
+      if (requestId !== requestIdRef.current) return;
+      setTurns((current) => [
+        ...current,
+        {
+          id: `coach-${requestId}`,
+          role: "assistant",
+          content: response.message,
           announce: true,
-        }]);
-        return;
-      }
-      if (result.kind === 'failure') {
-        const message = result.error.retryable
-          ? 'Coach is temporarily unavailable. Nothing changed. Please try again.'
-          : 'Coach could not safely use that response. Nothing changed. Your local Progress data is still available.';
-        setTurns((current) => [...current, {
-          id: `failure-${Date.now()}`,
-          role: 'assistant',
-          content: message,
-          announce: true,
-        }]);
-        return;
-      }
-
-      // Only Fact Context responses can contain a provider result.
-      const message = result.response.message;
-      const assistantMessage: CoachMessage = { role: 'assistant', content: message };
-      setCoachMessages([...nextMessages, assistantMessage].slice(-12));
-      setTurns((current) => [...current, {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: message,
-        response: result.response,
-        announce: true,
-      }]);
-    } catch {
-      setTurns((current) => [...current, {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: 'I couldn\u2019t reach Coach. Nothing changed. Your local Progress data is still available.',
-        announce: true,
-      }]);
+        },
+      ]);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      setNotice(errorMessage(error));
     } finally {
-      // A clear-history action can invalidate this request and immediately
-      // start a new conversation. An older request must not clear the newer
-      // request's loading state when its own promise eventually settles.
-      if (requestId === sendRequestIdRef.current) setIsSending(false);
+      if (requestId === requestIdRef.current) setIsSending(false);
     }
   };
 
-  const startCoach = async () => {
-    if (acceptCoachFactContextConsent.isPending || !user?.id) return;
-    setCoachConsentError(null);
-    try {
-      const status = await acceptCoachFactContextConsent.mutateAsync({
-        data: { purpose: 'coach_fact_context_v1', documentVersion: '2026-08-21' },
-      });
-      await coachFactConsentCache.write(user.id, status);
-      setCoachConsentAccepted(true);
-      await sendMessage('Give me a calm, useful read on my nutrition and wellness this week.', true);
-    } catch {
-      setCoachConsentError('Your choice could not be saved. Coach stays off until it is confirmed. Please try again.');
-    }
-  };
-
-  const clearConversation = () => {
-    // Fence the request synchronously before clearing visible/persisted turns.
-    // The adapter will classify its eventual result as stale, while the local
-    // request id prevents its finally block from owning a newer conversation.
-    coachSendAdapter.invalidateEpoch('client_rollback');
-    sendRequestIdRef.current += 1;
+  const clearHistory = async () => {
+    if (!signedIn || isClearing) return;
+    const requestId = ++requestIdRef.current;
     setIsSending(false);
-    clearCoachHistory();
-    setTurns([]);
-    setComposer('');
-    setMenuVisible(false);
+    setIsClearing(true);
+    setNotice(null);
+    try {
+      await clearCoachV2Conversation();
+      if (requestId !== requestIdRef.current) return;
+      setTurns([]);
+      setComposer("");
+      setMenuVisible(false);
+      setConfirmClear(false);
+    } catch (error) {
+      if (requestId === requestIdRef.current) setNotice(errorMessage(error));
+    } finally {
+      if (requestId === requestIdRef.current) setIsClearing(false);
+    }
   };
 
-  const requestClearConversation = (mode: 'new' | 'history') => {
-    setMenuVisible(false);
-    setResetConfirm(mode);
+  const changePersonalization = async (nextValue: boolean) => {
+    if (!signedIn || isUpdatingSettings) return;
+    setIsUpdatingSettings(true);
+    setNotice(null);
+    try {
+      const settings = await updateCoachV2Settings({
+        personalizationEnabled: nextValue,
+      });
+      setPersonalizationEnabled(settings.personalizationEnabled);
+    } catch (error) {
+      setNotice(errorMessage(error));
+    } finally {
+      setIsUpdatingSettings(false);
+    }
   };
 
   return (
@@ -397,112 +178,253 @@ export default function CoachScreen() {
         title={`${BRAND.name} Coach`}
         action={
           <Pressable
-            accessibilityLabel="Open Coach main menu"
-            testID="coach-main-menu"
+            accessibilityLabel="Open Coach settings"
+            testID="coach-settings"
             onPress={() => setMenuVisible(true)}
             hitSlop={10}
           >
-            <Feather name="menu" size={21} color={colors.foreground} />
+            <Feather name="sliders" size={20} color={colors.foreground} />
           </Pressable>
         }
       />
       <KeyboardAwareScrollViewCompat
         ref={transcriptRef}
-        contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 118 }}
+        contentContainerStyle={{
+          paddingTop: 16,
+          paddingHorizontal: 20,
+          paddingBottom: insets.bottom + 112,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerCopy}>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of today’s logged nutrition.</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            Ask about nutrition, Calora features, or everyday wellness. Coach is
+            not medical care.
+          </Text>
         </View>
-        {!guestMode && !coachConsentAccepted ? (
-          <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>
-            <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
-              <CaloraFeatureIcon name="coach" size={36} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.heroMuted} highlightColor={colors.onHero} />
+
+        {turns.length === 0 && !isLoadingHistory ? (
+          <View style={[styles.welcomeCard, { backgroundColor: colors.hero }]}>
+            <View
+              style={[
+                styles.coachMark,
+                { backgroundColor: "rgba(157,215,189,0.16)" },
+              ]}
+            >
+              <CaloraFeatureIcon
+                name="coach"
+                size={36}
+                primaryColor={colors.primary}
+                accentColor={colors.accent}
+                foregroundColor={colors.heroMuted}
+                highlightColor={colors.onHero}
+              />
             </View>
-            <Text style={[styles.consentTitle, { color: colors.onHero }]}>Nutrition, in context</Text>
-            <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
-              Coach may use a bounded summary of your logged nutrition, hydration, meal distribution, recent logging coverage, weight trend, and your question.
+            <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>
+              A simpler way to ask
             </Text>
-            <View style={styles.scopeRow}>
-              {['Logged nutrition', 'Recent patterns', 'Your question'].map((item) => (
-                <View key={item} style={[styles.scopePill, { backgroundColor: 'rgba(157,215,189,0.14)' }]}>
-                  <Feather name="check" size={11} color={colors.heroMuted} />
-                  <Text style={[styles.scopeText, { color: colors.heroMuted }]}>{item}</Text>
-                </View>
+            <Text style={[styles.welcomeBody, { color: colors.heroMuted }]}>
+              {signedIn
+                ? "Coach can use a compact server-side summary of your profile and logged nutrition when personalization is on."
+                : "Guest chats are temporary and use general wellness information only."}
+            </Text>
+            {signedIn ? (
+              <Text style={[styles.welcomeNote, { color: colors.heroMuted }]}>
+                Your chat history is saved to your account. You can clear it
+                anytime.
+              </Text>
+            ) : (
+              <Pressable
+                accessibilityLabel="Sign in for personalized Coach"
+                onPress={() => router.push("/auth/sign-in")}
+                style={[
+                  styles.signInButton,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.signInText,
+                    { color: colors.primaryForeground },
+                  ]}
+                >
+                  Sign in for personal context
+                </Text>
+                <Feather
+                  name="arrow-right"
+                  size={16}
+                  color={colors.primaryForeground}
+                />
+              </Pressable>
+            )}
+          </View>
+        ) : null}
+
+        {isLoadingHistory ? (
+          <View
+            style={[
+              styles.loadingCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text
+              style={[styles.loadingText, { color: colors.mutedForeground }]}
+            >
+              Loading your conversation…
+            </Text>
+          </View>
+        ) : null}
+
+        {turns.map((turn) => (
+          <View
+            key={turn.id}
+            style={
+              turn.role === "user" ? styles.userTurn : styles.assistantTurn
+            }
+          >
+            <View
+              accessibilityLiveRegion={turn.announce ? "polite" : "none"}
+              style={[
+                styles.messageBubble,
+                turn.role === "user"
+                  ? { backgroundColor: colors.primary }
+                  : {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                    },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  {
+                    color:
+                      turn.role === "user"
+                        ? colors.primaryForeground
+                        : colors.foreground,
+                  },
+                ]}
+              >
+                {turn.content}
+              </Text>
+            </View>
+          </View>
+        ))}
+
+        {isSending ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.loadingCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text
+              style={[styles.loadingText, { color: colors.mutedForeground }]}
+            >
+              Coach is thinking…
+            </Text>
+          </View>
+        ) : null}
+
+        {notice ? (
+          <View
+            accessibilityRole="alert"
+            style={[
+              styles.noticeCard,
+              { backgroundColor: colors.muted, borderColor: colors.border },
+            ]}
+          >
+            <Feather name="info" size={15} color={colors.mutedForeground} />
+            <Text style={[styles.noticeText, { color: colors.foreground }]}>
+              {notice}
+            </Text>
+          </View>
+        ) : null}
+
+        {turns.length === 0 && !isLoadingHistory ? (
+          <>
+            <Text
+              style={[styles.sectionLabel, { color: colors.mutedForeground }]}
+            >
+              SUGGESTIONS
+            </Text>
+            <View style={styles.promptWrap}>
+              {starterPrompts.map((prompt) => (
+                <Pressable
+                  key={prompt}
+                  accessibilityLabel={`Ask Coach: ${prompt}`}
+                  onPress={() => void sendMessage(prompt)}
+                  style={[styles.promptChip, { backgroundColor: colors.muted }]}
+                >
+                  <Text
+                    style={[styles.promptText, { color: colors.foreground }]}
+                  >
+                    {prompt}
+                  </Text>
+                </Pressable>
               ))}
             </View>
-            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request goes to {BRAND.name}'s AI service. It does not include food names, notes, photos, recipes, raw timelines, account IDs, or your full history. Coach is not medical care and never changes data without your confirmation.</Text>
-            <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" disabled={acceptCoachFactContextConsent.isPending} onPress={() => void startCoach()} style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: acceptCoachFactContextConsent.isPending ? 0.6 : 1 }]}>
-              {acceptCoachFactContextConsent.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <><Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text><Feather name="arrow-right" size={16} color={colors.primaryForeground} /></>}
-            </Pressable>
-            {coachConsentError ? <Text accessibilityRole="alert" style={[styles.consentError, { color: colors.heroMuted }]}>{coachConsentError}</Text> : null}
-          </View>
-        ) : (
-          <>
-            {turns.length === 0 && (
-              <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
-                    <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                </View>
-                <Text style={[styles.briefTitle, { color: colors.foreground }]}>What would you like to know?</Text>
-                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about today’s logged calories or protein. Coach shows what it uses.</Text>
-              </View>
-            )}
-            {turns.map((turn) => (
-              <Animated.View key={turn.id} entering={enterMotion('component')} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
-                <View accessibilityLiveRegion={turn.announce ? 'polite' : 'none'} style={[styles.messageBubble, turn.role === 'user'
-                  ? { backgroundColor: colors.primary }
-                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-                  <Text style={[styles.messageText, { color: turn.role === 'user' ? colors.primaryForeground : colors.foreground }]}>{turn.content}</Text>
-                </View>
-                {turn.response && (
-                  <>
-                    <EvidenceCard response={turn.response} colors={colors} />
-                    {turn.response.actions.map((action) => <ActionCard key={action.id} action={action} colors={colors} />)}
-                  </>
-                )}
-              </Animated.View>
-            ))}
-            {isSending && (
-              <View accessibilityLiveRegion="polite" style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Preparing your answer…</Text>
-              </View>
-            )}
-            {turns.length === 0 && (
-              <>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Suggestions</Text>
-                <View style={styles.promptWrap}>
-                  {starterPrompts.map((prompt) => (
-                    <Pressable key={prompt} accessibilityLabel={`Ask Coach: ${prompt}`} onPress={() => void sendMessage(prompt)} style={[styles.promptChip, { backgroundColor: colors.muted }]}>
-                      <Text style={[styles.promptText, { color: colors.foreground }]}>{prompt}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
           </>
-        )}
+        ) : null}
       </KeyboardAwareScrollViewCompat>
 
-      {chatReady && (
-        <View style={[styles.composerDock, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
-          <TextInput
-            value={composer}
-            onChangeText={setComposer}
-            onSubmitEditing={() => void sendMessage()}
-            returnKeyType="send"
-            editable={!isSending}
-            placeholder="Ask about your nutrition…"
-            placeholderTextColor={colors.mutedForeground}
-            accessibilityLabel={`Ask ${BRAND.name} Coach`}
-            style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+      <View
+        style={[
+          styles.composerDock,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            paddingBottom: insets.bottom + 8,
+          },
+        ]}
+      >
+        <TextInput
+          value={composer}
+          onChangeText={setComposer}
+          onSubmitEditing={() => void sendMessage()}
+          returnKeyType="send"
+          editable={!isSending}
+          maxLength={1200}
+          placeholder="Ask Calora Coach…"
+          placeholderTextColor={colors.mutedForeground}
+          accessibilityLabel={`Ask ${BRAND.name} Coach`}
+          style={[
+            styles.composer,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              color: colors.foreground,
+            },
+          ]}
+        />
+        <Pressable
+          accessibilityLabel="Send Coach message"
+          testID="coach-send"
+          onPress={() => void sendMessage()}
+          disabled={!composer.trim() || isSending}
+          style={[
+            styles.sendButton,
+            {
+              backgroundColor:
+                composer.trim() && !isSending ? colors.primary : colors.muted,
+            },
+          ]}
+        >
+          <Feather
+            name="arrow-up"
+            size={18}
+            color={
+              composer.trim() && !isSending
+                ? colors.primaryForeground
+                : colors.mutedForeground
+            }
           />
-          <Pressable accessibilityLabel="Send Coach message" testID="coach-send" onPress={() => void sendMessage()} disabled={!composer.trim() || isSending} style={[styles.sendButton, { backgroundColor: composer.trim() && !isSending ? colors.primary : colors.muted }]}>
-            <Feather name="arrow-up" size={18} color={composer.trim() && !isSending ? colors.primaryForeground : colors.mutedForeground} />
-          </Pressable>
-        </View>
-      )}
+        </Pressable>
+      </View>
 
       <Modal
         visible={menuVisible}
@@ -512,155 +434,226 @@ export default function CoachScreen() {
       >
         <View style={styles.menuOverlay}>
           <Pressable
-            accessibilityLabel="Close Coach main menu"
-            testID="coach-menu-backdrop"
+            accessibilityLabel="Close Coach settings"
             onPress={() => setMenuVisible(false)}
             style={styles.menuBackdrop}
           />
-          <View accessibilityViewIsModal style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
-            <ScrollView
-              style={styles.menuScroll}
-              contentContainerStyle={styles.menuScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.menuSheet,
+              {
+                backgroundColor: colors.background,
+                paddingTop: insets.top + 14,
+                paddingBottom: insets.bottom + 14,
+              },
+            ]}
+          >
             <View style={styles.menuHeader}>
-              <View style={styles.menuTitleGroup}>
-                <View style={[styles.menuTitleIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="message-square" size={16} color={colors.accentForeground} />
-                </View>
-                <View>
-                  <Text style={[styles.menuTitle, { color: colors.foreground }]}>Chat history</Text>
-                </View>
+              <View>
+                <Text style={[styles.menuTitle, { color: colors.foreground }]}>
+                  Coach settings
+                </Text>
+                <Text
+                  style={[
+                    styles.menuSubtitle,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  Simple controls for your chat
+                </Text>
               </View>
               <Pressable
-                accessibilityLabel="Close Coach menu"
-                testID="coach-menu-close"
+                accessibilityLabel="Close Coach settings"
                 onPress={() => setMenuVisible(false)}
-                style={[styles.menuCloseButton, { backgroundColor: colors.muted }]}
+                style={[styles.menuClose, { backgroundColor: colors.muted }]}
               >
                 <Feather name="x" size={17} color={colors.foreground} />
               </Pressable>
             </View>
 
-            {coachConsentAccepted ? (
+            {signedIn ? (
               <>
-                <Pressable
-                  accessibilityLabel="Clear this Coach chat and start a new one"
-                  testID="coach-new-chat"
-                  onPress={() => requestClearConversation('new')}
-                  style={({ pressed }) => [styles.newChatButton, { backgroundColor: colors.primary, opacity: pressed ? 0.72 : 1 }]}
+                <View
+                  style={[
+                    styles.settingCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
                 >
-                  <Feather name="plus" size={16} color={colors.primaryForeground} />
-                  <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>Clear & start new</Text>
-                </Pressable>
-
-                <Text style={[styles.historyLabel, { color: colors.mutedForeground }]}>Current chat</Text>
-                {coachMessages.length > 0 ? (
-                  <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    {coachMessages.slice(-8).map((message, index) => (
-                      <View key={`${message.role}-${index}`} style={[styles.historyRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: 1 }]}>
-                        <View style={[styles.historyRole, { backgroundColor: message.role === 'user' ? colors.primary : colors.accent }]}>
-                          {message.role === 'user' ? <Feather name="user" size={11} color={colors.primaryForeground} /> : <CaloraFeatureIcon name="coach" size={18} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />}
-                        </View>
-                        <View style={styles.historyCopy}>
-                          <Text style={[styles.historyRoleText, { color: colors.mutedForeground }]}>{message.role === 'user' ? 'You' : BRAND.name + ' Coach'}</Text>
-                          <Text numberOfLines={2} style={[styles.historyMessage, { color: colors.foreground }]}>{message.content}</Text>
-                        </View>
-                      </View>
-                    ))}
+                  <View style={styles.settingCopy}>
+                    <Text
+                      style={[
+                        styles.settingTitle,
+                        { color: colors.foreground },
+                      ]}
+                    >
+                      Use my logged app summary
+                    </Text>
+                    <Text
+                      style={[
+                        styles.settingBody,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      Lets Coach use your server-side profile and logged
+                      nutrition summary. It does not receive food names, notes,
+                      photos, or raw timelines.
+                    </Text>
                   </View>
-                ) : (
-                  <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Feather name="message-circle" size={20} color={colors.mutedForeground} />
-                    <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>No chats yet</Text>
-                    <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Coach chats appear here on this device.</Text>
-                  </View>
-                )}
-
-                {coachMessages.length > 0 && (
-                  <Pressable
-                    accessibilityLabel="Clear Coach chat history"
-                    testID="coach-clear-history"
-                    onPress={() => requestClearConversation('history')}
-                    style={({ pressed }) => [styles.clearHistoryButton, { borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+                  <Switch
+                    accessibilityLabel="Use my logged app summary"
+                    value={personalizationEnabled}
+                    disabled={isUpdatingSettings}
+                    onValueChange={(value) => void changePersonalization(value)}
+                    trackColor={{ false: colors.muted, true: colors.primary }}
+                  />
+                </View>
+                <Pressable
+                  accessibilityLabel="Clear Coach chat history"
+                  testID="coach-clear-history"
+                  onPress={() => {
+                    setMenuVisible(false);
+                    setConfirmClear(true);
+                  }}
+                  style={[styles.clearButton, { borderColor: colors.border }]}
+                >
+                  <Feather
+                    name="trash-2"
+                    size={15}
+                    color={colors.destructive}
+                  />
+                  <Text
+                    style={[
+                      styles.clearButtonText,
+                      { color: colors.destructive },
+                    ]}
                   >
-                    <Feather name="trash-2" size={14} color={colors.mutedForeground} />
-                    <Text style={[styles.clearHistoryText, { color: colors.mutedForeground }]}>Clear chat history</Text>
-                  </Pressable>
-                )}
+                    Clear chat history
+                  </Text>
+                </Pressable>
               </>
             ) : (
-              <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Feather name="lock" size={20} color={colors.mutedForeground} />
-                <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>Chat history is private</Text>
-                <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Start Coach to save chats on this device.</Text>
-              </View>
-            )}
-            {guestMode && (
-              <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
-                  <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                </View>
-                <Text style={[styles.briefTitle, { color: colors.foreground }]}>General Coach guidance</Text>
-                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>
-                  Ask a general nutrition question. Guest Coach never uses or stores your personal records.
+              <View
+                style={[
+                  styles.settingCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <Text
+                  style={[styles.settingTitle, { color: colors.foreground }]}
+                >
+                  Guest chat
+                </Text>
+                <Text
+                  style={[
+                    styles.settingBody,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  Guest messages are not saved and do not use personal app data.
                 </Text>
                 <Pressable
                   accessibilityLabel="Sign in for personalized Coach"
-                  onPress={() => router.push('/auth/sign-in')}
-                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    router.push("/auth/sign-in");
+                  }}
+                  style={[
+                    styles.signInButton,
+                    { backgroundColor: colors.primary },
+                  ]}
                 >
-                  <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in for personalized Coach</Text>
-                  <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+                  <Text
+                    style={[
+                      styles.signInText,
+                      { color: colors.primaryForeground },
+                    ]}
+                  >
+                    Sign in
+                  </Text>
+                  <Feather
+                    name="arrow-right"
+                    size={16}
+                    color={colors.primaryForeground}
+                  />
                 </Pressable>
               </View>
             )}
-            {!guestMode && (
-              <CoachFactContextConsentPanel colors={colors} />
-            )}
-            </ScrollView>
           </View>
         </View>
       </Modal>
 
       <Modal
-        visible={resetConfirm !== null}
+        visible={confirmClear}
         transparent
         animationType="fade"
-        onRequestClose={() => setResetConfirm(null)}
+        onRequestClose={() => setConfirmClear(false)}
       >
-        <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)' }]}>
-          <View accessibilityViewIsModal style={[styles.confirmCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={[styles.confirmIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="trash-2" size={20} color={colors.destructive} />
-            </View>
+        <View style={styles.confirmBackdrop}>
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.confirmCard,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
-              {resetConfirm === 'new' ? 'Clear this chat and start again?' : 'Clear Coach chat history?'}
+              Clear Coach chat history?
             </Text>
-            <Text style={[styles.confirmBody, { color: colors.mutedForeground }]}>
-              This removes the current Coach conversation from this device. This cannot be undone.
+            <Text
+              style={[styles.confirmBody, { color: colors.mutedForeground }]}
+            >
+              This permanently removes your saved Coach conversation from your
+              account.
             </Text>
             <View style={styles.confirmActions}>
               <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Cancel clearing Coach chat"
-                onPress={() => setResetConfirm(null)}
-                style={[styles.confirmButton, { backgroundColor: colors.muted }]}
+                accessibilityLabel="Cancel clearing Coach history"
+                onPress={() => setConfirmClear(false)}
+                style={[
+                  styles.confirmButton,
+                  { backgroundColor: colors.muted },
+                ]}
               >
-                <Text style={[styles.confirmButtonText, { color: colors.foreground }]}>Cancel</Text>
+                <Text
+                  style={[
+                    styles.confirmButtonText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  Cancel
+                </Text>
               </Pressable>
               <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={resetConfirm === 'new' ? 'Confirm clear and start new Coach chat' : 'Confirm clear Coach chat history'}
-                onPress={() => {
-                  setResetConfirm(null);
-                  clearConversation();
-                }}
-                style={[styles.confirmButton, { backgroundColor: colors.destructive }]}
+                accessibilityLabel="Confirm clear Coach history"
+                onPress={() => void clearHistory()}
+                disabled={isClearing}
+                style={[
+                  styles.confirmButton,
+                  {
+                    backgroundColor: colors.destructive,
+                    opacity: isClearing ? 0.6 : 1,
+                  },
+                ]}
               >
-                <Text style={[styles.confirmButtonText, { color: colors.destructiveForeground }]}>
-                  {resetConfirm === 'new' ? 'Clear & start new' : 'Clear history'}
-                </Text>
+                {isClearing ? (
+                  <ActivityIndicator color={colors.destructiveForeground} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.confirmButtonText,
+                      { color: colors.destructiveForeground },
+                    ]}
+                  >
+                    Clear history
+                  </Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -672,79 +665,197 @@ export default function CoachScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  headerCopy: { marginBottom: 18 },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
-  consentCard: { borderRadius: 25, padding: 20 },
-  coachMark: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  consentTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.4 },
-  consentBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 8 },
-  scopeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 18 },
-  scopePill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 6 },
-  scopeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
-  consentNote: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 18 },
-  consentError: { fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17, marginTop: 10 },
-  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 13, paddingVertical: 13, marginTop: 20 },
-  primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  briefCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 20 },
-  briefIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  briefTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginTop: 6 },
-  briefBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7 },
-  userTurn: { alignItems: 'flex-end', marginBottom: 12 },
-  assistantTurn: { alignItems: 'stretch', marginBottom: 18 },
-  messageBubble: { maxWidth: '92%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12 },
-  messageText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
-  evidenceCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, marginTop: 9 },
-  evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 4 },
-  evidenceIcon: { width: 29, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  evidenceTitle: { fontFamily: 'Inter_700Bold', fontSize: 11 },
-  evidenceSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
-  observation: { flexDirection: 'row', gap: 8, borderTopWidth: 1, paddingTop: 10, marginTop: 9 },
-  confidenceDot: { width: 7, height: 7, borderRadius: 4, marginTop: 5 },
-  observationText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
-  observationMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 3 },
-  limitation: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 9 },
-  actionCard: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, padding: 10, marginTop: 8 },
-  actionIcon: { width: 27, height: 27, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  actionText: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 11 },
-  loadingBubble: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 17, padding: 13, marginBottom: 18 },
-  loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
-  sectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1, marginBottom: 9 },
-  promptWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingBottom: 8 },
+  headerCopy: { marginBottom: 16 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 },
+  welcomeCard: { borderRadius: 24, padding: 20, marginBottom: 18 },
+  coachMark: {
+    width: 48,
+    height: 48,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  welcomeTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 23,
+    letterSpacing: -0.4,
+  },
+  welcomeBody: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  welcomeNote: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 14,
+  },
+  signInButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 13,
+    paddingVertical: 12,
+    marginTop: 18,
+  },
+  signInText: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  userTurn: { alignItems: "flex-end", marginBottom: 12 },
+  assistantTurn: { alignItems: "flex-start", marginBottom: 14 },
+  messageBubble: {
+    maxWidth: "92%",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  messageText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
+  loadingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 13,
+    marginBottom: 16,
+  },
+  loadingText: { fontFamily: "Inter_400Regular", fontSize: 11 },
+  noticeCard: {
+    flexDirection: "row",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 16,
+  },
+  noticeText: {
+    flex: 1,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  sectionLabel: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 9,
+    letterSpacing: 1.1,
+    marginBottom: 9,
+  },
+  promptWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    paddingBottom: 8,
+  },
   promptChip: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },
-  promptText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
-  composerDock: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 9 },
-  composer: { flex: 1, minHeight: 45, maxHeight: 100, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 11, fontFamily: 'Inter_400Regular', fontSize: 13 },
-  sendButton: { width: 45, height: 45, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  menuOverlay: { flex: 1, flexDirection: 'row' },
-  menuBackdrop: { flex: 1, backgroundColor: 'rgba(8,22,15,0.46)' },
-  menuSheet: { width: '86%', maxWidth: 390, paddingHorizontal: 18, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: -5, height: 0 }, elevation: 12 },
-  menuScroll: { flex: 1 },
-  menuScrollContent: { paddingBottom: 8 },
-  menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
-  menuTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  menuTitleIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  menuTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
-  menuCloseButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  newChatButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, paddingVertical: 13, marginBottom: 25 },
-  newChatText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  historyLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.15, marginBottom: 9 },
-  historyCard: { borderWidth: 1, borderRadius: 17, overflow: 'hidden' },
-  historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingHorizontal: 11, paddingVertical: 11 },
-  historyRole: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  historyCopy: { flex: 1 },
-  historyRoleText: { fontFamily: 'Inter_700Bold', fontSize: 9, marginBottom: 3 },
-  historyMessage: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
-  emptyHistory: { borderWidth: 1, borderRadius: 17, alignItems: 'center', paddingHorizontal: 20, paddingVertical: 25 },
-  emptyHistoryTitle: { fontFamily: 'Inter_700Bold', fontSize: 13, marginTop: 10 },
-  emptyHistoryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 5 },
-  clearHistoryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderRadius: 13, paddingVertical: 12, marginTop: 14 },
-  clearHistoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  confirmBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  confirmCard: { width: '100%', maxWidth: 420, borderWidth: 1, borderRadius: 22, padding: 20, gap: 12 },
-  confirmIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  confirmTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
-  confirmBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
-  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  confirmButton: { flex: 1, minHeight: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  confirmButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12, textAlign: 'center' },
+  promptText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
+  composerDock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 9,
+  },
+  composer: {
+    flex: 1,
+    minHeight: 45,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+  },
+  sendButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuOverlay: { flex: 1, flexDirection: "row" },
+  menuBackdrop: { flex: 1, backgroundColor: "rgba(8,22,15,0.46)" },
+  menuSheet: {
+    width: "86%",
+    maxWidth: 390,
+    paddingHorizontal: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: -5, height: 0 },
+    elevation: 12,
+  },
+  menuHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 22,
+  },
+  menuTitle: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3 },
+  menuSubtitle: { fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 3 },
+  menuClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settingCard: { borderWidth: 1, borderRadius: 17, padding: 14 },
+  settingCopy: { marginBottom: 14 },
+  settingTitle: { fontFamily: "Inter_700Bold", fontSize: 13 },
+  settingBody: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 5,
+  },
+  clearButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingVertical: 12,
+    marginTop: 14,
+  },
+  clearButtonText: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  confirmBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.52)",
+    padding: 22,
+  },
+  confirmCard: {
+    width: "100%",
+    maxWidth: 380,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+  },
+  confirmTitle: { fontFamily: "Inter_700Bold", fontSize: 18 },
+  confirmBody: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  confirmActions: { flexDirection: "row", gap: 10, marginTop: 20 },
+  confirmButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  confirmButtonText: { fontFamily: "Inter_700Bold", fontSize: 12 },
 });

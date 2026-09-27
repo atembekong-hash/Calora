@@ -1069,6 +1069,12 @@ const ACCOUNT_DELETION_FENCE_CALL_SITES = [
     countSource: "builder default count",
   },
   {
+    file: "coachV2.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/coach/v2/chat")',
+    routes: ["/v1/coach/v2/chat"],
+    countSource: "builder default count",
+  },
+  {
     file: "diary.ts",
     invocation: 'accountDeletionFenceSignal("/v1/diary")',
     routes: ["/v1/diary"],

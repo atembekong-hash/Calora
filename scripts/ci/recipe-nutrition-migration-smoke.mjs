@@ -113,7 +113,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 10) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 11) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -163,10 +163,24 @@ async function verifyCaptureRateLimiter(client, scenario) {
       WHERE table_schema = 'public'
         AND table_name = 'calora_capture_rate_limits'`,
   );
-  const actual = new Map(columns.rows.map((row) => [row.column_name, row.data_type]));
-  assert.equal(actual.get('key'), 'text', `${scenario} must retain the limiter key`);
-  assert.equal(actual.get('count'), 'integer', `${scenario} must add the limiter count`);
-  assert.equal(actual.get('reset_at'), 'timestamp with time zone', `${scenario} must add the limiter reset time`);
+  const actual = new Map(
+    columns.rows.map((row) => [row.column_name, row.data_type]),
+  );
+  assert.equal(
+    actual.get("key"),
+    "text",
+    `${scenario} must retain the limiter key`,
+  );
+  assert.equal(
+    actual.get("count"),
+    "integer",
+    `${scenario} must add the limiter count`,
+  );
+  assert.equal(
+    actual.get("reset_at"),
+    "timestamp with time zone",
+    `${scenario} must add the limiter reset time`,
+  );
 
   const index = await client.query(
     `SELECT indexdef
@@ -176,7 +190,7 @@ async function verifyCaptureRateLimiter(client, scenario) {
         AND indexname = 'calora_capture_rate_limits_key_idx'`,
   );
   assert.match(
-    index.rows[0]?.indexdef ?? '',
+    index.rows[0]?.indexdef ?? "",
     /CREATE UNIQUE INDEX/i,
     `${scenario} must make the limiter key suitable for atomic upsert`,
   );
@@ -196,13 +210,60 @@ async function verifyCaptureRateLimiter(client, scenario) {
   );
 }
 
+async function verifyCoachV2Storage(client, scenario) {
+  const tables = await client.query(
+    `SELECT tablename, rowsecurity
+       FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename IN (
+          'calora_coach_v2_settings',
+          'calora_coach_v2_conversations',
+          'calora_coach_v2_turns'
+        )`,
+  );
+  assert.deepEqual(
+    tables.rows.sort((left, right) =>
+      left.tablename.localeCompare(right.tablename),
+    ),
+    [
+      { tablename: "calora_coach_v2_conversations", rowsecurity: true },
+      { tablename: "calora_coach_v2_settings", rowsecurity: true },
+      { tablename: "calora_coach_v2_turns", rowsecurity: true },
+    ],
+    `${scenario} must create private Coach V2 storage with RLS enabled`,
+  );
+
+  const triggers = await client.query(
+    `SELECT table_ref.relname
+       FROM pg_trigger trigger
+       JOIN pg_class table_ref ON table_ref.oid = trigger.tgrelid
+      WHERE table_ref.relname IN (
+        'calora_coach_v2_settings',
+        'calora_coach_v2_conversations',
+        'calora_coach_v2_turns'
+      )
+        AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+        AND NOT trigger.tgisinternal`,
+  );
+  assert.deepEqual(
+    triggers.rows.map((row) => row.relname).sort(),
+    [
+      "calora_coach_v2_conversations",
+      "calora_coach_v2_settings",
+      "calora_coach_v2_turns",
+    ],
+    `${scenario} must attach an account-deletion write fence to every Coach V2 table`,
+  );
+}
+
 // A fresh nutrition-cache deployment must receive the canonical table from
 // forward migration 0009 after the existing Calora base schema is present.
 await resetDatabase(prerequisiteSchema);
 runMigrations("fresh cache schema");
 const fresh = await verifyExpectedColumns("fresh cache schema");
 try {
-  await verifyCaptureRateLimiter(fresh, 'fresh cache schema');
+  await verifyCaptureRateLimiter(fresh, "fresh cache schema");
+  await verifyCoachV2Storage(fresh, "fresh cache schema");
   const rows = await fresh.query(
     "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
   );
@@ -217,7 +278,8 @@ await resetDatabase(legacySchema);
 runMigrations("legacy schema");
 const legacy = await verifyExpectedColumns("legacy schema");
 try {
-  await verifyCaptureRateLimiter(legacy, 'legacy schema');
+  await verifyCaptureRateLimiter(legacy, "legacy schema");
+  await verifyCoachV2Storage(legacy, "legacy schema");
   const rows = await legacy.query(
     `SELECT calories, protein_g, carbs_g, fat_g, fiber_g, iron_mg
        FROM calora_recipe_nutrition
@@ -277,24 +339,46 @@ try {
     -- fence exactly as it would on a real upgraded database.
     CREATE FUNCTION calora_account_deletion_write_fence()
     RETURNS trigger AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+    CREATE FUNCTION calora_assert_deletion_writable(external_user_id text)
+    RETURNS void AS $$ BEGIN RETURN; END; $$ LANGUAGE plpgsql;
   `);
 } finally {
   await historical.end();
 }
 runMigrations("historical 0008 no-cache upgrade");
-const historicalUpgrade = await verifyExpectedColumns("historical 0008 no-cache upgrade", 3);
+const historicalUpgrade = await verifyExpectedColumns(
+  "historical 0008 no-cache upgrade",
+  4,
+);
 try {
-  await verifyCaptureRateLimiter(historicalUpgrade, 'historical 0008 no-cache upgrade');
+  await verifyCaptureRateLimiter(
+    historicalUpgrade,
+    "historical 0008 no-cache upgrade",
+  );
+  await verifyCoachV2Storage(
+    historicalUpgrade,
+    "historical 0008 no-cache upgrade",
+  );
   const rows = await historicalUpgrade.query(
     "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
   );
-  assert.equal(rows.rows[0]?.count, 0, "historical repair must not fabricate rows");
+  assert.equal(
+    rows.rows[0]?.count,
+    0,
+    "historical repair must not fabricate rows",
+  );
   const history = await historicalUpgrade.query(
     "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations",
   );
-  assert.equal(history.rows[0]?.count, 3, "historical upgrade must append only 0009 and 0010");
+  assert.equal(
+    history.rows[0]?.count,
+    4,
+    "historical upgrade must append only 0009, 0010, and 0011",
+  );
 } finally {
   await historicalUpgrade.end();
 }
 
-console.info("recipe nutrition fresh, legacy, and historical-upgrade migration smoke tests passed");
+console.info(
+  "recipe nutrition fresh, legacy, and historical-upgrade migration smoke tests passed",
+);

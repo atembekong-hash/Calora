@@ -2406,6 +2406,80 @@ export const RevokeCoachFactContextConsentResponse = zod.object({
 
 
 /**
+ * Available to guests and signed-in users. Signed-in requests derive a
+ * bounded current-state snapshot on the server and persist only the
+ * account conversation turns. Guest requests do not persist a
+ * conversation or app snapshot. This endpoint is general wellness
+ * information and not medical care.
+ * @summary Send a clean-room Calora Coach message
+ */
+export const sendCoachV2MessageBodyMessageMax = 1200;
+
+
+
+export const SendCoachV2MessageBody = zod.object({
+  "message": zod.string().min(1).max(sendCoachV2MessageBodyMessageMax)
+})
+
+export const sendCoachV2MessageResponseMessageMax = 4000;
+
+
+
+export const SendCoachV2MessageResponse = zod.object({
+  "message": zod.string().min(1).max(sendCoachV2MessageResponseMessageMax),
+  "conversationMode": zod.enum(['guest', 'account']),
+  "persisted": zod.boolean(),
+  "safetyNotice": zod.enum(['wellness_not_medical_care'])
+})
+
+
+/**
+ * @summary Read the signed-in account's current Coach conversation
+ */
+export const getCoachV2ConversationResponseTurnsItemContentMax = 4000;
+
+export const getCoachV2ConversationResponseTurnsMax = 100;
+
+
+
+export const GetCoachV2ConversationResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().min(1).max(getCoachV2ConversationResponseTurnsItemContentMax),
+  "createdAt": zod.coerce.date()
+})).max(getCoachV2ConversationResponseTurnsMax),
+  "personalizationEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary Delete the signed-in account's Coach conversation history
+ */
+export const ClearCoachV2ConversationResponse = zod.void()
+
+
+/**
+ * @summary Read signed-in Coach personalization settings
+ */
+export const GetCoachV2SettingsResponse = zod.object({
+  "personalizationEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary Update signed-in Coach personalization settings
+ */
+export const UpdateCoachV2SettingsBody = zod.object({
+  "personalizationEnabled": zod.boolean()
+})
+
+export const UpdateCoachV2SettingsResponse = zod.object({
+  "personalizationEnabled": zod.boolean()
+})
+
+
+/**
  * Starts or resumes the server-owned deletion saga for the account
  * resolved from the bearer token. The server fences new writes before
  * erasing object storage, application data, the RevenueCat customer, and

@@ -38,6 +38,10 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/recipe-nutrition-estimate.ts',
       ),
+      '@workspace/api-zod/coach-v2': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/coach-v2.ts',
+      ),
       '@workspace/api-zod/image-source-policy': path.resolve(
         __dirname,
         '../../lib/api-zod/src/image-source-policy.ts',
