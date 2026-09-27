@@ -13,7 +13,8 @@
     "./recipe-nutrition": "./src/recipe-nutrition.ts",
     "./recipe-generation": "./src/recipe-generation.ts",
     "./recipe-nutrition-estimate": "./src/recipe-nutrition-estimate.ts",
-    "./coach-v2": "./src/coach-v2.ts"
+    "./coach-v2": "./src/coach-v2.ts",
+    "./coach-text-presentation": "./src/coach-text-presentation.ts"
   },
   "dependencies": {
     "zod": "catalog:"

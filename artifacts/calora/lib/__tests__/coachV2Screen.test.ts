@@ -7,6 +7,10 @@ const coachContractSource = readFileSync(
   resolve(process.cwd(), "../../lib/api-zod/src/coach-v2.ts"),
   "utf8",
 );
+const coachPresentationSource = readFileSync(
+  resolve(process.cwd(), "../../lib/api-zod/src/coach-text-presentation.ts"),
+  "utf8",
+);
 
 describe("clean-room Coach screen", () => {
   it("uses only the new server-owned Coach API", () => {
@@ -40,5 +44,18 @@ describe("clean-room Coach screen", () => {
       "This permanently removes your saved Coach conversation from your",
     );
     expect(source).toContain("account.");
+  });
+
+  it("renders live, hydrated, and error Coach copy through the shared plain-text boundary", () => {
+    expect(source).toContain("formatCoachPlainText(response.message");
+    expect(source).toContain("formatCoachPlainText(turn.content");
+    expect(source).toContain("formatCoachPlainText(notice");
+    expect(source).toContain('turn.role === "assistant"');
+    expect(coachPresentationSource).toContain("normalizeCoachAssistantReply");
+    expect(coachPresentationSource).toContain("HTML_PRESENTATION_TAG");
+  });
+
+  it("clears an existing transcript before switching signed-in account history", () => {
+    expect(source).toContain("setTurns([]);\n    setIsLoadingHistory(true);");
   });
 });

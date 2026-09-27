@@ -10,6 +10,7 @@ import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, 
 import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
+import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { BRAND } from '@/lib/brand';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -1730,7 +1731,7 @@ export default function InsightsScreen() {
         {localInsight ? (
           <AnimatedReveal delay={100}>
             <View
-              accessibilityLabel={`Local insight: ${localInsight.title}. ${localInsight.message}`}
+              accessibilityLabel={`Local insight: ${formatCoachPlainText(localInsight.title)}. ${formatCoachPlainText(localInsight.message)}`}
               accessibilityRole="summary"
               style={[styles.localInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               testID="local-contextual-insight"
@@ -1740,8 +1741,8 @@ export default function InsightsScreen() {
               </View>
               <View style={styles.localInsightCopy}>
                 <Text style={[styles.localInsightEyebrow, { color: colors.mutedForeground }]}>LOCAL INSIGHT</Text>
-                <Text style={[styles.localInsightTitle, { color: colors.foreground }]}>{localInsight.title}</Text>
-                <Text style={[styles.localInsightMessage, { color: colors.mutedForeground }]}>{localInsight.message}</Text>
+                <Text style={[styles.localInsightTitle, { color: colors.foreground }]}>{formatCoachPlainText(localInsight.title)}</Text>
+                <Text style={[styles.localInsightMessage, { color: colors.mutedForeground }]}>{formatCoachPlainText(localInsight.message)}</Text>
               </View>
             </View>
           </AnimatedReveal>

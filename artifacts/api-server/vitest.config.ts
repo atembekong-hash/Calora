@@ -42,6 +42,10 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/coach-v2.ts',
       ),
+      '@workspace/api-zod/coach-text-presentation': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/coach-text-presentation.ts',
+      ),
       '@workspace/api-zod/image-source-policy': path.resolve(
         __dirname,
         '../../lib/api-zod/src/image-source-policy.ts',

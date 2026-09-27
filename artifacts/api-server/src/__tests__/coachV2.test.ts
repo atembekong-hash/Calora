@@ -170,6 +170,68 @@ describe("clean-room Coach V2", () => {
     expect(JSON.stringify(providerInput)).not.toContain("person@example.com");
   });
 
+  it("normalizes provider presentation markup before guest response and account persistence", async () => {
+    openAiCreate.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content:
+              "## Today\r\n\r\n**Protein:** 45 g\r\n- chicken\r\n---\r\n[Recipe](https://example.test)",
+          },
+        },
+      ],
+    });
+
+    const guest = await request(app())
+      .post("/v1/coach/v2/chat")
+      .send({ message: "How is my day?" });
+
+    expect(guest.status).toBe(200);
+    expect(guest.body.message).toBe(
+      "Today\n\nProtein: 45 g\n• chicken\nRecipe (https://example.test)",
+    );
+
+    verifyBearerToken.mockResolvedValue({
+      id: "external-user",
+      email: "person@example.com",
+    });
+    openAiCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: "**640 kcal**\u200B - great work 👍" } }],
+    });
+
+    const account = await request(app())
+      .post("/v1/coach/v2/chat")
+      .set("Authorization", "Bearer valid")
+      .send({ message: "How is my day?" });
+
+    expect(account.status).toBe(200);
+    expect(account.body.message).toBe("640 kcal - great work");
+    expect(completeCoachV2Turn).toHaveBeenLastCalledWith(
+      "conversation-id",
+      "turn-id",
+      "640 kcal - great work",
+    );
+  });
+
+  it("keeps the established fallback when formatting cleanup leaves no usable provider content", async () => {
+    verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
+    openAiCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: "\u200B\u202E\n" } }],
+    });
+
+    const response = await request(app())
+      .post("/v1/coach/v2/chat")
+      .set("Authorization", "Bearer valid")
+      .send({ message: "How is my day?" });
+
+    expect(response.status).toBe(503);
+    expect(completeCoachV2Turn).toHaveBeenCalledWith(
+      "conversation-id",
+      "turn-id",
+      "Coach is temporarily unavailable. Please try again shortly.",
+    );
+  });
+
   it("honors the signed-in personalization setting by withholding the snapshot", async () => {
     verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
     getCoachV2Settings.mockResolvedValue({ personalizationEnabled: false });

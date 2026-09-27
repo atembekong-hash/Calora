@@ -3,6 +3,7 @@ import {
   parseCoachV2ChatInput,
   parseCoachV2SettingsInput,
 } from "@workspace/api-zod/coach-v2";
+import { normalizeCoachAssistantReply } from "@workspace/api-zod/coach-text-presentation";
 import { pool } from "@workspace/db";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
@@ -165,7 +166,10 @@ async function requestCoachReply(
   const reply = completion.choices[0]?.message?.content;
   if (!isSafeProviderReply(reply))
     throw new Error("Coach provider returned an invalid response");
-  return reply.trim();
+  const normalized = normalizeCoachAssistantReply(reply);
+  if (!normalized)
+    throw new Error("Coach provider returned an invalid response");
+  return normalized;
 }
 
 router.post("/v1/coach/v2/chat", async (req, res) => {
