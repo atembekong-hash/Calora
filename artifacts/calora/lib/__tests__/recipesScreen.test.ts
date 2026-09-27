@@ -203,6 +203,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const sourceYield = sourceRecipeYield(detail);');
     expect(source).toContain('scaleRecipeNutritionForDiary(detail, diaryServings)');
     expect(source).toContain('setDiaryServings(servingCount);');
+    expect(source).toContain('...scaleRecipeNutritionForDiary(detail, servingCount)');
+    expect(source).toContain('servingLabel: `${servingLabel} ${recipePortionLabel(servingCount)}`');
     expect(source).not.toContain('scaleIngredient(');
     expect(source).toContain('addIngredientsToShopping(ingredients, detail.id);');
     expect(source).toContain('ingredients: detail.ingredients ?? []');

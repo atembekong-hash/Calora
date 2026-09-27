@@ -109,6 +109,21 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects overlong premium query and category values before provider work", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const queryResult = await request(app).get(`/v1/premium-recipes?query=${"x".repeat(121)}`);
+    const categoryResult = await request(app).get(`/v1/premium-recipes?category=${"x".repeat(81)}`);
+
+    expect(queryResult.status).toBe(400);
+    expect(queryResult.body).toEqual({ message: "query must be at most 120 characters." });
+    expect(categoryResult.status).toBe(400);
+    expect(categoryResult.body).toEqual({ message: "category must be at most 80 characters." });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("clears reused provider photos from later recipes", async () => {
     const { clearDuplicateRecipeImages } = await import("../lib/premiumRecipes.js");
     const recipes = [
@@ -610,5 +625,38 @@ describe("Premium recipe routes", () => {
       nutritionSource: "FatSecret nutrition data",
     });
     expect(food?.servings).toHaveLength(1);
+  });
+
+  it("rejects negative and non-finite FatSecret food nutrients before verified completeness", async () => {
+    const { normalizeFatSecretFood } = await import("../lib/premiumRecipes.js");
+    const food = normalizeFatSecretFood({
+      food_id: "bad-food",
+      food_name: "Invalid nutrition bowl",
+      servings: {
+        serving: [{
+          serving_id: "bad-serving",
+          serving_description: "1 bowl",
+          calories: "-1",
+          protein: Number.NaN,
+          carbohydrate: "Infinity",
+          fat: -7,
+          fiber: -2,
+          sugar: "NaN",
+          sodium: "-3",
+        }],
+      },
+    });
+
+    expect(food).toMatchObject({
+      calories: null,
+      proteinG: null,
+      carbsG: null,
+      fatG: null,
+      fiberG: null,
+      sugarG: null,
+      sodiumMg: null,
+      nutritionConfidence: "unavailable",
+      nutritionSource: "Nutrition not supplied",
+    });
   });
 });

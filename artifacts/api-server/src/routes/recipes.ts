@@ -15,6 +15,7 @@ import {
   RECIPE_GENERATION_NUTRITION_NOTE,
   type RecipeGenerationConceptInput,
 } from "@workspace/api-zod/recipe-generation";
+import { normalizeTrustedFoodImageUrl } from "@workspace/api-zod/image-source-policy";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
@@ -38,6 +39,7 @@ import {
   type RecipeMediaReviewState,
 } from "../lib/recipe-media.js";
 import { generateClaimedRecipeMedia, locatorForRecipeMedia } from "../lib/recipe-media-generation.js";
+import { parseRecipeListFilters } from "../lib/recipeQuery.js";
 
 const router: IRouter = Router();
 
@@ -911,7 +913,7 @@ function toRecipe(meal: Meal) {
   return {
     id: meal.idMeal,
     name: meal.strMeal,
-    image: meal.strMealThumb ?? null,
+    image: normalizeTrustedFoodImageUrl(meal.strMealThumb) ?? null,
     category: meal.strCategory ?? null,
     area: meal.strArea ?? null,
     description: null,
@@ -1010,8 +1012,12 @@ async function getForYouMeals(): Promise<Meal[]> {
 router.get("/v1/recipes", async (req, res) => {
   if (!(await enforceRecipeIpLimit(req, res, "list"))) return;
   try {
-    const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
-    const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+    const filters = parseRecipeListFilters(req.query as Record<string, unknown>);
+    if (!filters.ok) {
+      res.status(400).json({ message: filters.message });
+      return;
+    }
+    const { query, category } = filters.value;
     const parsedLimit = Number(req.query.limit ?? 12);
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 30) : 12;
     const parsedOffset = Number(req.query.offset ?? 0);
@@ -1108,7 +1114,10 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
         return;
       }
     }
-    res.json({ ...base, nutritionPending: true });
+    // Estimation is complete at this point: a cache miss either produced an
+    // estimate above or failed/was unavailable. Do not expose an undocumented
+    // retryable "pending" state for a terminal outcome.
+    res.json({ ...base, nutritionUnavailable: true });
     return;
   } catch {
     res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });

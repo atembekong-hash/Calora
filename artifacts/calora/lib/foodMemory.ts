@@ -357,7 +357,7 @@ export function memorySignature(memory: Pick<FoodMemoryDraft, 'title' | 'compone
 }
 
 export function recipeToDraft(
-  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; imageId?: string | null; imageUrlExpiresAt?: string | null; imageProvenance?: 'generated' | 'provider' | 'fallback' },
+  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; imageId?: string | null; imageUrlExpiresAt?: string | null; imageProvenance?: 'generated' | 'provider' | 'fallback'; servingLabel?: string },
   date: string,
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
@@ -400,7 +400,7 @@ export function recipeToDraft(
   const component: FoodMemoryComponent = {
     id: `${recipe.id}-component`,
     name: recipe.name,
-    serving: '1 recipe serving',
+    serving: recipe.servingLabel?.trim() || '1 recipe serving',
     calories: completeNutrition.calories,
     proteinG: completeNutrition.proteinG,
     carbsG: completeNutrition.carbsG,

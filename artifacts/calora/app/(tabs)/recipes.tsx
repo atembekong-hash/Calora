@@ -852,12 +852,6 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       queryKey: ['recipe', remoteRecipeId],
       enabled: Boolean(remoteRecipeId),
       staleTime: 1000 * 60 * 30,
-      // When nutrition hasn't been estimated yet (server returns nutritionPending),
-      // poll every 4 s so the strip fills in as soon as the background job lands.
-      refetchInterval: (query) => {
-        const data = query.state.data as (Recipe & { nutritionPending?: boolean }) | undefined;
-        return data?.nutritionPending ? 4000 : false;
-      },
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
@@ -949,9 +943,6 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
 
   if (!detail) return null;
   const canLog = hasCompleteNutrition(detail);
-  // True when the server returned nutritionPending: the recipe is loaded but
-  // AI estimation is running in the background — poll until it lands.
-  const nutritionPending = !local && !premium && Boolean((detailQuery.data as (Recipe & { nutritionPending?: boolean }) | undefined)?.nutritionPending);
   // True when the server explicitly flagged that AI estimation failed for this recipe.
   const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
   const premiumNutritionUnavailable = premium && recipeProvenance(detail).nutritionConfidence === 'unavailable';
@@ -971,7 +962,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
-  const nutritionState = getRecipeNutritionState({ calories: detail.calories, proteinG: detail.proteinG, carbsG: detail.carbsG, fatG: detail.fatG, loading: isFetchingDetail, pending: nutritionPending, unavailable: nutritionUnavailable || premiumNutritionUnavailable, error: premium ? premiumDetailQuery.isError : detailQuery.isError });
+  const nutritionState = getRecipeNutritionState({ calories: detail.calories, proteinG: detail.proteinG, carbsG: detail.carbsG, fatG: detail.fatG, loading: isFetchingDetail, pending: false, unavailable: nutritionUnavailable || premiumNutritionUnavailable, error: premium ? premiumDetailQuery.isError : detailQuery.isError });
   const scaledKcal = isFiniteNutritionValue(detail.calories) ? detail.calories * servingCount : null;
   const scaledProtein = isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * servingCount : null;
   const scaledCarbs = isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * servingCount : null;
@@ -984,7 +975,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   // --- review flow (local recipes only) ---
   const openReview = () => {
     if (!canLog) return;
-    const draft = createRecipeDraft(detail, dateKey(), 'Dinner');
+    // The review draft is the diary snapshot. Scale its macros to the same
+    // selected portion count shown in the detail sheet, so accepting the
+    // draft cannot silently log only one serving of a local/AI recipe.
+    const draft = createRecipeDraft({
+      ...detail,
+      ...scaleRecipeNutritionForDiary(detail, servingCount),
+      servingLabel: `${servingLabel} ${recipePortionLabel(servingCount)}`,
+    }, dateKey(), 'Dinner');
     if (!draft) return;
     setReviewDraftId(draft.id);
   };
@@ -1152,7 +1150,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 {/* Nutrition strip — values scale with servingCount */}
                 <Surface tier="flat" radius="lg" style={styles.nutritionStrip}>
                   {nutritionState === 'loading' ? (
-                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionPending ? 'Estimating nutrition…' : 'Estimating nutrition…'}</Text></View>
+                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
                   ) : nutritionState === 'unavailable' || nutritionState === 'error' ? (
                     <View style={styles.nutritionLoading}>
                       <Feather name="alert-circle" size={14} color={colors.mutedForeground} />

@@ -528,7 +528,7 @@ type CaloraContextValue = {
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
-  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft | null;
+  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; servingLabel?: string }, date?: string, meal?: MealType) => FoodMemoryDraft | null;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   updateFoodMemoryDraftMeal: (draftId: string, meal: MealType) => void;

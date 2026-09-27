@@ -141,7 +141,7 @@ async function fatSecretAccessToken() {
 
 function fatSecretNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /**

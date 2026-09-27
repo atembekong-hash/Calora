@@ -677,6 +677,34 @@ describe('recipeToDraft', () => {
     expect(draft.nutrition.proteinG).toBeCloseTo(30);
   });
 
+  it('preserves selected recipe portions in a scaled local diary draft', () => {
+    const draft = recipeToDraft(
+      {
+        id: 'r6-selected-portions',
+        name: 'Bowl',
+        calories: 900,
+        proteinG: 60,
+        carbsG: 100,
+        fatG: 30,
+        source: 'My Recipes',
+        isLocal: true,
+        servingLabel: '2 portions',
+      },
+      '2026-08-06',
+      'Dinner',
+      NOW,
+    )!;
+
+    expect(draft.components[0]).toMatchObject({
+      serving: '2 portions',
+      calories: 900,
+      proteinG: 60,
+      carbsG: 100,
+      fatG: 30,
+    });
+    expect(draft.nutrition).toMatchObject({ calories: 900, proteinG: 60, carbsG: 100, fatG: 30 });
+  });
+
   it('refuses a diary draft when primary recipe nutrition is unavailable', () => {
     const draft = recipeToDraft(
       { id: 'r7', name: 'Mystery dish', calories: null, proteinG: null, carbsG: null, fatG: null, source: 'Unknown', isLocal: false },

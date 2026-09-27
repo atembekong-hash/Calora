@@ -94,6 +94,48 @@ function buildApp() {
   return app;
 }
 
+describe("GET /v1/recipes — query and provider metadata boundaries", () => {
+  beforeEach(() => {
+    resetRecipeNutritionStateForTests();
+    vi.clearAllMocks();
+  });
+
+  it("rejects overlong query and category values before provider work", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = buildApp();
+
+    const queryResult = await request(app).get(`/v1/recipes?query=${"x".repeat(121)}`);
+    const categoryResult = await request(app).get(`/v1/recipes?category=${"x".repeat(81)}`);
+
+    expect(queryResult.status).toBe(400);
+    expect(queryResult.body).toEqual({ message: "query must be at most 120 characters." });
+    expect(categoryResult.status).toBe(400);
+    expect(categoryResult.body).toEqual({ message: "category must be at most 80 characters." });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("drops untrusted TheMealDB thumbnail URLs before returning recipe data", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        meals: [{
+          idMeal: "unsafe-thumb",
+          strMeal: "Unsafe thumbnail meal",
+          strMealThumb: "http://user:pass@localhost:8080/thumbnail.jpg",
+        }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = buildApp();
+
+    const result = await request(app).get("/v1/recipes?query=thumbnail");
+
+    expect(result.status).toBe(200);
+    expect(result.body.recipes[0]).toMatchObject({ id: "unsafe-thumb", image: null });
+  });
+});
+
 describe("AI nutrition estimate parsing", () => {
   it.each([
     [{ calories: 450, proteinG: 0, carbsG: 70, fatG: 12 }, { calories: 450, proteinG: 0, carbsG: 70, fatG: 12 }],
@@ -216,7 +258,45 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     mockValues.mockReturnValue({ onConflictDoUpdate: mockOnConflictDoUpdate });
   });
 
-  it("calls OpenAI when neither L1 nor DB cache has an estimate, and writes the result to the DB", async () => {
+  it("marks a terminal detail-estimation failure as nutritionUnavailable", async () => {
+    const MEAL_ID = "wp-int-meal";
+
+    // DB miss — force the cold-cache path so estimateNutrition is called.
+    mockLimit.mockResolvedValueOnce([]);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mealLookupResponse(MEAL_ID),
+    } as any);
+
+    // OpenAI hangs indefinitely — resolves only when the AbortController fires.
+    // The route's 300 ms deadline aborts this call, which must expose the
+    // documented terminal-unavailable state instead of an undocumented pending state.
+    mockOpenAiCreate.mockImplementation(
+      (_params: unknown, options?: { signal?: AbortSignal }) =>
+        new Promise<never>((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    );
+
+    const res = await request(app).get(`/v1/recipes/${MEAL_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: MEAL_ID, nutritionUnavailable: true });
+    expect(res.body).not.toHaveProperty("nutritionPending");
+  });
+
+  it("estimates populated by the warm-up appear on a subsequent list response", async () => {
+    // Use fake timers so we can (a) expire the existing For You pool TTL to
+    // force a fresh fetch, and (b) fast-forward past the 500 ms rate-limit
+    // delay inside the warm-up without making the test slow.
+    vi.useFakeTimers();
+    // Advance the fake clock far enough to expire the TTL of any pool cached
+    // by the earlier warm-up tests (1 hour + 1 minute).
+    vi.advanceTimersByTime(1000 * 60 * 61);
+
     const MEAL_ID = "wp-int-meal";
 
     const SECOND_MEAL_ID = "wp-int-meal-2";
@@ -230,8 +310,8 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     } as any);
 
     // OpenAI hangs indefinitely — resolves only when the AbortController fires.
-    // The route's 300 ms AbortController deadline aborts this call, causing the
-    // catch block to return null → the route falls through to nutritionPending:true.
+    // The list warm-up falls back safely, leaving its documented warmupPending
+    // signal available without exposing a recipe-detail pending field.
     mockOpenAiCreate.mockImplementation(
       (_params: unknown, options?: { signal?: AbortSignal }) =>
         new Promise<never>((_resolve, reject) => {
@@ -270,48 +350,8 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     } as any);
 
     // OpenAI hangs indefinitely — resolves only when the AbortController fires.
-    // The route's 300 ms AbortController deadline aborts this call, causing the
-    // catch block to return null → the route falls through to nutritionPending:true.
-    mockOpenAiCreate.mockImplementation(
-      (_params: unknown, options?: { signal?: AbortSignal }) =>
-        new Promise<never>((_resolve, reject) => {
-          options?.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
-          });
-        }),
-    );
-
-    const res = await request(app).get("/v1/recipes");
-
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("recipes");
-    expect(res.body).toHaveProperty("warmupPending");
-  });
-
-  it("estimates populated by the warm-up appear on a subsequent list response", async () => {
-    // Use fake timers so we can (a) expire the existing For You pool TTL to
-    // force a fresh fetch, and (b) fast-forward past the 500 ms rate-limit
-    // delay inside the warm-up without making the test slow.
-    vi.useFakeTimers();
-    // Advance the fake clock far enough to expire the TTL of any pool cached
-    // by the earlier warm-up tests (1 hour + 1 minute).
-    vi.advanceTimersByTime(1000 * 60 * 61);
-
-    const MEAL_ID = "wp-int-meal";
-
-    const SECOND_MEAL_ID = "wp-int-meal-2";
-
-    // DB miss — force the cold-cache path so estimateNutrition is called.
-    mockLimit.mockResolvedValueOnce([]);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mealLookupResponse(MEAL_ID),
-    } as any);
-
-    // OpenAI hangs indefinitely — resolves only when the AbortController fires.
-    // The route's 300 ms AbortController deadline aborts this call, causing the
-    // catch block to return null → the route falls through to nutritionPending:true.
+    // The list warm-up falls back safely, leaving its documented warmupPending
+    // signal available without exposing a recipe-detail pending field.
     mockOpenAiCreate.mockImplementation(
       (_params: unknown, options?: { signal?: AbortSignal }) =>
         new Promise<never>((_resolve, reject) => {
@@ -435,8 +475,8 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     } as any);
 
     // OpenAI hangs indefinitely — resolves only when the AbortController fires.
-    // The route's 300 ms AbortController deadline aborts this call, causing the
-    // catch block to return null → the route falls through to nutritionPending:true.
+    // The list warm-up falls back safely, leaving its documented warmupPending
+    // signal available without exposing a recipe-detail pending field.
     mockOpenAiCreate.mockImplementation(
       (_params: unknown, options?: { signal?: AbortSignal }) =>
         new Promise<never>((_resolve, reject) => {
