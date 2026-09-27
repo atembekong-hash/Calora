@@ -245,4 +245,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('style={styles.recipeScroll}');
     expect(source).toContain('recipeScroll: { flex: 1, minHeight: 0 }');
   });
+
+  it('replaces the legacy provider-fact widget with the upper AI nutrition widget', () => {
+    expect(source).toContain("import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget'");
+    expect(source).toContain('<RecipeAiNutritionWidget');
+    expect(source).toContain('recipeId={detail.id}');
+    expect(source).toContain('ingredients={detail.ingredients ?? []}');
+    expect(source).toContain('sourceYield={sourceYield}');
+    expect(source).toContain('servingCount={servingCount}');
+    expect(source).not.toContain('RecipeNutritionDetails');
+  });
 });

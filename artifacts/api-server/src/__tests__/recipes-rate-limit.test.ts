@@ -92,9 +92,16 @@ describe("public recipe routes — rate limiting", () => {
   it("returns 429 with Retry-After before any upstream or provider work when the IP quota is exceeded", async () => {
     mockCheckRateLimit.mockResolvedValue({ allowed: false, retryAfterSecs: 120 });
 
-    const [list, detail] = await Promise.all([
+    const [list, detail, nutritionEstimate] = await Promise.all([
       request(app).get("/v1/recipes?limit=3"),
       request(app).get("/v1/recipes/52771"),
+      request(app)
+        .post("/v1/recipes/nutrition-estimate")
+        .send({
+          recipeId: "recipe-1",
+          title: "Penne",
+          ingredients: ["200 g penne"],
+        }),
     ]);
 
     const keys = mockCheckRateLimit.mock.calls.map((call) => String(call[0]));
@@ -102,7 +109,13 @@ describe("public recipe routes — rate limiting", () => {
     expect(list.headers["retry-after"]).toBe("120");
     expect(detail.status).toBe(429);
     expect(detail.headers["retry-after"]).toBe("120");
-    expect(keys).toEqual(expect.arrayContaining(["recipes:list:ip:127.0.0.1", "recipes:detail:ip:127.0.0.1"]));
+    expect(nutritionEstimate.status).toBe(429);
+    expect(nutritionEstimate.headers["retry-after"]).toBe("120");
+    expect(keys).toEqual(expect.arrayContaining([
+      "recipes:list:ip:127.0.0.1",
+      "recipes:detail:ip:127.0.0.1",
+      "recipes:nutrition-estimate:ip:127.0.0.1",
+    ]));
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
