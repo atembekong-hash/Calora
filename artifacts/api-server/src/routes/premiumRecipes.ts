@@ -14,6 +14,15 @@ const RATE_WINDOW_SECONDS = 60 * 60;
 const ACCOUNT_RATE_LIMIT = 60;
 const IP_RATE_LIMIT = 120;
 
+// These authenticated, provider-backed results are account-scoped. Prevent
+// conditional response reuse from producing a bodyless 304 on native clients.
+router.use((req, res, next) => {
+  delete req.headers["if-none-match"];
+  delete req.headers["if-modified-since"];
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
+
 type PremiumAccess =
   | { allowed: true; userId: string }
   | { allowed: false; status: 401 | 429 | 503; message: string; retryAfterSecs?: number };

@@ -14,6 +14,8 @@ import { useCalora, type CaloraRecipe } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { retryOrRegenerateRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { premiumRecipeDetailQueryKey } from '@/lib/premiumRecipeQueryKeys';
+import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
+import { PREMIUM_RECIPE_REQUEST_OPTIONS } from '@/lib/premiumRecipeRequest';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -181,10 +183,11 @@ export default function SavedRecipesScreen() {
   const premiumQueries = useQueries({
     queries: premiumIds.map((id) => ({
       queryKey: premiumRecipeDetailQueryKey(user?.id, getGetPremiumRecipeQueryKey(id)),
-      queryFn: ({ signal }: { signal: AbortSignal }) => getPremiumRecipe(id, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getPremiumRecipe(id, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       enabled: Boolean(user?.id),
       staleTime: 1000 * 60 * 10,
-      retry: false,
+      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     })),
   });
 

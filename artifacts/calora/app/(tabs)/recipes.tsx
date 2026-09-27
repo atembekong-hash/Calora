@@ -32,6 +32,7 @@ import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
+import { PREMIUM_RECIPE_REQUEST_OPTIONS } from '@/lib/premiumRecipeRequest';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
@@ -535,9 +536,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       placeholderData: offset > 0 ? (previousData) => previousData : undefined,
       ...PREMIUM_RECIPE_REFRESH_POLICY,
     },
+    request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
   const queryErrorStatus = httpStatus(query.error);
-  const accessDeniedStatus = queryErrorStatus === 401 ? queryErrorStatus : null;
+  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
@@ -607,9 +609,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
     void queryClient.prefetchQuery({
       queryKey: nextQueryKey,
-      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-      retry: false,
+      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     }).catch(() => undefined);
   }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId, visible]);
   useEffect(() => {
@@ -644,10 +647,11 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const missingSavedQueries = useQueries({
     queries: missingSavedIds.map((sourceId) => ({
       queryKey: premiumRecipeDetailQueryKey(userId, getGetPremiumRecipeQueryKey(sourceId)),
-      queryFn: () => getPremiumRecipe(sourceId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getPremiumRecipe(sourceId, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       enabled: Boolean(visible && userId && data?.status === 'available' && !accessDenied),
       staleTime: 1000 * 60 * 10,
-      retry: false,
+      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     })),
   });
   const fetchedSavedRecipes = missingSavedQueries
@@ -855,7 +859,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY } });
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY }, request: PREMIUM_RECIPE_REQUEST_OPTIONS });
   const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {

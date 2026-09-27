@@ -1,5 +1,7 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /** Abort a single request after this bounded duration without changing global defaults. */
+  timeoutMs?: number;
   /** Scoped clients may validate identity before token acquisition/send/retry. */
   authIdentityGuard?: () => Promise<void> | void;
   /** Scoped clients may override the module-wide auth callbacks. */
@@ -235,6 +237,18 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
+/** A caller-scoped transport deadline; callers can offer a safe retry. */
+export class ApiRequestTimeoutError extends Error {
+  readonly name = "ApiRequestTimeoutError";
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Request timed out after ${timeoutMs}ms.`);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export class ResponseParseError extends Error {
   readonly name = "ResponseParseError";
   readonly status: number;
@@ -367,6 +381,7 @@ export async function customFetch<T = unknown>(
   const {
     responseType = "auto",
     headers: headersInit,
+    timeoutMs,
     authIdentityGuard,
     authTokenGetter,
     authTokenRefresher,
@@ -409,7 +424,33 @@ export async function customFetch<T = unknown>(
   if (authIdentityGuard) await authIdentityGuard();
 
   const requestInfo = { method, url: resolveUrl(input) };
-  const send = () => fetch(input, { ...init, method, headers: new Headers(headers) });
+  const send = async () => {
+    const externalSignal = init.signal;
+    const deadlineEnabled = typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0;
+    if (!deadlineEnabled) {
+      return fetch(input, { ...init, method, headers: new Headers(headers) });
+    }
+
+    const deadlineController = new AbortController();
+    let timedOut = false;
+    const abortForExternalSignal = () => deadlineController.abort();
+    if (externalSignal?.aborted) deadlineController.abort();
+    else externalSignal?.addEventListener("abort", abortForExternalSignal, { once: true });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      deadlineController.abort();
+    }, timeoutMs);
+
+    try {
+      return await fetch(input, { ...init, method, headers: new Headers(headers), signal: deadlineController.signal });
+    } catch (error) {
+      if (timedOut) throw new ApiRequestTimeoutError(timeoutMs);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortForExternalSignal);
+    }
+  };
 
   if (isRelativePathUrl(requestInfo.url)) {
     const error = new Error(

@@ -175,6 +175,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('premiumScrollYRef.current = contentOffset.y');
     expect(source).toContain("visible={section === 'premium'}");
     expect(source).toContain('renderItem={renderRecipeSection}');
+    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS } from '@/lib/premiumRecipeRequest'");
+    expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
+    expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
   });
 
   it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {
