@@ -21,6 +21,8 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { RecipeNutritionDetails } from '@/components/RecipeNutritionDetails';
+import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
+import { formatRecipePortions, nextRecipePortions, recipeIngredientMultiplier, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
@@ -34,7 +36,6 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
-import type { RecipeNutritionFacts } from '@workspace/api-zod/recipe-nutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
@@ -348,8 +349,8 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         request: generatedRequest,
       };
       const data = session
-        ? await requestRecipeConcepts<{ concepts?: RecipeConcept[] }>(payload, controller.signal)
-        : await requestGuestRecipeConcepts<{ concepts?: RecipeConcept[] }>(payload, controller.signal);
+        ? await requestRecipeConcepts(payload, controller.signal)
+        : await requestGuestRecipeConcepts(payload, controller.signal);
       if (!mountedRef.current || controller.signal.aborted) return;
       setConcepts(data.concepts ?? []); setStatus('idle');
     } catch (cause) {
@@ -379,8 +380,8 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
     try {
-      const generated = await requestGeneratedRecipe<{ name: string; description: string; ingredients: string[]; instructions: string[]; prepMinutes: number | null; servings: number; allergens?: string[]; nutrition?: ({ calories?: number; proteinG?: number; carbsG?: number; fatG?: number } & RecipeNutritionFacts) }>({ title: concept.title, summary: concept.summary, servings: Number(servings) });
-      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, ...(generated.nutrition ?? {}), source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
+      const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: Number(servings) });
+      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
     } catch {
       // Creating a local draft preserves the user's chosen concept without
       // pretending that unavailable AI output was received.
@@ -989,7 +990,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const scaledCarbs = isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * servingCount : null;
   const scaledFat = isFiniteNutritionValue(detail.fatG) ? detail.fatG * servingCount : null;
   const nutritionIncomplete = nutritionState === 'available' && !hasCompleteNutrition(detail);
-  const servingLabel = servingCount === 0.5 ? '½' : servingCount === 1.5 ? '1½' : servingCount === 2.5 ? '2½' : servingCount === 3.5 ? '3½' : String(servingCount);
+  const sourceYield = sourceRecipeYield(detail);
+  const ingredientMultiplier = recipeIngredientMultiplier(servingCount, sourceYield);
+  const servingLabel = formatRecipePortions(servingCount);
+  const diaryNutrition = scaleRecipeNutritionForDiary(detail, diaryServings);
 
   // --- review flow (local recipes only) ---
   const openReview = () => {
@@ -1026,13 +1030,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const logToDiary = async () => {
     if (!canLog || !detail) return;
     // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
-    const scaled = {
-      ...detail,
-      calories: isFiniteNutritionValue(detail.calories) ? detail.calories * diaryServings : null,
-      proteinG: isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * diaryServings : null,
-      carbsG: isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * diaryServings : null,
-      fatG: isFiniteNutritionValue(detail.fatG) ? detail.fatG * diaryServings : null,
-    };
+    const scaled = { ...detail, ...diaryNutrition };
     const draft = createRecipeDraft(scaled, dateKey(), diaryMealType);
     // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
     // queued and not yet reflected in the foodDrafts closure that
@@ -1054,7 +1052,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // prevents the modal from getting stuck open when React Query refetches
     // on window-focus at the same moment the user taps Add.
     if (ingredients.length > 0) {
-      addIngredientsToShopping(ingredients, detail.id);
+      addIngredientsToShopping(ingredients.map((ingredient) => scaleIngredient(ingredient, ingredientMultiplier)), detail.id);
     }
     setShopVisible(false);
   };
@@ -1066,9 +1064,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     setPlanMealType(recipeSlotTarget?.mealType ?? 'Dinner');
     setPlanVisible(true);
   };
+  const openDiary = () => {
+    setDiaryServings(servingCount);
+    setDiaryLogged(false);
+    setDiaryVisible(true);
+  };
   const addToPlan = () => {
     if (!detail) return;
-    const { calories, proteinG, carbsG, fatG } = detail;
+    const { calories, proteinG, carbsG, fatG } = scaleRecipeNutritionForDiary(detail, servingCount);
     if (!isFiniteNutritionValue(calories) || !isFiniteNutritionValue(proteinG) || !isFiniteNutritionValue(carbsG) || !isFiniteNutritionValue(fatG)) {
       onPlanned('Nutrition is unavailable for this recipe, so it was not added to your plan.');
       return;
@@ -1089,9 +1092,9 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
         generatedImageUrlExpiresAt: detail.imageUrlExpiresAt ?? undefined,
         generatedImageReviewState: detail.imageReviewState,
       } : {}),
-      serving: '1 serving',
+      serving: `${servingLabel} ${recipePortionLabel(servingCount)}`,
       calories, proteinG, carbsG, fatG,
-      ingredients: detail.ingredients ?? [],
+      ingredients: (detail.ingredients ?? []).map((ingredient) => scaleIngredient(ingredient, ingredientMultiplier)),
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
     };
@@ -1178,17 +1181,27 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                   )}
                 </Surface>
 
-                {/* Feature 1: Serving stepper */}
+                {/* Portions affect this detail view, shopping selection, and the plan draft. */}
                 <View style={[styles.servingRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
-                  <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Servings</Text>
+                  <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Portions</Text>
                   <View style={styles.servingStepper}>
-                    <Pressable accessibilityLabel="Decrease servings" onPress={() => setServingCount((c) => Math.max(0.5, Math.round((c - 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+                    <Pressable accessibilityLabel="Decrease recipe portions" onPress={() => setServingCount((current) => nextRecipePortions(current, -1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
                     <Text style={[styles.stepperValue, { color: colors.foreground }]}>{servingLabel}</Text>
-                    <Pressable accessibilityLabel="Increase servings" onPress={() => setServingCount((c) => Math.min(8, Math.round((c + 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+                    <Pressable accessibilityLabel="Increase recipe portions" onPress={() => setServingCount((current) => nextRecipePortions(current, 1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
                   </View>
                 </View>
+                <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>
+                  {sourceYield
+                    ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities match your selected portions.`
+                    : 'Source recipe yield is unavailable. Ingredient quantities are scaled relative to the listed recipe.'}
+                </Text>
 
-                <RecipeNutritionDetails nutrition={detail} servingCount={servingCount} colors={colors} />
+                <RecipeNutritionDetails
+                  nutrition={detail}
+                  servingCount={servingCount}
+                  primaryNutritionAvailable={nutritionState === 'available'}
+                  colors={colors}
+                />
 
                 {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
                 {(detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType) ? (
@@ -1229,7 +1242,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                     {detail.ingredients.map((ingredient, idx) => (
                       <View key={idx} style={styles.ingredientRow}>
                         <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
-                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{servingCount !== 1 ? scaleIngredient(ingredient, servingCount) : ingredient}</Text>
+                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}</Text>
                       </View>
                     ))}
                   </>
@@ -1268,7 +1281,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
                 <Pressable
                   accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'}
-                  onPress={canLog ? (local ? openReview : () => setDiaryVisible(true)) : () => { toggleSavedRecipe(detail.id); onClose(); }}
+                  onPress={canLog ? (local ? openReview : openDiary) : () => { toggleSavedRecipe(detail.id); onClose(); }}
                   style={[styles.primaryAction, { backgroundColor: colors.primary }]}
                 >
                   <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
@@ -1354,17 +1367,17 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
             </View>
             <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>SERVINGS</Text>
             <View style={styles.diaryServingRow}>
-              <Pressable accessibilityLabel="Fewer servings" onPress={() => setDiaryServings((s) => Math.max(0.5, Math.round((s - 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
-              <Text style={[styles.stepperValue, { color: colors.foreground, fontSize: 20, minWidth: 52 }]}>{diaryServings === 0.5 ? '½' : diaryServings === 1.5 ? '1½' : diaryServings === 2.5 ? '2½' : diaryServings === 3.5 ? '3½' : String(diaryServings)}</Text>
-              <Pressable accessibilityLabel="More servings" onPress={() => setDiaryServings((s) => Math.min(4, Math.round((s + 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
-              <Text style={[styles.servingLabel, { color: colors.mutedForeground, marginLeft: 8 }]}>{diaryServings === 1 ? 'serving' : 'servings'}</Text>
+              <Pressable accessibilityLabel="Fewer diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, -1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+              <Text style={[styles.stepperValue, { color: colors.foreground, fontSize: 20, minWidth: 52 }]}>{formatRecipePortions(diaryServings)}</Text>
+              <Pressable accessibilityLabel="More diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, 1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+              <Text style={[styles.servingLabel, { color: colors.mutedForeground, marginLeft: 8 }]}>{recipePortionLabel(diaryServings)}</Text>
             </View>
             <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero, marginTop: 14 }]}>
               <View>
                 <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>YOU'RE LOGGING</Text>
-                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{formatRecipeNutrition(isFiniteNutritionValue(detail.calories) ? detail.calories * diaryServings : null, ' kcal')}</Text>
+                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{formatRecipeNutrition(diaryNutrition.calories, ' kcal')}</Text>
               </View>
-              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {formatRecipeNutrition(isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * diaryServings : null, 'g')}{'\n'}C {formatRecipeNutrition(isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * diaryServings : null, 'g')}{'\n'}F {formatRecipeNutrition(isFiniteNutritionValue(detail.fatG) ? detail.fatG * diaryServings : null, 'g')}</Text>
+              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {formatRecipeNutrition(diaryNutrition.proteinG, 'g')}{'\n'}C {formatRecipeNutrition(diaryNutrition.carbsG, 'g')}{'\n'}F {formatRecipeNutrition(diaryNutrition.fatG, 'g')}</Text>
             </View>
             <Pressable accessibilityLabel="Confirm diary entry" onPress={logToDiary} style={[styles.primaryAction, { backgroundColor: diaryLogged ? colors.accent : colors.primary }]}>
               <Feather name={diaryLogged ? 'check-circle' : 'plus-circle'} size={16} color={diaryLogged ? colors.accentForeground : colors.primaryForeground} />
@@ -1386,21 +1399,21 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
             </View>
             <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
           </View>
-          <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients. Listed items won’t duplicate.</Text>
+          <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients for {servingLabel} {recipePortionLabel(servingCount)}. Listed items won’t duplicate.</Text>
           {/* Use fixed height (not maxHeight) so RNW respects the constraint —
               maxHeight on ScrollView grows to full content on web, pushing
               Add/Cancel buttons past the planSheet's clipping boundary. */}
           <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
             {detail.ingredients?.map((ingredient, idx) => (
               <Pressable key={idx}
-                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
+                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}`}
                 onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
                 style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
               >
                 <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
                   {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
                 </View>
-                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
+                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredientMultiplier !== 1 ? scaleIngredient(ingredient, ingredientMultiplier) : ingredient}</Text>
               </Pressable>
             ))}
           </ScrollView>

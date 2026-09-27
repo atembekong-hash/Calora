@@ -1,6 +1,7 @@
 /** Authenticated recipe and durable generated-media requests. */
 import { supabase } from '@/lib/supabase';
 import { getApiBaseUrl } from '@/lib/api-config';
+import type { GeneratedRecipeInput, GeneratedRecipeResponse, RecipeConceptInput, RecipeConceptResponse } from '@workspace/api-client-react';
 
 export const SIGN_IN_MESSAGE = 'Please sign in to generate recipe ideas.';
 
@@ -136,15 +137,15 @@ export async function authedJsonRequest<T>({ path, body, method = 'POST', signal
 }
 
 export const postWithAuthRetry = <T>(request: AuthedJsonRequest) => authedJsonRequest<T>(request);
-export type ConceptPayload = { ingredients: string[]; mealType: string; servings: number; maxMinutes: number; preferences: string[]; request: string };
-export function requestRecipeConcepts<T>(payload: ConceptPayload, signal?: AbortSignal) { return authedJsonRequest<T>({ path: '/api/v1/recipes/concepts', body: payload, signal, signInMessage: SIGN_IN_MESSAGE, fallbackMessage: 'Ideas are unavailable.' }); }
-export async function requestGuestRecipeConcepts<T>(payload: ConceptPayload, signal?: AbortSignal): Promise<T> {
+export type ConceptPayload = RecipeConceptInput;
+export function requestRecipeConcepts(payload: ConceptPayload, signal?: AbortSignal) { return authedJsonRequest<RecipeConceptResponse>({ path: '/api/v1/recipes/concepts', body: payload, signal, signInMessage: SIGN_IN_MESSAGE, fallbackMessage: 'Ideas are unavailable.' }); }
+export async function requestGuestRecipeConcepts(payload: ConceptPayload, signal?: AbortSignal): Promise<RecipeConceptResponse> {
   const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/guest-concepts`, { method: 'POST', headers: { 'content-type': 'application/json' }, signal, body: JSON.stringify(payload) });
-  const data = (await response.json().catch(() => ({}))) as T & { message?: string };
+  const data = (await response.json().catch(() => ({}))) as RecipeConceptResponse & { message?: string };
   if (!response.ok) throw new Error(data.message ?? 'Guest recipe ideas are unavailable.');
   return data;
 }
-export function requestGeneratedRecipe<T>(payload: { title: string; summary: string; servings: number }) { return authedJsonRequest<T>({ path: '/api/v1/recipes/generated', body: payload, signInMessage: 'Please sign in to finish a recipe.', fallbackMessage: 'Recipe generation is unavailable.' }); }
+export function requestGeneratedRecipe(payload: GeneratedRecipeInput) { return authedJsonRequest<GeneratedRecipeResponse>({ path: '/api/v1/recipes/generated', body: payload, signInMessage: 'Please sign in to finish a recipe.', fallbackMessage: 'Recipe generation is unavailable.' }); }
 export function requestGeneratedRecipePhoto(payload: GeneratedRecipePhotoInput, options: { signal?: AbortSignal; maxRetries?: number } = {}) {
   return authedJsonRequest<GeneratedRecipePhoto>({
     path: '/api/v1/recipes/photo', body: payload, signal: options.signal,

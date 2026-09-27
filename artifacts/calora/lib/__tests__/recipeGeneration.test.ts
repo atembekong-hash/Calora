@@ -77,7 +77,7 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
     mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Lemon herb chicken bowl' }] }));
 
-    const result = await requestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    const result = await requestRecipeConcepts(CONCEPT_PAYLOAD);
 
     expect(result.concepts[0].title).toBe('Lemon herb chicken bowl');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -105,7 +105,7 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
       .mockResolvedValueOnce(jsonResponse(401, { message: SIGN_IN_MESSAGE }))
       .mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Recovered idea' }] }));
 
-    const result = await requestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    const result = await requestRecipeConcepts(CONCEPT_PAYLOAD);
 
     expect(result.concepts[0].title).toBe('Recovered idea');
     expect(mockRefreshSession).toHaveBeenCalledTimes(1);
@@ -144,7 +144,7 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
 describe('requestGuestRecipeConcepts', () => {
   it('posts only the creator payload to the guest endpoint without a bearer token', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Lentil bowl' }] }));
-    const result = await requestGuestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    const result = await requestGuestRecipeConcepts(CONCEPT_PAYLOAD);
     expect(result.concepts[0].title).toBe('Lentil bowl');
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.example.com/api/v1/recipes/guest-concepts');
@@ -158,7 +158,7 @@ describe('requestGeneratedRecipe', () => {
     mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { name: 'Lemon herb chicken bowl', servings: 2 }));
 
-    const result = await requestGeneratedRecipe<{ name: string }>({ title: 'Lemon herb chicken bowl', summary: 'Bright dinner', servings: 2 });
+    const result = await requestGeneratedRecipe({ title: 'Lemon herb chicken bowl', summary: 'Bright dinner', servings: 2 });
 
     expect(result.name).toBe('Lemon herb chicken bowl');
     const [url, init] = fetchMock.mock.calls[0];

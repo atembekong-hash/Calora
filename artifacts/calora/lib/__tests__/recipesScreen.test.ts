@@ -191,6 +191,18 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('formatRecipeNutrition(scaledProtein');
   });
 
+  it('keeps detail, shopping, planning, and diary portion math explicit', () => {
+    expect(source).toContain("import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing'");
+    expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipeIngredientMultiplier, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing'");
+    expect(source).toContain('const sourceYield = sourceRecipeYield(detail);');
+    expect(source).toContain('const ingredientMultiplier = recipeIngredientMultiplier(servingCount, sourceYield);');
+    expect(source).toContain('scaleRecipeNutritionForDiary(detail, diaryServings)');
+    expect(source).toContain('setDiaryServings(servingCount);');
+    expect(source).toContain('scaleIngredient(ingredient, ingredientMultiplier)');
+    expect(source).toContain('serving: `${servingLabel} ${recipePortionLabel(servingCount)}`');
+    expect(source).toContain('Source recipe yield is unavailable');
+  });
+
   it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {
     expect(source).toContain('return mergeRecipePages(current, page);');
     expect(source).toContain('visibleRemote.map((recipe)');

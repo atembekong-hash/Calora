@@ -4,6 +4,7 @@ import type {
   RecipeNutritionFacts,
   RecipeNutrientKey,
 } from "@workspace/api-zod/recipe-nutrition";
+import { RECIPE_NUTRIENT_UNIT_BASIS } from "@workspace/api-zod/recipe-nutrition";
 
 type DetailNutrition = {
   calories?: number | null;
@@ -23,6 +24,7 @@ type Palette = {
 type NutrientRow = {
   label: string;
   unit: "kcal" | "g" | "mg" | "mcg";
+  unitBasis?: string;
   value: number | null | undefined;
   dailyValue?: number;
 };
@@ -69,10 +71,14 @@ function usable(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function formatValue(value: number, unit: NutrientRow["unit"]) {
+function formatValue(
+  value: number,
+  unit: NutrientRow["unit"],
+  unitBasis?: string,
+) {
   const maximumFractionDigits =
     unit === "kcal" ? 0 : value < 1 ? 2 : value < 10 ? 1 : 0;
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)} ${unit}`;
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)} ${unitBasis ?? unit}`;
 }
 
 function scaled(value: number | null | undefined, servingCount: number) {
@@ -92,9 +98,11 @@ export function buildRecipeNutritionSections(
     unit: NutrientRow["unit"],
     value: number | null | undefined,
     dailyValue?: number,
+    unitBasis?: string,
   ): NutrientRow => ({
     label,
     unit,
+    unitBasis,
     value: scaled(value, servingCount),
     dailyValue,
   });
@@ -193,6 +201,7 @@ export function buildRecipeNutritionSections(
           "mcg",
           FACT(nutrition, "vitaminAMcG"),
           DAILY_VALUES.vitaminAMcG,
+          RECIPE_NUTRIENT_UNIT_BASIS.vitaminAMcG,
         ),
         row(
           "Vitamin C",
@@ -211,6 +220,7 @@ export function buildRecipeNutritionSections(
           "mg",
           FACT(nutrition, "vitaminEMg"),
           DAILY_VALUES.vitaminEMg,
+          RECIPE_NUTRIENT_UNIT_BASIS.vitaminEMg,
         ),
         row(
           "Vitamin K",
@@ -235,6 +245,7 @@ export function buildRecipeNutritionSections(
           "mg",
           FACT(nutrition, "niacinMg"),
           DAILY_VALUES.niacinMg,
+          RECIPE_NUTRIENT_UNIT_BASIS.niacinMg,
         ),
         row(
           "Vitamin B5",
@@ -259,6 +270,7 @@ export function buildRecipeNutritionSections(
           "mcg",
           FACT(nutrition, "folateMcG"),
           DAILY_VALUES.folateMcG,
+          RECIPE_NUTRIENT_UNIT_BASIS.folateMcG,
         ),
         row(
           "Choline",
@@ -281,10 +293,12 @@ function percentDailyValue(value: number, dailyValue?: number) {
 export function RecipeNutritionDetails({
   nutrition,
   servingCount,
+  primaryNutritionAvailable,
   colors,
 }: {
   nutrition: DetailNutrition;
   servingCount: number;
+  primaryNutritionAvailable: boolean;
   colors: Palette;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -308,8 +322,9 @@ export function RecipeNutritionDetails({
           Nutrition details
         </Text>
         <Text style={[styles.unavailable, { color: colors.mutedForeground }]}>
-          This recipe source has not provided additional nutrient facts beyond
-          the nutrition summary.
+          {primaryNutritionAvailable
+            ? "This recipe source has not provided additional nutrient facts beyond the nutrition summary."
+            : "Detailed nutrition facts are unavailable from this recipe source."}
         </Text>
       </View>
     );
@@ -404,7 +419,7 @@ export function RecipeNutritionDetails({
                         { color: colors.foreground },
                       ]}
                     >
-                      {formatValue(value, item.unit)}
+                      {formatValue(value, item.unit, item.unitBasis)}
                     </Text>
                     <Text
                       style={[

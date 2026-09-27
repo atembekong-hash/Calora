@@ -292,6 +292,29 @@ describe("AI recipe creation endpoints", () => {
     expect(response.body.nutritionNote).toMatch(/AI-estimated/i);
   });
 
+  it("preserves two-decimal generated nutrients and requests qualified FDA bases", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      name: "Precise lentil bowl",
+      description: "A precise dinner.",
+      ingredients: ["1 cup lentils", "1 lemon"],
+      instructions: ["Cook lentils.", "Season.", "Serve."],
+      prepMinutes: 20,
+      servings: 2,
+      nutrition: { calories: 480.25, proteinG: 24.55, carbsG: 62.44, fatG: 14.1, vitaminAMcG: 90, vitaminEMg: 1.5, niacinMg: 3.2, folateMcG: 40 },
+      allergens: [],
+    }));
+
+    const response = await request(app).post("/v1/recipes/generated").send({ title: "Precise lentil bowl", servings: 2 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.nutrition).toMatchObject({ calories: 480.25, proteinG: 24.55, carbsG: 62.44, fatG: 14.1 });
+    const prompt = mockOpenAiCreate.mock.calls[0][0].messages[0].content;
+    expect(prompt).toContain("mcg RAE");
+    expect(prompt).toContain("mg alpha-tocopherol");
+    expect(prompt).toContain("mg NE");
+    expect(prompt).toContain("mcg DFE");
+  });
+
   it("rejects incomplete model output without leaking an invalid recipe", async () => {
     mockOpenAiCreate.mockResolvedValueOnce(completion({
       ingredients: ["lentils"],

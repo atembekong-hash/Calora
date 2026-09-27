@@ -479,6 +479,273 @@ export interface SyncResponse {
   nextCursor: string;
 }
 
+export interface RecipeConceptInput {
+  /**
+     * @maxItems 18
+     * @items.maxLength 80
+     */
+  ingredients?: string[];
+  /** @maxLength 40 */
+  mealType?: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  servings?: number;
+  /**
+     * @minimum 5
+     * @maximum 180
+     */
+  maxMinutes?: number;
+  /**
+     * @maxItems 8
+     * @items.maxLength 60
+     */
+  preferences?: string[];
+  /** @maxLength 500 */
+  request?: string;
+}
+
+export interface RecipeConcept {
+  title: string;
+  summary: string;
+  whyItFits: string;
+  keyIngredients: string[];
+  /** @nullable */
+  estimatedMinutes: number | null;
+}
+
+export interface RecipeConceptResponse {
+  /**
+     * @minItems 1
+     * @maxItems 5
+     */
+  concepts: RecipeConcept[];
+  nutritionNote: string;
+}
+
+export interface GeneratedRecipeInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  /** @maxLength 220 */
+  summary?: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  servings?: number;
+}
+
+export interface GeneratedRecipeNutrition {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  calories: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  proteinG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  carbsG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fatG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  saturatedFatG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  transFatG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  monounsaturatedFatG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  polyunsaturatedFatG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fiberG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sugarsG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  addedSugarsG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  cholesterolMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sodiumMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  potassiumMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  calciumMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  ironMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  magnesiumMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  zincMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  phosphorusMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  seleniumMcG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  copperMg?: number | null;
+  /**
+     * Vitamin A in mcg RAE.
+     * @minimum 0
+     * @nullable
+     */
+  vitaminAMcG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminCMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminDMcG?: number | null;
+  /**
+     * Vitamin E in mg alpha-tocopherol.
+     * @minimum 0
+     * @nullable
+     */
+  vitaminEMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminKMcG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  thiaminMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  riboflavinMg?: number | null;
+  /**
+     * Niacin in mg NE.
+     * @minimum 0
+     * @nullable
+     */
+  niacinMg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminB5Mg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminB6Mg?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  vitaminB12McG?: number | null;
+  /**
+     * Folate in mcg DFE.
+     * @minimum 0
+     * @nullable
+     */
+  folateMcG?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  cholineMg?: number | null;
+}
+
+export interface GeneratedRecipeResponse {
+  name: string;
+  description: string;
+  /**
+     * @minItems 2
+     * @maxItems 20
+     */
+  ingredients: string[];
+  /**
+     * @minItems 3
+     * @maxItems 10
+     */
+  instructions: string[];
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  servings: number;
+  /**
+     * @minimum 1
+     * @maximum 180
+     * @nullable
+     */
+  prepMinutes: number | null;
+  nutrition: GeneratedRecipeNutrition;
+  /** @maxItems 8 */
+  allergens: string[];
+  nutritionNote: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -511,17 +778,21 @@ export interface Recipe {
   phosphorusMg?: number | null;
   seleniumMcG?: number | null;
   copperMg?: number | null;
+  /** Vitamin A in mcg RAE. */
   vitaminAMcG?: number | null;
   vitaminCMg?: number | null;
   vitaminDMcG?: number | null;
+  /** Vitamin E in mg alpha-tocopherol. */
   vitaminEMg?: number | null;
   vitaminKMcG?: number | null;
   thiaminMg?: number | null;
   riboflavinMg?: number | null;
+  /** Niacin in mg NE. */
   niacinMg?: number | null;
   vitaminB5Mg?: number | null;
   vitaminB6Mg?: number | null;
   vitaminB12McG?: number | null;
+  /** Folate in mcg DFE. */
   folateMcG?: number | null;
   cholineMg?: number | null;
   /** True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear "Nutrition unavailable" label and offer a retry rather than silently showing blanks. */

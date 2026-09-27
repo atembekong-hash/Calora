@@ -6,6 +6,18 @@
 --
 -- Immutability guarantee: once applied, this file must never be edited.
 
+-- The cache table was introduced with this optional nutrition surface rather
+-- than an earlier migration. Create its stable macro foundation first so a
+-- fresh database and a legacy database follow the same forward-only path.
+CREATE TABLE IF NOT EXISTS calora_recipe_nutrition (
+  meal_id text PRIMARY KEY,
+  calories integer NOT NULL,
+  protein_g integer NOT NULL,
+  carbs_g integer NOT NULL,
+  fat_g integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 ALTER TABLE IF EXISTS calora_recipe_nutrition
   ADD COLUMN IF NOT EXISTS saturated_fat_g double precision,
   ADD COLUMN IF NOT EXISTS trans_fat_g double precision,

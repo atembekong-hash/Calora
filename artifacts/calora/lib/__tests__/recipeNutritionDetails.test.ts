@@ -83,4 +83,26 @@ describe("expandable recipe nutrition details", () => {
       "Nutrition overview",
     ]);
   });
+
+  it("retains FDA-qualified display bases for affected Daily Value nutrients", () => {
+    const rows = buildRecipeNutritionSections(
+      {
+        calories: 250,
+        proteinG: 12,
+        carbsG: 30,
+        fatG: 8,
+        vitaminAMcG: 90,
+        vitaminEMg: 1.5,
+        niacinMg: 3.2,
+        folateMcG: 40,
+      },
+      1,
+    ).flatMap((section) => section.rows);
+    const find = (label: string) => rows.find((row) => row.label === label);
+
+    expect(find("Vitamin A")).toMatchObject({ unitBasis: "mcg RAE", dailyValue: 900 });
+    expect(find("Vitamin E")).toMatchObject({ unitBasis: "mg alpha-tocopherol", dailyValue: 15 });
+    expect(find("Niacin (B3)")).toMatchObject({ unitBasis: "mg NE", dailyValue: 16 });
+    expect(find("Folate")).toMatchObject({ unitBasis: "mcg DFE", dailyValue: 400 });
+  });
 });

@@ -38,17 +38,21 @@ export interface Recipe {
   phosphorusMg?: number | null;
   seleniumMcG?: number | null;
   copperMg?: number | null;
+  /** Vitamin A in mcg RAE. */
   vitaminAMcG?: number | null;
   vitaminCMg?: number | null;
   vitaminDMcG?: number | null;
+  /** Vitamin E in mg alpha-tocopherol. */
   vitaminEMg?: number | null;
   vitaminKMcG?: number | null;
   thiaminMg?: number | null;
   riboflavinMg?: number | null;
+  /** Niacin in mg NE. */
   niacinMg?: number | null;
   vitaminB5Mg?: number | null;
   vitaminB6Mg?: number | null;
   vitaminB12McG?: number | null;
+  /** Folate in mcg DFE. */
   folateMcG?: number | null;
   cholineMg?: number | null;
   /** True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear "Nutrition unavailable" label and offer a retry rather than silently showing blanks. */

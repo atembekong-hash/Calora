@@ -272,6 +272,15 @@ describe("Premium recipe routes", () => {
     expect(nonFinite).toMatchObject({ calories: null, nutritionConfidence: "unavailable" });
   });
 
+  it("drops generic provider recipes whose source URL violates the public URI contract", async () => {
+    const { normalizePremiumRecipe } = await import("../lib/premiumRecipes.js");
+
+    expect(normalizePremiumRecipe({ id: "unsafe", name: "Unsafe", sourceUrl: "javascript:alert(1)" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "relative", name: "Relative", sourceUrl: "/recipes/relative" })).toBeNull();
+    expect(normalizePremiumRecipe({ id: "safe", name: "Safe", sourceUrl: "https://provider.example/recipes/safe" }))
+      .toMatchObject({ sourceUrl: "https://provider.example/recipes/safe" });
+  });
+
   it("deduplicates provider rows by stable recipe identity", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,

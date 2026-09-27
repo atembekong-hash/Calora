@@ -221,7 +221,7 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
     cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], ...nutritionFacts,
     calories: normalizedNutrition[0], proteinG: normalizedNutrition[1], carbsG: normalizedNutrition[2], fatG: normalizedNutrition[3],
-    source: "FatSecret", sourceUrl: string(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
+    source: "FatSecret", sourceUrl: recipeSourceUrl(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
     nutritionConfidence: nutritionComplete ? "verified" : "unavailable",
     nutritionSource: nutritionComplete
       ? "FatSecret nutrition data"
@@ -427,6 +427,21 @@ async function fatSecretGatewayFetch(path: string, params: Record<string, string
 function string(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+
+/** The public API promises an absolute HTTP(S) recipe URI, never a provider-controlled scheme. */
+function recipeSourceUrl(value: unknown): string | null {
+  const candidate = string(value);
+  if (!candidate) return null;
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function recipeImage(value: unknown): string | null {
   const candidate = string(value);
   if (!candidate) return null;
@@ -504,7 +519,7 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
   const raw = input as Record<string, unknown>;
   const providerId = string(raw.id) ?? string(raw.sourceId);
   const name = string(raw.name);
-  const sourceUrl = string(raw.sourceUrl);
+  const sourceUrl = recipeSourceUrl(raw.sourceUrl);
   if (!providerId || !name || !sourceUrl) return null;
   const rawNutritionValues = [raw.calories, raw.proteinG, raw.carbsG, raw.fatG];
   const nutritionValues = rawNutritionValues.map((value) => {
