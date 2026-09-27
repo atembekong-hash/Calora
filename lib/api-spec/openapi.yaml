@@ -565,8 +565,36 @@ paths:
                 $ref: "#/components/schemas/CaptureAnalysis"
         "400":
           description: Invalid capture input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
+        "401":
+          description: A signed-in Calora account is required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
+        "429":
+          description: Capture quota exceeded
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
         "502":
           description: Capture provider unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
+        "503":
+          description: Capture is temporarily unavailable, including a protected rate-limiter dependency failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
+        "504":
+          description: Capture provider deadline exceeded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureError" }
   /v1/capture/{sessionId}/approve:
     post:
       operationId: approveCapture
@@ -1423,6 +1451,12 @@ components:
           type: string
           maxLength: 120
           description: Opaque client-only correlation id. It is never treated as server capture provenance.
+    CaptureError:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        retryAfterSecs: { type: integer, minimum: 1 }
     CaptureCandidate:
       type: object
       required: [id, name, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, editable]

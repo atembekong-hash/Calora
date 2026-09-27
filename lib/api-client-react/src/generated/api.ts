@@ -23,6 +23,7 @@ import type {
   ApiMessage,
   CaptureAnalysis,
   CaptureAnalyzeInput,
+  CaptureError,
   CoachFactConsentAccept,
   CoachFactConsentStatus,
   CoachFactContextRequest,
@@ -2081,7 +2082,7 @@ export const analyzeCapture = async (captureAnalyzeInput: CaptureAnalyzeInput, o
 
 
 
-export const getAnalyzeCaptureMutationOptions = <TError = ErrorType<void>,
+export const getAnalyzeCaptureMutationOptions = <TError = ErrorType<CaptureError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext> => {
 
@@ -2110,12 +2111,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type AnalyzeCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeCapture>>>
     export type AnalyzeCaptureMutationBody = BodyType<CaptureAnalyzeInput>
-    export type AnalyzeCaptureMutationError = ErrorType<void>
+    export type AnalyzeCaptureMutationError = ErrorType<CaptureError>
 
     /**
  * @summary Analyze a barcode or food photo for review
  */
-export const useAnalyzeCapture = <TError = ErrorType<void>,
+export const useAnalyzeCapture = <TError = ErrorType<CaptureError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof analyzeCapture>>,

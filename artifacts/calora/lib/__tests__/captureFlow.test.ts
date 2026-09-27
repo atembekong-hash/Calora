@@ -5,6 +5,7 @@ import {
   initialCaptureFlowState,
   interruptedCaptureFailure,
   isCaptureBusy,
+  shouldInterruptCaptureForAppState,
 } from '../captureFlow';
 
 describe('captureFlowReducer', () => {
@@ -47,8 +48,17 @@ describe('classifyCaptureError', () => {
     [{ status: 502, message: 'provider unavailable' }, 'provider'],
     [{ status: 503, message: 'server unavailable' }, 'server'],
     [{ status: 504, message: 'deadline exceeded' }, 'timeout'],
+    [{ name: 'CaptureOperationTimeoutError' }, 'timeout'],
     [{ status: 401, message: 'sign in' }, 'authentication'],
   ] as const)('classifies %o as %s', (error, expectedKind) => {
     expect(classifyCaptureError(error).kind).toBe(expectedKind);
+  });
+});
+
+describe('Scan AppState interruption policy', () => {
+  it('interrupts only durable background transitions, preserving native picker inactivity', () => {
+    expect(shouldInterruptCaptureForAppState('background')).toBe(true);
+    expect(shouldInterruptCaptureForAppState('inactive')).toBe(false);
+    expect(shouldInterruptCaptureForAppState('active')).toBe(false);
   });
 });

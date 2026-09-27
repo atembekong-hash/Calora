@@ -22,7 +22,8 @@ import { enterMotion } from '@/lib/motion';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { captureFlowReducer, classifyCaptureError, initialCaptureFlowState, interruptedCaptureFailure, isAbortError, isCaptureBusy, localCameraFailure } from '@/lib/captureFlow';
+import { captureFlowReducer, classifyCaptureError, initialCaptureFlowState, interruptedCaptureFailure, isAbortError, isCaptureBusy, localCameraFailure, shouldInterruptCaptureForAppState } from '@/lib/captureFlow';
+import { CAPTURE_ANALYSIS_TIMEOUT_MS, CAPTURE_CAMERA_TIMEOUT_MS, CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS, withCaptureDeadline } from '@/lib/captureDeadline';
 import { prepareCaptureImage } from '@/lib/prepareCaptureImage';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
@@ -286,7 +287,11 @@ export default function ScanScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active') interruptCaptureOperation();
+      // iOS can report a transient inactive state while its native library
+      // picker is visible. Only a durable background transition invalidates a
+      // capture operation; unmounts and new attempts remain cancellation
+      // boundaries as well.
+      if (shouldInterruptCaptureForAppState(nextState)) interruptCaptureOperation();
       if (nextState === 'active') setCameraReady(false);
     });
     return () => subscription.remove();
@@ -336,7 +341,11 @@ export default function ScanScreen() {
     retryInputRef.current = { input, previewUri: capturedPhotoUri };
     try {
       const correlationId = `capture-${activeOperationId}`;
-      const next = await requestCaptureAnalysis({ ...input, clientCorrelationId: correlationId }, { signal: controller.signal });
+      const next = await withCaptureDeadline(
+        () => requestCaptureAnalysis({ ...input, clientCorrelationId: correlationId }, { signal: controller.signal }),
+        CAPTURE_ANALYSIS_TIMEOUT_MS,
+        () => controller.abort(),
+      );
       if (
         !isCurrentOperation(activeOperationId)
         || next.clientCorrelationId !== correlationId
@@ -539,17 +548,23 @@ export default function ScanScreen() {
     setHasScanned(true);
     setAltCaptureBanner(null);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
+      const photo = await withCaptureDeadline(
+        () => cameraRef.current!.takePictureAsync({ quality: 1 }),
+        CAPTURE_CAMERA_TIMEOUT_MS,
+      );
       if (!isCurrentOperation(operationId)) return;
       if (!photo?.uri) throw cameraError(`${BRAND.name} did not receive a photo from the camera. Retake it or choose one from your library.`);
       setCapturedPhotoUri(photo.uri);
-      const prepared = await prepareCaptureImage({
-        uri: photo.uri,
-        width: photo.width,
-        height: photo.height,
-        mimeType: 'image/jpeg',
-        fileName: photo.uri,
-      });
+      const prepared = await withCaptureDeadline(
+        () => prepareCaptureImage({
+          uri: photo.uri,
+          width: photo.width,
+          height: photo.height,
+          mimeType: 'image/jpeg',
+          fileName: photo.uri,
+        }),
+        CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS,
+      );
       if (!isCurrentOperation(operationId)) return;
       setCapturedPhotoUri(prepared.uri);
       const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food';
@@ -575,7 +590,10 @@ export default function ScanScreen() {
       const asset = result.assets[0];
       if (!asset?.uri) throw cameraError('The selected photo is unavailable. Choose another image.');
       setCapturedPhotoUri(asset.uri);
-      const prepared = await prepareCaptureImage(asset);
+      const prepared = await withCaptureDeadline(
+        () => prepareCaptureImage(asset),
+        CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS,
+      );
       if (!isCurrentOperation(operationId)) return;
       setCapturedPhotoUri(prepared.uri);
       const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food');
@@ -759,7 +777,7 @@ export default function ScanScreen() {
             </View>
             {!cameraReady && !cameraIssue ? <Text accessibilityLiveRegion="polite" style={[styles.cameraStatus, { color: colors.mutedForeground }]}>Starting camera preview…</Text> : null}
             {cameraIssue ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="camera-off" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{cameraIssue}</Text><Pressable accessibilityLabel="Open device settings for camera access" onPress={openCameraSettings}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Settings</Text></Pressable></View> : null}
-            {captureFlow.stage === 'error' && captureFlow.failure ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{captureFlow.failure.message}</Text>{retryInputRef.current ? <Pressable accessibilityLabel="Retry capture analysis" onPress={retryCapture} disabled={captureBusy}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable> : null}</View> : null}
+            {captureFlow.stage === 'error' && captureFlow.failure ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{captureFlow.failure.message}</Text>{captureFlow.failure.kind === 'authentication' ? <Pressable accessibilityLabel="Sign in again for Scan" onPress={() => router.push('/auth/sign-in')}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Sign in</Text></Pressable> : retryInputRef.current ? <Pressable accessibilityLabel="Retry capture analysis" onPress={retryCapture} disabled={captureBusy}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable> : null}</View> : null}
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
               {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} disabled={captureBusy} onPress={() => { resetCaptureOperation(); setMode(item); setReceiptCapture(false); resetBarcodeCapture(); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
             </View>
