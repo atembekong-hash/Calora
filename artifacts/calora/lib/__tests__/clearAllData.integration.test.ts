@@ -11,7 +11,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
-import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } from '../clearAllData';
+import { performClearAllData, DEFAULT_HYDRATION_PREFS, runAuxiliaryCleanupTasks, type ClearAllDataCtx } from '../clearAllData';
 import { emptyLivingMemory } from '../livingMemory';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '../storageSchema';
 import {
@@ -83,6 +83,37 @@ let pm: PersistenceManager;
 beforeEach(() => {
   storage = makeStore();
   pm = new PersistenceManager(storage, STORAGE_KEY);
+});
+
+describe('runAuxiliaryCleanupTasks: exact failure attribution', () => {
+  const taskNames = ['native schedules', 'notification inbox', 'coach cache', 'diary sync', 'capture approval', 'profile photo'];
+
+  it.each(taskNames)('reports %s when only that cleanup rejects', async (failedName) => {
+    const attempted: string[] = [];
+    const failures = await runAuxiliaryCleanupTasks(taskNames.map((name) => ({
+      name,
+      run: async () => {
+        attempted.push(name);
+        if (name === failedName) throw new Error(`${name} failed`);
+      },
+    })));
+
+    expect(attempted).toEqual(taskNames);
+    expect(failures).toEqual([failedName]);
+  });
+
+  it('retains every failing task label in task order', async () => {
+    const failures = await runAuxiliaryCleanupTasks(taskNames.map((name) => ({
+      name,
+      run: async () => {
+        if (name === 'notification inbox' || name === 'capture approval' || name === 'profile photo') {
+          throw new Error(`${name} failed`);
+        }
+      },
+    })));
+
+    expect(failures).toEqual(['notification inbox', 'capture approval', 'profile photo']);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -35,6 +35,24 @@ export class ClearAllDataError extends Error {
   }
 }
 
+/**
+ * Each best-effort task owns its label so a rejected operation cannot be
+ * reported as a different cleanup failure through an index mismatch.
+ */
+export type AuxiliaryCleanupTask = {
+  name: string;
+  run: () => Promise<unknown>;
+};
+
+/** Run every post-clear cleanup and return the exact rejected task names. */
+export async function runAuxiliaryCleanupTasks(
+  tasks: readonly AuxiliaryCleanupTask[],
+): Promise<string[]> {
+  const results = await Promise.allSettled(tasks.map((task) => task.run()));
+  return results.flatMap((result, index) =>
+    result.status === 'rejected' ? [tasks[index]!.name] : []);
+}
+
 /** Default hydration-reminder preferences — shared between CaloraContext and tests. */
 export const DEFAULT_HYDRATION_PREFS: HydrationReminderPrefs = {
   enabled: false,

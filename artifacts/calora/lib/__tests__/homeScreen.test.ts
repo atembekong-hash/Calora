@@ -496,11 +496,14 @@ describe('Today dashboard — date context and display contracts', () => {
       'utf8',
     );
 
-    expect(source).toContain('Live since opened — connect Health for today’s total');
-    expect(source).toContain('Session steps since opened — connect Health for today’s total');
+    expect(source).toContain('Live since opened — ${healthMessage}');
+    expect(source).toContain('Session steps since opened — ${healthMessage}');
+    expect(source).toContain('`no ${healthStepsProvider} Steps recorded today`');
     expect(source).toContain('const sessionOnly = isLiveSessionOnly(tracking);');
     expect(source).toContain('const hasDailyProviderTotal = tracking.providerSteps !== null;');
     expect(source).toContain("healthConnection.granted.includes('steps')");
+    expect(source).toContain("const hasReadyHealthConnection = healthConnection.authorization === 'requested'");
+    expect(source).toContain("const healthStepsProvider = healthConnection.provider === 'health-connect' ? 'Health Connect' : 'Health';");
     expect(source).toContain("const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);");
     expect(source).toContain("? 'Update Health access'");
     expect(source).toContain("? 'Sync Health'");

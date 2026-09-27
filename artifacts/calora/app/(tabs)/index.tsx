@@ -626,18 +626,36 @@ function WaterCard({
   );
 }
 
-function stepStatusCopy(tracking: LiveStepTrackingState, hasDailyProviderTotal: boolean): string {
-  if (isLiveSessionOnly(tracking)) return tracking.status === 'live'
-    ? 'Live since opened — connect Health for today’s total'
-    : 'Session steps since opened — connect Health for today’s total';
+function stepStatusCopy(
+  tracking: LiveStepTrackingState,
+  hasDailyProviderTotal: boolean,
+  hasReadyHealthConnection: boolean,
+  needsStepsAccess: boolean,
+  healthStepsProvider: string,
+): string {
+  if (isLiveSessionOnly(tracking)) {
+    const healthMessage = needsStepsAccess
+      ? 'update Health access for today’s total'
+      : hasReadyHealthConnection
+        ? `no ${healthStepsProvider} Steps recorded today`
+        : 'connect Health for today’s total';
+    return tracking.status === 'live'
+      ? `Live since opened — ${healthMessage}`
+      : `Session steps since opened — ${healthMessage}`;
+  }
   if (tracking.status === 'live') return 'Live';
   if (tracking.status === 'syncing') return 'Syncing steps…';
   if (tracking.status === 'permission-required') return 'Enable motion access for live steps';
   if (tracking.status === 'denied') return 'Motion access is off';
-  if (tracking.status === 'unavailable') return hasDailyProviderTotal ? 'Updated from Health' : 'Connect Health for today’s total';
+  if (tracking.status === 'unavailable') {
+    if (hasDailyProviderTotal) return 'Updated from Health';
+    return hasReadyHealthConnection ? `No ${healthStepsProvider} Steps recorded today` : 'Connect Health for today’s total';
+  }
   if (tracking.status === 'error') return 'Unable to refresh live steps';
   if (tracking.status === 'health-only') return 'Updated from Health';
-  if (!hasDailyProviderTotal) return 'Connect Health for today’s total';
+  if (!hasDailyProviderTotal) {
+    return hasReadyHealthConnection ? `No ${healthStepsProvider} Steps recorded today` : 'Connect Health for today’s total';
+  }
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
@@ -670,7 +688,14 @@ function StepsTodayCard({
   const hasReadyHealthConnection = healthConnection.authorization === 'requested'
     || healthConnection.authorization === 'authorized'
     || healthConnection.authorization === 'partial';
-  const status = stepStatusCopy(tracking, hasDailyProviderTotal);
+  const healthStepsProvider = healthConnection.provider === 'health-connect' ? 'Health Connect' : 'Health';
+  const status = stepStatusCopy(
+    tracking,
+    hasDailyProviderTotal,
+    hasReadyHealthConnection,
+    needsStepsAccess,
+    healthStepsProvider,
+  );
   const needsMotionSettings = tracking.status === 'denied';
   const needsMotionAccess = tracking.status === 'permission-required';
   const needsRetry = tracking.status === 'error';

@@ -5,7 +5,12 @@ import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
-import { performClearAllData, DEFAULT_HYDRATION_PREFS, ClearAllDataError } from '@/lib/clearAllData';
+import {
+  performClearAllData,
+  DEFAULT_HYDRATION_PREFS,
+  ClearAllDataError,
+  runAuxiliaryCleanupTasks,
+} from '@/lib/clearAllData';
 import { verifyProfilePhotoExists, deleteProfilePhoto, isManagedProfilePhotoUri } from '@/lib/profilePhotoStorage';
 import { buildExportPayload, readPortableProfilePhoto, readRawStorageData, type CaloraExportState } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot } from '@/lib/exportGap';
@@ -2260,19 +2265,20 @@ export function CaloraProvider({
         // Attempt every independent cleanup even when another cleanup fails.
         // These run only after the core commit attempt, so an auxiliary native
         // failure can never prevent already-committed personal-data deletion.
-        const cleanup = await Promise.allSettled([
-          cancelNotificationPlanForClear(),
-          clearNotificationInbox(accountId ?? null),
-          coachFactConsentCache.clear(accountId ?? null),
-          clearDiarySyncState(accountId ?? undefined),
-          clearCaptureApprovalState(accountId ?? undefined),
-          deleteProfilePhoto(FileSystem, accountId).then((result) => {
-            if (!result.ok) throw new Error('profile-photo');
-          }),
-        ]);
-        const cleanupNames = ['native schedules', 'notification inbox', 'coach cache', 'diary sync', 'profile photo'];
-        const cleanupFailures = cleanup.flatMap((result, index) =>
-          result.status === 'rejected' ? [cleanupNames[index]] : []);
+        const cleanupTasks = [
+          { name: 'native schedules', run: () => cancelNotificationPlanForClear() },
+          { name: 'notification inbox', run: () => clearNotificationInbox(accountId ?? null) },
+          { name: 'coach cache', run: () => coachFactConsentCache.clear(accountId ?? null) },
+          { name: 'diary sync', run: () => clearDiarySyncState(accountId ?? undefined) },
+          { name: 'capture approval', run: () => clearCaptureApprovalState(accountId ?? undefined) },
+          {
+            name: 'profile photo',
+            run: () => deleteProfilePhoto(FileSystem, accountId).then((result) => {
+              if (!result.ok) throw new Error('profile-photo');
+            }),
+          },
+        ];
+        const cleanupFailures = await runAuxiliaryCleanupTasks(cleanupTasks);
 
         if (coreFailure) {
           throw new ClearAllDataError('core-clear-failed', cleanupFailures, { cause: coreFailure });
