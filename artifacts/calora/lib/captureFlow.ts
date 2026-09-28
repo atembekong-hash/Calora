@@ -110,6 +110,9 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
   if (name === 'CaptureCameraError') {
     return { kind: 'local_camera', message: message || 'The camera could not capture a photo. Check camera access and try again.' };
   }
+  if (name === 'CaptureRequestAuthenticationError') {
+    return { kind: 'authentication', message: 'Sign in again before analyzing a photo.' };
+  }
   if (name === 'CaptureOperationTimeoutError') {
     return { kind: 'timeout', message: 'Analysis took too long. Your photo is still private on this device; retry when ready.' };
   }

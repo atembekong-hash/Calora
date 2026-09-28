@@ -1,4 +1,4 @@
-import { analyzeCapture as requestCaptureAnalysis, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
+import { type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult, type CameraMode } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -25,6 +25,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { captureFlowReducer, classifyCaptureError, initialCaptureFlowState, interruptedCaptureFailure, isAbortError, isCaptureBusy, localCameraFailure, shouldInterruptCaptureForAppState } from '@/lib/captureFlow';
 import { CAPTURE_ANALYSIS_TIMEOUT_MS, CAPTURE_CAMERA_TIMEOUT_MS, CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS, withCaptureDeadline } from '@/lib/captureDeadline';
 import { prepareCaptureImage } from '@/lib/prepareCaptureImage';
+import { requestAuthenticatedCaptureAnalysis } from '@/lib/captureRequest';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
@@ -332,7 +333,8 @@ export default function ScanScreen() {
   ): Promise<CaptureAnalysis | null> => {
     const activeOperationId = operationId ?? beginCaptureOperation('uploading');
     if (operationId !== undefined) dispatchCaptureFlow({ type: 'uploading', operationId });
-    if (!session?.access_token) {
+    const captureAccessToken = session?.access_token;
+    if (!captureAccessToken) {
       failCaptureOperation(activeOperationId, { status: 401, message: 'Sign in again before analyzing a photo.' });
       return null;
     }
@@ -342,7 +344,11 @@ export default function ScanScreen() {
     try {
       const correlationId = `capture-${activeOperationId}`;
       const next = await withCaptureDeadline(
-        () => requestCaptureAnalysis({ ...input, clientCorrelationId: correlationId }, { signal: controller.signal }),
+        () => requestAuthenticatedCaptureAnalysis(
+          { ...input, clientCorrelationId: correlationId },
+          captureAccessToken,
+          controller.signal,
+        ),
         CAPTURE_ANALYSIS_TIMEOUT_MS,
         () => controller.abort(),
       );
