@@ -23,7 +23,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
 import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
-import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
@@ -1852,11 +1852,10 @@ export default function RecipesScreen() {
           </Pressable>
         )}
       />
-      <SwipeableTabList
-        items={RECIPE_SECTIONS}
-        activeItem={activeSection}
-        onChange={changeSection}
+      <View
+        accessibilityRole="tablist"
         accessibilityLabel="Recipe sections"
+        accessibilityHint="Select Discover, Plus, or Create"
         testID="recipes-section-tabs"
         style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
       >
@@ -1866,7 +1865,7 @@ export default function RecipesScreen() {
             <Text style={[styles.sectionTabText, { color: selectedSection ? colors.foreground : colors.mutedForeground }]}>{section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}</Text>
           </Pressable>;
         })}
-      </SwipeableTabList>
+      </View>
       <SwipeableSectionPager
         items={RECIPE_SECTIONS}
         activeItem={activeSection}
