@@ -215,10 +215,11 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
     if (value && typeof value === 'object') {
       const percentages = ['breakfastPercentage', 'lunchPercentage', 'dinnerPercentage', 'snackPercentage'];
       if (percentages.every((key) => typeof value[key] === 'number' && Number.isFinite(value[key]))) {
+        const roundedPercentages = Object.fromEntries(percentages.map((key) => [key, Math.round(value[key] as number)]));
         result.push({
           key: 'daily.meal_distribution', status: 'available',
-          statement: `Today's logged meal distribution is Breakfast ${value.breakfastPercentage}%, Lunch ${value.lunchPercentage}%, Dinner ${value.dinnerPercentage}%, and Snack ${value.snackPercentage}%.`,
-          values: Object.fromEntries(percentages.map((key) => [key, value[key] as number])),
+          statement: `Today's logged meal distribution is Breakfast ${roundedPercentages.breakfastPercentage}%, Lunch ${roundedPercentages.lunchPercentage}%, Dinner ${roundedPercentages.dinnerPercentage}%, and Snack ${roundedPercentages.snackPercentage}%.`,
+          values: roundedPercentages,
           unit: '%', timeWindow: 'today', confidence: confidence([mealDistribution]), freshness: 'fresh', provenance: provenance([mealDistribution]),
           limitations: ['This describes logged meal timing and distribution; it is not a prescription for how to eat.'],
         });
@@ -270,10 +271,11 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
   if (weightTrend && eligible([weightTrend])) {
     const value = weightTrend.value;
     if (value && typeof value === 'object' && typeof value.direction === 'string' && typeof value.deltaKg === 'number' && typeof value.entryCount === 'number') {
+      const deltaKg = Math.round(value.deltaKg);
       result.push({
         key: 'weight.short_trend', status: 'available',
-        statement: `The recent 28-day weight trend is ${value.direction} with a ${value.deltaKg} kg change across ${value.entryCount} entries.`,
-        values: { direction: value.direction, deltaKg: value.deltaKg, entryCount: value.entryCount },
+        statement: `The recent 28-day weight trend is ${value.direction} with a ${deltaKg} kg change across ${value.entryCount} entries.`,
+        values: { direction: value.direction, deltaKg, entryCount: value.entryCount },
         unit: 'kg', timeWindow: 'recent', confidence: confidence([weightTrend]), freshness: 'fresh', provenance: provenance([weightTrend]),
         limitations: ['Weight is one signal and does not determine health, progress, or what you should eat.'],
       });

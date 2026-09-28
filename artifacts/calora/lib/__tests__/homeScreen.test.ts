@@ -453,7 +453,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('selectVisibleTodayInsight');
   });
 
-  it('rounds displayed calories while retaining one decimal place for macro display', async () => {
+  it('renders dashboard calories, macros, and burned energy as whole numbers', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -462,8 +462,10 @@ describe('Today dashboard — date context and display contracts', () => {
     );
 
     expect(source).toContain('formatWhole(log.calories)');
-    expect(source).toContain('formatQuantity(value, 1)');
-    expect(source).toContain('formatQuantity(selectedTotals.protein, 1)');
+    expect(source).toContain('formatQuantity(value)');
+    expect(source).toContain('formatQuantity(selectedTotals.protein)');
+    expect(source).toContain('formatWhole(burned)');
+    expect(source).not.toContain('burned?.toLocaleString()');
   });
 
   it('opens a direct independent macro-goal editor from Macro balance', async () => {

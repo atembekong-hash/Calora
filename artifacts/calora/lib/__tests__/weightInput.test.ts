@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KG_PER_LB, displayWeight, validateWeightInput } from '../weightInput';
+import { KG_PER_LB, displayWeight, formatWeight, validateWeightInput } from '../weightInput';
 
 describe('validateWeightInput', () => {
   it('converts an imperial input to the canonical kilogram value', () => {
@@ -16,5 +16,10 @@ describe('validateWeightInput', () => {
   it('formats canonical kilograms in the selected display unit', () => {
     expect(displayWeight(70, 'metric')).toBe(70);
     expect(displayWeight(70, 'imperial')).toBeCloseTo(154.324, 3);
+  });
+
+  it('presents converted weight values as whole numbers', () => {
+    expect(formatWeight(70.45, 'metric')).toBe('70 kg');
+    expect(formatWeight(70.45, 'imperial')).toBe('155 lb');
   });
 });

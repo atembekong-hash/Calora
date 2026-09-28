@@ -7,9 +7,9 @@ describe('presentation formatters', () => {
     expect(formatGrams(157.485232)).toBe('157 g');
   });
 
-  it('formats percentages and useful decimal quantities consistently', () => {
+  it('formats percentages and quantities as whole numbers', () => {
     expect(formatPercent(98.4)).toBe('98%');
-    expect(formatQuantity(1.5000000002)).toBe('1.5');
+    expect(formatQuantity(1.5000000002)).toBe('2');
   });
 
   it('never exposes invalid numeric artifacts', () => {

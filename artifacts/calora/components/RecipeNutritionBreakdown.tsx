@@ -62,10 +62,12 @@ function scale(value: number | undefined, servingCount: number) {
     : undefined;
 }
 
-function amount(value: number, unit: NutrientRow["unit"], unitBasis?: string) {
-  const maximumFractionDigits =
-    unit === "kcal" ? 0 : value < 1 ? 2 : value < 10 ? 1 : 0;
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)} ${unitBasis ?? unit}`;
+export function formatRecipeNutritionAmount(
+  value: number,
+  unit: NutrientRow["unit"],
+  unitBasis?: string,
+) {
+  return `${Math.round(value).toLocaleString("en-US")} ${unitBasis ?? unit}`;
 }
 
 function percentDailyValue(value: number, dailyValue?: number) {
@@ -294,7 +296,7 @@ export function RecipeNutritionBreakdown({
                   {item.label}
                 </Text>
                 <Text style={[styles.amount, { color: colors.foreground }]}>
-                  {amount(value, item.unit, item.unitBasis)}
+                  {formatRecipeNutritionAmount(value, item.unit, item.unitBasis)}
                 </Text>
                 <Text style={[styles.dv, { color: colors.mutedForeground }]}>
                   {percent === null ? "—" : `${percent}%`}

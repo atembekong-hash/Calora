@@ -12,8 +12,8 @@ export function weightUnitLabel(unit: WeightUnit): 'kg' | 'lb' {
   return unit === 'imperial' ? 'lb' : 'kg';
 }
 
-export function formatWeight(kg: number, unit: WeightUnit, digits = 1): string {
-  return `${displayWeight(kg, unit).toFixed(digits)} ${weightUnitLabel(unit)}`;
+export function formatWeight(kg: number, unit: WeightUnit): string {
+  return `${Math.round(displayWeight(kg, unit)).toLocaleString()} ${weightUnitLabel(unit)}`;
 }
 
 export type WeightInputResult =
@@ -32,8 +32,8 @@ export function validateWeightInput(value: string, unit: WeightUnit): WeightInpu
 
   const kg = unit === 'imperial' ? displayValue * KG_PER_LB : displayValue;
   if (kg < MIN_WEIGHT_KG || kg > MAX_WEIGHT_KG) {
-    const minimum = displayWeight(MIN_WEIGHT_KG, unit).toFixed(unit === 'imperial' ? 0 : 0);
-    const maximum = displayWeight(MAX_WEIGHT_KG, unit).toFixed(unit === 'imperial' ? 0 : 0);
+    const minimum = Math.round(displayWeight(MIN_WEIGHT_KG, unit)).toLocaleString();
+    const maximum = Math.round(displayWeight(MAX_WEIGHT_KG, unit)).toLocaleString();
     return { ok: false, message: `Enter a weight between ${minimum} and ${maximum} ${weightUnitLabel(unit)}.` };
   }
   return { ok: true, kg, displayValue };

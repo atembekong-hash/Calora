@@ -67,10 +67,18 @@ function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
     return "No signed-in app snapshot is available. Do not claim to know the user's logs, profile, plans, or history.";
   }
   return JSON.stringify({
-    profile: snapshot.profile,
-    today: snapshot.today,
+    profile: snapshot.profile
+      ? { ...snapshot.profile, calorieTarget: Math.round(snapshot.profile.calorieTarget) }
+      : null,
+    today: {
+      ...snapshot.today,
+      calories: Math.round(snapshot.today.calories),
+      proteinG: Math.round(snapshot.today.proteinG),
+      carbsG: Math.round(snapshot.today.carbsG),
+      fatG: Math.round(snapshot.today.fatG),
+    },
     recentDaysLogged: snapshot.recentDaysLogged,
-    latestWeightKg: snapshot.latestWeightKg,
+    latestWeightKg: snapshot.latestWeightKg === null ? null : Math.round(snapshot.latestWeightKg),
   });
 }
 
@@ -87,6 +95,7 @@ export function buildCoachV2Messages(input: {
         "For signed-in users, use only the bounded server snapshot below. Never claim access to food names, notes, images, raw timelines, account identifiers, complete history, health-provider data, or any data that the snapshot does not contain.",
         "If the snapshot has no data, say so plainly. Do not invent meals, targets, nutrients, hydration, plans, or trends.",
         "You can explain Calora's local features generally, but do not imply an action was completed unless the user completed it in the app.",
+        "Use whole numbers for nutrition, calories, health, weight, hydration, and percentage measurements in every response.",
         `SERVER_OWNED_SNAPSHOT: ${snapshotForPrompt(input.snapshot)}`,
       ].join("\n"),
     },

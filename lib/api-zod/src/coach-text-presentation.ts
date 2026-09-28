@@ -4,6 +4,8 @@ export type CoachPlainTextOptions = {
    * while decorative provider emoji are removed from Coach replies.
    */
   removeEmoji?: boolean;
+  /** Rounds nutrition and health measurements only in Coach-owned copy. */
+  roundMeasurements?: boolean;
 };
 
 const CONTROL_OR_SPOOFING_CHARACTERS =
@@ -11,6 +13,15 @@ const CONTROL_OR_SPOOFING_CHARACTERS =
 const DECORATIVE_EMOJI = /[\u{1F000}-\u{1FAFF}\u2600-\u27BF]\uFE0F?/gu;
 const HTML_PRESENTATION_TAG =
   /<\/?(?:b|strong|i|em|u|s|del|br|p|div|span|h[1-6]|ul|ol|li|code|pre)(?:\s[^<>]*)?\s*\/?>/gi;
+const DECIMAL_MEASUREMENT = /(^|[^\w/])(-?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d+)\s*(kcal|cal|g|mg|mcg|kg|lb|lbs|oz|fl\s*oz|%)(?=\b|\s|$)/gi;
+
+function roundMeasuredDecimal(text: string): string {
+  return text.replace(DECIMAL_MEASUREMENT, (match, prefix: string, numeric: string, unit: string) => {
+    const value = Number(numeric.replace(/,/g, ""));
+    const separator = unit === "%" ? "" : " ";
+    return Number.isFinite(value) ? `${prefix}${Math.round(value).toLocaleString()}${separator}${unit}` : match;
+  });
+}
 
 function removePairedInlineMarkup(text: string): string {
   let formatted = text
@@ -68,6 +79,7 @@ export function formatCoachPlainText(
   if (options.removeEmoji) {
     text = text.replace(DECORATIVE_EMOJI, "");
   }
+  if (options.roundMeasurements) text = roundMeasuredDecimal(text);
 
   const lines = text
     .split("\n")
@@ -85,6 +97,6 @@ export function formatCoachPlainText(
  * keeps the established provider-failure behavior for blank/invalid content.
  */
 export function normalizeCoachAssistantReply(value: unknown): string | null {
-  const formatted = formatCoachPlainText(value, { removeEmoji: true });
+  const formatted = formatCoachPlainText(value, { removeEmoji: true, roundMeasurements: true });
   return formatted.length > 0 && formatted.length <= 4000 ? formatted : null;
 }
