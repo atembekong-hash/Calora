@@ -10,6 +10,7 @@ const testflight = readFileSync(path.join(root, ".github/workflows/calora-testfl
 const nativeAuth = readFileSync(path.join(root, ".github/workflows/native-auth-preflight.yml"), "utf8");
 const encryptedRecovery = readFileSync(path.join(root, ".github/workflows/native-encrypted-recovery.yml"), "utf8");
 const deletionFence = readFileSync(path.join(root, ".github/workflows/account-deletion-fence.yml"), "utf8");
+const iosSigningMonitor = readFileSync(path.join(root, ".github/workflows/monitor-ios-signing.yml"), "utf8");
 const workflowsDirectory = path.join(root, ".github/workflows");
 const testflightBuildJob = testflight.slice(0, testflight.indexOf("  attest-testflight-evidence:"));
 const attestationJob = testflight.slice(testflight.indexOf("  attest-testflight-evidence:"));
@@ -119,4 +120,11 @@ test("all active workflow actions and service images are immutable", () => {
 
 test("release validation runs deterministic native preflight unit coverage", () => {
   assert.match(release, /pnpm --filter @workspace\/calora run test:release:native-preflight-unit/);
+});
+
+test("iOS signing monitor maps the canonical Expo token secret without exposing it", () => {
+  assert.match(iosSigningMonitor, /^\s*EXPO_TOKEN:\s*\$\{\{ secrets\.EXPO_TOKEN \}\}\s*$/m);
+  assert.doesNotMatch(iosSigningMonitor, /CALORA_EXPO_TOKEN/);
+  assert.match(iosSigningMonitor, /pnpm test:release:ios-signing:monitor/);
+  assert.match(iosSigningMonitor, /permissions:\n\s+contents: read/);
 });

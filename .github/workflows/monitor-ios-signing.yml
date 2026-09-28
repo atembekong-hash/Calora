@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      EXPO_TOKEN: ${{ secrets.CALORA_EXPO_TOKEN }}
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       IOS_SIGNING_WARNING_DAYS: ${{ inputs.warning_days || '30' }}
     steps:
       - name: Check out monitor
