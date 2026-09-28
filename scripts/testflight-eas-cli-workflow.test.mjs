@@ -12,6 +12,7 @@ const workflow = readFileSync(
 
 test("TestFlight build-number preflight uses the supported EAS CLI build-list client", () => {
   assert.match(workflow, /eas-version: 24\.8\.0/);
+  assert.match(workflow, /packager: npm/);
   assert.match(workflow, /token: \$\{\{ secrets\.EXPO_TOKEN \}\}/);
   assert.match(workflow, /Verify monotonic iOS production build number/);
   assert.match(workflow, /pnpm run test:release:ios-build-number/);
