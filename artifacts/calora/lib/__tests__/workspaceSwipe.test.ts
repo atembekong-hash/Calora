@@ -168,7 +168,10 @@ describe('planner day pager rendering', () => {
     expect(plannerSource).not.toContain('disableAnimation');
     expect(pagerSource).toContain('styles.pagerTrack');
     expect(pagerSource).toContain('Gesture.Pan()');
-    expect(pagerSource).toContain('.manualActivation(true)');
+    expect(pagerSource).toContain('.activeOffsetX([-WORKSPACE_SWIPE_ACTIVATION_DISTANCE, WORKSPACE_SWIPE_ACTIVATION_DISTANCE])');
+    expect(pagerSource).toContain('.failOffsetY([-WORKSPACE_SWIPE_ACTIVATION_DISTANCE, WORKSPACE_SWIPE_ACTIVATION_DISTANCE])');
+    expect(pagerSource).toContain('.enabled(!excluded)');
+    expect(pagerSource).not.toContain('.manualActivation(true)');
     expect(pagerSource).toContain('getWorkspacePagerRestingOffset');
     expect(pagerSource).toContain('translateX.value =');
     expect(swipeMathSource).toContain("'worklet';");

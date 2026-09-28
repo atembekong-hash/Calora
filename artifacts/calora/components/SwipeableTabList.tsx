@@ -17,7 +17,6 @@ import {
   isWorkspaceSwipeIntent,
   isWorkspaceSwipeVelocityIntent,
   WORKSPACE_SWIPE_ACTIVATION_DISTANCE,
-  WORKSPACE_SWIPE_DOMINANCE_RATIO,
 } from '@/lib/workspaceSwipe';
 
 type SwipeableTabListProps<T extends string> = {
@@ -81,12 +80,6 @@ export function SwipeGestureExclusion({
 function getActiveIndex<T extends string>(items: readonly T[], activeItem: T) {
   const index = items.indexOf(activeItem);
   return index >= 0 ? index : 0;
-}
-
-function isClearlyVertical(dx: number, dy: number) {
-  'worklet';
-  return Math.abs(dy) >= WORKSPACE_SWIPE_ACTIVATION_DISTANCE
-    && Math.abs(dy) > Math.abs(dx) * WORKSPACE_SWIPE_DOMINANCE_RATIO;
 }
 
 /** Keeps tab presses intact while allowing a deliberate swipe across the tab strip. */
@@ -174,9 +167,7 @@ export function SwipeableSectionPager<T extends string>({
   const translateX = useSharedValue(getWorkspacePagerRestingOffset(activeIndex, windowWidth, hasAdjacentPages));
   const activeIndexValue = useSharedValue(activeIndex);
   const itemCountValue = useSharedValue(items.length);
-  const excluded = useSharedValue(false);
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
+  const [excluded, setExcludedState] = useState(false);
   const itemsRef = useRef(items);
   const onChangeRef = useRef(onChange);
   itemsRef.current = items;
@@ -194,8 +185,8 @@ export function SwipeableSectionPager<T extends string>({
   }, []);
 
   const setExcluded = useCallback((isExcluded: boolean) => {
-    excluded.value = isExcluded;
-  }, [excluded]);
+    setExcludedState(isExcluded);
+  }, []);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const nextWidth = event.nativeEvent.layout.width;
@@ -207,30 +198,15 @@ export function SwipeableSectionPager<T extends string>({
 
   const pagerSwipe = useMemo(
     () => Gesture.Pan()
-      .manualActivation(true)
+      // Declarative thresholds let Android pass ordinary taps and vertical
+      // ScrollView gestures to the native child controls. A manual pan
+      // recognizer can retain the pointer stream before a Pressable receives
+      // its release, leaving a whole pane seemingly unresponsive.
+      .enabled(!excluded)
+      .activeOffsetX([-WORKSPACE_SWIPE_ACTIVATION_DISTANCE, WORKSPACE_SWIPE_ACTIVATION_DISTANCE])
+      .failOffsetY([-WORKSPACE_SWIPE_ACTIVATION_DISTANCE, WORKSPACE_SWIPE_ACTIVATION_DISTANCE])
       .maxPointers(1)
       .averageTouches(true)
-      .onTouchesDown((event) => {
-        const touch = event.allTouches[0];
-        if (!touch) return;
-        startX.value = touch.absoluteX;
-        startY.value = touch.absoluteY;
-      })
-      .onTouchesMove((event, manager) => {
-        const touch = event.allTouches[0];
-        if (!touch) return;
-        if (excluded.value) {
-          manager.fail();
-          return;
-        }
-        const dx = touch.absoluteX - startX.value;
-        const dy = touch.absoluteY - startY.value;
-        if (isClearlyVertical(dx, dy)) {
-          manager.fail();
-          return;
-        }
-        if (isWorkspaceSwipeIntent(dx, dy)) manager.activate();
-      })
       .onUpdate((event) => {
         const dragOffset = getWorkspaceSwipeOffset(
           activeIndexValue.value,
@@ -265,7 +241,7 @@ export function SwipeableSectionPager<T extends string>({
           hasAdjacentPages,
         );
       }),
-    [activeIndexValue, commitIndex, excluded, hasAdjacentPages, itemCountValue, pageWidth, startX, startY, translateX],
+    [activeIndexValue, commitIndex, excluded, hasAdjacentPages, itemCountValue, pageWidth, translateX],
   );
 
   const trackStyle = useAnimatedStyle(() => ({

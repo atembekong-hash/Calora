@@ -16,6 +16,17 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('disableAnimation');
   });
 
+  it('keeps Recipes tab presses outside the horizontal pan responder', () => {
+    const tabStart = source.indexOf('testID="recipes-section-tabs"');
+    const tabSurface = source.slice(Math.max(0, tabStart - 600), tabStart + 1_000);
+
+    expect(tabStart).toBeGreaterThan(-1);
+    expect(source).toContain("import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList'");
+    expect(source).not.toContain('<SwipeableTabList');
+    expect(tabSurface).toContain('accessibilityRole="tablist"');
+    expect(tabSurface).toContain('onPress={() => changeSection(section)}');
+  });
+
   it('removes nonessential motion from Discover, Plus, and Create surfaces', () => {
     expect(source).not.toContain('FadeInDown');
     expect(source).toContain('transition={0}');
