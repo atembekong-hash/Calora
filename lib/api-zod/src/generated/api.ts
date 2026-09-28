@@ -2460,6 +2460,61 @@ export const ClearCoachV2ConversationResponse = zod.void()
 
 
 /**
+ * @summary List the signed-in account's current and saved Coach chats
+ */
+export const listCoachV2ConversationsResponseConversationsItemPreviewMax = 160;
+
+export const listCoachV2ConversationsResponseConversationsItemTurnCountMin = 0;
+export const listCoachV2ConversationsResponseConversationsItemTurnCountMax = 100000;
+
+export const listCoachV2ConversationsResponseConversationsMax = 50;
+
+
+
+export const ListCoachV2ConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "preview": zod.string().max(listCoachV2ConversationsResponseConversationsItemPreviewMax).nullable(),
+  "turnCount": zod.number().int().min(listCoachV2ConversationsResponseConversationsItemTurnCountMin).max(listCoachV2ConversationsResponseConversationsItemTurnCountMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "active": zod.boolean()
+})).max(listCoachV2ConversationsResponseConversationsMax)
+})
+
+
+/**
+ * Existing messages remain saved and can be reopened. A new chat is rejected while Coach is still replying.
+ * @summary Archive the active Coach chat and start a new empty chat
+ */
+export const StartNewCoachV2ConversationResponse = zod.void()
+
+
+/**
+ * @summary Reopen one of the signed-in account's saved Coach chats
+ */
+export const OpenCoachV2ConversationParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const openCoachV2ConversationResponseTurnsItemContentMax = 4000;
+
+export const openCoachV2ConversationResponseTurnsMax = 100;
+
+
+
+export const OpenCoachV2ConversationResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().min(1).max(openCoachV2ConversationResponseTurnsItemContentMax),
+  "createdAt": zod.coerce.date()
+})).max(openCoachV2ConversationResponseTurnsMax),
+  "personalizationEnabled": zod.boolean()
+})
+
+
+/**
  * @summary Read signed-in Coach personalization settings
  */
 export const GetCoachV2SettingsResponse = zod.object({

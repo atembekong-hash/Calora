@@ -16,6 +16,9 @@ describe("clean-room Coach screen", () => {
   it("uses only the new server-owned Coach API", () => {
     expect(source).toContain("sendCoachV2Message");
     expect(source).toContain("getCoachV2Conversation");
+    expect(source).toContain("listCoachV2Conversations");
+    expect(source).toContain("openCoachV2Conversation");
+    expect(source).toContain("startNewCoachV2Conversation");
     expect(source).toContain("clearCoachV2Conversation");
     expect(source).toContain("updateCoachV2Settings");
     expect(source).not.toContain("useCoachSendAdapter");
@@ -32,8 +35,8 @@ describe("clean-room Coach screen", () => {
     expect(source).toContain(
       "Guest messages are not saved and do not use personal app data.",
     );
-    expect(source).toContain("if (!signedIn || isClearing) return;");
-    expect(source).toContain("Clear chat history");
+    expect(source).toContain("if (!signedIn || isManagingChat) return;");
+    expect(source).toContain("Clear all chat history");
   });
 
   it("includes an explicit compact personalization control and a clear-history confirmation", () => {
@@ -41,9 +44,8 @@ describe("clean-room Coach screen", () => {
     expect(source).toContain("personalizationEnabled");
     expect(source).toContain("Clear Coach chat history?");
     expect(source).toContain(
-      "This permanently removes your saved Coach conversation from your",
+      "This permanently removes all saved Coach chats from your account.",
     );
-    expect(source).toContain("account.");
   });
 
   it("renders live, hydrated, and error Coach copy through the shared plain-text boundary", () => {
@@ -56,16 +58,29 @@ describe("clean-room Coach screen", () => {
   });
 
   it("clears an existing transcript before switching signed-in account history", () => {
-    expect(source).toContain("setTurns([]);\n    setIsLoadingHistory(true);");
+    expect(source).toContain(
+      "setTurns([]);\n    setSavedChats([]);\n    setIsLoadingHistory(true);",
+    );
   });
 
-  it("provides an explicit new-chat action without weakening saved-history deletion", () => {
+  it("archives instead of deleting when starting a new saved chat", () => {
     expect(source).toContain('testID="coach-new-chat"');
     expect(source).toContain('testID="coach-menu-new-chat"');
     expect(source).toContain("const startNewChat = () => {");
     expect(source).toContain('setConfirmAction("new")');
-    expect(source).toContain("clearHistory(confirmAction)");
+    expect(source).toContain("const createNewChat = async () => {");
+    expect(source).toContain("await startNewCoachV2Conversation()");
+    expect(source).toContain("Your current chat will be saved in Saved chats");
     expect(source).toContain("await clearCoachV2Conversation()");
+  });
+
+  it("lists and reopens archived account chats without exposing them to guests", () => {
+    expect(source).toContain("const archivedChats = savedChats.filter");
+    expect(source).toContain("Saved chats");
+    expect(source).toContain("No earlier chats saved yet.");
+    expect(source).toContain("const openSavedChat = async");
+    expect(source).toContain("await openCoachV2Conversation(conversationId)");
+    expect(source).toContain("testID={`coach-saved-chat-${conversation.id}`}");
   });
 
   it("uses the requested three-line main-menu affordance", () => {

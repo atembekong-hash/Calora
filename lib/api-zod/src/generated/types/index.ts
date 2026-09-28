@@ -79,6 +79,8 @@ export * from './coachV2ChatResponse';
 export * from './coachV2ChatResponseConversationMode';
 export * from './coachV2ChatResponseSafetyNotice';
 export * from './coachV2Conversation';
+export * from './coachV2ConversationList';
+export * from './coachV2ConversationSummary';
 export * from './coachV2Settings';
 export * from './coachV2SettingsInput';
 export * from './coachV2Turn';

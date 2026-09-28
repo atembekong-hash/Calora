@@ -87,6 +87,9 @@ describe("released mobile API compatibility contract", () => {
       ["approveCapture", "/v1/capture/:sessionId/approve"],
       ["generatePlanner", "/v1/planner/generate"],
       ["sendCoachV2Message", "/v1/coach/v2/chat"],
+      ["listCoachV2Conversations", "/v1/coach/v2/conversations"],
+      ["startNewCoachV2Conversation", "/v1/coach/v2/conversation/new"],
+      ["openCoachV2Conversation", "/v1/coach/v2/conversation/:conversationId/open"],
       ["syncOutbox", "/v1/sync"],
       ["getReferral", "/v1/referral"],
       ["redeemReferral", "/v1/referral/redeem"],
@@ -140,6 +143,14 @@ describe("released mobile API compatibility contract", () => {
     expect(generatedZod).toContain("SendCoachV2MessageBody");
     expect(mobileCoach).toContain("sendCoachV2Message");
     expect(mobileCoach).toContain("getCoachV2Conversation");
+    expect(apiSpec).toContain("operationId: listCoachV2Conversations");
+    expect(apiSpec).toContain("operationId: startNewCoachV2Conversation");
+    expect(apiSpec).toContain("operationId: openCoachV2Conversation");
+    expect(generatedClient).toContain("listCoachV2Conversations");
+    expect(generatedClient).toContain("startNewCoachV2Conversation");
+    expect(generatedClient).toContain("openCoachV2Conversation");
+    expect(generatedZod).toContain("ListCoachV2ConversationsResponse");
+    expect(mobileCoach).toContain("Saved chats");
     expect(mobileCoach).not.toContain("useCoachSendAdapter");
     expect(mobileCoach).not.toContain("CoachFactContextConsentPanel");
     expect(serverRoutes).toContain("/v1/coach/v2/chat");

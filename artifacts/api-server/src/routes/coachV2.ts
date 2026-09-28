@@ -13,8 +13,11 @@ import {
   completeCoachV2Turn,
   getCoachV2Conversation,
   getCoachV2Settings,
+  listCoachV2Conversations,
+  openCoachV2Conversation,
   resolveCoachV2User,
   setCoachV2Settings,
+  startNewCoachV2Conversation,
   startCoachV2Turn,
   type CoachV2Role,
   type CoachV2Snapshot,
@@ -54,6 +57,11 @@ function isSafeProviderReply(value: unknown): value is string {
   );
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
 function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
   if (!snapshot) {
     return "No signed-in app snapshot is available. Do not claim to know the user's logs, profile, plans, or history.";
@@ -312,6 +320,97 @@ router.delete("/v1/coach/v2/conversation", async (req, res) => {
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
+
+router.get("/v1/coach/v2/conversations", async (req, res) => {
+  const verified = await optionalVerifiedUser(req).catch(() => null);
+  if (!verified) {
+    res
+      .status(401)
+      .json({ message: "Please sign in to view saved Coach chats." });
+    return;
+  }
+  try {
+    const userId = await resolveCoachV2User(verified.id, verified.email);
+    res.json({ conversations: await listCoachV2Conversations(userId) });
+  } catch (error) {
+    logger.error({ err: error }, "Unable to list Coach V2 conversations");
+    res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
+  }
+});
+
+router.post("/v1/coach/v2/conversation/new", async (req, res) => {
+  const verified = await optionalVerifiedUser(req).catch(() => null);
+  if (!verified) {
+    res
+      .status(401)
+      .json({ message: "Please sign in to start a saved Coach chat." });
+    return;
+  }
+  try {
+    const started = await withAccountDeletionReadLock(verified.id, async () => {
+      const userId = await resolveCoachV2User(verified.id, verified.email);
+      return startNewCoachV2Conversation(userId);
+    });
+    if (!started) {
+      res
+        .status(409)
+        .json({ message: "Please wait for Coach to finish replying." });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    logger.error({ err: error }, "Unable to start a new Coach V2 conversation");
+    res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
+  }
+});
+
+router.post(
+  "/v1/coach/v2/conversation/:conversationId/open",
+  async (req, res) => {
+    const conversationId = req.params.conversationId;
+    if (!isUuid(conversationId)) {
+      res
+        .status(400)
+        .json({ message: "A valid Coach conversation is required." });
+      return;
+    }
+    const verified = await optionalVerifiedUser(req).catch(() => null);
+    if (!verified) {
+      res
+        .status(401)
+        .json({ message: "Please sign in to open a saved Coach chat." });
+      return;
+    }
+    try {
+      const conversation = await withAccountDeletionReadLock(
+        verified.id,
+        async () => {
+          const userId = await resolveCoachV2User(verified.id, verified.email);
+          const opened = await openCoachV2Conversation(userId, conversationId);
+          if (!opened) return null;
+          const [turns, settings] = await Promise.all([
+            getCoachV2Conversation(userId),
+            getCoachV2Settings(userId),
+          ]);
+          return {
+            turns,
+            personalizationEnabled: settings.personalizationEnabled,
+          };
+        },
+      );
+      if (!conversation) {
+        res
+          .status(409)
+          .json({ message: "That Coach chat cannot be opened right now." });
+        return;
+      }
+      res.json(conversation);
+    } catch (error) {
+      logger.error({ err: error }, "Unable to open Coach V2 conversation");
+      res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
+    }
+  },
+);
 
 router.get("/v1/coach/v2/settings", async (req, res) => {
   const verified = await optionalVerifiedUser(req).catch(() => null);

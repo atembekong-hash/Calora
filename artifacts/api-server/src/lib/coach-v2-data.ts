@@ -10,6 +10,14 @@ export type CoachV2Turn = {
   createdAt: string;
 };
 export type CoachV2Settings = { personalizationEnabled: boolean };
+export type CoachV2ConversationSummary = {
+  id: string;
+  preview: string | null;
+  turnCount: number;
+  createdAt: string;
+  updatedAt: string;
+  active: boolean;
+};
 export type CoachV2Snapshot = {
   profile: {
     goal: string;
@@ -29,6 +37,14 @@ export type CoachV2Snapshot = {
 };
 
 type ConversationRow = { id: string };
+type ConversationSummaryRow = {
+  id: string;
+  preview: string | null;
+  turn_count: number;
+  created_at: Date;
+  updated_at: Date;
+  archived_at: Date | null;
+};
 type TurnRow = {
   id: string;
   user_message: string;
@@ -152,6 +168,154 @@ export async function getCoachV2Conversation(
   return rowsToTurns(result.rows.reverse());
 }
 
+export async function listCoachV2Conversations(
+  userId: string,
+): Promise<CoachV2ConversationSummary[]> {
+  const result = await pool.query<ConversationSummaryRow>(
+    `SELECT conversations.id,
+            conversations.created_at,
+            conversations.updated_at,
+            conversations.archived_at,
+            COUNT(turns.id)::integer AS turn_count,
+            (
+              SELECT LEFT(prior_turns.user_message, 160)
+                FROM calora_coach_v2_turns AS prior_turns
+               WHERE prior_turns.conversation_id = conversations.id
+               ORDER BY prior_turns.ordinal ASC
+               LIMIT 1
+            ) AS preview
+       FROM calora_coach_v2_conversations AS conversations
+       LEFT JOIN calora_coach_v2_turns AS turns
+         ON turns.conversation_id = conversations.id
+      WHERE conversations.user_id = $1::uuid
+      GROUP BY conversations.id
+      ORDER BY conversations.archived_at IS NULL DESC,
+               conversations.updated_at DESC
+      LIMIT 50`,
+    [userId],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    preview: row.preview,
+    turnCount: row.turn_count,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+    active: row.archived_at === null,
+  }));
+}
+
+async function lockCoachV2ConversationUser(
+  client: PoolClient,
+  userId: string,
+): Promise<void> {
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",
+    [userId],
+  );
+}
+
+export async function startNewCoachV2Conversation(
+  userId: string,
+): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await lockCoachV2ConversationUser(client, userId);
+    const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+           FROM calora_coach_v2_turns AS turns
+           INNER JOIN calora_coach_v2_conversations AS conversations
+             ON conversations.id = turns.conversation_id
+          WHERE conversations.user_id = $1::uuid
+            AND conversations.archived_at IS NULL
+            AND turns.assistant_message IS NULL
+       ) AS has_pending_turn`,
+      [userId],
+    );
+    if (pendingTurn.rows[0]?.has_pending_turn) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    await client.query(
+      `UPDATE calora_coach_v2_conversations AS conversations
+          SET archived_at = NOW(), updated_at = NOW()
+        WHERE conversations.user_id = $1::uuid
+          AND conversations.archived_at IS NULL
+          AND EXISTS (
+            SELECT 1 FROM calora_coach_v2_turns AS turns
+             WHERE turns.conversation_id = conversations.id
+          )`,
+      [userId],
+    );
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function openCoachV2Conversation(
+  userId: string,
+  conversationId: string,
+): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await lockCoachV2ConversationUser(client, userId);
+    const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+           FROM calora_coach_v2_turns AS turns
+           INNER JOIN calora_coach_v2_conversations AS conversations
+             ON conversations.id = turns.conversation_id
+          WHERE conversations.user_id = $1::uuid
+            AND conversations.archived_at IS NULL
+            AND turns.assistant_message IS NULL
+       ) AS has_pending_turn`,
+      [userId],
+    );
+    if (pendingTurn.rows[0]?.has_pending_turn) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    const selected = await client.query<ConversationRow>(
+      `SELECT id FROM calora_coach_v2_conversations
+        WHERE id = $1::uuid AND user_id = $2::uuid
+        FOR UPDATE`,
+      [conversationId, userId],
+    );
+    if (!selected.rows[0]) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    await client.query(
+      `UPDATE calora_coach_v2_conversations
+          SET archived_at = NOW(), updated_at = NOW()
+        WHERE user_id = $1::uuid
+          AND archived_at IS NULL
+          AND id <> $2::uuid`,
+      [userId, conversationId],
+    );
+    await client.query(
+      `UPDATE calora_coach_v2_conversations
+          SET archived_at = NULL, updated_at = NOW()
+        WHERE id = $1::uuid AND user_id = $2::uuid`,
+      [conversationId, userId],
+    );
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function clearCoachV2Conversation(userId: string): Promise<void> {
   await pool.query(
     `DELETE FROM calora_coach_v2_conversations WHERE user_id = $1::uuid`,
@@ -170,6 +334,7 @@ export async function startCoachV2Turn(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await lockCoachV2ConversationUser(client, userId);
     const conversation = await getOrCreateActiveConversation(client, userId);
     const inserted = await client.query<{ id: string }>(
       `INSERT INTO calora_coach_v2_turns (conversation_id, ordinal, user_message)

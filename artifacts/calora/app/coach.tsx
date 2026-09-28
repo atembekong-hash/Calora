@@ -3,9 +3,13 @@ import {
   clearCoachV2Conversation,
   getCoachV2Conversation,
   getCoachV2Settings,
+  listCoachV2Conversations,
+  openCoachV2Conversation,
   sendCoachV2Message,
+  startNewCoachV2Conversation,
   updateCoachV2Settings,
   ApiError,
+  type CoachV2ConversationSummary,
   type CoachV2Turn,
 } from "@workspace/api-client-react";
 import { formatCoachPlainText } from "@workspace/api-zod/coach-text-presentation";
@@ -48,10 +52,27 @@ function errorMessage(error: unknown): string {
       return "Please enter a valid Coach message and try again.";
     if (error.status === 401)
       return "Your account session needs to be refreshed. Please sign in again.";
+    if (error.status === 409)
+      return "Please wait for Coach to finish replying before switching chats.";
     if (error.status === 429)
       return "Coach is busy right now. Please wait a moment and try again.";
   }
   return "Coach is temporarily unavailable. Please try again.";
+}
+
+function toDisplayTurns(coachTurns: CoachV2Turn[]): DisplayTurn[] {
+  return coachTurns.map((turn) => ({
+    id: turn.id,
+    role: turn.role,
+    content:
+      turn.role === "assistant"
+        ? formatCoachPlainText(turn.content, { removeEmoji: true })
+        : turn.content,
+  }));
+}
+
+function savedChatPreview(conversation: CoachV2ConversationSummary): string {
+  return conversation.preview?.replace(/\s+/g, " ").trim() || "New Coach chat";
 }
 
 export default function CoachScreen() {
@@ -66,11 +87,14 @@ export default function CoachScreen() {
   const [composer, setComposer] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [savedChats, setSavedChats] = useState<CoachV2ConversationSummary[]>(
+    [],
+  );
   const [menuVisible, setMenuVisible] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"new" | "clear" | null>(
     null,
   );
-  const [isClearing, setIsClearing] = useState(false);
+  const [isManagingChat, setIsManagingChat] = useState(false);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -79,27 +103,25 @@ export default function CoachScreen() {
     const loadId = ++requestIdRef.current;
     if (!signedIn) {
       setTurns([]);
+      setSavedChats([]);
       setPersonalizationEnabled(true);
       setNotice(null);
       return;
     }
     setTurns([]);
+    setSavedChats([]);
     setIsLoadingHistory(true);
     setNotice(null);
-    void Promise.all([getCoachV2Conversation(), getCoachV2Settings()])
-      .then(([conversation, settings]) => {
+    void Promise.all([
+      getCoachV2Conversation(),
+      getCoachV2Settings(),
+      listCoachV2Conversations(),
+    ])
+      .then(([conversation, settings, conversations]) => {
         if (loadId !== requestIdRef.current) return;
-        setTurns(
-          conversation.turns.map((turn) => ({
-            id: turn.id,
-            role: turn.role,
-            content:
-              turn.role === "assistant"
-                ? formatCoachPlainText(turn.content, { removeEmoji: true })
-                : turn.content,
-          })),
-        );
+        setTurns(toDisplayTurns(conversation.turns));
         setPersonalizationEnabled(settings.personalizationEnabled);
+        setSavedChats(conversations.conversations);
       })
       .catch(() => {
         if (loadId !== requestIdRef.current) return;
@@ -159,7 +181,7 @@ export default function CoachScreen() {
   };
 
   const startNewChat = () => {
-    if (isClearing) return;
+    if (isManagingChat || isSending) return;
     setMenuVisible(false);
     if (!signedIn) {
       requestIdRef.current += 1;
@@ -173,24 +195,73 @@ export default function CoachScreen() {
     setConfirmAction("new");
   };
 
-  const clearHistory = async (action: "new" | "clear") => {
-    if (!signedIn || isClearing) return;
+  const createNewChat = async () => {
+    if (!signedIn || isManagingChat || isSending) return;
     const requestId = ++requestIdRef.current;
     setIsSending(false);
-    setIsClearing(true);
+    setIsManagingChat(true);
+    setNotice(null);
+    try {
+      await startNewCoachV2Conversation();
+      const conversations = await listCoachV2Conversations();
+      if (requestId !== requestIdRef.current) return;
+      setTurns([]);
+      setComposer("");
+      setSavedChats(conversations.conversations);
+      setMenuVisible(false);
+      setConfirmAction(null);
+      focusComposer();
+    } catch (error) {
+      if (requestId === requestIdRef.current) setNotice(errorMessage(error));
+    } finally {
+      if (requestId === requestIdRef.current) setIsManagingChat(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!signedIn || isManagingChat) return;
+    const requestId = ++requestIdRef.current;
+    setIsSending(false);
+    setIsManagingChat(true);
     setNotice(null);
     try {
       await clearCoachV2Conversation();
       if (requestId !== requestIdRef.current) return;
       setTurns([]);
       setComposer("");
+      setSavedChats([]);
       setMenuVisible(false);
       setConfirmAction(null);
-      if (action === "new") focusComposer();
     } catch (error) {
       if (requestId === requestIdRef.current) setNotice(errorMessage(error));
     } finally {
-      if (requestId === requestIdRef.current) setIsClearing(false);
+      if (requestId === requestIdRef.current) setIsManagingChat(false);
+    }
+  };
+
+  const openSavedChat = async (conversationId: string) => {
+    if (!signedIn || isManagingChat || isSending) return;
+    const requestId = ++requestIdRef.current;
+    setIsManagingChat(true);
+    setIsLoadingHistory(true);
+    setNotice(null);
+    try {
+      const conversation = await openCoachV2Conversation(conversationId);
+      const conversations = await listCoachV2Conversations();
+      if (requestId !== requestIdRef.current) return;
+      setTurns(toDisplayTurns(conversation.turns));
+      setPersonalizationEnabled(conversation.personalizationEnabled);
+      setSavedChats(conversations.conversations);
+      setComposer("");
+      setMenuVisible(false);
+      focusComposer();
+    } catch (error) {
+      if (requestId === requestIdRef.current) setNotice(errorMessage(error));
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsManagingChat(false);
+        setIsLoadingHistory(false);
+      }
     }
   };
 
@@ -209,6 +280,10 @@ export default function CoachScreen() {
       setIsUpdatingSettings(false);
     }
   };
+
+  const archivedChats = savedChats.filter(
+    (conversation) => !conversation.active,
+  );
 
   return (
     <KeyboardAvoidingView
@@ -528,31 +603,188 @@ export default function CoachScreen() {
               </Pressable>
             </View>
 
-            {signedIn ? (
-              <>
-                <Pressable
-                  accessibilityLabel="Start a new Coach chat"
-                  testID="coach-menu-new-chat"
-                  onPress={startNewChat}
-                  style={[
-                    styles.newChatButton,
-                    { backgroundColor: colors.primary },
-                  ]}
-                >
-                  <Feather
-                    name="edit-3"
-                    size={15}
-                    color={colors.primaryForeground}
-                  />
-                  <Text
+            <ScrollView
+              contentContainerStyle={styles.menuScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {signedIn ? (
+                <>
+                  <Pressable
+                    accessibilityLabel="Start a new Coach chat"
+                    testID="coach-menu-new-chat"
+                    onPress={startNewChat}
                     style={[
-                      styles.newChatButtonText,
-                      { color: colors.primaryForeground },
+                      styles.newChatButton,
+                      { backgroundColor: colors.primary },
                     ]}
                   >
-                    Start a new chat
-                  </Text>
-                </Pressable>
+                    <Feather
+                      name="edit-3"
+                      size={15}
+                      color={colors.primaryForeground}
+                    />
+                    <Text
+                      style={[
+                        styles.newChatButtonText,
+                        { color: colors.primaryForeground },
+                      ]}
+                    >
+                      Start a new chat
+                    </Text>
+                  </Pressable>
+                  <View
+                    style={[
+                      styles.savedChatsCard,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.settingTitle,
+                        { color: colors.foreground },
+                      ]}
+                    >
+                      Saved chats
+                    </Text>
+                    <Text
+                      style={[
+                        styles.settingBody,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      Starting a new chat saves the current one here. You can
+                      reopen it any time.
+                    </Text>
+                    {archivedChats.length > 0 ? (
+                      <View style={styles.savedChatsList}>
+                        {archivedChats.map((conversation) => (
+                          <Pressable
+                            key={conversation.id}
+                            accessibilityLabel={`Open saved Coach chat: ${savedChatPreview(conversation)}`}
+                            testID={`coach-saved-chat-${conversation.id}`}
+                            disabled={isManagingChat || isSending}
+                            onPress={() => void openSavedChat(conversation.id)}
+                            style={[
+                              styles.savedChatButton,
+                              {
+                                backgroundColor: colors.background,
+                                borderColor: colors.border,
+                                opacity: isManagingChat || isSending ? 0.6 : 1,
+                              },
+                            ]}
+                          >
+                            <Feather
+                              name="message-circle"
+                              size={15}
+                              color={colors.primary}
+                            />
+                            <View style={styles.savedChatCopy}>
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.savedChatPreview,
+                                  { color: colors.foreground },
+                                ]}
+                              >
+                                {savedChatPreview(conversation)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.savedChatMeta,
+                                  { color: colors.mutedForeground },
+                                ]}
+                              >
+                                {conversation.turnCount} message
+                                {conversation.turnCount === 1 ? "" : "s"}
+                              </Text>
+                            </View>
+                            <Feather
+                              name="chevron-right"
+                              size={16}
+                              color={colors.mutedForeground}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.savedChatsEmpty,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        No earlier chats saved yet.
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={[
+                      styles.settingCard,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={styles.settingCopy}>
+                      <Text
+                        style={[
+                          styles.settingTitle,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Use my logged app summary
+                      </Text>
+                      <Text
+                        style={[
+                          styles.settingBody,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Lets Coach use your server-side profile and logged
+                        nutrition summary. It does not receive food names,
+                        notes, photos, or raw timelines.
+                      </Text>
+                    </View>
+                    <Switch
+                      accessibilityLabel="Use my logged app summary"
+                      value={personalizationEnabled}
+                      disabled={isUpdatingSettings}
+                      onValueChange={(value) =>
+                        void changePersonalization(value)
+                      }
+                      trackColor={{ false: colors.muted, true: colors.primary }}
+                    />
+                  </View>
+                  <Pressable
+                    accessibilityLabel="Clear Coach chat history"
+                    testID="coach-clear-history"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      setConfirmAction("clear");
+                    }}
+                    style={[styles.clearButton, { borderColor: colors.border }]}
+                  >
+                    <Feather
+                      name="trash-2"
+                      size={15}
+                      color={colors.destructive}
+                    />
+                    <Text
+                      style={[
+                        styles.clearButtonText,
+                        { color: colors.destructive },
+                      ]}
+                    >
+                      Clear all chat history
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
                 <View
                   style={[
                     styles.settingCard,
@@ -562,105 +794,48 @@ export default function CoachScreen() {
                     },
                   ]}
                 >
-                  <View style={styles.settingCopy}>
+                  <Text
+                    style={[styles.settingTitle, { color: colors.foreground }]}
+                  >
+                    Guest chat
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingBody,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    Guest messages are not saved and do not use personal app
+                    data.
+                  </Text>
+                  <Pressable
+                    accessibilityLabel="Sign in for personalized Coach"
+                    onPress={() => {
+                      setMenuVisible(false);
+                      router.push("/auth/sign-in");
+                    }}
+                    style={[
+                      styles.signInButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  >
                     <Text
                       style={[
-                        styles.settingTitle,
-                        { color: colors.foreground },
+                        styles.signInText,
+                        { color: colors.primaryForeground },
                       ]}
                     >
-                      Use my logged app summary
+                      Sign in
                     </Text>
-                    <Text
-                      style={[
-                        styles.settingBody,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      Lets Coach use your server-side profile and logged
-                      nutrition summary. It does not receive food names, notes,
-                      photos, or raw timelines.
-                    </Text>
-                  </View>
-                  <Switch
-                    accessibilityLabel="Use my logged app summary"
-                    value={personalizationEnabled}
-                    disabled={isUpdatingSettings}
-                    onValueChange={(value) => void changePersonalization(value)}
-                    trackColor={{ false: colors.muted, true: colors.primary }}
-                  />
+                    <Feather
+                      name="arrow-right"
+                      size={16}
+                      color={colors.primaryForeground}
+                    />
+                  </Pressable>
                 </View>
-                <Pressable
-                  accessibilityLabel="Clear Coach chat history"
-                  testID="coach-clear-history"
-                  onPress={() => {
-                    setMenuVisible(false);
-                    setConfirmAction("clear");
-                  }}
-                  style={[styles.clearButton, { borderColor: colors.border }]}
-                >
-                  <Feather
-                    name="trash-2"
-                    size={15}
-                    color={colors.destructive}
-                  />
-                  <Text
-                    style={[
-                      styles.clearButtonText,
-                      { color: colors.destructive },
-                    ]}
-                  >
-                    Clear chat history
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <View
-                style={[
-                  styles.settingCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                <Text
-                  style={[styles.settingTitle, { color: colors.foreground }]}
-                >
-                  Guest chat
-                </Text>
-                <Text
-                  style={[
-                    styles.settingBody,
-                    { color: colors.mutedForeground },
-                  ]}
-                >
-                  Guest messages are not saved and do not use personal app data.
-                </Text>
-                <Pressable
-                  accessibilityLabel="Sign in for personalized Coach"
-                  onPress={() => {
-                    setMenuVisible(false);
-                    router.push("/auth/sign-in");
-                  }}
-                  style={[
-                    styles.signInButton,
-                    { backgroundColor: colors.primary },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.signInText,
-                      { color: colors.primaryForeground },
-                    ]}
-                  >
-                    Sign in
-                  </Text>
-                  <Feather
-                    name="arrow-right"
-                    size={16}
-                    color={colors.primaryForeground}
-                  />
-                </Pressable>
-              </View>
-            )}
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -691,12 +866,16 @@ export default function CoachScreen() {
               style={[styles.confirmBody, { color: colors.mutedForeground }]}
             >
               {confirmAction === "new"
-                ? "Starting a new chat permanently removes your saved Coach conversation from your account."
-                : "This permanently removes your saved Coach conversation from your account."}
+                ? "Your current chat will be saved in Saved chats, where you can reopen it any time."
+                : "This permanently removes all saved Coach chats from your account."}
             </Text>
             <View style={styles.confirmActions}>
               <Pressable
-                accessibilityLabel="Cancel clearing Coach history"
+                accessibilityLabel={
+                  confirmAction === "new"
+                    ? "Cancel starting a new Coach chat"
+                    : "Cancel clearing Coach history"
+                }
                 onPress={() => setConfirmAction(null)}
                 style={[
                   styles.confirmButton,
@@ -713,26 +892,45 @@ export default function CoachScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                accessibilityLabel="Confirm clear Coach history"
+                accessibilityLabel={
+                  confirmAction === "new"
+                    ? "Confirm starting a new Coach chat"
+                    : "Confirm clear Coach history"
+                }
                 onPress={() => {
-                  if (confirmAction) void clearHistory(confirmAction);
+                  if (confirmAction === "new") void createNewChat();
+                  if (confirmAction === "clear") void clearHistory();
                 }}
-                disabled={isClearing}
+                disabled={isManagingChat}
                 style={[
                   styles.confirmButton,
                   {
-                    backgroundColor: colors.destructive,
-                    opacity: isClearing ? 0.6 : 1,
+                    backgroundColor:
+                      confirmAction === "new"
+                        ? colors.primary
+                        : colors.destructive,
+                    opacity: isManagingChat ? 0.6 : 1,
                   },
                 ]}
               >
-                {isClearing ? (
-                  <ActivityIndicator color={colors.destructiveForeground} />
+                {isManagingChat ? (
+                  <ActivityIndicator
+                    color={
+                      confirmAction === "new"
+                        ? colors.primaryForeground
+                        : colors.destructiveForeground
+                    }
+                  />
                 ) : (
                   <Text
                     style={[
                       styles.confirmButtonText,
-                      { color: colors.destructiveForeground },
+                      {
+                        color:
+                          confirmAction === "new"
+                            ? colors.primaryForeground
+                            : colors.destructiveForeground,
+                      },
                     ]}
                   >
                     {confirmAction === "new" ? "Start new" : "Clear history"}
@@ -882,6 +1080,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: { fontFamily: "Inter_700Bold", fontSize: 20, letterSpacing: -0.3 },
   menuSubtitle: { fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 3 },
+  menuScrollContent: { paddingBottom: 4 },
   menuClose: {
     width: 34,
     height: 34,
@@ -900,6 +1099,31 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   newChatButtonText: { fontFamily: "Inter_700Bold", fontSize: 12 },
+  savedChatsCard: {
+    borderWidth: 1,
+    borderRadius: 17,
+    padding: 14,
+    marginBottom: 14,
+  },
+  savedChatsList: { gap: 8, marginTop: 12 },
+  savedChatButton: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  savedChatCopy: { flex: 1, minWidth: 0 },
+  savedChatPreview: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
+  savedChatMeta: { fontFamily: "Inter_400Regular", fontSize: 10, marginTop: 3 },
+  savedChatsEmpty: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 12,
+  },
   settingCopy: { marginBottom: 14 },
   settingTitle: { fontFamily: "Inter_700Bold", fontSize: 13 },
   settingBody: {

@@ -31,6 +31,7 @@ import type {
   CoachV2ChatInput,
   CoachV2ChatResponse,
   CoachV2Conversation,
+  CoachV2ConversationList,
   CoachV2Settings,
   CoachV2SettingsInput,
   DiaryEntry,
@@ -2870,6 +2871,226 @@ export const useClearCoachV2Conversation = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getClearCoachV2ConversationMutationOptions(options));
+    }
+
+export const getListCoachV2ConversationsUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/conversations`
+}
+
+/**
+ * @summary List the signed-in account's current and saved Coach chats
+ */
+export const listCoachV2Conversations = async ( options?: Parameters<typeof customFetch>[1]): Promise<CoachV2ConversationList> => {
+
+  return customFetch<CoachV2ConversationList>(getListCoachV2ConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCoachV2ConversationsQueryKey = () => {
+    return [
+    `/api/v1/coach/v2/conversations`
+    ] as const;
+    }
+
+
+export const getListCoachV2ConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCoachV2ConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCoachV2Conversations>>> = ({ signal }) => listCoachV2Conversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCoachV2ConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listCoachV2Conversations>>>
+export type ListCoachV2ConversationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the signed-in account's current and saved Coach chats
+ */
+
+export function useListCoachV2Conversations<TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCoachV2ConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartNewCoachV2ConversationUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/conversation/new`
+}
+
+/**
+ * Existing messages remain saved and can be reopened. A new chat is rejected while Coach is still replying.
+ * @summary Archive the active Coach chat and start a new empty chat
+ */
+export const startNewCoachV2Conversation = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getStartNewCoachV2ConversationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartNewCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext> => {
+
+const mutationKey = ['startNewCoachV2Conversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, void> = () => {
+
+
+          return  startNewCoachV2Conversation(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartNewCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof startNewCoachV2Conversation>>>
+
+    export type StartNewCoachV2ConversationMutationError = ErrorType<void>
+
+    /**
+ * @summary Archive the active Coach chat and start a new empty chat
+ */
+export const useStartNewCoachV2Conversation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startNewCoachV2Conversation>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getStartNewCoachV2ConversationMutationOptions(options));
+    }
+
+export const getOpenCoachV2ConversationUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/v1/coach/v2/conversation/${conversationId}/open`
+}
+
+/**
+ * @summary Reopen one of the signed-in account's saved Coach chats
+ */
+export const openCoachV2Conversation = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<CoachV2Conversation> => {
+
+  return customFetch<CoachV2Conversation>(getOpenCoachV2ConversationUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpenCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext> => {
+
+const mutationKey = ['openCoachV2Conversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openCoachV2Conversation>>, {conversationId: string}> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  openCoachV2Conversation(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof openCoachV2Conversation>>>
+
+    export type OpenCoachV2ConversationMutationError = ErrorType<void>
+
+    /**
+ * @summary Reopen one of the signed-in account's saved Coach chats
+ */
+export const useOpenCoachV2Conversation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openCoachV2Conversation>>,
+        TError,
+        {conversationId: string},
+        TContext
+      > => {
+      return useMutation(getOpenCoachV2ConversationMutationOptions(options));
     }
 
 export const getGetCoachV2SettingsUrl = () => {
