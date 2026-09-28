@@ -16,6 +16,7 @@ import { retryOrRegenerateRecipeImage, useGeneratedRecipeImageRefresh } from '@/
 import { premiumRecipeDetailQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { PREMIUM_RECIPE_REQUEST_OPTIONS } from '@/lib/premiumRecipeRequest';
+import { premiumSavedRecipeRestorationState } from '@/lib/premiumRecipeReliability';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,6 +81,7 @@ function SourceSection({
   loading,
   failed,
   signedIn,
+  requiresSignIn = false,
   onSignIn,
 }: {
   source: SavedSource;
@@ -92,6 +94,7 @@ function SourceSection({
   loading: boolean;
   failed: boolean;
   signedIn: boolean;
+  requiresSignIn?: boolean;
   onSignIn: () => void;
 }) {
   const meta = SOURCE_META[source];
@@ -134,15 +137,15 @@ function SourceSection({
         </View>
       ) : (
         <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Feather name={source === 'plus' && !signedIn ? 'lock' : failed ? 'wifi-off' : 'bookmark'} size={18} color={failed ? colors.warning : colors.primary} />
+          <Feather name={source === 'plus' && (!signedIn || requiresSignIn) ? 'lock' : failed ? 'wifi-off' : 'bookmark'} size={18} color={failed ? colors.warning : colors.primary} />
           <View style={styles.statusCopy}>
             <Text style={[styles.statusTitle, { color: colors.foreground }]}>
-              {source === 'plus' && !signedIn ? 'Sign in to restore Plus recipes' : failed ? 'This source is temporarily unavailable' : `No saved ${meta.label.toLowerCase()} recipes yet`}
+              {source === 'plus' && (!signedIn || requiresSignIn) ? 'Sign in to restore Plus recipes' : failed ? 'This source is temporarily unavailable' : `No saved ${meta.label.toLowerCase()} recipes yet`}
             </Text>
             <Text style={[styles.statusText, { color: colors.mutedForeground }]}>
-              {source === 'plus' && !signedIn ? 'Your saved Plus recipes are kept safe and will return after sign-in.' : failed ? 'Your saved recipes stay on this device while we wait for the source to return.' : `Save a recipe from ${meta.label} and it will appear here.`}
+              {source === 'plus' && (!signedIn || requiresSignIn) ? 'Your saved Plus recipes are kept safe and will return after sign-in.' : failed ? 'Your saved recipes stay on this device while we wait for the source to return.' : `Save a recipe from ${meta.label} and it will appear here.`}
             </Text>
-            {source === 'plus' && !signedIn ? (
+            {source === 'plus' && (!signedIn || requiresSignIn) ? (
               <ScalePressable accessibilityLabel="Sign in to restore Plus recipes" onPress={onSignIn} scale={0.97} haptic="none" style={[styles.statusAction, { backgroundColor: colors.primary }]}>
                 <Text style={[styles.statusActionText, { color: colors.primaryForeground }]}>Sign in</Text>
               </ScalePressable>
@@ -193,6 +196,8 @@ export default function SavedRecipesScreen() {
 
   const discoverRecipes = useMemo(() => discoverQueries.flatMap((query) => query.data ? [query.data] : []), [discoverQueries]);
   const premiumRecipes = useMemo(() => premiumQueries.flatMap((query) => query.data ? [query.data] : []), [premiumQueries]);
+  const premiumRestorationState = premiumSavedRecipeRestorationState(premiumQueries);
+  const premiumRequiresSignIn = !user || premiumRestorationState === 'authentication';
   const savedRecipes = useMemo(() => {
     const byId = new Map<string, SavedRecipe>();
     savedLocalRecipes.forEach((recipe) => byId.set(recipe.id, recipe));
@@ -220,12 +225,13 @@ export default function SavedRecipesScreen() {
   };
   const failedSources = {
     discover: discoverQueries.some((query) => query.isError),
-    plus: premiumQueries.some((query) => query.isError),
+    plus: premiumRestorationState === 'unavailable',
     create: false,
   };
   const visibleSources = SOURCE_ORDER.filter((source) => activeFilter === 'all' ? sourceCounts[source] > 0 : activeFilter === source);
-  const loadedMissingCount = savedRecipeIds.length - savedRecipes.length;
-  const hasUnavailablePremium = sourceCounts.plus > 0 && !user;
+  const missingDiscoverCount = Math.max(discoverIds.length - discoverRecipes.length, 0);
+  const showReconnectNotice = missingDiscoverCount > 0 || premiumRestorationState === 'unavailable';
+  const hasUnavailablePremium = sourceCounts.plus > 0 && premiumRequiresSignIn;
 
   useEffect(() => () => {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
@@ -305,7 +311,7 @@ export default function SavedRecipesScreen() {
           </View>
         ) : (
           <>
-            {loadedMissingCount > 0 && !loadingSources.discover && !loadingSources.plus ? (
+            {showReconnectNotice && !loadingSources.discover && !loadingSources.plus ? (
               <View style={[styles.syncNotice, { backgroundColor: colors.muted }]}>
                 <Feather name="info" size={14} color={colors.mutedForeground} />
                 <Text style={[styles.syncNoticeText, { color: colors.mutedForeground }]}>Some saved recipes are waiting for their source to reconnect.</Text>
@@ -324,6 +330,7 @@ export default function SavedRecipesScreen() {
                 loading={loadingSources[source]}
                 failed={failedSources[source]}
                 signedIn={Boolean(user)}
+                requiresSignIn={source === 'plus' && premiumRequiresSignIn}
                 onSignIn={() => router.push('/auth/sign-in')}
               />
             ))}

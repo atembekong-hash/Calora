@@ -428,27 +428,37 @@ export async function customFetch<T = unknown>(
     const externalSignal = init.signal;
     const deadlineEnabled = typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0;
     if (!deadlineEnabled) {
-      return fetch(input, { ...init, method, headers: new Headers(headers) });
+      return {
+        response: await fetch(input, { ...init, method, headers: new Headers(headers) }),
+        dispose: () => undefined,
+        timedOut: () => false,
+      };
     }
 
     const deadlineController = new AbortController();
     let timedOut = false;
-    const abortForExternalSignal = () => deadlineController.abort();
-    if (externalSignal?.aborted) deadlineController.abort();
+    const abortForExternalSignal = () => deadlineController.abort(externalSignal?.reason);
+    if (externalSignal?.aborted) abortForExternalSignal();
     else externalSignal?.addEventListener("abort", abortForExternalSignal, { once: true });
     const timeout = setTimeout(() => {
       timedOut = true;
       deadlineController.abort();
     }, timeoutMs);
-
-    try {
-      return await fetch(input, { ...init, method, headers: new Headers(headers), signal: deadlineController.signal });
-    } catch (error) {
-      if (timedOut) throw new ApiRequestTimeoutError(timeoutMs);
-      throw error;
-    } finally {
+    const dispose = () => {
       clearTimeout(timeout);
       externalSignal?.removeEventListener("abort", abortForExternalSignal);
+    };
+
+    try {
+      return {
+        response: await fetch(input, { ...init, method, headers: new Headers(headers), signal: deadlineController.signal }),
+        dispose,
+        timedOut: () => timedOut,
+      };
+    } catch (error) {
+      dispose();
+      if (timedOut) throw new ApiRequestTimeoutError(timeoutMs);
+      throw error;
     }
   };
 
@@ -464,42 +474,56 @@ export async function customFetch<T = unknown>(
     throw error;
   }
 
-  let response: Response;
+  let request: Awaited<ReturnType<typeof send>> | null = null;
   try {
-    response = await send();
-  } catch (error) {
-    logRequestDiagnostic("network_error", requestInfo, {
-      errorName: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : "Unknown network error",
-    });
-    throw error;
-  }
+    request = await send();
+    let response = request.response;
 
-  // Supabase access tokens can be stale even while a session still exists
-  // (especially after a backgrounded web preview or a resumed native app).
-  // Retry exactly once with a forced refresh before surfacing an auth error.
-  if (response.status === 401 && attachedAuthToken && effectiveTokenRefresher) {
-    try {
-      if (authIdentityGuard) await authIdentityGuard();
-      const refreshedToken = await effectiveTokenRefresher();
-      if (refreshedToken) {
-        headers.set("authorization", `Bearer ${refreshedToken}`);
+    // Supabase access tokens can be stale even while a session still exists
+    // (especially after a backgrounded web preview or a resumed native app).
+    // Retry exactly once with a forced refresh before surfacing an auth error.
+    if (response.status === 401 && attachedAuthToken && effectiveTokenRefresher) {
+      try {
         if (authIdentityGuard) await authIdentityGuard();
-        response = await send();
+        const refreshedToken = await effectiveTokenRefresher();
+        if (refreshedToken) {
+          headers.set("authorization", `Bearer ${refreshedToken}`);
+          if (authIdentityGuard) await authIdentityGuard();
+          request.dispose();
+          request = await send();
+          response = request.response;
+        }
+      } catch {
+        // Preserve the original 401; the normal API error path will surface it.
       }
-    } catch {
-      // Preserve the original 401; the normal API error path will surface it.
     }
-  }
 
-  if (!response.ok) {
-    logRequestDiagnostic("response", requestInfo, {
-      status: response.status,
-      statusText: response.statusText,
-    });
-    const errorData = await parseErrorBody(response, method);
-    throw new ApiError(response, errorData, requestInfo);
-  }
+    if (!response.ok) {
+      logRequestDiagnostic("response", requestInfo, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      const errorData = await parseErrorBody(response, method);
+      throw new ApiError(response, errorData, requestInfo);
+    }
 
-  return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+    const payload = await parseSuccessBody(response, responseType, requestInfo);
+    if (request.timedOut()) {
+      throw new ApiRequestTimeoutError(typeof timeoutMs === "number" ? timeoutMs : 0);
+    }
+    return payload as T;
+  } catch (error) {
+    const effectiveError = request?.timedOut()
+      ? new ApiRequestTimeoutError(typeof timeoutMs === "number" ? timeoutMs : 0)
+      : error;
+    if (!(effectiveError instanceof ApiError) && !(effectiveError instanceof ResponseParseError)) {
+      logRequestDiagnostic("network_error", requestInfo, {
+        errorName: effectiveError instanceof Error ? effectiveError.name : typeof effectiveError,
+        message: effectiveError instanceof Error ? effectiveError.message : "Unknown network error",
+      });
+    }
+    throw effectiveError;
+  } finally {
+    request?.dispose();
+  }
 }

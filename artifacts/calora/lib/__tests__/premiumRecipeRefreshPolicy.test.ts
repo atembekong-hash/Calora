@@ -3,6 +3,7 @@ import { PREMIUM_RECIPE_REFRESH_POLICY } from "../premiumRecipeRefreshPolicy";
 import {
   PREMIUM_RECIPE_REQUEST_OPTIONS,
   PREMIUM_RECIPE_REQUEST_TIMEOUT_MS,
+  isPremiumRecipeAuthenticationError,
   premiumRecipeRetryDelay,
   shouldRetryPremiumRecipeRequest,
 } from "../premiumRecipeRequest";
@@ -37,6 +38,14 @@ describe("PREMIUM_RECIPE_REFRESH_POLICY", () => {
     expect(shouldRetryPremiumRecipeRequest(0, { status: 403 })).toBe(false);
     expect(shouldRetryPremiumRecipeRequest(0, { status: 429 })).toBe(false);
     expect(shouldRetryPremiumRecipeRequest(0, { status: 400 })).toBe(false);
+    expect(shouldRetryPremiumRecipeRequest(0, new TypeError('Blob responses are not supported in this runtime.'))).toBe(false);
     expect(premiumRecipeRetryDelay()).toBe(600);
+  });
+
+  it("recognizes only authentication and authorization failures as access recovery states", () => {
+    expect(isPremiumRecipeAuthenticationError({ status: 401 })).toBe(true);
+    expect(isPremiumRecipeAuthenticationError({ status: 403 })).toBe(true);
+    expect(isPremiumRecipeAuthenticationError({ status: 429 })).toBe(false);
+    expect(isPremiumRecipeAuthenticationError({ status: 502 })).toBe(false);
   });
 });

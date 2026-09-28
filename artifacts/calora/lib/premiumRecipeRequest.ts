@@ -27,6 +27,15 @@ function requestStatus(error: unknown): number | null {
   return typeof status === "number" && Number.isFinite(status) ? status : null;
 }
 
+export function premiumRecipeErrorStatus(error: unknown): number | null {
+  return requestStatus(error);
+}
+
+export function isPremiumRecipeAuthenticationError(error: unknown): boolean {
+  const status = requestStatus(error);
+  return status === 401 || status === 403;
+}
+
 /**
  * Retry one transient connection, deadline, or server failure. Auth, input,
  * rate-limit, and provider-policy responses are deliberately never retried.
@@ -47,8 +56,7 @@ export function shouldRetryPremiumRecipeRequest(
     typeof candidate?.message === "string" ? candidate.message : "";
   return (
     name === "ApiRequestTimeoutError" ||
-    name === "TypeError" ||
-    /network request failed|failed to fetch|network|timed out|timeout/i.test(
+    /network request failed|failed to fetch|network connection|network error|timed out|timeout/i.test(
       message,
     )
   );
