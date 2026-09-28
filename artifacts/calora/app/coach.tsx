@@ -11,6 +11,7 @@ import {
 import { formatCoachPlainText } from "@workspace/api-zod/coach-text-presentation";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   ActivityIndicator,
   Modal,
@@ -58,6 +59,7 @@ export default function CoachScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const transcriptRef = useRef<ScrollView>(null);
+  const composerRef = useRef<TextInput>(null);
   const requestIdRef = useRef(0);
   const signedIn = !authLoading && Boolean(user?.id);
   const [turns, setTurns] = useState<DisplayTurn[]>([]);
@@ -65,7 +67,9 @@ export default function CoachScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"new" | "clear" | null>(
+    null,
+  );
   const [isClearing, setIsClearing] = useState(false);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
@@ -150,7 +154,26 @@ export default function CoachScreen() {
     }
   };
 
-  const clearHistory = async () => {
+  const focusComposer = () => {
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
+
+  const startNewChat = () => {
+    if (isClearing) return;
+    setMenuVisible(false);
+    if (!signedIn) {
+      requestIdRef.current += 1;
+      setIsSending(false);
+      setTurns([]);
+      setComposer("");
+      setNotice(null);
+      focusComposer();
+      return;
+    }
+    setConfirmAction("new");
+  };
+
+  const clearHistory = async (action: "new" | "clear") => {
     if (!signedIn || isClearing) return;
     const requestId = ++requestIdRef.current;
     setIsSending(false);
@@ -162,7 +185,8 @@ export default function CoachScreen() {
       setTurns([]);
       setComposer("");
       setMenuVisible(false);
-      setConfirmClear(false);
+      setConfirmAction(null);
+      if (action === "new") focusComposer();
     } catch (error) {
       if (requestId === requestIdRef.current) setNotice(errorMessage(error));
     } finally {
@@ -187,27 +211,41 @@ export default function CoachScreen() {
   };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      behavior="height"
+      style={[styles.page, { backgroundColor: colors.background }]}
+    >
       <AppHeader
         back
         title={`${BRAND.name} Coach`}
         action={
-          <Pressable
-            accessibilityLabel="Open Coach settings"
-            testID="coach-settings"
-            onPress={() => setMenuVisible(true)}
-            hitSlop={10}
-          >
-            <Feather name="sliders" size={20} color={colors.foreground} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel="Start a new Coach chat"
+              testID="coach-new-chat"
+              onPress={startNewChat}
+              hitSlop={10}
+            >
+              <Feather name="edit-3" size={20} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Open Coach main menu"
+              testID="coach-main-menu"
+              onPress={() => setMenuVisible(true)}
+              hitSlop={10}
+            >
+              <Feather name="menu" size={23} color={colors.foreground} />
+            </Pressable>
+          </View>
         }
       />
       <KeyboardAwareScrollViewCompat
         ref={transcriptRef}
+        style={styles.transcript}
         contentContainerStyle={{
           paddingTop: 16,
           paddingHorizontal: 20,
-          paddingBottom: insets.bottom + 112,
+          paddingBottom: insets.bottom + 24,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -400,6 +438,7 @@ export default function CoachScreen() {
         ]}
       >
         <TextInput
+          ref={composerRef}
           value={composer}
           onChangeText={setComposer}
           onSubmitEditing={() => void sendMessage()}
@@ -491,6 +530,29 @@ export default function CoachScreen() {
 
             {signedIn ? (
               <>
+                <Pressable
+                  accessibilityLabel="Start a new Coach chat"
+                  testID="coach-menu-new-chat"
+                  onPress={startNewChat}
+                  style={[
+                    styles.newChatButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Feather
+                    name="edit-3"
+                    size={15}
+                    color={colors.primaryForeground}
+                  />
+                  <Text
+                    style={[
+                      styles.newChatButtonText,
+                      { color: colors.primaryForeground },
+                    ]}
+                  >
+                    Start a new chat
+                  </Text>
+                </Pressable>
                 <View
                   style={[
                     styles.settingCard,
@@ -533,7 +595,7 @@ export default function CoachScreen() {
                   testID="coach-clear-history"
                   onPress={() => {
                     setMenuVisible(false);
-                    setConfirmClear(true);
+                    setConfirmAction("clear");
                   }}
                   style={[styles.clearButton, { borderColor: colors.border }]}
                 >
@@ -604,10 +666,10 @@ export default function CoachScreen() {
       </Modal>
 
       <Modal
-        visible={confirmClear}
+        visible={confirmAction !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setConfirmClear(false)}
+        onRequestClose={() => setConfirmAction(null)}
       >
         <View style={styles.confirmBackdrop}>
           <View
@@ -621,18 +683,21 @@ export default function CoachScreen() {
             ]}
           >
             <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
-              Clear Coach chat history?
+              {confirmAction === "new"
+                ? "Start a new Coach chat?"
+                : "Clear Coach chat history?"}
             </Text>
             <Text
               style={[styles.confirmBody, { color: colors.mutedForeground }]}
             >
-              This permanently removes your saved Coach conversation from your
-              account.
+              {confirmAction === "new"
+                ? "Starting a new chat permanently removes your saved Coach conversation from your account."
+                : "This permanently removes your saved Coach conversation from your account."}
             </Text>
             <View style={styles.confirmActions}>
               <Pressable
                 accessibilityLabel="Cancel clearing Coach history"
-                onPress={() => setConfirmClear(false)}
+                onPress={() => setConfirmAction(null)}
                 style={[
                   styles.confirmButton,
                   { backgroundColor: colors.muted },
@@ -649,7 +714,9 @@ export default function CoachScreen() {
               </Pressable>
               <Pressable
                 accessibilityLabel="Confirm clear Coach history"
-                onPress={() => void clearHistory()}
+                onPress={() => {
+                  if (confirmAction) void clearHistory(confirmAction);
+                }}
                 disabled={isClearing}
                 style={[
                   styles.confirmButton,
@@ -668,7 +735,7 @@ export default function CoachScreen() {
                       { color: colors.destructiveForeground },
                     ]}
                   >
-                    Clear history
+                    {confirmAction === "new" ? "Start new" : "Clear history"}
                   </Text>
                 )}
               </Pressable>
@@ -676,7 +743,7 @@ export default function CoachScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -767,11 +834,8 @@ const styles = StyleSheet.create({
   },
   promptChip: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },
   promptText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
+  transcript: { flex: 1 },
   composerDock: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -797,6 +861,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
   menuOverlay: { flex: 1, flexDirection: "row" },
   menuBackdrop: { flex: 1, backgroundColor: "rgba(8,22,15,0.46)" },
   menuSheet: {
@@ -825,6 +890,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   settingCard: { borderWidth: 1, borderRadius: 17, padding: 14 },
+  newChatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 13,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  newChatButtonText: { fontFamily: "Inter_700Bold", fontSize: 12 },
   settingCopy: { marginBottom: 14 },
   settingTitle: { fontFamily: "Inter_700Bold", fontSize: 13 },
   settingBody: {
