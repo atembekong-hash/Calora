@@ -166,15 +166,32 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
     expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
-    expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
+    expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
-    expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
-    expect(source).toContain("activeSection === 'premium'");
-    expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
+    expect(source).toContain("if (section !== 'premium') return;");
+    expect(source).toContain('loadMorePremiumRecipesIfAtEnd(section);');
+    expect(source).toContain('shouldLoadMorePremiumRecipes({ section, activeSection');
+    expect(source).toContain('onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}');
     expect(source).toContain('const premiumScrollYRef = useRef(0)');
     expect(source).toContain('premiumScrollYRef.current = contentOffset.y');
+    expect(source).toContain('const premiumRecipeScrollMetricsRef = useRef');
     expect(source).toContain("visible={section === 'premium'}");
     expect(source).toContain('renderItem={renderRecipeSection}');
+    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
+    expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
+    expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
+  });
+
+  it('keeps routed and saved Plus failures explicit, scoped, and actionable', () => {
+    expect(source).toContain("enabled: recipeSource === 'plus' && Boolean(recipeId && user?.id)");
+    expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
+    expect(source).toContain('const linkedPremiumRouteState = premiumRecipeRouteState({');
+    expect(source).toContain('Sign in to open this recipe');
+    expect(source).toContain('Retry opening Plus recipe');
+    expect(source).toContain('testID="plus-saved-restoration-state"');
+    expect(source).toContain('Some saved Plus recipes are temporarily unavailable.');
+    expect(source).toContain('Sign in again to restore your saved Plus recipes.');
+    expect(source).toContain("if (state === 'active' && premium && session?.user.id)");
   });
 
   it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {

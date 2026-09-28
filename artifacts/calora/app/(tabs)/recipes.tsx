@@ -32,6 +32,8 @@ import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
+import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
+import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
@@ -99,11 +101,6 @@ function isLocalRecipe(recipe: BrowseRecipe): recipe is CaloraRecipe {
   return 'isLocal' in recipe && recipe.isLocal === true;
 }
 
-function httpStatus(error: unknown): number | null {
-  if (!error || typeof error !== 'object' || !('status' in error)) return null;
-  const status = (error as { status: unknown }).status;
-  return typeof status === 'number' ? status : null;
-}
 
 function recipeFallbackImage(recipe: BrowseRecipe) {
   return RECIPE_FALLBACK_IMAGES[recipeImageRole({
@@ -535,9 +532,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       placeholderData: offset > 0 ? (previousData) => previousData : undefined,
       ...PREMIUM_RECIPE_REFRESH_POLICY,
     },
+    request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
-  const queryErrorStatus = httpStatus(query.error);
-  const accessDeniedStatus = queryErrorStatus === 401 ? queryErrorStatus : null;
+  const queryErrorStatus = premiumRecipeErrorStatus(query.error);
+  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
@@ -607,9 +605,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
     void queryClient.prefetchQuery({
       queryKey: nextQueryKey,
-      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-      retry: false,
+      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     }).catch(() => undefined);
   }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId, visible]);
   useEffect(() => {
@@ -644,15 +643,20 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const missingSavedQueries = useQueries({
     queries: missingSavedIds.map((sourceId) => ({
       queryKey: premiumRecipeDetailQueryKey(userId, getGetPremiumRecipeQueryKey(sourceId)),
-      queryFn: () => getPremiumRecipe(sourceId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getPremiumRecipe(sourceId, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       enabled: Boolean(visible && userId && data?.status === 'available' && !accessDenied),
       staleTime: 1000 * 60 * 10,
-      retry: false,
+      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     })),
   });
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
+  const savedRestorationState = premiumSavedRecipeRestorationState(missingSavedQueries);
+  const retrySavedRecipeRestoration = () => {
+    void Promise.all(missingSavedQueries.filter((savedQuery) => savedQuery.isError).map((savedQuery) => savedQuery.refetch()));
+  };
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
   const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
   useEffect(() => {
@@ -697,6 +701,29 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
         <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>
           {data?.provider} · provider-supplied recipe information
         </Text>
+        {savedRestorationState !== 'ready' && (
+          <View testID="plus-saved-restoration-state" style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name={savedRestorationState === 'authentication' ? 'log-in' : 'wifi-off'} size={14} color={colors.warning} />
+            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>
+              {savedRestorationState === 'authentication'
+                ? 'Sign in again to restore your saved Plus recipes.'
+                : 'Some saved Plus recipes are temporarily unavailable.'}
+            </Text>
+            <Pressable
+              accessibilityLabel={savedRestorationState === 'authentication' ? 'Sign in to restore Plus recipes' : 'Retry restoring saved Plus recipes'}
+              onPress={() => {
+                if (savedRestorationState === 'authentication') {
+                  router.push('/auth/sign-in');
+                  return;
+                }
+                retrySavedRecipeRestoration();
+              }}
+              style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}
+            >
+              <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>{savedRestorationState === 'authentication' ? 'Sign in' : 'Retry'}</Text>
+            </Pressable>
+          </View>
+        )}
         {savedRecipes.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
@@ -855,8 +882,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY } });
-  const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY }, request: PREMIUM_RECIPE_REQUEST_OPTIONS });
+  const premiumDetailErrorStatus = premiumRecipeErrorStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
     if (!premiumDetailDenied) return;
@@ -864,10 +891,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   }, [premiumDetailDenied, premiumDetailKey, queryClient]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && premium) void premiumDetailQuery.refetch();
+      if (state === 'active' && premium && session?.user.id) void premiumDetailQuery.refetch();
     });
     return () => subscription.remove();
-  }, [premium, premiumDetailQuery.refetch]);
+  }, [premium, premiumDetailQuery.refetch, session?.user.id]);
   const detail = premium
     ? hasCurrentPremiumAccess(premiumDetailQuery)
       ? premiumDetailQuery.data
@@ -894,27 +921,28 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>(() => recipeSlotTarget?.mealType ?? 'Dinner');
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
-  if (premiumDetailDenied) {
+  if (premium && (!session?.user.id || premiumDetailQuery.isError)) {
+    const requiresSignIn = !session?.user.id || premiumDetailDenied;
     return (
       <Modal visible transparent animationType="none" onRequestClose={onClose}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
           <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22 }]}>
             <View style={[styles.accessMessageIcon, { backgroundColor: colors.accent }]}>
-              <Feather name={premiumDetailErrorStatus === 401 ? 'log-in' : 'award'} size={20} color={colors.primary} />
+              <Feather name={requiresSignIn ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />
             </View>
             <Text style={[styles.detailTitle, { color: colors.foreground }]}>
-                {premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Plus recipe unavailable'}
+              {requiresSignIn ? 'Sign in again' : 'Plus recipe unavailable'}
             </Text>
             <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>
-              {premiumDetailErrorStatus === 401
-                ? 'Your session ended while this recipe was open.'
-                : 'The connected recipe provider cannot serve this recipe right now.'}
+              {requiresSignIn
+                ? 'Sign in to reopen this protected Plus recipe.'
+                : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Retry Plus recipe'}
+              accessibilityLabel={requiresSignIn ? 'Sign in again' : 'Retry Plus recipe'}
               onPress={() => {
-                if (premiumDetailErrorStatus === 401) {
+                if (requiresSignIn) {
                   onClose();
                   router.push('/auth/sign-in');
                   return;
@@ -923,13 +951,11 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
               }}
               style={[styles.primaryAction, { backgroundColor: colors.primary }]}
             >
-              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>
-                {premiumDetailErrorStatus === 401 ? 'Sign in' : 'Retry'}
-              </Text>
+              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{requiresSignIn ? 'Sign in' : 'Retry'}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close Plus access message"
+              accessibilityLabel="Close Plus recipe message"
               onPress={onClose}
               style={[styles.secondaryAction, { borderColor: colors.border }]}
             >
@@ -940,7 +966,18 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       </Modal>
     );
   }
-
+  if (premium && !detail) {
+    return (
+      <Modal visible transparent animationType="none" onRequestClose={onClose}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
+          <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>Loading Plus recipe…</Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
   if (!detail) return null;
   const canLog = hasCompleteNutrition(detail);
   // True when the server explicitly flagged that AI estimation failed for this recipe.
@@ -1541,7 +1578,7 @@ export default function RecipesScreen() {
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
   const discoverScrollYRef = useRef(0);
   const premiumScrollYRef = useRef(0);
-  const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
+  const premiumRecipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
   const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
   const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
@@ -1556,10 +1593,18 @@ export default function RecipesScreen() {
   const linkedPremiumRecipeQuery = useGetPremiumRecipe(recipeSource === 'plus' ? recipeId ?? '' : '', {
     query: {
       queryKey: premiumRecipeDetailQueryKey(user?.id, getGetPremiumRecipeQueryKey(recipeId ?? '')),
-      enabled: recipeSource === 'plus' && Boolean(recipeId),
-      staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-      retry: false,
+      enabled: recipeSource === 'plus' && Boolean(recipeId && user?.id),
+      ...PREMIUM_RECIPE_REFRESH_POLICY,
     },
+    request: PREMIUM_RECIPE_REQUEST_OPTIONS,
+  });
+  const linkedPremiumRouteState = premiumRecipeRouteState({
+    active: recipeSource === 'plus' && Boolean(recipeId) && !linkedPremiumRecipeQuery.data,
+    signedIn: Boolean(user?.id),
+    isLoading: linkedPremiumRecipeQuery.isLoading,
+    isFetching: linkedPremiumRecipeQuery.isFetching,
+    isError: linkedPremiumRecipeQuery.isError,
+    error: linkedPremiumRecipeQuery.error,
   });
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
@@ -1705,29 +1750,25 @@ export default function RecipesScreen() {
     loadingMoreRef.current = true;
     setRemoteOffset(remoteNextOffset);
   };
-  const loadMorePremiumRecipesIfAtEnd = () => {
-    const { offsetY, viewportHeight, contentHeight } = recipeScrollMetricsRef.current;
-    if (
-      activeSection === 'premium'
-      && viewportHeight > 0
-      && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE
-    ) {
+  const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {
+    const { offsetY, viewportHeight, contentHeight } = premiumRecipeScrollMetricsRef.current;
+    if (shouldLoadMorePremiumRecipes({ section, activeSection, offsetY, viewportHeight, contentHeight, prefetchDistance: PREMIUM_RECIPE_PREFETCH_DISTANCE })) {
       premiumLoadMoreRef.current?.();
     }
   };
-  const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handleRecipeScroll = (section: RecipeSection, event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    if (activeSection === 'premium') {
+    if (section === 'premium') {
       premiumScrollYRef.current = contentOffset.y;
-      recipeScrollMetricsRef.current = {
+      premiumRecipeScrollMetricsRef.current = {
         offsetY: contentOffset.y,
         viewportHeight: layoutMeasurement.height,
         contentHeight: contentSize.height,
       };
-      loadMorePremiumRecipesIfAtEnd();
+      loadMorePremiumRecipesIfAtEnd(section);
       return;
     }
-    if (activeSection !== 'discover') return;
+    if (section !== 'discover' || activeSection !== 'discover') return;
     discoverScrollYRef.current = contentOffset.y;
     if (contentOffset.y + layoutMeasurement.height >= contentSize.height - RECIPE_PREFETCH_DISTANCE) loadMoreRecipes();
   };
@@ -1742,15 +1783,17 @@ export default function RecipesScreen() {
         contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
         showsVerticalScrollIndicator={false}
         onLayout={(event) => {
-          recipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-          loadMorePremiumRecipesIfAtEnd();
+          if (section !== 'premium') return;
+          premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+          loadMorePremiumRecipesIfAtEnd(section);
         }}
         onContentSizeChange={(_, contentHeight) => {
-          recipeScrollMetricsRef.current.contentHeight = contentHeight;
-          loadMorePremiumRecipesIfAtEnd();
+          if (section !== 'premium') return;
+          premiumRecipeScrollMetricsRef.current.contentHeight = contentHeight;
+          loadMorePremiumRecipesIfAtEnd(section);
         }}
-        onScroll={handleRecipeScroll}
-        onMomentumScrollEnd={handleRecipeScroll}
+        onScroll={(event) => handleRecipeScroll(section, event)}
+        onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}
         scrollEventThrottle={16}
         decelerationRate="normal"
       >
@@ -1835,6 +1878,36 @@ export default function RecipesScreen() {
         testID="recipes-section-content"
         style={{ flex: 1 }}
       />
+      {linkedPremiumRouteState !== 'idle' && (
+        <Modal visible transparent animationType="none" onRequestClose={() => router.setParams({ recipeId: undefined, recipeSource: undefined })}>
+          <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
+            <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+              {linkedPremiumRouteState === 'loading' ? <ActivityIndicator color={colors.primary} /> : <Feather name={linkedPremiumRouteState === 'authentication' ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />}
+              <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>
+                {linkedPremiumRouteState === 'loading' ? 'Loading Plus recipe…' : linkedPremiumRouteState === 'authentication' ? 'Sign in to open this recipe' : 'Plus recipe unavailable'}
+              </Text>
+              {linkedPremiumRouteState !== 'loading' && (
+                <Pressable
+                  accessibilityLabel={linkedPremiumRouteState === 'authentication' ? 'Sign in to open Plus recipe' : 'Retry opening Plus recipe'}
+                  onPress={() => {
+                    if (linkedPremiumRouteState === 'authentication') {
+                      router.push('/auth/sign-in');
+                      return;
+                    }
+                    void linkedPremiumRecipeQuery.refetch();
+                  }}
+                  style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{linkedPremiumRouteState === 'authentication' ? 'Sign in' : 'Retry'}</Text>
+                </Pressable>
+              )}
+              <Pressable accessibilityLabel="Close Plus recipe route" onPress={() => router.setParams({ recipeId: undefined, recipeSource: undefined })} style={[styles.secondaryAction, { borderColor: colors.border }]}>
+                <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}

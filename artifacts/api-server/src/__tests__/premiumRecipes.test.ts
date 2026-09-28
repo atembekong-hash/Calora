@@ -172,6 +172,22 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("marks account-scoped Plus responses private and non-storable", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [], nextOffset: null }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const initial = await request(app).get("/v1/premium-recipes");
+    const conditional = await request(app)
+      .get("/v1/premium-recipes")
+      .set("If-None-Match", initial.headers.etag ?? 'W/"stale-plus-response"');
+
+    expect(initial.status).toBe(200);
+    expect(initial.headers["cache-control"]).toBe("private, no-store");
+    expect(conditional.status).toBe(200);
+    expect(conditional.body).toEqual(expect.objectContaining({ recipes: [] }));
+  });
+
   it("keeps Plus recipes available when RevenueCat entitlement verification is unavailable", async () => {
     hasActivePremiumEntitlementMock.mockRejectedValue(new Error("RevenueCat unavailable"));
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [], nextOffset: null }) });
