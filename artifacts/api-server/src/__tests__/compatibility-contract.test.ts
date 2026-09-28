@@ -11,6 +11,10 @@ const captureApprovalSync = readFileSync(
   resolve(root, "artifacts/calora/lib/captureApprovalSync.ts"),
   "utf8",
 );
+const captureRequest = readFileSync(
+  resolve(root, "artifacts/calora/lib/captureRequest.ts"),
+  "utf8",
+);
 const mobileRecipes = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/recipes.tsx"), "utf8");
 const mobileCoach = readFileSync(resolve(root, "artifacts/calora/app/coach.tsx"), "utf8");
 const referralActivator = readFileSync(
@@ -29,6 +33,7 @@ const mobileSources = [
   resolve(root, "artifacts/calora/components/ReferralActivator.tsx"),
   resolve(root, "artifacts/calora/components/ReferralCard.tsx"),
   resolve(root, "artifacts/calora/lib/diarySync.ts"),
+  resolve(root, "artifacts/calora/lib/captureRequest.ts"),
   resolve(root, "artifacts/calora/lib/captureApprovalSync.ts"),
   resolve(root, "artifacts/calora/lib/intelligence/coachFactActivationCoordinator.ts"),
   resolve(root, "artifacts/calora/lib/intelligence/coachFactContextClient.ts"),
@@ -47,6 +52,13 @@ describe("released mobile API compatibility contract", () => {
     expect(mobileScan).toContain("syncCaptureApprovals");
     expect(captureApprovalSync).toContain("approveCapture(sessionId, { headers:");
     expect(captureApprovalSync).toContain("setCaptureApprovalAccountScope");
+  });
+
+  it("keeps capture analysis bound to the authenticated Scan transport helper", () => {
+    expect(mobileScan).toContain("requestAuthenticatedCaptureAnalysis");
+    expect(captureRequest).toContain("createCaptureRequestOptions(accessToken, signal)");
+    expect(captureRequest).toContain("authTokenGetter: () => token");
+    expect(captureRequest).toContain("return analyzeCapture(");
   });
 
   it("keeps open-source and Premium recipe pagination fields in every contract layer", () => {
