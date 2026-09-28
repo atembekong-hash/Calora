@@ -1,10 +1,10 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
-  FadeInDown,
   FadeInRight,
   FadeOutLeft,
   cancelAnimation,
@@ -41,23 +41,22 @@ const ONBOARDING_STEPS = 7;
 
 type IllustrationScene = 'welcome' | 'goal' | 'basics' | 'metrics' | 'activity' | 'food' | 'review';
 
-const illustrationScenes: Record<IllustrationScene, {
-  icon: keyof typeof Feather.glyphMap;
+const photoScenes: Record<IllustrationScene, {
+  image: number;
   eyebrow: string;
   title: string;
-  secondaryIcon: keyof typeof Feather.glyphMap;
-  secondaryLabel: string;
+  detail: string;
 }> = {
-  welcome: { icon: 'sunrise', eyebrow: 'A calmer way to track', title: 'Your day, in focus', secondaryIcon: 'shield', secondaryLabel: 'Private by default' },
-  goal: { icon: 'target', eyebrow: 'Your direction', title: 'Progress with purpose', secondaryIcon: 'trending-down', secondaryLabel: 'Small steps count' },
-  basics: { icon: 'user', eyebrow: 'Make it yours', title: 'A plan that knows you', secondaryIcon: 'edit-3', secondaryLabel: 'Change anytime' },
-  metrics: { icon: 'sliders', eyebrow: 'Your starting point', title: 'Numbers, made useful', secondaryIcon: 'bar-chart-2', secondaryLabel: 'A clear baseline' },
-  activity: { icon: 'activity', eyebrow: 'Your rhythm', title: 'Built around real life', secondaryIcon: 'zap', secondaryLabel: 'Flexible guidance' },
-  food: { icon: 'coffee', eyebrow: 'Your preferences', title: 'More you, less noise', secondaryIcon: 'heart', secondaryLabel: 'Personalized ideas' },
-  review: { icon: 'check-circle', eyebrow: 'Ready when you are', title: 'A thoughtful first day', secondaryIcon: 'lock', secondaryLabel: 'You stay in control' },
+  welcome: { image: require('../assets/images/calora-home-header.jpg'), eyebrow: 'A CALMER START', title: 'Food that fits real life', detail: 'Flexible support, one day at a time' },
+  goal: { image: require('../assets/images/meals/harvest-salad.jpg'), eyebrow: 'YOUR DIRECTION', title: 'Start with what matters', detail: 'Progress can look different for everyone' },
+  basics: { image: require('../assets/images/foods/chicken-rice-bowl.jpg'), eyebrow: 'YOUR RHYTHM', title: 'A plan shaped around you', detail: 'The details stay editable' },
+  metrics: { image: require('../assets/images/meals/salmon-quinoa.jpg'), eyebrow: 'A HELPFUL ESTIMATE', title: 'A useful starting point', detail: 'Numbers with context, never judgment' },
+  activity: { image: require('../assets/images/foods/avocado-toast.jpg'), eyebrow: 'YOUR WEEK', title: 'Built for everyday movement', detail: 'Choose what feels most like you' },
+  food: { image: require('../assets/images/meals/chickpea-bowl.jpg'), eyebrow: 'YOUR TASTE', title: 'Meals you will want to return to', detail: 'Small preferences make ideas more useful' },
+  review: { image: require('../assets/images/meals/berry-oats.jpg'), eyebrow: 'READY WHEN YOU ARE', title: 'A gentler first day', detail: 'One meal never defines your day' },
 };
 
-function OnboardingIllustration({
+function OnboardingPhotoHero({
   scene,
   colors,
 }: {
@@ -66,7 +65,7 @@ function OnboardingIllustration({
 }) {
   const reducedMotion = useReducedMotion();
   const drift = useSharedValue(0);
-  const details = illustrationScenes[scene];
+  const details = photoScenes[scene];
 
   React.useEffect(() => {
     if (reducedMotion) {
@@ -75,8 +74,8 @@ function OnboardingIllustration({
     }
     drift.value = withRepeat(
       withSequence(
-        withTiming(-6, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(-5, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
       ),
       -1,
       false,
@@ -89,33 +88,25 @@ function OnboardingIllustration({
   }));
 
   return (
-    <View style={[styles.illustration, { backgroundColor: colors.hero }]}>
+    <View style={[styles.photoHero, { backgroundColor: colors.hero }]}>
+      <Animated.View style={[StyleSheet.absoluteFillObject, floatingStyle]}>
+        <Image accessibilityIgnoresInvertColors contentFit="cover" source={details.image} style={StyleSheet.absoluteFillObject} transition={240} />
+      </Animated.View>
       <LinearGradient
-        colors={[colors.hero, colors.primary]}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
+        colors={['rgba(9, 27, 20, 0.06)', 'rgba(9, 27, 20, 0.78)']}
+        end={{ x: 0.5, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
         style={StyleSheet.absoluteFillObject}
       />
-      <View style={[styles.illustrationOrb, { backgroundColor: colors.accent }]} />
-      <Animated.View style={[styles.illustrationMainCard, { backgroundColor: colors.card, borderColor: colors.border }, floatingStyle]}>
-        <View style={[styles.illustrationIcon, { backgroundColor: colors.accent }]}>
-          <Feather name={details.icon} size={24} color={colors.primary} />
-        </View>
-        <Text style={[styles.illustrationEyebrow, { color: colors.mutedForeground }]}>{details.eyebrow}</Text>
-        <Text style={[styles.illustrationTitle, { color: colors.foreground }]}>{details.title}</Text>
-        <View style={styles.illustrationBars}>
-          <View style={[styles.illustrationBar, styles.illustrationBarLong, { backgroundColor: colors.primary }]} />
-          <View style={[styles.illustrationBar, styles.illustrationBarShort, { backgroundColor: colors.accent }]} />
-        </View>
-      </Animated.View>
-      <Animated.View entering={FadeInDown.delay(140).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeTop, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name={details.secondaryIcon} size={14} color={colors.primary} />
-        <Text style={[styles.illustrationBadgeText, { color: colors.foreground }]}>{details.secondaryLabel}</Text>
-      </Animated.View>
-      <Animated.View entering={FadeInDown.delay(240).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeBottom, { backgroundColor: colors.accent }]}>
-        <View style={[styles.illustrationDot, { backgroundColor: colors.primary }]} />
-        <Text style={[styles.illustrationBadgeText, { color: colors.accentForeground }]}>Made for today</Text>
-      </Animated.View>
+      <View style={styles.photoHeroCopy}>
+        <Text style={styles.photoHeroEyebrow}>{details.eyebrow}</Text>
+        <Text style={styles.photoHeroTitle}>{details.title}</Text>
+        <Text style={styles.photoHeroDetail}>{details.detail}</Text>
+      </View>
+      <View style={[styles.photoHeroBadge, { backgroundColor: colors.card }]}>
+        <Feather name="heart" size={14} color={colors.primary} />
+        <Text style={[styles.photoHeroBadgeText, { color: colors.foreground }]}>Made to adapt</Text>
+      </View>
     </View>
   );
 }
@@ -143,6 +134,7 @@ export default function OnboardingScreen() {
     completeOnboarding,
   } = useCalora();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const isReviewMode = mode === 'review' && onboardingComplete && !!existingProfile;
   const [step, setStep] = useState(() => onboardingStep);
   const [goal, setGoal] = useState<Goal>(() => existingProfile?.goal ?? 'lose');
@@ -408,28 +400,32 @@ export default function OnboardingScreen() {
           <Text style={[styles.brand, { color: colors.foreground }]}>{BRAND.name}</Text>
            <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step + 1} of {ONBOARDING_STEPS}</Text>
         </View>
-         <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}><Animated.View entering={FadeInRight.duration(280)} style={[styles.progressFill, { backgroundColor: colors.primary, width: `${((step + 1) / ONBOARDING_STEPS) * 100}%` }]} /></View>
+         <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}><Animated.View entering={reducedMotion ? undefined : FadeInRight.duration(280)} style={[styles.progressFill, { backgroundColor: colors.primary, width: `${((step + 1) / ONBOARDING_STEPS) * 100}%` }]} /></View>
 
-         <Animated.View key={`onboarding-step-${step}`} entering={FadeInRight.springify().damping(18).stiffness(150)} exiting={FadeOutLeft.duration(140)}>
+         <Animated.View key={`onboarding-step-${step}`} entering={reducedMotion ? undefined : FadeInRight.duration(220)} exiting={reducedMotion ? undefined : FadeOutLeft.duration(140)}>
          {step === 0 && (
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Food tracking, made simpler.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>Set your goal and get a plan that fits your day.</Text>
-             <OnboardingIllustration scene="welcome" colors={colors} />
+            <Text style={[styles.title, { color: colors.foreground }]}>Start with the life you already live.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>A thoughtful setup takes a moment. Every choice can change with you.</Text>
+             <OnboardingPhotoHero scene="welcome" colors={colors} />
             <View style={[styles.welcomeCard, { backgroundColor: colors.hero }]}>
               <View style={[styles.welcomeIcon, { backgroundColor: 'rgba(157,215,189,0.16)' }]}><Feather name="shield" size={22} color={colors.heroMuted} /></View>
-               <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Clear food data.</Text>
-               <Text style={[styles.welcomeBody, { color: colors.heroMuted }]}>See where numbers come from. Review estimates before you log them.</Text>
+               <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Your routine, your pace.</Text>
+               <Text style={[styles.welcomeBody, { color: colors.heroMuted }]}>Start with a flexible goal. Review estimates before you save them.</Text>
             </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Sign in to restore an existing Calora account" onPress={() => router.push('/auth/sign-in' as any)} style={styles.accountRestoreLink}>
+              <Text style={[styles.accountRestoreText, { color: colors.mutedForeground }]}>Already have a Calora account?</Text>
+              <Text style={[styles.accountRestoreAction, { color: colors.primary }]}> Sign in to restore it</Text>
+            </Pressable>
             <Text style={[styles.smallNote, { color: colors.mutedForeground }]}>No ads. No shame. No medical advice.</Text>
           </View>
         )}
 
         {step === 1 && (
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>What’s your goal?</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>You can change it anytime.</Text>
-            <OnboardingIllustration scene="goal" colors={colors} />
+            <Text style={[styles.title, { color: colors.foreground }]}>What would feel useful right now?</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>Choose a starting direction. You can edit it anytime.</Text>
+            <OnboardingPhotoHero scene="goal" colors={colors} />
             <View style={styles.optionList}>{goals.map((item) => {
               const selected = goal === item.key;
               return <Pressable key={item.key} onPress={() => setGoal(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
@@ -443,9 +439,9 @@ export default function OnboardingScreen() {
 
          {step === 2 && (
            <View>
-             <Text style={[styles.title, { color: colors.foreground }]}>Let’s make this personal.</Text>
-             <Text style={[styles.body, { color: colors.mutedForeground }]}>A few basics help Calora speak to you, not at you.</Text>
-             <OnboardingIllustration scene="basics" colors={colors} />
+             <Text style={[styles.title, { color: colors.foreground }]}>Let’s make this feel like yours.</Text>
+             <Text style={[styles.body, { color: colors.mutedForeground }]}>A few basics help Calora personalize your starting plan. You stay in control.</Text>
+             <OnboardingPhotoHero scene="basics" colors={colors} />
               <View style={styles.formGrid}>
                 <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput testID="onboarding-name-input" accessibilityLabel="Your name" value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
                 <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput testID="onboarding-age-input" accessibilityLabel="Age" value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
@@ -455,9 +451,9 @@ export default function OnboardingScreen() {
 
          {step === 3 && (
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Set your starting target.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>These details create a starting estimate, not a medical recommendation.</Text>
-             <OnboardingIllustration scene="metrics" colors={colors} />
+            <Text style={[styles.title, { color: colors.foreground }]}>Set a helpful starting point.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>These details shape a starting estimate, not a medical recommendation.</Text>
+             <OnboardingPhotoHero scene="metrics" colors={colors} />
              <View style={styles.formGrid}>
                 {[['Height (cm)', height, setHeight, 'onboarding-height-input'], ['Current weight (kg)', weight, setWeight, 'onboarding-weight-input'], ['Goal weight (kg)', targetWeight, setTargetWeight, 'onboarding-target-weight-input']].map(([label, value, setter, testID]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput testID={testID as string} accessibilityLabel={label as string} value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
             </View>
@@ -468,9 +464,9 @@ export default function OnboardingScreen() {
 
          {step === 4 && (
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>How active are you?</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>This helps make your first estimate more useful.</Text>
-             <OnboardingIllustration scene="activity" colors={colors} />
+            <Text style={[styles.title, { color: colors.foreground }]}>What does your usual week feel like?</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>This only adjusts your first estimate. It is not a score.</Text>
+             <OnboardingPhotoHero scene="activity" colors={colors} />
             <View style={styles.optionList}>{activities.map((item) => {
               const selected = activity === item.key;
               return <Pressable key={item.key} onPress={() => setActivity(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
@@ -483,9 +479,9 @@ export default function OnboardingScreen() {
 
          {step === 5 && (
            <View>
-             <Text style={[styles.title, { color: colors.foreground }]}>What sounds good to you?</Text>
-             <Text style={[styles.body, { color: colors.mutedForeground }]}>We’ll use this to keep suggestions closer to your taste.</Text>
-             <OnboardingIllustration scene="food" colors={colors} />
+             <Text style={[styles.title, { color: colors.foreground }]}>What kinds of meals suit you?</Text>
+             <Text style={[styles.body, { color: colors.mutedForeground }]}>We will use this to keep ideas closer to your taste. You can refine it later.</Text>
+             <OnboardingPhotoHero scene="food" colors={colors} />
              <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 22, marginBottom: 9 }]}>Food preference</Text>
              <View style={styles.chipRow}>{diets.map((item) => <Pressable key={item} onPress={() => setDiet(item)} style={[styles.chip, { backgroundColor: diet === item ? colors.primary : colors.card, borderColor: diet === item ? colors.primary : colors.border }]}><Text style={[styles.chipText, { color: diet === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View>
            </View>
@@ -493,9 +489,9 @@ export default function OnboardingScreen() {
 
          {step === 6 && (
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
-             <OnboardingIllustration scene="review" colors={colors} />
+            <Text style={[styles.title, { color: colors.foreground }]}>Here is your starting plan.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data can be exported or deleted from Settings.</Text>
+             <OnboardingPhotoHero scene="review" colors={colors} />
              <Pressable
                testID="onboarding-consent"
                accessibilityRole="checkbox"
@@ -548,25 +544,20 @@ const styles = StyleSheet.create({
   progressFill: { height: 5, borderRadius: 3 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 31, lineHeight: 36, letterSpacing: -1, maxWidth: 340 },
   body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginTop: 12, maxWidth: 340 },
-  illustration: { height: 188, borderRadius: 24, overflow: 'hidden', marginTop: 24, marginBottom: 22, position: 'relative' },
-  illustrationOrb: { position: 'absolute', width: 150, height: 150, borderRadius: 75, right: -36, top: -52, opacity: 0.28 },
-  illustrationMainCard: { position: 'absolute', width: 194, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 14, left: 34, top: 24, shadowColor: '#07160e', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
-  illustrationIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  illustrationEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' },
-  illustrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, letterSpacing: -0.3, marginTop: 4 },
-  illustrationBars: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 16 },
-  illustrationBar: { height: 6, borderRadius: 4 },
-  illustrationBarLong: { width: 74 },
-  illustrationBarShort: { width: 30 },
-  illustrationBadge: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#07160e', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  illustrationBadgeTop: { right: 12, top: 17 },
-  illustrationBadgeBottom: { left: 14, bottom: 16 },
-  illustrationBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
-  illustrationDot: { width: 7, height: 7, borderRadius: 4 },
+  photoHero: { height: 224, borderRadius: 26, overflow: 'hidden', marginTop: 24, marginBottom: 22, position: 'relative', justifyContent: 'flex-end' },
+  photoHeroCopy: { paddingHorizontal: 18, paddingBottom: 18, paddingRight: 28 },
+  photoHeroEyebrow: { color: '#f6fbf6', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  photoHeroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 21, lineHeight: 25, letterSpacing: -0.45, marginTop: 5 },
+  photoHeroDetail: { color: 'rgba(255,255,255,0.84)', fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 5 },
+  photoHeroBadge: { position: 'absolute', alignItems: 'center', flexDirection: 'row', gap: 6, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 8, right: 12, top: 13, shadowColor: '#07160e', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  photoHeroBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
   welcomeCard: { borderRadius: 24, padding: 20, marginTop: 38 },
   welcomeIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   welcomeTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginBottom: 8 },
   welcomeBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
+  accountRestoreLink: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 17, minHeight: 32, paddingHorizontal: 8, paddingVertical: 5 },
+  accountRestoreText: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  accountRestoreAction: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   smallNote: { fontFamily: 'Inter_400Regular', fontSize: 11, textAlign: 'center', marginTop: 16 },
   optionList: { gap: 10, marginTop: 28 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14 },

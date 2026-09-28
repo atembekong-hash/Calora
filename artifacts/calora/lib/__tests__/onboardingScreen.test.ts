@@ -6,6 +6,12 @@ async function onboardingSource() {
   return readFile(resolve(__dirname, '../../app/index.tsx'), 'utf8');
 }
 
+async function rootLayoutSource() {
+  const { readFile } = await import('node:fs/promises');
+  const { resolve } = await import('node:path');
+  return readFile(resolve(__dirname, '../../app/_layout.tsx'), 'utf8');
+}
+
 describe('onboarding keyboard-aware and agreement contracts', () => {
   it('uses the existing keyboard-aware compatibility wrapper with safe-area spacing', async () => {
     const source = await onboardingSource();
@@ -55,5 +61,32 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     expect(source).toContain('if (isReviewMode) router.replace');
     expect(source).toContain('onboardingComplete');
     expect(source).toContain('onboardingDraft');
+  });
+
+  it('uses bundled food photography with restrained motion that honors reduced-motion settings', async () => {
+    const source = await onboardingSource();
+
+    expect(source).toContain("import { Image } from 'expo-image';");
+    expect(source).toContain('function OnboardingPhotoHero');
+    expect(source).toContain("require('../assets/images/calora-home-header.jpg')");
+    expect(source).toContain("require('../assets/images/meals/harvest-salad.jpg')");
+    expect(source).toContain("require('../assets/images/foods/chicken-rice-bowl.jpg')");
+    expect(source).toContain('const reducedMotion = useReducedMotion();');
+    expect(source).toContain('if (reducedMotion) {');
+    expect(source).toContain('entering={reducedMotion ? undefined : FadeInRight.duration(220)}');
+    expect(source).not.toContain('function OnboardingIllustration');
+  });
+
+  it('offers existing-account sign-in while the root waits for secure session and profile restoration', async () => {
+    const source = await onboardingSource();
+    const rootSource = await rootLayoutSource();
+
+    expect(source).toContain("router.push('/auth/sign-in' as any)");
+    expect(source).toContain('Sign in to restore an existing Calora account');
+    expect(source).toContain('if ((!hydrated || !profileSyncReady)');
+    expect(rootSource).toContain("if (restoreStatus === 'loading') return <AuthRestoreBootstrap />;");
+    expect(rootSource).toContain('<CaloraProvider key={scopeKey} accountId={accountId}>');
+    expect(rootSource).toContain('<Stack.Protected guard={allowOnboarding}>');
+    expect(rootSource).toContain('<Stack.Protected guard={allowApplication}>');
   });
 });
