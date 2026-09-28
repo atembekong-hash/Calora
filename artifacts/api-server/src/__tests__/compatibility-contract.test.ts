@@ -56,8 +56,12 @@ describe("released mobile API compatibility contract", () => {
 
   it("keeps capture analysis bound to the authenticated Scan transport helper", () => {
     expect(mobileScan).toContain("requestAuthenticatedCaptureAnalysis");
-    expect(captureRequest).toContain("createCaptureRequestOptions(accessToken, signal)");
-    expect(captureRequest).toContain("authTokenGetter: () => token");
+    expect(mobileScan).toContain("captureAccountId");
+    expect(captureRequest).toContain("createCaptureRequestOptions(accountId, signal)");
+    expect(captureRequest).toContain("supabase.auth.getSession()");
+    expect(captureRequest).toContain("authIdentityGuard: assertIdentity");
+    expect(captureRequest).toContain("authTokenGetter: getToken");
+    expect(captureRequest).toContain("authTokenRefresher: refreshToken");
     expect(captureRequest).toContain("return analyzeCapture(");
   });
 

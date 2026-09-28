@@ -51,6 +51,7 @@ describe('classifyCaptureError', () => {
     [{ name: 'CaptureOperationTimeoutError' }, 'timeout'],
     [{ status: 401, message: 'sign in' }, 'authentication'],
     [{ name: 'CaptureRequestAuthenticationError' }, 'authentication'],
+    [{ name: 'CaptureRequestIdentityChangedError' }, 'authentication'],
     [{ status: 404, message: 'route missing' }, 'endpoint'],
   ] as const)('classifies %o as %s', (error, expectedKind) => {
     expect(classifyCaptureError(error).kind).toBe(expectedKind);

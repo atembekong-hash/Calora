@@ -27,9 +27,11 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("router.push('/auth/sign-in')");
   });
 
-  it('binds each protected Scan request to the active authenticated session', () => {
-    expect(source).toContain('requestAuthenticatedCaptureAnalysis(');
-    expect(source).toContain('captureAccessToken');
+  it("binds each protected Scan request to the active account rather than a stale render token", () => {
+    expect(source).toContain("requestAuthenticatedCaptureAnalysis(");
+    expect(source).toContain("captureAccountId");
+    expect(source).toContain("user?.id");
+    expect(source).not.toContain("captureAccessToken");
   });
 
   it("does not invite a futile retry when an installed build targets a stale endpoint", () => {
