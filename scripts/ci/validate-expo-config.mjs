@@ -18,8 +18,8 @@ if (expo?.version !== "1.0.1") failures.push("expo.version must be 1.0.1");
 if (expo?.ios?.bundleIdentifier !== "com.etiendem.caloraapp") {
   failures.push("expo.ios.bundleIdentifier is incorrect");
 }
-if (expo?.ios?.buildNumber !== "10") {
-  failures.push("iOS buildNumber must be 10");
+if (expo?.ios?.buildNumber !== "11") {
+  failures.push("iOS buildNumber must be 11");
 }
 if (expo?.android?.package !== "com.etiendem.caloraapp") {
   failures.push("expo.android.package is incorrect");
@@ -48,6 +48,18 @@ const routerOrigin = expo?.plugins?.find(
 )?.[1]?.origin;
 if (routerOrigin !== "https://mycaloraapp.com/") {
   failures.push("Expo Router origin must be https://mycaloraapp.com/");
+}
+
+const healthUpdatePurpose = "Calora may request Apple Health access so you can choose health data to share. Calora only reads steps, active energy, workouts, and body weight; it does not write or change your Apple Health records.";
+if (expo?.ios?.infoPlist?.NSHealthUpdateUsageDescription !== healthUpdatePurpose) {
+  failures.push("iOS HealthKit update-purpose text is missing or incorrect");
+}
+
+const healthKitPlugin = expo?.plugins?.find(
+  (plugin) => Array.isArray(plugin) && plugin[0] === "@kingstinct/react-native-healthkit",
+);
+if (healthKitPlugin?.[1]?.NSHealthUpdateUsageDescription !== healthUpdatePurpose) {
+  failures.push("HealthKit plugin update-purpose text is missing or incorrect");
 }
 
 if (failures.length > 0) {

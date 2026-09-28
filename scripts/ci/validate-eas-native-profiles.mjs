@@ -25,6 +25,14 @@ if (production?.env?.EXPO_PUBLIC_API_URL !== "https://mycaloraapp.com") {
     "production EAS build profile must use the canonical Calora API origin",
   );
 }
+if (profiles?.base?.ios?.image !== "macos-sequoia-15.6-xcode-26.0") {
+  failures.push(
+    "base iOS EAS build profile must pin the App Store-compatible Xcode 26 image",
+  );
+}
+if (production?.ios?.distribution !== "store") {
+  failures.push("production iOS build profile must remain an App Store distribution");
+}
 
 for (const profileName of ["development-device", "preview", "production-apk"]) {
   const profile = profiles?.[profileName];

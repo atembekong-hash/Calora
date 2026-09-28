@@ -16,10 +16,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.etiendem.caloraapp",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMotionUsageDescription": "Calora uses Motion & Fitness activity to show your live steps while the dashboard is open."
+        "NSMotionUsageDescription": "Calora uses Motion & Fitness activity to show your live steps while the dashboard is open.",
+        "NSHealthUpdateUsageDescription": "Calora may request Apple Health access so you can choose health data to share. Calora only reads steps, active energy, workouts, and body weight; it does not write or change your Apple Health records."
       },
       "associatedDomains": [
         "applinks:mycaloraapp.com"
@@ -104,7 +105,7 @@
         {
           "background": false,
           "NSHealthShareUsageDescription": "Calora reads steps, active energy, workouts, and body weight you choose to share.",
-          "NSHealthUpdateUsageDescription": false
+          "NSHealthUpdateUsageDescription": "Calora may request Apple Health access so you can choose health data to share. Calora only reads steps, active energy, workouts, and body weight; it does not write or change your Apple Health records."
         }
       ]
     ],
