@@ -11,7 +11,8 @@
       "role": "decorative editorial header or empty-state surface",
       "renderConsumers": [
         "artifacts/calora/lib/hourlyHeaderImages.ts: home and recipes pools",
-        "artifacts/calora/app/(tabs)/index.tsx: home header and empty diary"
+        "artifacts/calora/app/(tabs)/index.tsx: home header and empty diary",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero welcome surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -233,7 +234,8 @@
       "role": "canonical food-reference image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: foodImages",
-        "artifacts/calora/components/FoodLogThumbnail.tsx"
+        "artifacts/calora/components/FoodLogThumbnail.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero activity surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -296,7 +298,8 @@
       "role": "canonical food-reference image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: foodImages",
-        "artifacts/calora/components/FoodLogThumbnail.tsx"
+        "artifacts/calora/components/FoodLogThumbnail.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero basics surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -736,7 +739,8 @@
       "role": "planner curated meal image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: plannerImages",
-        "artifacts/calora/components/PlannerMealImage.tsx"
+        "artifacts/calora/components/PlannerMealImage.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero review surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -799,7 +803,8 @@
       "role": "planner curated meal image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: plannerImages",
-        "artifacts/calora/components/PlannerMealImage.tsx"
+        "artifacts/calora/components/PlannerMealImage.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero preference surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -883,7 +888,8 @@
       "role": "planner curated meal image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: plannerImages",
-        "artifacts/calora/components/PlannerMealImage.tsx"
+        "artifacts/calora/components/PlannerMealImage.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero goal surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -1030,7 +1036,8 @@
       "role": "planner curated meal image",
       "renderConsumers": [
         "artifacts/calora/lib/mealImages.ts: plannerImages",
-        "artifacts/calora/components/PlannerMealImage.tsx"
+        "artifacts/calora/components/PlannerMealImage.tsx",
+        "artifacts/calora/app/index.tsx: OnboardingPhotoHero estimate surface"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
       "creator": "Manus generate_image (default model), commissioned for Calora",
@@ -1259,6 +1266,15 @@
       "anchor": "require('../../assets/images/calora-home-header.jpg')",
       "classification": "decorative",
       "role": "empty diary surface",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative primitive"
+    },
+    {
+      "id": "onboarding-photo-hero",
+      "path": "artifacts/calora/app/index.tsx",
+      "anchor": "source={details.image}",
+      "classification": "decorative",
+      "role": "bundled meal-image onboarding hero surface",
       "owner": "Calora product team",
       "reviewStatus": "reviewed decorative primitive"
     },
