@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -31,8 +32,8 @@ test('Expo SDK 54 uses a supported iOS EAS build image', () => {
   const easJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'eas.json'), 'utf8'));
   assert.equal(
     easJson.build?.base?.ios?.image,
-    'macos-sequoia-15.6-xcode-16.4',
-    'Expo SDK 54 requires Xcode 16.1 or later; do not regress to the legacy Xcode 15.4 image',
+    'macos-sequoia-15.6-xcode-26.0',
+    'App Store Connect requires an iOS 26 SDK; do not regress the pinned EAS Xcode 26 image',
   );
 });
 
@@ -45,7 +46,8 @@ test('Expo configuration requests only implemented health capabilities', () => {
   );
 
   assert.equal(packageJson.devDependencies?.['expo-location'], undefined);
-  assert.equal(infoPlist.NSHealthUpdateUsageDescription, undefined);
+  const healthUpdatePurpose = 'Calora may request Apple Health access so you can choose health data to share. Calora only reads steps, active energy, workouts, and body weight; it does not write or change your Apple Health records.';
+  assert.equal(infoPlist.NSHealthUpdateUsageDescription, healthUpdatePurpose);
   assert.equal(
     infoPlist.NSMotionUsageDescription,
     'Calora uses Motion & Fitness activity to show your live steps while the dashboard is open.',
@@ -65,7 +67,22 @@ test('Expo configuration requests only implemented health capabilities', () => {
     'The privacy route plugin must run before the Health Connect manifest plugin',
   );
   assert.ok(Array.isArray(healthKitPlugin));
-  assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, false);
+  assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, healthUpdatePurpose);
+});
+
+test('Expo prebuild emits the Apple-required HealthKit update-purpose text', () => {
+  const healthUpdatePurpose = 'Calora may request Apple Health access so you can choose health data to share. Calora only reads steps, active energy, workouts, and body weight; it does not write or change your Apple Health records.';
+  const expoCli = path.join(appRoot, 'node_modules', 'expo', 'bin', 'cli');
+  const output = execFileSync(process.execPath, [expoCli, 'config', '--type', 'introspect', '--json'], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const config = JSON.parse(output);
+
+  assert.equal(config.ios?.infoPlist?.NSHealthUpdateUsageDescription, healthUpdatePurpose);
+  assert.equal(config._internal?.modResults?.ios?.infoPlist?.NSHealthUpdateUsageDescription, healthUpdatePurpose);
+  assert.equal(config._internal?.modResults?.ios?.entitlements?.['com.apple.developer.healthkit'], true);
 });
 
 test('mobile environment template cannot document server-only credentials', () => {
