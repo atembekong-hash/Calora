@@ -45,6 +45,8 @@ const starterPrompts = [
   "What can I focus on this week?",
   "How do I use Calora to log a meal?",
 ];
+const guestChatDescription =
+  "Guest messages are not saved and do not use personal app data.";
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -805,8 +807,7 @@ export default function CoachScreen() {
                       { color: colors.mutedForeground },
                     ]}
                   >
-                    Guest messages are not saved and do not use personal app
-                    data.
+                    {guestChatDescription}
                   </Text>
                   <Pressable
                     accessibilityLabel="Sign in for personalized Coach"
