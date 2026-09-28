@@ -39,6 +39,7 @@ import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/pr
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
+import { resolvePremiumRecipeDetailImage } from '@/lib/premiumRecipeDetailImage';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
@@ -899,6 +900,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const caloraOriginal = recipe ? recipeProvenance(recipe).sourceType === 'calora_catalog' : false;
   const remoteRecipeId = recipe && !local && !premium && !caloraOriginal ? recipe.id : '';
   const premiumSourceId = recipe && premium ? recipeProvenance(recipe).sourceId : '';
+  const selectedPremiumRecipe = premium && recipe ? recipe as PremiumRecipe : null;
   const detailQuery = useGetRecipe(remoteRecipeId, {
     query: {
       queryKey: ['recipe', remoteRecipeId],
@@ -923,6 +925,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const detail = premium
     ? hasCurrentPremiumAccess(premiumDetailQuery)
       ? premiumDetailQuery.data
+        ? resolvePremiumRecipeDetailImage(premiumDetailQuery.data, selectedPremiumRecipe)
+        : null
       : null
     : detailQuery.data ?? recipe;
 
