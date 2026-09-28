@@ -13,7 +13,10 @@ const {
   getCoachV2Settings,
   setCoachV2Settings,
   getCoachV2Conversation,
+  listCoachV2Conversations,
+  openCoachV2Conversation,
   clearCoachV2Conversation,
+  startNewCoachV2Conversation,
   startCoachV2Turn,
   completeCoachV2Turn,
   buildCoachV2Snapshot,
@@ -28,7 +31,10 @@ const {
   getCoachV2Settings: vi.fn(),
   setCoachV2Settings: vi.fn(),
   getCoachV2Conversation: vi.fn(),
+  listCoachV2Conversations: vi.fn(),
+  openCoachV2Conversation: vi.fn(),
   clearCoachV2Conversation: vi.fn(),
+  startNewCoachV2Conversation: vi.fn(),
   startCoachV2Turn: vi.fn(),
   completeCoachV2Turn: vi.fn(),
   buildCoachV2Snapshot: vi.fn(),
@@ -59,8 +65,14 @@ vi.mock("../lib/coach-v2-data.js", () => ({
   setCoachV2Settings: (...args: unknown[]) => setCoachV2Settings(...args),
   getCoachV2Conversation: (...args: unknown[]) =>
     getCoachV2Conversation(...args),
+  listCoachV2Conversations: (...args: unknown[]) =>
+    listCoachV2Conversations(...args),
+  openCoachV2Conversation: (...args: unknown[]) =>
+    openCoachV2Conversation(...args),
   clearCoachV2Conversation: (...args: unknown[]) =>
     clearCoachV2Conversation(...args),
+  startNewCoachV2Conversation: (...args: unknown[]) =>
+    startNewCoachV2Conversation(...args),
   startCoachV2Turn: (...args: unknown[]) => startCoachV2Turn(...args),
   completeCoachV2Turn: (...args: unknown[]) => completeCoachV2Turn(...args),
   buildCoachV2Snapshot: (...args: unknown[]) => buildCoachV2Snapshot(...args),
@@ -94,8 +106,11 @@ describe("clean-room Coach V2", () => {
     resolveCoachV2User.mockResolvedValue("internal-user-id");
     getCoachV2Settings.mockResolvedValue({ personalizationEnabled: true });
     getCoachV2Conversation.mockResolvedValue([]);
+    listCoachV2Conversations.mockResolvedValue([]);
+    openCoachV2Conversation.mockResolvedValue(true);
     setCoachV2Settings.mockResolvedValue({ personalizationEnabled: false });
     clearCoachV2Conversation.mockResolvedValue(undefined);
+    startNewCoachV2Conversation.mockResolvedValue(true);
     startCoachV2Turn.mockResolvedValue({
       conversationId: "conversation-id",
       turnId: "turn-id",
@@ -281,6 +296,70 @@ describe("clean-room Coach V2", () => {
     expect(history.body.turns).toHaveLength(1);
     expect(cleared.status).toBe(204);
     expect(clearCoachV2Conversation).toHaveBeenCalledWith("internal-user-id");
+  });
+
+  it("archives, lists, and reopens saved chats without clearing account history", async () => {
+    verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
+    listCoachV2Conversations.mockResolvedValue([
+      {
+        id: "1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412",
+        preview: "How is my nutrition today?",
+        turnCount: 2,
+        createdAt: "2026-09-28T00:00:00.000Z",
+        updatedAt: "2026-09-28T00:05:00.000Z",
+        active: false,
+      },
+    ]);
+    getCoachV2Conversation.mockResolvedValue([
+      {
+        id: "turn:user",
+        role: "user",
+        content: "How is my nutrition today?",
+        createdAt: "2026-09-28T00:00:00.000Z",
+      },
+    ]);
+
+    const started = await request(app())
+      .post("/v1/coach/v2/conversation/new")
+      .set("Authorization", "Bearer valid");
+    const listed = await request(app())
+      .get("/v1/coach/v2/conversations")
+      .set("Authorization", "Bearer valid");
+    const reopened = await request(app())
+      .post(
+        "/v1/coach/v2/conversation/1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412/open",
+      )
+      .set("Authorization", "Bearer valid");
+
+    expect(started.status).toBe(204);
+    expect(listed.status).toBe(200);
+    expect(listed.body.conversations).toHaveLength(1);
+    expect(reopened.status).toBe(200);
+    expect(reopened.body.turns).toHaveLength(1);
+    expect(startNewCoachV2Conversation).toHaveBeenCalledWith(
+      "internal-user-id",
+    );
+    expect(listCoachV2Conversations).toHaveBeenCalledWith("internal-user-id");
+    expect(openCoachV2Conversation).toHaveBeenCalledWith(
+      "internal-user-id",
+      "1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412",
+    );
+    expect(clearCoachV2Conversation).not.toHaveBeenCalled();
+  });
+
+  it("does not expose saved-chat operations without a valid signed-in account", async () => {
+    const listed = await request(app()).get("/v1/coach/v2/conversations");
+    const started = await request(app()).post("/v1/coach/v2/conversation/new");
+    const invalid = await request(app()).post(
+      "/v1/coach/v2/conversation/not-a-uuid/open",
+    );
+
+    expect(listed.status).toBe(401);
+    expect(started.status).toBe(401);
+    expect(invalid.status).toBe(400);
+    expect(listCoachV2Conversations).not.toHaveBeenCalled();
+    expect(startNewCoachV2Conversation).not.toHaveBeenCalled();
+    expect(openCoachV2Conversation).not.toHaveBeenCalled();
   });
 
   it("documents a bounded system instruction that rejects invented app data", () => {

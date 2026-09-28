@@ -1681,6 +1681,28 @@ export interface CoachV2Conversation {
   personalizationEnabled: boolean;
 }
 
+export interface CoachV2ConversationSummary {
+  id: string;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  preview: string | null;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  turnCount: number;
+  createdAt: string;
+  updatedAt: string;
+  active: boolean;
+}
+
+export interface CoachV2ConversationList {
+  /** @maxItems 50 */
+  conversations: CoachV2ConversationSummary[];
+}
+
 export interface CoachV2SettingsInput {
   personalizationEnabled: boolean;
 }
