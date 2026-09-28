@@ -114,6 +114,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('setImageFailed(false)');
   });
 
+  it('keeps the selected Plus card image when its matching detail payload omits a photo', () => {
+    expect(source).toContain("import { resolvePremiumRecipeDetailImage } from '@/lib/premiumRecipeDetailImage'");
+    expect(source).toContain('const selectedPremiumRecipe = premium && recipe ? recipe as PremiumRecipe : null;');
+    expect(source).toContain('resolvePremiumRecipeDetailImage(premiumDetailQuery.data, selectedPremiumRecipe)');
+  });
+
   it('keeps third-party source attribution inside opened recipe details without card badges', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
