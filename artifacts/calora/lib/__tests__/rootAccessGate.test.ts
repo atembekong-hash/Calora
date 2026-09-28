@@ -8,6 +8,9 @@ describe('root access gate', () => {
       { hydrated: true, hydrationError: new Error('storage unavailable'), profileSyncReady: true, onboardingComplete: false },
       { hydrated: true, hydrationError: null, profileSyncReady: false, onboardingComplete: false },
       { hydrated: true, hydrationError: null, profileSyncReady: true, onboardingComplete: false },
+      // A saved local completion flag cannot unlock the app before remote
+      // profile reconciliation has completed for the authenticated account.
+      { hydrated: true, hydrationError: null, profileSyncReady: false, onboardingComplete: true },
     ];
 
     for (const state of incompleteStates) {
