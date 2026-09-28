@@ -162,7 +162,7 @@ function cameraError(message: string): Error {
 
 export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, updateFoodMemoryDraftMeal, acceptFoodMemory, rejectFoodMemory } = useCalora();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string; draftId?: string; capture?: string; meal?: MealType }>();
   const entryDate = typeof params.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : dateKey();
@@ -333,8 +333,8 @@ export default function ScanScreen() {
   ): Promise<CaptureAnalysis | null> => {
     const activeOperationId = operationId ?? beginCaptureOperation('uploading');
     if (operationId !== undefined) dispatchCaptureFlow({ type: 'uploading', operationId });
-    const captureAccessToken = session?.access_token;
-    if (!captureAccessToken) {
+    const captureAccountId = user?.id;
+    if (!captureAccountId) {
       failCaptureOperation(activeOperationId, { status: 401, message: 'Sign in again before analyzing a photo.' });
       return null;
     }
@@ -346,7 +346,7 @@ export default function ScanScreen() {
       const next = await withCaptureDeadline(
         () => requestAuthenticatedCaptureAnalysis(
           { ...input, clientCorrelationId: correlationId },
-          captureAccessToken,
+          captureAccountId,
           controller.signal,
         ),
         CAPTURE_ANALYSIS_TIMEOUT_MS,
