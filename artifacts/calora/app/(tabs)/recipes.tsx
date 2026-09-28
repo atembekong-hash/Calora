@@ -57,7 +57,9 @@ const RECIPE_PREFETCH_DISTANCE = 1600;
 const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;
-const RECIPE_SUGGESTION_LIMIT = 10;
+const RECIPE_SUGGESTION_ROW_COUNT = 2;
+const RECIPE_SUGGESTIONS_PER_ROW = 20;
+const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW;
 const RECIPE_FALLBACK_IMAGES = {
   breakfast: require('../../assets/images/food-fallback-breakfast.jpg'),
   drink: require('../../assets/images/food-fallback-drink.jpg'),
@@ -502,7 +504,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   </View>;
 }
 
-function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void }) {
+function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session, user } = useAuth();
   const queryClient = useQueryClient();
@@ -580,6 +582,29 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);
+  useEffect(() => {
+    // Include the just-arrived page here. State updates from the preceding
+    // effect are asynchronous, so looking only at loadedRecipes could schedule
+    // one unnecessary page after the second row is already filled.
+    const availableRecipeCount = mergeRecipePages(loadedRecipes, data?.recipes ?? []).length;
+    if (
+      suggestionMinimumRecipeCount <= 0 ||
+      !visible ||
+      !userId ||
+      accessDenied ||
+      data?.status !== 'available' ||
+      data.nextOffset == null ||
+      availableRecipeCount >= suggestionMinimumRecipeCount ||
+      query.isFetching ||
+      loadingMoreRef.current
+    ) return;
+
+    // A person opened a Plus recipe and asked to browse related choices. Load
+    // only the additional provider pages needed to fill both suggestion rows;
+    // never manufacture repeated cards or prefetch this volume while browsing.
+    loadingMoreRef.current = true;
+    setOffset(data.nextOffset);
+  }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId, visible]);
   useEffect(() => {
     if (!visible || !userId) return;
     const today = utcFreshnessDay();
@@ -996,6 +1021,13 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
   const sourceName = detail.source.trim() || provenance.sourceProvider;
   const sourceUrl = normalizeExternalHttpsUrl(detail.sourceUrl);
+  const suggestionRows = useMemo(() => Array.from(
+    { length: RECIPE_SUGGESTION_ROW_COUNT },
+    (_, rowIndex) => suggestedRecipes.slice(
+      rowIndex * RECIPE_SUGGESTIONS_PER_ROW,
+      (rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW,
+    ),
+  ).filter((row) => row.length > 0), [suggestedRecipes]);
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
@@ -1314,31 +1346,41 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                   <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
                 </Pressable>
               </View>
-              {suggestedRecipes.length > 0 && onSelectSuggestion ? (
+              {suggestionRows.length > 0 && onSelectSuggestion ? (
                 <View style={styles.suggestionsSection}>
                   <View style={styles.suggestionsHeader}>
                     <View>
                       <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
-                      <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Keep exploring your collection.</Text>
+                      <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Swipe either row to keep exploring.</Text>
                     </View>
-                    <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions</Text>
+                    <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 20 per row</Text>
                   </View>
-                  <SwipeGestureExclusion>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionCards}>
-                      {suggestedRecipes.map((suggestion) => (
-                        <View key={suggestion.id} style={styles.suggestionCard}>
-                          <RecipeCard
-                            recipe={suggestion}
-                            colors={colors}
-                            saved={savedRecipeIds.includes(suggestion.id)}
-                            imageHeight={112}
-                            onPress={() => onSelectSuggestion(suggestion)}
-                            onSave={() => toggleSavedRecipe(suggestion.id)}
-                          />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </SwipeGestureExclusion>
+                  <View style={styles.suggestionRows}>
+                    {suggestionRows.map((row, rowIndex) => (
+                      <SwipeGestureExclusion key={`suggestion-row-${rowIndex + 1}`}>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`}
+                          testID={`recipe-suggestions-row-${rowIndex + 1}`}
+                          contentContainerStyle={styles.suggestionCards}
+                        >
+                          {row.map((suggestion) => (
+                            <View key={suggestion.id} style={styles.suggestionCard}>
+                              <RecipeCard
+                                recipe={suggestion}
+                                colors={colors}
+                                saved={savedRecipeIds.includes(suggestion.id)}
+                                imageHeight={112}
+                                onPress={() => onSelectSuggestion(suggestion)}
+                                onSave={() => toggleSavedRecipe(suggestion.id)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </SwipeGestureExclusion>
+                    ))}
+                  </View>
                 </View>
               ) : null}
             </ScrollView>
@@ -1630,7 +1672,9 @@ export default function RecipesScreen() {
   }, [category, search]);
   const discoverFreshnessSession = useMemo(() => getRecipeFreshnessSession(`discover:${user?.id ?? 'signed-out'}:${search}:${category}`), [category, search, user?.id]);
   const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick';
-  const discoverPaneMounted = activeSection !== 'create';
+  // A newly created recipe opens from the Create pane. While its detail sheet
+  // is open, keep the open catalogue available to fill both related rows.
+  const discoverPaneMounted = activeSection !== 'create' || Boolean(selected && isLocalRecipe(selected));
   const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], enabled: discoverRemoteEnabled && discoverPaneMounted, staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   useEffect(() => {
     setRemoteOffset(0);
@@ -1736,13 +1780,17 @@ export default function RecipesScreen() {
   const visibleRemote: BrowseRecipe[] = category === 'My recipes'
     ? []
     : [...caloraOriginalMatches, ...(category === 'Quick' ? [] : freshRemoteRecipes)];
+  const allOpenRecipeSuggestions = useMemo(
+    () => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes],
+    [freshRemoteRecipes, localRecipes],
+  );
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
     const pool: BrowseRecipe[] = premiumSelected
       ? premiumCatalogueRecipes
-      : [...visibleLocal, ...visibleRemote];
+      : allOpenRecipeSuggestions;
     return getRecipeSuggestions(pool, selectedRecipe);
-  }, [premiumCatalogueRecipes, selectedRecipe, visibleLocal, visibleRemote]);
+  }, [allOpenRecipeSuggestions, premiumCatalogueRecipes, selectedRecipe]);
   const savedRecipes = [...localRecipes, ...caloraOriginalRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
   const loadMoreRecipes = () => {
@@ -1797,7 +1845,7 @@ export default function RecipesScreen() {
         scrollEventThrottle={16}
         decelerationRate="normal"
       >
-         <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
+         <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0} />
          {section === 'discover' ? <>
         <View style={styles.recipeHeader}>
            <Image key={recipesHeaderImage.hourSlot} source={recipesHeaderImage.source} contentFit="cover" transition={0} style={StyleSheet.absoluteFillObject} />
@@ -2075,7 +2123,8 @@ function makeStyles(f: number) {
   suggestionsTitle: { marginTop: 0, marginBottom: 3 },
   suggestionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
   suggestionsCount: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 3 },
-  suggestionCards: { gap: 11, paddingHorizontal: 20, paddingBottom: 8 },
+  suggestionRows: { gap: 12 },
+  suggestionCards: { gap: 11, paddingHorizontal: 20, paddingBottom: 4 },
   suggestionCard: { width: 190 },
   detailEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 17 },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 25 * f, letterSpacing: -0.6, marginTop: 6 },
