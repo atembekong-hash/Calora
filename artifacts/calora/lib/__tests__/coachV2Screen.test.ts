@@ -58,4 +58,29 @@ describe("clean-room Coach screen", () => {
   it("clears an existing transcript before switching signed-in account history", () => {
     expect(source).toContain("setTurns([]);\n    setIsLoadingHistory(true);");
   });
+
+  it("provides an explicit new-chat action without weakening saved-history deletion", () => {
+    expect(source).toContain('testID="coach-new-chat"');
+    expect(source).toContain('testID="coach-menu-new-chat"');
+    expect(source).toContain("const startNewChat = () => {");
+    expect(source).toContain('setConfirmAction("new")');
+    expect(source).toContain("clearHistory(confirmAction)");
+    expect(source).toContain("await clearCoachV2Conversation()");
+  });
+
+  it("uses the requested three-line main-menu affordance", () => {
+    expect(source).toContain('accessibilityLabel="Open Coach main menu"');
+    expect(source).toContain('testID="coach-main-menu"');
+    expect(source).toContain('<Feather name="menu" size={23}');
+    expect(source).not.toContain('testID="coach-settings"');
+  });
+
+  it("keeps the composer in the keyboard-resized Coach layout", () => {
+    expect(source).toContain("import { KeyboardAvoidingView }");
+    expect(source).toContain('<KeyboardAvoidingView\n      behavior="height"');
+    expect(source).toContain("style={styles.transcript}");
+    expect(source).toContain("ref={composerRef}");
+    expect(source).toContain("transcript: { flex: 1 }");
+    expect(source).not.toContain('composerDock: {\n    position: "absolute"');
+  });
 });
