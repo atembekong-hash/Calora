@@ -68,7 +68,10 @@ function toDisplayTurns(coachTurns: CoachV2Turn[]): DisplayTurn[] {
     role: turn.role,
     content:
       turn.role === "assistant"
-        ? formatCoachPlainText(turn.content, { removeEmoji: true })
+        ? formatCoachPlainText(turn.content, {
+            removeEmoji: true,
+            roundMeasurements: true,
+          })
         : turn.content,
   }));
 }
@@ -166,6 +169,7 @@ export default function CoachScreen() {
           role: "assistant",
           content: formatCoachPlainText(response.message, {
             removeEmoji: true,
+            roundMeasurements: true,
           }),
           announce: true,
         },

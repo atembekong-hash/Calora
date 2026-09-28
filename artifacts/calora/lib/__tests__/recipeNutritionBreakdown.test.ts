@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildAiRecipeNutritionSections } from "@/components/RecipeNutritionBreakdown";
+import {
+  buildAiRecipeNutritionSections,
+  formatRecipeNutritionAmount,
+} from "@/components/RecipeNutritionBreakdown";
 
 const nutrition = {
   calories: 420,
@@ -22,6 +25,11 @@ const nutrition = {
 };
 
 describe("AI recipe nutrition breakdown", () => {
+  it("presents nutrient amounts as whole numbers while preserving calculated rows", () => {
+    expect(formatRecipeNutritionAmount(3.6, "mg")).toBe("4 mg");
+    expect(formatRecipeNutritionAmount(1.2, "mcg")).toBe("1 mcg");
+  });
+
   it("organizes the openly visible AI estimate into the requested categories", () => {
     const sections = buildAiRecipeNutritionSections(nutrition, 1);
 

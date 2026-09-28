@@ -22,9 +22,10 @@ export function formatPercent(value: number | null | undefined): string {
   return number === null ? '—' : `${Math.round(number)}%`;
 }
 
-export function formatQuantity(value: number | null | undefined, maximumFractionDigits = 1): string {
-  const number = finiteNumber(value);
-  return number === null
-    ? '—'
-    : new Intl.NumberFormat(undefined, { maximumFractionDigits, minimumFractionDigits: 0 }).format(number);
+/**
+ * Calora presents human-facing health and nutrition quantities as whole
+ * numbers. Calculations and stored values retain their source precision.
+ */
+export function formatQuantity(value: number | null | undefined): string {
+  return formatWhole(value);
 }

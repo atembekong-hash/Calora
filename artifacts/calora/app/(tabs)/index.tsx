@@ -736,7 +736,7 @@ function StepsTodayCard({
       ? 'Live session steps since Calora opened'
       : 'Session steps since Calora opened'
     : 'Steps today';
-  const accessibilitySummary = `${accessibilityPrefix}: ${steps === null ? 'unavailable' : steps.toLocaleString()} of ${dailyStepGoal.toLocaleString()}. ${status}.`;
+  const accessibilitySummary = `${accessibilityPrefix}: ${steps === null ? 'unavailable' : formatWhole(steps)} of ${formatWhole(dailyStepGoal)}. ${status}.`;
 
   return (
     <View
@@ -754,8 +754,8 @@ function StepsTodayCard({
         {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
       </View>
       <Text accessible accessibilityRole="text" accessibilityLabel={accessibilitySummary} testID="dashboard-steps-value" style={[styles.stepsValue, { color: colors.foreground }]}>
-        {steps === null ? '—' : steps.toLocaleString()}
-        <Text style={[styles.stepsGoal, { color: colors.mutedForeground }]}> / {dailyStepGoal.toLocaleString()}</Text>
+        {steps === null ? '—' : formatWhole(steps)}
+        <Text style={[styles.stepsGoal, { color: colors.mutedForeground }]}> / {formatWhole(dailyStepGoal)}</Text>
       </Text>
       <View style={[styles.stepsTrack, { backgroundColor: colors.muted }]}>
         <View style={[styles.stepsFill, { backgroundColor: colors.primary, width: `${progress * 100}%` }]} />
@@ -852,12 +852,12 @@ function AnimatedMacroBar({ label, value, target, color, colors }: { label: stri
     <View
       accessible
       accessibilityRole="summary"
-      accessibilityLabel={`${label}: ${formatQuantity(value, 1)} grams consumed of ${formatQuantity(target, 1)} gram target.`}
+      accessibilityLabel={`${label}: ${formatQuantity(value)} grams consumed of ${formatQuantity(target)} gram target.`}
       style={styles.macroBlock}
     >
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
-        <Text testID={`macro-target-${label.toLowerCase()}`} style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value, 1)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target, 1)}g</Text></Text>
+        <Text testID={`macro-target-${label.toLowerCase()}`} style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target)}g</Text></Text>
       </View>
       <View style={[styles.macroTrack, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
         <Animated.View style={[styles.macroFill, { backgroundColor: color }, animStyle]} />
@@ -1389,11 +1389,11 @@ function CalorieGauge({
             adjustsFontSizeToFit
             numberOfLines={1}
           >
-            {remaining.toLocaleString()}
+            {formatWhole(remaining)}
           </Text>
           <Text style={[gaugeStyles.kcalLeft, { color: colors.mutedForeground }]}>kcal left</Text>
           <Text style={[gaugeStyles.goalText, { color: colors.mutedForeground }]}>
-            Goal {target.toLocaleString()} kcal
+            Goal {formatWhole(target)} kcal
           </Text>
         </View>
       </View>
@@ -1402,21 +1402,21 @@ function CalorieGauge({
       <View style={gaugeStyles.statsRow}>
         <View style={gaugeStyles.statItem}>
           <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]} adjustsFontSizeToFit numberOfLines={1}>
-            {consumed.toLocaleString()}
+            {formatWhole(consumed)}
           </Text>
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Eaten</Text>
         </View>
         <View style={[gaugeStyles.statDivider, { backgroundColor: colors.border }]} />
         <Pressable
           accessibilityRole={onBurnedPress ? 'button' : undefined}
-          accessibilityLabel={burnedActionLabel ?? `Burned ${burned?.toLocaleString() ?? 'unavailable'} calories`}
+          accessibilityLabel={burnedActionLabel ?? `Burned ${burned === null ? 'unavailable' : formatWhole(burned)} calories`}
           disabled={!onBurnedPress}
           onPress={onBurnedPress}
           testID="dashboard-burned-stat"
           style={gaugeStyles.statItem}
         >
           <Text testID="dashboard-burned-value" style={[gaugeStyles.statNumber, { color: colors.foreground }]}>
-            {burned === null ? '—' : burned.toLocaleString()}
+            {burned === null ? '—' : formatWhole(burned)}
           </Text>
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Burned</Text>
           {burnedActionLabel ? <Text testID="dashboard-burned-status" style={[gaugeStyles.burnedAction, { color: colors.primary }]} numberOfLines={1}>{burnedActionLabel}</Text> : null}
@@ -1776,11 +1776,11 @@ export default function HomeScreen() {
 
           <View style={[styles.fuelSnapshot, { borderTopColor: colors.border }]}>
             <View style={styles.fuelSnapshotItem}>
-              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.protein, 1)}g</Text>
+              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.protein)}g</Text>
               <Text style={[styles.fuelSnapshotLabel, { color: colors.mutedForeground }]}>protein</Text>
             </View>
             <View style={styles.fuelSnapshotItem}>
-              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.carbs, 1)}g</Text>
+              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.carbs)}g</Text>
               <Text style={[styles.fuelSnapshotLabel, { color: colors.mutedForeground }]}>carbs</Text>
             </View>
             <View style={styles.fuelSnapshotItem}>

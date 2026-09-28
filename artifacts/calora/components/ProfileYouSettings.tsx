@@ -19,12 +19,10 @@ const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High prot
 type PersonalForm = { age: string; height: string; weight: string; targetWeight: string; activity: ActivityLevel; diet: DietPreference; goal: Goal };
 
 function displayWeight(value: number, units: 'metric' | 'imperial') {
-  // String retains enough significant digits to convert back to the stored kg
-  // value, unlike the former rounded pound display which drifted on every save.
-  return String(units === 'imperial' ? value * 2.20462 : value);
+  return String(Math.round(units === 'imperial' ? value * 2.20462 : value));
 }
 function displayHeight(value: number, units: 'metric' | 'imperial') {
-  return String(units === 'imperial' ? value * 0.393701 : value);
+  return String(Math.round(units === 'imperial' ? value * 0.393701 : value));
 }
 
 export function ProfileYouSettings({
@@ -164,7 +162,7 @@ export function ProfileYouSettings({
 }
 
 function Field({ label, value, setValue, colors }: { label: string; value: string; setValue: (value: string) => void; colors: typeof import('@/constants/colors').default.light }) {
-  return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput value={value} onChangeText={setValue} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
+  return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput value={value} onChangeText={setValue} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
 }
 function OptionGroup<T extends string>({ label, items, value, onChange, colors }: { label: string; items: { key: T; label: string }[]; value: T; onChange: (next: T) => void; colors: typeof import('@/constants/colors').default.light }) {
   return <View style={styles.optionGroup}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><View style={styles.chips}>{items.map((item) => <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ selected: value === item.key }} onPress={() => onChange(item.key)} style={[styles.chip, { borderColor: value === item.key ? colors.primary : colors.border, backgroundColor: value === item.key ? colors.accent : colors.card }]}><Text style={[styles.chipText, { color: value === item.key ? colors.accentForeground : colors.foreground }]}>{item.label}</Text></Pressable>)}</View></View>;

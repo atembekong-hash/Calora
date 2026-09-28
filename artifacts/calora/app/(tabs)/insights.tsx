@@ -212,7 +212,7 @@ function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: Return
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.celebrationTitle, { color: '#1b5e38' }]}>Goal reached!</Text>
-        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Consistency counts.</Text>
+        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {formatWhole(targetKg)} kg. Consistency counts.</Text>
       </View>
       <Pressable
         onPress={handleDismiss}
@@ -240,8 +240,8 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
 // ─── Animated count-up text ───────────────────────────────────────────────────
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
-function AnimatedCountUp({ to, decimals = 0, prefix = '', suffix = '', style }: {
-  to: number; decimals?: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle>;
+function AnimatedCountUp({ to, prefix = '', suffix = '', style }: {
+  to: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle>;
 }) {
   const sv = useSharedValue(0);
   useEffect(() => {
@@ -249,8 +249,8 @@ function AnimatedCountUp({ to, decimals = 0, prefix = '', suffix = '', style }: 
     sv.value = withDelay(300, withTiming(to, { duration: 900, easing: Easing.out(Easing.cubic) }));
   }, [to, sv]);
   const animatedProps = useAnimatedProps(() => ({
-    text: `${prefix}${sv.value.toFixed(decimals)}${suffix}`,
-    defaultValue: `${prefix}${to.toFixed(decimals)}${suffix}`,
+    text: `${prefix}${Math.round(sv.value)}${suffix}`,
+    defaultValue: `${prefix}${Math.round(to)}${suffix}`,
   }));
   return <AnimatedTextInput animatedProps={animatedProps} editable={false} caretHidden selectTextOnFocus={false} style={style} />;
 }
@@ -752,7 +752,7 @@ function WeightLineChart({
               ]}
               numberOfLines={1}
             >
-              {displayWeight(entry.kg, unit).toFixed(1)}
+              {formatWhole(displayWeight(entry.kg, unit))}
             </Text>
           ))}
         </View>
@@ -1100,9 +1100,9 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
         </View>
       </View>
       <View style={styles.patternStats}>
-        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
-        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
-        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageActivityMinutes ? `${averageActivityMinutes} min` : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. active min</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{formatWhole(averageWater)} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? formatWhole(averageCalories) : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageActivityMinutes ? `${formatWhole(averageActivityMinutes)} min` : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. active min</Text></View>
       </View>
       <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Build a useful picture.</Text>
     </View>
@@ -1310,7 +1310,7 @@ export default function InsightsScreen() {
     // silently discarded when the undo window expires and the entry is removed.
     if (pendingDeleteRef.current?.id === entry.id) return;
     setEditError(null);
-    setEditInput(displayWeight(entry.kg, weightUnit).toFixed(1));
+    setEditInput(String(Math.round(displayWeight(entry.kg, weightUnit))));
     setEditEntry(entry);
   };
 
@@ -1482,9 +1482,7 @@ export default function InsightsScreen() {
     setGoalError('');
     setShowGoalEdit(true);
   };
-  const goalRemainingDisplay = useImperial
-    ? (goalRemainingKg * 2.20462).toFixed(1)
-    : goalRemainingKg.toFixed(1);
+  const goalRemainingDisplay = formatWhole(useImperial ? goalRemainingKg * 2.20462 : goalRemainingKg);
   const goalRemainingUnit = useImperial ? 'lbs' : 'kg';
   const nudgeMessage =
     goalProgressPct >= 95
@@ -1760,7 +1758,7 @@ export default function InsightsScreen() {
             <Text style={[styles.statLabel, { color: colors.mutedForeground, marginTop: 5 }]}>data trust</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <AnimatedCountUp to={Math.abs(weightDelta)} decimals={1} prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '-' : ''} style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]} />
+            <AnimatedCountUp to={Math.abs(weightDelta)} prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '-' : ''} style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]} />
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
           </View>
         </AnimatedReveal>
@@ -1891,12 +1889,12 @@ export default function InsightsScreen() {
               <View style={[styles.signalRow, { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 }]}>
                 <View style={styles.signalMetric}>
                   <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.primary} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Steps</Text></View>
-                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthStepsAvailable ? healthConnection.snapshot.steps?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthStepsAvailable ? 'today' : 'unavailable'}</Text></Text>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthStepsAvailable ? formatWhole(healthConnection.snapshot.steps) : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthStepsAvailable ? 'today' : 'unavailable'}</Text></Text>
                   <AnimatedTrackFill percentage={healthStepsAvailable ? Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100) : 0} color={colors.primary} trackColor={colors.muted} />
                 </View>
                 <View style={styles.signalMetric}>
                   <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
-                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthActiveEnergyAvailable ? healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? 'kcal' : 'unavailable'}</Text></Text>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthActiveEnergyAvailable ? formatWhole(healthConnection.snapshot.activeEnergyKcal) : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? 'kcal' : 'unavailable'}</Text></Text>
                   <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? `Synced from ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}` : 'Allow active calories to show Burned'}</Text>
                 </View>
               </View>
@@ -2040,7 +2038,7 @@ export default function InsightsScreen() {
               style={[styles.goalHeaderBtn, { backgroundColor: colors.muted }]}
             >
               <Feather name="target" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeightDisplay.toFixed(0)} ${weightUnits}` : 'Set goal'}</Text>
+              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${formatWhole(targetWeightDisplay)} ${weightUnits}` : 'Set goal'}</Text>
             </ScalePressable>
             <ScalePressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} scale={0.96} haptic="light" style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></ScalePressable>
           </View>
@@ -2049,7 +2047,7 @@ export default function InsightsScreen() {
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.weightTopRow}>
             <View>
-              <Text style={[styles.weightValue, { color: colors.foreground }]}>{displayWeight(latestWeight, weightUnit).toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>{weightUnitLabel(weightUnit)}</Text></Text>
+              <Text style={[styles.weightValue, { color: colors.foreground }]}>{formatWhole(displayWeight(latestWeight, weightUnit))} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>{weightUnitLabel(weightUnit)}</Text></Text>
               <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add weigh-ins to see a trend'}</Text>
             </View>
             {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
@@ -2131,10 +2129,10 @@ export default function InsightsScreen() {
               <View style={styles.goalProgressHeaderRow}>
                 <Text style={[styles.goalProgressText, { color: goalReached ? colors.success : colors.mutedForeground }]}>
                   {goalReached
-                    ? `Goal reached · ${targetWeightDisplay.toFixed(0)} ${weightUnits}`
+                    ? `Goal reached · ${formatWhole(targetWeightDisplay)} ${weightUnits}`
                     : goalProgressKg > 0
-                    ? `${(useImperial ? goalProgressKg * 2.20462 : goalProgressKg).toFixed(1)} ${weightUnits} toward your ${targetWeightDisplay.toFixed(0)} ${weightUnits} goal`
-                    : `Target ${targetWeightDisplay.toFixed(0)} ${weightUnits} · start logging progress`}
+                    ? `${formatWhole(useImperial ? goalProgressKg * 2.20462 : goalProgressKg)} ${weightUnits} toward your ${formatWhole(targetWeightDisplay)} ${weightUnits} goal`
+                    : `Target ${formatWhole(targetWeightDisplay)} ${weightUnits} · start logging progress`}
                 </Text>
                 <ScalePressable
                   accessibilityLabel="Edit weight goal"
@@ -2203,7 +2201,7 @@ export default function InsightsScreen() {
             <TextInput
               value={weightInput}
               onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
-              keyboardType="decimal-pad"
+              keyboardType="number-pad"
               placeholder={formatWeight(latestWeight, weightUnit)}
               placeholderTextColor={colors.mutedForeground}
               accessibilityLabel={`Weight in ${weightUnitLabel(weightUnit)}`}
@@ -2235,7 +2233,7 @@ export default function InsightsScreen() {
             <TextInput
               value={goalInput}
               onChangeText={(value) => { setGoalInput(value); if (goalError) setGoalError(''); }}
-              keyboardType="decimal-pad"
+              keyboardType="number-pad"
               placeholder={useImperial ? 'e.g. 154 lb' : 'e.g. 70 kg'}
               placeholderTextColor={colors.mutedForeground}
               style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: goalError ? colors.destructive : colors.input }]}
@@ -2281,8 +2279,8 @@ export default function InsightsScreen() {
                 setEditInput(text);
                 if (editError) setEditError(null);
               }}
-              keyboardType="decimal-pad"
-              placeholder={weightUnit === 'imperial' ? 'e.g. 169 lb' : 'e.g. 76.6 kg'}
+              keyboardType="number-pad"
+              placeholder={weightUnit === 'imperial' ? 'e.g. 169 lb' : 'e.g. 77 kg'}
               placeholderTextColor={colors.mutedForeground}
               style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input }]}
               autoFocus
@@ -2354,7 +2352,7 @@ export default function InsightsScreen() {
           ]}
         >
           <Text style={[styles.weightDeleteSnackText, { color: colors.background }]}>
-            {pendingDelete.kg.toFixed(1)} kg removed
+            {formatWhole(pendingDelete.kg)} kg removed
           </Text>
           <Pressable
             onPress={undoDelete}

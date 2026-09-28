@@ -46,6 +46,15 @@ describe("Coach plain-text presentation", () => {
     );
   });
 
+  it("rounds assistant nutrition and health measurements without changing user-authored copy", () => {
+    const response = "You logged 12.6 g protein, burned 104.5 kcal, and changed 1.5 kg.";
+
+    expect(formatCoachPlainText(response)).toBe(response);
+    expect(normalizeCoachAssistantReply(response)).toBe(
+      "You logged 13 g protein, burned 105 kcal, and changed 2 kg.",
+    );
+  });
+
   it("leaves unmatched formatting punctuation visible and is idempotent", () => {
     const once = formatCoachPlainText(
       "Use *one* snack, `if needed, and 2\n\n\n\nservings.",

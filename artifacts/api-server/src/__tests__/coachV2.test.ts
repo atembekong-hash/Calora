@@ -374,4 +374,35 @@ describe("clean-room Coach V2", () => {
       "No signed-in app snapshot is available",
     );
   });
+
+  it("gives Coach a whole-number bounded nutrition snapshot", () => {
+    const messages = buildCoachV2Messages({
+      history: [{ role: "user", content: "hello" }],
+      snapshot: {
+        profile: {
+          goal: "maintain",
+          activityLevel: "moderate",
+          dietPreference: "Everything",
+          calorieTarget: 2000.6,
+        },
+        today: {
+          calories: 640.6,
+          proteinG: 22.5,
+          carbsG: 58.4,
+          fatG: 19.5,
+          entries: 2,
+        },
+        recentDaysLogged: 4,
+        latestWeightKg: 70.5,
+      },
+    });
+
+    const prompt = messages[0]?.content ?? "";
+    expect(prompt).toContain('"calorieTarget":2001');
+    expect(prompt).toContain('"calories":641');
+    expect(prompt).toContain('"proteinG":23');
+    expect(prompt).toContain('"latestWeightKg":71');
+    expect(prompt).not.toContain("640.6");
+    expect(prompt).toContain("Use whole numbers for nutrition");
+  });
 });

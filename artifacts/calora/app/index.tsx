@@ -142,9 +142,9 @@ export default function OnboardingScreen() {
   const [diet, setDiet] = useState<DietPreference>(() => existingProfile?.diet ?? 'Everything');
   const [name, setName] = useState(() => existingProfile?.name ?? '');
   const [age, setAge] = useState(() => String(existingProfile?.age ?? 31));
-  const [height, setHeight] = useState(() => String(existingProfile?.heightCm ?? 172));
-  const [weight, setWeight] = useState(() => String(existingProfile?.weightKg ?? 76));
-  const [targetWeight, setTargetWeight] = useState(() => String(existingProfile?.targetWeightKg ?? 68));
+  const [height, setHeight] = useState(() => String(Math.round(existingProfile?.heightCm ?? 172)));
+  const [weight, setWeight] = useState(() => String(Math.round(existingProfile?.weightKg ?? 76)));
+  const [targetWeight, setTargetWeight] = useState(() => String(Math.round(existingProfile?.targetWeightKg ?? 68)));
   // A completed onboarding flow has already accepted this review step. Keep it
   // selected in review mode, while a first-run flow still requires the tap.
   const [consent, setConsent] = useState(isReviewMode);
@@ -201,9 +201,9 @@ export default function OnboardingScreen() {
     setDiet(existingProfile.diet);
     setName(existingProfile.name);
     setAge(String(existingProfile.age));
-    setHeight(String(existingProfile.heightCm));
-    setWeight(String(existingProfile.weightKg));
-    setTargetWeight(String(existingProfile.targetWeightKg));
+    setHeight(String(Math.round(existingProfile.heightCm)));
+    setWeight(String(Math.round(existingProfile.weightKg)));
+    setTargetWeight(String(Math.round(existingProfile.targetWeightKg)));
     setConsent(true);
   }, [existingProfile, hydrated, isReviewMode]);
 
@@ -444,7 +444,7 @@ export default function OnboardingScreen() {
              <OnboardingPhotoHero scene="basics" colors={colors} />
               <View style={styles.formGrid}>
                 <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput testID="onboarding-name-input" accessibilityLabel="Your name" value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
-                <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput testID="onboarding-age-input" accessibilityLabel="Age" value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
+                <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput testID="onboarding-age-input" accessibilityLabel="Age" value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
              </View>
            </View>
          )}
@@ -455,7 +455,7 @@ export default function OnboardingScreen() {
             <Text style={[styles.body, { color: colors.mutedForeground }]}>These details shape a starting estimate, not a medical recommendation.</Text>
              <OnboardingPhotoHero scene="metrics" colors={colors} />
              <View style={styles.formGrid}>
-                {[['Height (cm)', height, setHeight, 'onboarding-height-input'], ['Current weight (kg)', weight, setWeight, 'onboarding-weight-input'], ['Goal weight (kg)', targetWeight, setTargetWeight, 'onboarding-target-weight-input']].map(([label, value, setter, testID]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput testID={testID as string} accessibilityLabel={label as string} value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
+                {[['Height (cm)', height, setHeight, 'onboarding-height-input'], ['Current weight (kg)', weight, setWeight, 'onboarding-weight-input'], ['Goal weight (kg)', targetWeight, setTargetWeight, 'onboarding-target-weight-input']].map(([label, value, setter, testID]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput testID={testID as string} accessibilityLabel={label as string} value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
             </View>
              {!!personalDetailsError && <Text accessibilityRole="alert" style={[styles.personalDetailsError, { color: colors.destructive }]}>{personalDetailsError}</Text>}
              <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>{calorieTarget === null ? 'Enter valid details to see your starting target.' : <>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></>}</Text></View>
