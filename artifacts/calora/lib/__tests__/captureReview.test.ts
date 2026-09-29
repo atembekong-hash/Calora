@@ -410,7 +410,7 @@ describe('partial consumption', () => {
     expect(log.nutritionSnapshot?.calories).toBeCloseTo(200);
   });
 
-  it('25% eatenFraction reduces all macros proportionally', () => {
+  it('25% eatenFraction rounds all displayed macros to whole values', () => {
     const component = makeComponent({
       calories: 400, proteinG: 40, carbsG: 60, fatG: 10,
       eatenFraction: 0.25, included: true,
@@ -419,7 +419,7 @@ describe('partial consumption', () => {
     expect(nutrition.calories).toBeCloseTo(100);
     expect(nutrition.proteinG).toBeCloseTo(10);
     expect(nutrition.carbsG).toBeCloseTo(15);
-    expect(nutrition.fatG).toBeCloseTo(2.5);
+    expect(nutrition.fatG).toBe(3);
   });
 
   it('75% eatenFraction correctly reduces the review total', () => {

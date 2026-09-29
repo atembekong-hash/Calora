@@ -18,8 +18,8 @@ describe("recipe diary portion scaling", () => {
     });
     expect(scaleRecipeNutritionForDiary(recipe, 0.5)).toEqual({
       calories: 210,
-      proteinG: 12.5,
-      carbsG: 23.25,
+      proteinG: 13,
+      carbsG: 23,
       fatG: 7,
     });
   });
@@ -34,6 +34,8 @@ describe("recipe diary portion scaling", () => {
   });
 
   it("fails safely to one portion for an invalid diary quantity", () => {
-    expect(scaleRecipeNutritionForDiary(recipe, Number.NaN)).toEqual(recipe);
+    expect(scaleRecipeNutritionForDiary(recipe, Number.NaN)).toEqual({
+      calories: 420, proteinG: 25, carbsG: 47, fatG: 14,
+    });
   });
 });

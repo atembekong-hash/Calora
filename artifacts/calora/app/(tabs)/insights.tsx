@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { BRAND } from '@/lib/brand';
-import { formatGrams, formatWhole } from '@/lib/formatters';
+import { formatGrams, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -1590,7 +1590,7 @@ export default function InsightsScreen() {
       return;
     }
     if (isEditingWeight.current) return;
-    setWeightInput(latestWeight > 0 ? String(latestWeight) : '');
+    setWeightInput(latestWeight > 0 ? String(Math.round(displayWeight(latestWeight, weightUnit))) : '');
   }, [latestWeight, showWeight]);
   const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
@@ -1951,7 +1951,7 @@ export default function InsightsScreen() {
               <View style={[styles.minutesInputWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <TextInput
                   value={minutesInput}
-                  onChangeText={setMinutesInput}
+                  onChangeText={(value) => setMinutesInput(normalizeWholeNumberInput(value))}
                   keyboardType="number-pad"
                   placeholder="—"
                   placeholderTextColor={colors.mutedForeground}
@@ -2200,7 +2200,7 @@ export default function InsightsScreen() {
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
             <TextInput
               value={weightInput}
-              onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
+              onChangeText={(value) => { setWeightInput(normalizeWholeNumberInput(value)); if (weightError) setWeightError(''); }}
               keyboardType="number-pad"
               placeholder={formatWeight(latestWeight, weightUnit)}
               placeholderTextColor={colors.mutedForeground}
@@ -2232,7 +2232,7 @@ export default function InsightsScreen() {
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
               value={goalInput}
-              onChangeText={(value) => { setGoalInput(value); if (goalError) setGoalError(''); }}
+              onChangeText={(value) => { setGoalInput(normalizeWholeNumberInput(value)); if (goalError) setGoalError(''); }}
               keyboardType="number-pad"
               placeholder={useImperial ? 'e.g. 154 lb' : 'e.g. 70 kg'}
               placeholderTextColor={colors.mutedForeground}
@@ -2276,7 +2276,7 @@ export default function InsightsScreen() {
             <TextInput
               value={editInput}
               onChangeText={(text) => {
-                setEditInput(text);
+                setEditInput(normalizeWholeNumberInput(text));
                 if (editError) setEditError(null);
               }}
               keyboardType="number-pad"

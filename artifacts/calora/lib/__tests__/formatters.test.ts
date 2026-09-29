@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCalories, formatGrams, formatPercent, formatQuantity, formatWhole } from '@/lib/formatters';
+import { formatCalories, formatGrams, formatPercent, formatQuantity, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 
 describe('presentation formatters', () => {
   it('rounds calories and macros without changing source values', () => {
@@ -15,5 +15,11 @@ describe('presentation formatters', () => {
   it('never exposes invalid numeric artifacts', () => {
     expect(formatWhole(Number.NaN)).toBe('—');
     expect(formatCalories(Infinity)).toBe('Nutrition review needed');
+  });
+
+  it('keeps editable numeric fields whole-number-only', () => {
+    expect(normalizeWholeNumberInput('1,250')).toBe('1250');
+    expect(normalizeWholeNumberInput('12.5')).toBe('12');
+    expect(normalizeWholeNumberInput('42 calories')).toBe('42');
   });
 });

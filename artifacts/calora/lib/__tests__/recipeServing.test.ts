@@ -18,7 +18,7 @@ describe("recipe serving normalization", () => {
     expect(sourceRecipeYield({ servings: Number.NaN })).toBeNull();
   });
 
-  it("keeps portions finite, half-step based, and within safe bounds", () => {
+  it("keeps portions finite, whole-number based, and within safe bounds", () => {
     expect(nextRecipePortions(1, -1)).toBe(MIN_RECIPE_PORTIONS);
     expect(nextRecipePortions(MIN_RECIPE_PORTIONS, -1)).toBe(
       MIN_RECIPE_PORTIONS,
@@ -26,7 +26,7 @@ describe("recipe serving normalization", () => {
     expect(nextRecipePortions(MAX_RECIPE_PORTIONS, 1)).toBe(
       MAX_RECIPE_PORTIONS,
     );
-    expect(nextRecipePortions(1.5, 1)).toBe(2);
+    expect(nextRecipePortions(1.5, 1)).toBe(3);
   });
 
   it("labels the user selection accurately", () => {

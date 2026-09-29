@@ -6,7 +6,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { getMacroTargets, type MacroGoalInput, validateMacroGoalInput } from '@/lib/nutritionGoals';
 import { profileTargetMode, recommendationForProfile, validatePersonalDetails } from '@/lib/profileTargets';
-import { formatWhole } from '@/lib/formatters';
+import { formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 import colors from '@/constants/colors';
 
 const activities: { key: ActivityLevel; label: string }[] = [
@@ -162,7 +162,7 @@ export function ProfileYouSettings({
 }
 
 function Field({ label, value, setValue, colors }: { label: string; value: string; setValue: (value: string) => void; colors: typeof import('@/constants/colors').default.light }) {
-  return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput value={value} onChangeText={setValue} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
+  return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput value={value} onChangeText={(nextValue) => setValue(normalizeWholeNumberInput(nextValue))} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
 }
 function OptionGroup<T extends string>({ label, items, value, onChange, colors }: { label: string; items: { key: T; label: string }[]; value: T; onChange: (next: T) => void; colors: typeof import('@/constants/colors').default.light }) {
   return <View style={styles.optionGroup}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><View style={styles.chips}>{items.map((item) => <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ selected: value === item.key }} onPress={() => onChange(item.key)} style={[styles.chip, { borderColor: value === item.key ? colors.primary : colors.border, backgroundColor: value === item.key ? colors.accent : colors.card }]}><Text style={[styles.chipText, { color: value === item.key ? colors.accentForeground : colors.foreground }]}>{item.label}</Text></Pressable>)}</View></View>;

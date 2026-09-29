@@ -67,12 +67,12 @@ describe('getMacroTargets', () => {
 });
 
 describe('validateMacroGoalInput', () => {
-  it('accepts and rounds valid independent targets', () => {
+  it('accepts valid whole-number independent targets', () => {
     expect(validateMacroGoalInput({
-      calories: '2150.4',
-      protein: '142.6',
-      carbs: '198.2',
-      fat: '76.8',
+      calories: '2150',
+      protein: '143',
+      carbs: '198',
+      fat: '77',
     })).toEqual({
       ok: true,
       values: {
@@ -82,6 +82,12 @@ describe('validateMacroGoalInput', () => {
         fat: 77,
       },
     });
+  });
+
+  it('rejects decimal targets instead of persisting a hidden fraction', () => {
+    expect(validateMacroGoalInput({
+      calories: '2150.4', protein: '143', carbs: '198', fat: '77',
+    })).toEqual({ ok: false, message: 'Enter whole-number values for calories and each macro.' });
   });
 
   it('rejects missing or non-positive values', () => {
@@ -102,7 +108,7 @@ describe('validateMacroGoalInput', () => {
       fat: '67',
     })).toEqual({
       ok: false,
-      message: 'Enter at least 1 gram for each macro target.',
+      message: 'Enter whole-number values for calories and each macro.',
     });
   });
 

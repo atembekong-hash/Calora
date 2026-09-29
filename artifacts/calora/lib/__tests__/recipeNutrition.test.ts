@@ -16,7 +16,7 @@ describe('recipe nutrition states', () => {
     ['', null],
     ['   ', null],
     ['0', 0],
-    ['12.5', 12.5],
+    ['12.5', null],
     ['NaN', null],
     ['Infinity', null],
     ['-1', null],

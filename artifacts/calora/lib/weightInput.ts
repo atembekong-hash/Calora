@@ -28,7 +28,9 @@ export function validateWeightInput(value: string, unit: WeightUnit): WeightInpu
   const trimmed = value.trim();
   if (!trimmed) return { ok: false, message: `Enter a weight in ${weightUnitLabel(unit)}.` };
   const displayValue = Number(trimmed);
-  if (!Number.isFinite(displayValue)) return { ok: false, message: 'Enter a weight as a number.' };
+  if (!Number.isFinite(displayValue) || !Number.isInteger(displayValue)) {
+    return { ok: false, message: 'Enter a whole-number weight.' };
+  }
 
   const kg = unit === 'imperial' ? displayValue * KG_PER_LB : displayValue;
   if (kg < MIN_WEIGHT_KG || kg > MAX_WEIGHT_KG) {

@@ -39,6 +39,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { formatLogTime } from '@/lib/dates';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
+import { normalizeWholeNumberInput } from '@/lib/formatters';
 
 function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
   const [failed, setFailed] = useState(false);
@@ -1002,7 +1003,7 @@ function MacroGoalsModal({
                       value={draft?.[field.key] ?? ''}
                       onChangeText={(value) => {
                         setError('');
-                        if (draft) onChange({ ...draft, [field.key]: value });
+                        if (draft) onChange({ ...draft, [field.key]: normalizeWholeNumberInput(value) });
                       }}
                       keyboardType="number-pad"
                       placeholder={field.placeholder}
@@ -1039,7 +1040,7 @@ function MacroGoalsModal({
 function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => void }) {
   const { colors, updateLog, removeLog } = useCalora();
   const [name, setName] = useState(log?.name ?? '');
-  const [calories, setCalories] = useState(log ? `${log.calories}` : '');
+  const [calories, setCalories] = useState(log ? `${Math.round(log.calories)}` : '');
   const [meal, setMeal] = useState<MealType>(log?.meal ?? 'Snack');
   const [serving, setServing] = useState(log?.serving ?? '1 serving');
   const [error, setError] = useState<string | null>(null);
@@ -1047,7 +1048,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
   React.useEffect(() => {
     if (!log) return;
     setName(log.name);
-    setCalories(`${log.calories}`);
+    setCalories(`${Math.round(log.calories)}`);
     setMeal(log.meal);
     setServing(log.serving);
     setError(null);
@@ -1084,7 +1085,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Food name</Text>
           <TextInput accessibilityLabel="Edited food name" value={name} onChangeText={(value) => { setName(value); if (error) setError(null); }} style={[styles.editInput, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input, color: colors.foreground }]} />
           <View style={styles.editFields}>
-            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Calories</Text><TextInput accessibilityLabel="Edited calories" value={calories} onChangeText={(value) => { setCalories(value); if (error) setError(null); }} keyboardType="number-pad" style={[styles.editInput, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input, color: colors.foreground }]} /></View>
+            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Calories</Text><TextInput accessibilityLabel="Edited calories" value={calories} onChangeText={(value) => { setCalories(normalizeWholeNumberInput(value)); if (error) setError(null); }} keyboardType="number-pad" style={[styles.editInput, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input, color: colors.foreground }]} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serving</Text><TextInput value={serving} onChangeText={setServing} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} /></View>
           </View>
           {error ? <Text accessibilityRole="alert" style={[styles.editError, { color: colors.destructive }]}>{error}</Text> : null}
@@ -1217,7 +1218,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
               <View style={[styles.manualRow, styles.manualFooterRow]}>
                 <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(normalizeWholeNumberInput(value)); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                 <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
                   <Feather name="plus" size={20} color={colors.primaryForeground} />
                 </ScalePressable>
@@ -1283,7 +1284,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL</Text>
               <View style={styles.manualRow}>
                 <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} returnKeyType="next" style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" returnKeyType="done" onSubmitEditing={addManual} style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(normalizeWholeNumberInput(value)); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" returnKeyType="done" onSubmitEditing={addManual} style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                 <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
                   <Feather name="plus" size={20} color={colors.primaryForeground} />
                 </ScalePressable>
