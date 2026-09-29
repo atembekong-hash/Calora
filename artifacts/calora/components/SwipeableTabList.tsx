@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ScrollView,
   PanResponder,
   StyleSheet,
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -38,6 +41,12 @@ type SwipeableSectionPagerProps<T extends string> = {
   renderItem?: (item: T) => React.ReactNode;
   /** Number of adjacent pane bodies to retain on either side. */
   renderWindow?: number;
+  /**
+   * Use React Native's directional pager when panes contain their own vertical
+   * scroll views. This lets Android arbitrate horizontal pages and vertical
+   * content natively instead of a parent pan recognizer retaining the stream.
+   */
+  nativePaging?: boolean;
   /** Lets section panes fill the available height of the parent screen. */
   fillViewport?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -153,6 +162,7 @@ export function SwipeableSectionPager<T extends string>({
   children,
   renderItem,
   renderWindow = 1,
+  nativePaging = false,
   fillViewport = false,
   style,
   accessibilityLabel,
@@ -170,6 +180,7 @@ export function SwipeableSectionPager<T extends string>({
   const [excluded, setExcludedState] = useState(false);
   const itemsRef = useRef(items);
   const onChangeRef = useRef(onChange);
+  const nativePagerRef = useRef<ScrollView>(null);
   itemsRef.current = items;
   onChangeRef.current = onChange;
 
@@ -195,6 +206,20 @@ export function SwipeableSectionPager<T extends string>({
     pageWidth.value = nextWidth;
     translateX.value = getWorkspacePagerRestingOffset(activeIndexValue.value, nextWidth, hasAdjacentPages);
   }, [activeIndexValue, hasAdjacentPages, pageWidth, translateX]);
+
+  const commitNativePagerPosition = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!nativePaging || surfaceWidth <= 0) return;
+    const targetIndex = Math.round(event.nativeEvent.contentOffset.x / surfaceWidth);
+    const nextItem = itemsRef.current[targetIndex];
+    if (nextItem && targetIndex !== getActiveIndex(itemsRef.current, activeItem)) {
+      onChangeRef.current(nextItem);
+    }
+  }, [activeItem, nativePaging, surfaceWidth]);
+
+  useEffect(() => {
+    if (!nativePaging || surfaceWidth <= 0) return;
+    nativePagerRef.current?.scrollTo({ x: activeIndex * surfaceWidth, animated: false });
+  }, [activeIndex, nativePaging, surfaceWidth]);
 
   const pagerSwipe = useMemo(
     () => Gesture.Pan()
@@ -250,6 +275,46 @@ export function SwipeableSectionPager<T extends string>({
   const exclusionValue = useMemo<SwipeGestureExclusionContextValue>(() => ({ setExcluded }), [setExcluded]);
   const safeWindow = Math.max(1, Math.floor(renderWindow));
 
+  if (nativePaging && hasAdjacentPages && renderItem) {
+    return (
+      <View
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        onLayout={handleLayout}
+        style={[styles.pager, style]}
+        testID={testID}
+      >
+        <ScrollView
+          ref={nativePagerRef}
+          horizontal
+          pagingEnabled
+          directionalLockEnabled
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          overScrollMode="never"
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={commitNativePagerPosition}
+          onScrollEndDrag={commitNativePagerPosition}
+          style={styles.nativePager}
+          contentContainerStyle={[styles.nativePagerTrack, fillViewport && styles.nativePagerTrackFill]}
+        >
+          {items.map((item, index) => {
+            const shouldRenderBody = Math.abs(index - activeIndex) <= safeWindow;
+            return (
+              <View
+                key={item}
+                style={[styles.pagerPage, fillViewport && styles.pagerPageFill, { width: surfaceWidth }]}
+                testID={testID ? `${testID}-pane-${item}` : undefined}
+              >
+                {shouldRenderBody ? renderItem(item) : <View pointerEvents="none" style={styles.pagerPlaceholder} />}
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <SwipeGestureExclusionContext.Provider value={exclusionValue}>
       <GestureDetector gesture={pagerSwipe}>
@@ -290,4 +355,7 @@ const styles = StyleSheet.create({
   pagerPage: { flexShrink: 0 },
   pagerPageFill: { height: '100%' },
   pagerPlaceholder: { minHeight: 1 },
+  nativePager: { flex: 1, minHeight: 0, width: '100%' },
+  nativePagerTrack: { alignItems: 'stretch' },
+  nativePagerTrackFill: { flexGrow: 1 },
 });
