@@ -40,6 +40,11 @@ test("TestFlight gate checks out source before repository code and before EAS cr
   assert.match(testflight, /--signer-workflow/);
   assert.match(testflight, /--source-digest/);
   assert.match(testflight, /--source-ref/);
+  assert.match(
+    testflightBuildJob,
+    /Checkout exact dispatch source[\s\S]*?fetch-depth: 0/,
+    "reusable build provenance requires complete source history",
+  );
 
   const checkoutIndex = testflightBuildJob.indexOf("Checkout exact dispatch source");
   const gateScriptIndex = testflightBuildJob.indexOf("scripts/release-workflow-provenance.mjs validate-validation-gate");
