@@ -11,6 +11,7 @@ import {
   RELEASE_WORKFLOW_PATH,
   REQUIRED_JOB_NAME,
   createEasBuildProvenance,
+  createCompatibleEasBuildProvenance,
   createEasSubmissionProvenance,
   createValidationGate,
   extractEasBuildId,
@@ -136,12 +137,20 @@ test("binds EAS build provenance to project, profile, source, release identity, 
   assert.equal(build.easBuildId, buildId);
   assert.equal(build.easProjectId, projectId);
   assert.equal(build.gitCommitHash, sha);
+  assert.equal(build.sourceCompatibility, "exact");
   assert.equal(build.applicationArchiveUrlSha256.length, 64);
   assert.equal(JSON.stringify(build).includes("must-not-serialize"), false);
   assert.equal(JSON.stringify(build).includes("archive.ipa"), false);
 
+  const currentEasShape = easBuild({ project: undefined, app: { id: projectId } });
+  assert.equal(
+    createEasBuildProvenance({ rawBuild: currentEasShape, gate: gate(), expected, env }).easBuildId,
+    buildId,
+  );
+
   for (const [label, altered] of [
     ["wrong project", easBuild({ project: { id: "2".repeat(8) + "-1111-2222-3333-444444444444" } })],
+    ["wrong current project shape", easBuild({ project: undefined, app: { id: "2".repeat(8) + "-1111-2222-3333-444444444444" } })],
     ["wrong profile", easBuild({ buildProfile: "preview" })],
     ["wrong source", easBuild({ gitCommitHash: "c".repeat(40) })],
     ["unfinished", easBuild({ status: "ERRORED" })],
@@ -151,6 +160,57 @@ test("binds EAS build provenance to project, profile, source, release identity, 
   ]) {
     assert.throws(() => createEasBuildProvenance({ rawBuild: altered, gate: gate(), expected, env }), /EAS build|archive|version/i, label);
   }
+});
+
+test("allows only tooling-compatible ancestor builds through the reuse path", () => {
+  const earlierCommit = "c".repeat(40);
+  const allowedFiles = [
+    ".github/workflows/calora-testflight-upload.yml",
+    "scripts/release-workflow-provenance.mjs",
+    "scripts/release-workflow-provenance.test.mjs",
+    "scripts/release-workflow-contract.test.mjs",
+  ];
+  const compatible = createCompatibleEasBuildProvenance({
+    rawBuild: easBuild({ gitCommitHash: earlierCommit }),
+    gate: gate(),
+    expected,
+    env,
+    isAncestor: (ancestor, descendant) => ancestor === earlierCommit && descendant === sha,
+    changedPaths: () => allowedFiles,
+  });
+  assert.equal(compatible.sourceCompatibility, "release-tooling-only");
+  assert.equal(compatible.gitCommitHash, earlierCommit);
+  assert.equal(
+    createEasSubmissionProvenance({
+      rawSubmitText: "https://expo.dev/accounts/example/projects/calora/submissions/4e591d1f-aaaa-bbbb-cccc-111111111111",
+      buildProvenance: compatible,
+      env,
+    }).easBuildId,
+    buildId,
+  );
+
+  assert.throws(
+    () => createCompatibleEasBuildProvenance({
+      rawBuild: easBuild({ gitCommitHash: earlierCommit }),
+      gate: gate(),
+      expected,
+      env,
+      isAncestor: () => false,
+      changedPaths: () => allowedFiles,
+    }),
+    /not an ancestor/i,
+  );
+  assert.throws(
+    () => createCompatibleEasBuildProvenance({
+      rawBuild: easBuild({ gitCommitHash: earlierCommit }),
+      gate: gate(),
+      expected,
+      env,
+      isAncestor: () => true,
+      changedPaths: () => [...allowedFiles, "artifacts/calora/app.json"],
+    }),
+    /not compatible/i,
+  );
 });
 
 test("binds TestFlight submission provenance to a fully verified EAS build", () => {
@@ -170,7 +230,7 @@ test("binds TestFlight submission provenance to a fully verified EAS build", () 
   );
   assert.throws(
     () => createEasSubmissionProvenance({ rawSubmitText: "submissions/4e591d1f-aaaa-bbbb-cccc-111111111111", buildProvenance: { ...build, gitCommitHash: "c".repeat(40) }, env }),
-    /submission context/i,
+    /exact EAS build provenance/i,
   );
 });
 

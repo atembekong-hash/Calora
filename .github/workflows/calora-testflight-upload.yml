@@ -2,6 +2,11 @@ name: Calora TestFlight Upload
 
 on:
   workflow_dispatch:
+    inputs:
+      eas_build_id:
+        description: Optional completed EAS iOS build UUID to verify and submit instead of creating a new archive.
+        required: false
+        type: string
 
 permissions:
   actions: read
@@ -132,6 +137,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8"
 
       - name: Verify monotonic iOS production build number
+        if: ${{ inputs.eas_build_id == '' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_ASC_API_KEY_P8: ${{ secrets.EXPO_ASC_API_KEY }}
@@ -139,7 +145,22 @@ jobs:
           EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
         run: pnpm run test:release:ios-build-number
 
+      - name: Select an existing immutable EAS build
+        if: ${{ inputs.eas_build_id != '' }}
+        shell: bash
+        env:
+          REQUESTED_EAS_BUILD_ID: ${{ inputs.eas_build_id }}
+        run: |
+          set -euo pipefail
+          build_id="${REQUESTED_EAS_BUILD_ID,,}"
+          if ! [[ "$build_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+            echo "Requested EAS build ID must be a UUID." >&2
+            exit 1
+          fi
+          printf 'EAS_BUILD_ID=%s\n' "$build_id" >> "$GITHUB_ENV"
+
       - name: Build iOS production app
+        if: ${{ inputs.eas_build_id == '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -162,13 +183,20 @@ jobs:
 
       - name: Create strict EAS build provenance
         working-directory: .
-        run: >-
-          node scripts/release-workflow-provenance.mjs create-eas-build-provenance
-          "$RUNNER_TEMP/eas-build-view.json"
-          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
-          artifacts/calora/app.json
-          artifacts/calora/eas.json
-          "$RUNNER_TEMP/calora-eas-build-provenance.json"
+        env:
+          REQUESTED_EAS_BUILD_ID: ${{ inputs.eas_build_id }}
+        run: |
+          set -euo pipefail
+          command=create-eas-build-provenance
+          if [ -n "$REQUESTED_EAS_BUILD_ID" ]; then
+            command=create-compatible-eas-build-provenance
+          fi
+          node scripts/release-workflow-provenance.mjs "$command" \
+            "$RUNNER_TEMP/eas-build-view.json" \
+            "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json" \
+            artifacts/calora/app.json \
+            artifacts/calora/eas.json \
+            "$RUNNER_TEMP/calora-eas-build-provenance.json"
 
       - name: Submit the exact verified iOS build to TestFlight
         env:

@@ -49,6 +49,14 @@ test("TestFlight gate checks out source before repository code and before EAS cr
 });
 
 test("TestFlight verifies provider source identity before submit and isolates attestation privileges", () => {
+  assert.match(testflight, /eas_build_id:/);
+  assert.match(testflightBuildJob, /Select an existing immutable EAS build/);
+  assert.match(testflightBuildJob, /REQUESTED_EAS_BUILD_ID: \$\{\{ inputs\.eas_build_id \}\}/);
+  assert.match(testflightBuildJob, /Requested EAS build ID must be a UUID/);
+  assert.match(testflightBuildJob, /if: \$\{\{ inputs\.eas_build_id == '' \}\}/);
+  assert.match(testflightBuildJob, /if: \$\{\{ inputs\.eas_build_id != '' \}\}/);
+  assert.match(testflightBuildJob, /command=create-eas-build-provenance/);
+  assert.match(testflightBuildJob, /command=create-compatible-eas-build-provenance/);
   assert.match(testflightBuildJob, /eas build --platform ios --profile production --non-interactive --wait --json/);
   assert.match(testflightBuildJob, /eas build:view "\$EAS_BUILD_ID" --json/);
   assert.match(testflightBuildJob, /create-eas-build-provenance/);
