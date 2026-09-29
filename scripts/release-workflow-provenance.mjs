@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export const RELEASE_GATE_SCHEMA = "calora.release-validation-gate.v1";
-export const EAS_BUILD_PROVENANCE_SCHEMA = "calora.eas-build-provenance.v2";
+export const EAS_BUILD_PROVENANCE_SCHEMA = "calora.eas-build-provenance.v3";
 export const EAS_SUBMISSION_PROVENANCE_SCHEMA =
   "calora.testflight-submission-provenance.v2";
 export const RELEASE_WORKFLOW_PATH = ".github/workflows/release-validation.yml";
@@ -15,6 +15,14 @@ const SHA = /^[0-9a-f]{40}$/;
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
 const EAS_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BUNDLE_ID = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+const REUSABLE_EAS_BUILD_TOOLING_PATHS = new Set([
+  ".github/workflows/calora-testflight-upload.yml",
+  "scripts/release-workflow-provenance.mjs",
+  "scripts/release-workflow-provenance.test.mjs",
+  "scripts/release-workflow-contract.test.mjs",
+]);
+const EXACT_SOURCE_COMPATIBILITY = "exact";
+const TOOLING_ONLY_SOURCE_COMPATIBILITY = "release-tooling-only";
 
 function fail(message) {
   throw new Error(`[release-provenance] ${message}`);
@@ -48,6 +56,24 @@ function git(args) {
   } catch {
     fail(`git ${args.join(" ")} failed.`);
   }
+}
+
+function gitIsAncestor(ancestor, descendant) {
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function gitChangedPaths(fromCommit, toCommit) {
+  return git(["diff", "--name-only", "--no-renames", fromCommit, toCommit])
+    .split("\n")
+    .filter(Boolean)
+    .sort();
 }
 
 function assertExactKeys(value, keys, label) {
@@ -179,21 +205,32 @@ export function readExpectedEasIdentity(appConfig, easConfig) {
   });
 }
 
-function parseVerifiedEasBuild(payload, expected, commitSha) {
+function parseVerifiedEasBuild(
+  payload,
+  expected,
+  commitSha,
+  { allowCompatibleSource = false } = {},
+) {
   const build = pickBuild(payload);
   const id = extractEasBuildId(build);
-  const projectId = String(build?.project?.id ?? "").toLowerCase();
+  const projectIds = [build?.project?.id, build?.app?.id]
+    .map((value) => String(value ?? "").toLowerCase())
+    .filter(Boolean);
   const platform = String(build?.platform ?? "").toLowerCase();
   const status = String(build?.status ?? "").toUpperCase();
   const profile = String(build?.buildProfile ?? "");
   const gitCommitHash = String(build?.gitCommitHash ?? "").toLowerCase();
   const distribution = String(build?.distribution ?? "").toLowerCase();
   const artifactUrl = String(build?.artifacts?.applicationArchiveUrl ?? "");
-  if (projectId !== expected.easProjectId) fail("EAS build belongs to an unexpected project.");
+  if (!projectIds.length || projectIds.some((projectId) => projectId !== expected.easProjectId)) {
+    fail("EAS build belongs to an unexpected project.");
+  }
   if (platform !== "ios") fail("EAS build is not an iOS build.");
   if (status !== "FINISHED") fail("EAS build is not finished successfully.");
   if (profile !== "production") fail("EAS build was not created with the production profile.");
-  if (gitCommitHash !== commitSha) fail("EAS build source commit does not match the gated commit.");
+  if (!allowCompatibleSource && gitCommitHash !== commitSha) {
+    fail("EAS build source commit does not match the gated commit.");
+  }
   if (String(build?.appVersion ?? "") !== expected.appVersion || String(build?.appBuildVersion ?? "") !== expected.appBuildVersion) {
     fail("EAS build app version or build number does not match authoritative source configuration.");
   }
@@ -214,7 +251,7 @@ function parseVerifiedEasBuild(payload, expected, commitSha) {
 const EAS_BUILD_PROVENANCE_KEYS = [
   "schemaVersion", "repository", "ref", "commitSha", "treeSha", "validationWorkflowRunId", "validationRunAttempt",
   "easProjectId", "iosBundleIdentifier", "ascAppId", "easBuildId", "platform", "status", "profile", "gitCommitHash",
-  "appVersion", "appBuildVersion", "distribution", "applicationArchiveUrlSha256", "validationGateSha256", "easBuildResponseSha256",
+  "sourceCompatibility", "appVersion", "appBuildVersion", "distribution", "applicationArchiveUrlSha256", "validationGateSha256", "easBuildResponseSha256",
 ];
 
 function assertEasBuildProvenance(buildProvenance) {
@@ -228,6 +265,12 @@ function assertEasBuildProvenance(buildProvenance) {
   }
   assertString(buildProvenance.iosBundleIdentifier, "EAS build provenance iosBundleIdentifier", BUNDLE_ID);
   assertString(buildProvenance.ascAppId, "EAS build provenance ascAppId", POSITIVE_INTEGER);
+  if (![EXACT_SOURCE_COMPATIBILITY, TOOLING_ONLY_SOURCE_COMPATIBILITY].includes(buildProvenance.sourceCompatibility)) {
+    fail("EAS build provenance source compatibility is invalid.");
+  }
+  if (buildProvenance.sourceCompatibility === EXACT_SOURCE_COMPATIBILITY && buildProvenance.gitCommitHash !== buildProvenance.commitSha) {
+    fail("exact EAS build provenance does not match the gated commit.");
+  }
   if (buildProvenance.platform !== "ios" || buildProvenance.status !== "FINISHED" || buildProvenance.profile !== "production" || buildProvenance.distribution !== "store") {
     fail("EAS build provenance does not describe a completed production App Store iOS build.");
   }
@@ -256,6 +299,55 @@ export function createEasBuildProvenance({ rawBuild, gate, expected, env = proce
     status: build.status,
     profile: build.profile,
     gitCommitHash: build.gitCommitHash,
+    sourceCompatibility: EXACT_SOURCE_COMPATIBILITY,
+    appVersion: expected.appVersion,
+    appBuildVersion: expected.appBuildVersion,
+    distribution: build.distribution,
+    applicationArchiveUrlSha256: build.applicationArchiveUrlSha256,
+    validationGateSha256: sha256(`${JSON.stringify(validatedGate)}\n`),
+    easBuildResponseSha256: sha256(JSON.stringify(rawBuild)),
+  };
+}
+
+export function createCompatibleEasBuildProvenance({
+  rawBuild,
+  gate,
+  expected,
+  env = process.env,
+  isAncestor = gitIsAncestor,
+  changedPaths = gitChangedPaths,
+} = {}) {
+  const repository = requiredEnvFrom(env, "GITHUB_REPOSITORY", /^[^/\s]+\/[^/\s]+$/);
+  const ref = requiredEnvFrom(env, "GITHUB_REF", /^refs\/heads\/main$/);
+  const commitSha = requiredEnvFrom(env, "GITHUB_SHA", SHA);
+  const validatedGate = validateValidationGate(gate, { repository, ref, commitSha });
+  const build = parseVerifiedEasBuild(rawBuild, expected, commitSha, {
+    allowCompatibleSource: true,
+  });
+  if (!isAncestor(build.gitCommitHash, commitSha)) {
+    fail("EAS build source commit is not an ancestor of the gated commit.");
+  }
+  const changed = changedPaths(build.gitCommitHash, commitSha);
+  if (!changed.length || changed.some((file) => !REUSABLE_EAS_BUILD_TOOLING_PATHS.has(file))) {
+    fail("EAS build source is not compatible with the gated commit.");
+  }
+  return {
+    schemaVersion: EAS_BUILD_PROVENANCE_SCHEMA,
+    repository: validatedGate.repository,
+    ref: validatedGate.ref,
+    commitSha: validatedGate.commitSha,
+    treeSha: validatedGate.treeSha,
+    validationWorkflowRunId: validatedGate.workflowRunId,
+    validationRunAttempt: validatedGate.runAttempt,
+    easProjectId: expected.easProjectId,
+    iosBundleIdentifier: expected.bundleIdentifier,
+    ascAppId: expected.ascAppId,
+    easBuildId: build.id,
+    platform: build.platform,
+    status: build.status,
+    profile: build.profile,
+    gitCommitHash: build.gitCommitHash,
+    sourceCompatibility: TOOLING_ONLY_SOURCE_COMPATIBILITY,
     appVersion: expected.appVersion,
     appBuildVersion: expected.appBuildVersion,
     distribution: build.distribution,
@@ -278,8 +370,11 @@ export function createEasSubmissionProvenance({ rawSubmitText, buildProvenance, 
   const repository = requiredEnvFrom(env, "GITHUB_REPOSITORY", /^[^/\s]+\/[^/\s]+$/);
   const ref = requiredEnvFrom(env, "GITHUB_REF", /^refs\/heads\/main$/);
   const commitSha = requiredEnvFrom(env, "GITHUB_SHA", SHA);
-  if (build.repository !== repository || build.ref !== ref || build.commitSha !== commitSha || build.gitCommitHash !== commitSha) {
+  if (build.repository !== repository || build.ref !== ref || build.commitSha !== commitSha) {
     fail("EAS build provenance does not match the submission context.");
+  }
+  if (build.sourceCompatibility === EXACT_SOURCE_COMPATIBILITY && build.gitCommitHash !== commitSha) {
+    fail("exact EAS build provenance does not match the submission context.");
   }
   return {
     schemaVersion: EAS_SUBMISSION_PROVENANCE_SCHEMA,
@@ -304,7 +399,7 @@ export function createEasSubmissionProvenance({ rawSubmitText, buildProvenance, 
 }
 
 function usage() {
-  fail("usage: create-validation-gate <out> | validate-validation-gate <gate> <run> | create-eas-build-provenance <raw-build-view> <gate> <app-json> <eas-json> <out> | create-eas-submission-provenance <raw-submit> <build-provenance> <out>");
+  fail("usage: create-validation-gate <out> | validate-validation-gate <gate> <run> | create-eas-build-provenance <raw-build-view> <gate> <app-json> <eas-json> <out> | create-compatible-eas-build-provenance <raw-build-view> <gate> <app-json> <eas-json> <out> | create-eas-submission-provenance <raw-submit> <build-provenance> <out>");
 }
 
 function main(args = process.argv.slice(2)) {
@@ -327,6 +422,14 @@ function main(args = process.argv.slice(2)) {
   }
   if (command === "create-eas-build-provenance" && rest.length === 5) {
     writeCanonicalJson(rest[4], createEasBuildProvenance({
+      rawBuild: readJson(rest[0]),
+      gate: readJson(rest[1]),
+      expected: readExpectedEasIdentity(readJson(rest[2]), readJson(rest[3])),
+    }));
+    return;
+  }
+  if (command === "create-compatible-eas-build-provenance" && rest.length === 5) {
+    writeCanonicalJson(rest[4], createCompatibleEasBuildProvenance({
       rawBuild: readJson(rest[0]),
       gate: readJson(rest[1]),
       expected: readExpectedEasIdentity(readJson(rest[2]), readJson(rest[3])),
