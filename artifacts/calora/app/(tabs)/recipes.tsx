@@ -1834,6 +1834,8 @@ export default function RecipesScreen() {
         style={styles.recipeScroll}
         contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        overScrollMode="never"
         onLayout={(event) => {
           if (section !== 'premium') return;
           premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
@@ -1845,6 +1847,7 @@ export default function RecipesScreen() {
           loadMorePremiumRecipesIfAtEnd(section);
         }}
         onScroll={(event) => handleRecipeScroll(section, event)}
+        onScrollEndDrag={(event) => handleRecipeScroll(section, event)}
         onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}
         scrollEventThrottle={16}
         decelerationRate="normal"
@@ -1924,6 +1927,7 @@ export default function RecipesScreen() {
         onChange={changeSection}
         renderItem={renderRecipeSection}
         renderWindow={1}
+        nativePaging
         fillViewport
         accessibilityLabel="Recipe section content"
         testID="recipes-section-content"

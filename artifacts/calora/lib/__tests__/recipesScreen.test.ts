@@ -12,6 +12,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="recipes-section-content"');
     expect(source).toContain('renderItem={renderRecipeSection}');
     expect(source).toContain('renderWindow={1}');
+    expect(source).toContain('nativePaging');
     expect(source).toContain('fillViewport');
     expect(source).not.toContain('disableAnimation');
   });
@@ -299,6 +300,8 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('style={styles.recipeScroll}');
     expect(source).toContain('recipeScroll: { flex: 1, minHeight: 0 }');
+    expect(source).toContain('nestedScrollEnabled');
+    expect(source).toContain('onScrollEndDrag={(event) => handleRecipeScroll(section, event)}');
   });
 
   it('replaces the legacy provider-fact widget with the upper AI nutrition widget', () => {
