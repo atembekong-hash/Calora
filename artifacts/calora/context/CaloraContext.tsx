@@ -2086,15 +2086,28 @@ export function CaloraProvider({
        // in-memory completion and leave the write for a later autosave effect:
        // a close, process kill, or reload immediately after "Enter Calora"
        // would otherwise make the next launch look like a first run.
-       enqueueAutosave(pm.current, {
+       const completedSnapshot = {
          ...currentSnapshot,
          profile: nextProfile,
          consentAccepted: consent,
          onboardingComplete: true,
          onboardingStep: 0,
-       });
+         onboardingDraft: null,
+       };
+       // Update the authoritative in-memory snapshot before awaiting I/O. This
+       // prevents a concurrent autosave from publishing the just-finished
+       // onboarding draft over the completed profile while the storage write is
+       // in flight.
+       exportSnapshotRef.current = completedSnapshot;
+       enqueueAutosave(pm.current, completedSnapshot);
        await pm.current.flush();
-      patchExportSnapshot({ profile: nextProfile, consentAccepted: consent, onboardingComplete: true, onboardingStep: 0 });
+      patchExportSnapshot({
+        profile: nextProfile,
+        consentAccepted: consent,
+        onboardingComplete: true,
+        onboardingStep: 0,
+        onboardingDraft: null,
+      });
       profileRef.current = nextProfile;
       setProfile(nextProfile);
       setConsentAccepted(consent);
@@ -2114,9 +2127,14 @@ export function CaloraProvider({
        }
     },
     updateProfile: (patch) => {
-      profileRef.current = profileRef.current ? { ...profileRef.current, ...patch } : null;
-      setProfile(profileRef.current);
-      patchExportSnapshot({ profile: profileRef.current });
+      const nextProfile = profileRef.current ? { ...profileRef.current, ...patch } : null;
+      profileRef.current = nextProfile;
+      setProfile(nextProfile);
+      patchExportSnapshot({ profile: nextProfile });
+      // A profile edit must not depend solely on a later render-driven
+      // autosave. Persist its committed value now so an immediate close or
+      // route change cannot make a newly visible name appear to disappear.
+      if (exportSnapshotRef.current) enqueueAutosave(pm.current, exportSnapshotRef.current);
       queueMutation('profile', 'upsert');
     },
     hydrationReminders,

@@ -1008,11 +1008,14 @@ describe('real CaloraProvider — account switch during hydration', () => {
     const persisted = await readPersistedSnapshot(STORAGE_KEY);
     expect(persisted?.onboardingComplete).toBe(true);
     expect(persisted?.profile?.name).toBe('User A');
+    expect(persisted?.profile?.age).toBe(30);
+    expect(persisted?.onboardingDraft).toBeNull();
 
     firstLaunch.unmount();
     const secondLaunch = await renderAndAwaitHydration();
     expect(secondLaunch.result.current.onboardingComplete).toBe(true);
     expect(secondLaunch.result.current.profile?.name).toBe('User A');
+    expect(secondLaunch.result.current.profile?.age).toBe(30);
   });
 
   it('restores every unfinished onboarding answer with its saved step after a cold relaunch', async () => {
