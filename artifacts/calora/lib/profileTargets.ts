@@ -23,7 +23,7 @@ export type TargetWeightValidation =
   | { ok: false; message: string };
 
 export function displayTargetWeight(targetWeightKg: number, units: 'metric' | 'imperial'): string {
-  return String(units === 'imperial' ? targetWeightKg * poundsPerKg : targetWeightKg);
+  return String(Math.round(units === 'imperial' ? targetWeightKg * poundsPerKg : targetWeightKg));
 }
 
 export function validateTargetWeight(
@@ -33,7 +33,10 @@ export function validateTargetWeight(
   const displayedWeight = Number(value);
   const targetWeightKg = units === 'imperial' ? displayedWeight / poundsPerKg : displayedWeight;
   const weightRange = units === 'imperial' ? '55 to 770 lb' : '25 to 350 kg';
-  if (!Number.isFinite(targetWeightKg) || targetWeightKg < 25 || targetWeightKg > 350) {
+  if (!Number.isFinite(displayedWeight) || !Number.isInteger(displayedWeight)) {
+    return { ok: false, message: 'Enter a whole-number target weight.' };
+  }
+  if (targetWeightKg < 25 || targetWeightKg > 350) {
     return { ok: false, message: `Enter a target weight from ${weightRange}.` };
   }
   return { ok: true, targetWeightKg };
@@ -56,11 +59,11 @@ export function validatePersonalDetails(
   if (!Number.isFinite(age) || age < 13 || age > 120 || !Number.isInteger(age)) {
     return { ok: false, message: 'Enter an age from 13 to 120.' };
   }
-  if (!Number.isFinite(heightCm) || heightCm < 80 || heightCm > 260) {
+  if (!Number.isFinite(height) || !Number.isInteger(height) || heightCm < 80 || heightCm > 260) {
     return { ok: false, message: `Enter a height from ${units === 'imperial' ? '32 to 102 in' : '80 to 260 cm'}.` };
   }
   const weightRange = units === 'imperial' ? '55 to 770 lb' : '25 to 350 kg';
-  if (!Number.isFinite(weightKg) || weightKg < 25 || weightKg > 350) {
+  if (!Number.isFinite(weight) || !Number.isInteger(weight) || weightKg < 25 || weightKg > 350) {
     return { ok: false, message: `Enter a current weight from ${weightRange}.` };
   }
   const targetResult = validateTargetWeight(input.targetWeight, units);

@@ -18,7 +18,7 @@ const DEFAULT_CARBS_RATIO = 0.44;
 const DEFAULT_FAT_RATIO = 0.3;
 
 function positiveOrFallback(value: number | undefined, fallback: number) {
-  return Number.isFinite(value) && (value ?? 0) > 0 ? value! : fallback;
+  return Number.isFinite(value) && (value ?? 0) > 0 ? Math.round(value!) : fallback;
 }
 
 export function getMacroTargets(profile: Profile | null): MacroTargets {
@@ -42,6 +42,9 @@ export function validateMacroGoalInput(input: MacroGoalInput): MacroGoalValidati
   };
   if (Object.values(values).some((value) => !Number.isFinite(value) || value <= 0)) {
     return { ok: false, message: 'Enter a positive value for calories and each macro.' };
+  }
+  if (Object.values(values).some((value) => !Number.isInteger(value))) {
+    return { ok: false, message: 'Enter whole-number values for calories and each macro.' };
   }
   if (values.protein < 1 || values.carbs < 1 || values.fat < 1) {
     return { ok: false, message: 'Enter at least 1 gram for each macro target.' };

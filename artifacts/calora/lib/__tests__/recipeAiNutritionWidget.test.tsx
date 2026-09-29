@@ -88,7 +88,7 @@ describe("RecipeAiNutritionWidget", () => {
       servingBasis: "Per source serving (recipe yield: 2)",
     };
 
-    render(<RecipeAiNutritionWidget {...baseProps} servingCount={1.5} />);
+    render(<RecipeAiNutritionWidget {...baseProps} servingCount={2} />);
     fireEvent.click(
       screen.getByRole("button", {
         name: "Show more AI nutrition information",
@@ -98,10 +98,10 @@ describe("RecipeAiNutritionWidget", () => {
     expect(screen.getAllByText("NUTRIENT")).not.toHaveLength(0);
     expect(
       screen.getByText(
-        "Per source serving (recipe yield: 2) · shown for 1.5 portions",
+        "Per source serving (recipe yield: 2) · shown for 2 portions",
       ),
     ).toBeTruthy();
-    expect(screen.getAllByText("1,020 mg")).not.toHaveLength(0);
+    expect(screen.getAllByText("1,360 mg")).not.toHaveLength(0);
     expect(
       screen.getByText(/AI-generated ingredient estimate per serving/),
     ).toBeTruthy();

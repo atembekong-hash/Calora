@@ -5,8 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, SUBSCRIPTION, URLS } from '@/lib/brand';
-import { formatQuantity } from '@/lib/formatters';
-import { formatGrams, formatWhole } from '@/lib/formatters';
+import { formatGrams, formatQuantity, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 import { needsActiveEnergyAuthorization, needsStepsAuthorization } from '@/lib/healthConnection';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -1527,7 +1526,7 @@ export default function ProfileScreen() {
               {([['Calories', savedMealCalories, setSavedMealCalories], ['Protein g', savedMealProtein, setSavedMealProtein], ['Carbs g', savedMealCarbs, setSavedMealCarbs], ['Fat g', savedMealFat, setSavedMealFat]] as const).map(([label, value, setter]) => (
                 <View key={label} style={styles.savedNumber}>
                   <Text style={[styles.savedNumberLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                  <TextInput accessibilityLabel={label} value={value} onChangeText={(nextValue) => { (setter as (v: string) => void)(nextValue); if (savedMealError) setSavedMealError(''); }} keyboardType="number-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError && label === 'Calories' ? colors.destructive : colors.input }]} />
+                  <TextInput accessibilityLabel={label} value={value} onChangeText={(nextValue) => { (setter as (v: string) => void)(normalizeWholeNumberInput(nextValue)); if (savedMealError) setSavedMealError(''); }} keyboardType="number-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError && label === 'Calories' ? colors.destructive : colors.input }]} />
                 </View>
               ))}
             </View>
@@ -1802,7 +1801,7 @@ export default function ProfileScreen() {
                       accessibilityLabel="Daily step goal"
                       testID="daily-step-goal-input"
                       value={dailyStepGoalDraft}
-                      onChangeText={setDailyStepGoalDraft}
+                      onChangeText={(nextValue) => setDailyStepGoalDraft(normalizeWholeNumberInput(nextValue))}
                       keyboardType="number-pad"
                       maxLength={6}
                       selectTextOnFocus

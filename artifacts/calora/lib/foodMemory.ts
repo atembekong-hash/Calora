@@ -143,7 +143,13 @@ export function nutritionForComponents(components: FoodMemoryComponent[], captur
       fatG: sum.fatG + component.fatG * multiplier,
     };
   }, { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
-  return { ...total, capturedAt };
+  return {
+    calories: Math.round(total.calories),
+    proteinG: Math.round(total.proteinG),
+    carbsG: Math.round(total.carbsG),
+    fatG: Math.round(total.fatG),
+    capturedAt,
+  };
 }
 
 /** A reviewed capture must contain at least one user-included component. */

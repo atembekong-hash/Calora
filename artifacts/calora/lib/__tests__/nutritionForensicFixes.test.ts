@@ -57,12 +57,16 @@ describe('nutrition and personal-detail forensic regressions', () => {
   });
 
   it('converts and range-checks an imperial Insights target', () => {
-    const valid = validateTargetWeight('154.3234', 'imperial');
+    const valid = validateTargetWeight('154', 'imperial');
     expect(valid.ok).toBe(true);
-    if (valid.ok) expect(valid.targetWeightKg).toBeCloseTo(70, 4);
-    expect(validateTargetWeight('54.9', 'imperial')).toEqual({
+    if (valid.ok) expect(valid.targetWeightKg).toBeCloseTo(69.85, 2);
+    expect(validateTargetWeight('54', 'imperial')).toEqual({
       ok: false,
       message: 'Enter a target weight from 55 to 770 lb.',
+    });
+    expect(validateTargetWeight('154.5', 'imperial')).toEqual({
+      ok: false,
+      message: 'Enter a whole-number target weight.',
     });
   });
 

@@ -565,6 +565,39 @@ function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function wholeNutritionValue(value: number): number {
+  return Number.isFinite(value) ? Math.round(value) : 0;
+}
+
+/**
+ * Diary values are persisted as display-ready whole quantities. This prevents
+ * provider or scan fractions from resurfacing in totals, widgets, exports, or
+ * the Coach context after an otherwise whole-number UI has been rendered.
+ */
+function normalizeFoodLogNutrition(log: FoodLog): FoodLog {
+  const normalizeOptional = (value: number | undefined) =>
+    value === undefined ? undefined : wholeNutritionValue(value);
+  return {
+    ...log,
+    calories: wholeNutritionValue(log.calories),
+    protein: wholeNutritionValue(log.protein),
+    carbs: wholeNutritionValue(log.carbs),
+    fat: wholeNutritionValue(log.fat),
+    fiber: normalizeOptional(log.fiber),
+    sugar: normalizeOptional(log.sugar),
+    sodium: normalizeOptional(log.sodium),
+    nutritionSnapshot: log.nutritionSnapshot
+      ? {
+          ...log.nutritionSnapshot,
+          calories: wholeNutritionValue(log.nutritionSnapshot.calories),
+          proteinG: wholeNutritionValue(log.nutritionSnapshot.proteinG),
+          carbsG: wholeNutritionValue(log.nutritionSnapshot.carbsG),
+          fatG: wholeNutritionValue(log.nutritionSnapshot.fatG),
+        }
+      : undefined,
+  };
+}
+
 function mergeHealthWeights(current: WeightEntry[], snapshot: HealthSnapshot): WeightEntry[] {
   return snapshot.weights.reduce<WeightEntry[]>((next, healthWeight) => {
     if (!isValidCanonicalWeightKg(healthWeight.kg) || !/^\d{4}-\d{2}-\d{2}T/.test(healthWeight.recordedAt)) return next;
@@ -824,11 +857,11 @@ export function CaloraProvider({
       profileRef.current = hydratedProfile;
       setProfile(hydratedProfile);
     }
-     const normalizedLogs = saved.logs?.map((log) => normalizeLogImageMetadata({
+     const normalizedLogs = saved.logs?.map((log) => normalizeFoodLogNutrition(normalizeLogImageMetadata({
        ...log,
        date: log.date ?? today,
        serving: log.serving ?? '1 serving',
-     })) ?? [];
+     }))) ?? [];
      if (saved.logs) {
        logsRef.current = normalizedLogs;
        setLogs(normalizedLogs);
@@ -1711,7 +1744,8 @@ export function CaloraProvider({
       patchExportSnapshot({ healthConnected: false, healthConnection: EMPTY_HEALTH_CONNECTION });
       setHealthConnection(EMPTY_HEALTH_CONNECTION);
     },
-    addLog: (log) => {
+    addLog: (inputLog) => {
+      const log = normalizeFoodLogNutrition(inputLog as FoodLog);
       const id = makeId('log');
       const capturedAt = new Date().toISOString();
       const nutritionSnapshot = {
@@ -1787,7 +1821,8 @@ export function CaloraProvider({
     updateLog: (id, patch) => {
       const existing = logsRef.current.find((log) => log.id === id);
        const syncUpdatedAt = new Date().toISOString();
-       const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch, syncUpdatedAt }) : null;
+       const applyPatch = (log: FoodLog) => normalizeFoodLogNutrition(normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }));
+       const updated = existing ? applyPatch(existing) : null;
       if (updated) {
         updateExportField('livingMemory', (current) => upsertMealObservation(
           removeMealObservation(current as LivingMemory, id), id, updated.date, updated.meal));
@@ -1798,9 +1833,9 @@ export function CaloraProvider({
           updated.meal,
         ));
       }
-      logsRef.current = logsRef.current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log);
+      logsRef.current = logsRef.current.map((log) => log.id === id ? applyPatch(log) : log);
       patchExportSnapshot({ logs: logsRef.current });
-      setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log));
+      setLogs((current) => current.map((log) => log.id === id ? applyPatch(log) : log));
       queueMutation('diaryEntry', 'upsert');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
@@ -1819,14 +1854,15 @@ export function CaloraProvider({
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
     applySyncedDiaryLogs: (nextLogs) => {
-      logsRef.current = nextLogs;
-      patchExportSnapshot({ logs: nextLogs });
+      const normalizedNextLogs = nextLogs.map(normalizeFoodLogNutrition);
+      logsRef.current = normalizedNextLogs;
+      patchExportSnapshot({ logs: normalizedNextLogs });
       updateExportField('livingMemory', (current) => mergeLivingMemory(current as LivingMemory, buildLivingMemory({
-        logs: nextLogs, waterLogs, moodLogs, activityLogs, plannerMeals,
+        logs: normalizedNextLogs, waterLogs, moodLogs, activityLogs, plannerMeals,
       })));
-      setLogs(nextLogs);
+      setLogs(normalizedNextLogs);
       setLivingMemory((current) => mergeLivingMemory(current, buildLivingMemory({
-        logs: nextLogs,
+        logs: normalizedNextLogs,
         waterLogs,
         moodLogs,
         activityLogs,

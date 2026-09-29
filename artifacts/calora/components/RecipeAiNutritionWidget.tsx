@@ -11,6 +11,7 @@ import {
   RecipeNutritionBreakdown,
   type RecipeNutritionPalette,
 } from "@/components/RecipeNutritionBreakdown";
+import { formatWhole } from "@/lib/formatters";
 
 export function RecipeAiNutritionWidget({
   recipeId,
@@ -129,7 +130,7 @@ export function RecipeAiNutritionWidget({
               <Text style={[styles.basis, { color: colors.mutedForeground }]}>
                 {estimate.data.servingBasis}
                 {servingCount !== 1
-                  ? ` · shown for ${servingCount} portions`
+                  ? ` · shown for ${formatWhole(servingCount)} portions`
                   : ""}
               </Text>
               <RecipeNutritionBreakdown

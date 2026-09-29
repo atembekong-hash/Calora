@@ -27,7 +27,7 @@ export function scaleRecipeNutritionForDiary(
 ): RecipeDiaryNutrition {
   const portions =
     usable(diaryServings) && diaryServings > 0 ? diaryServings : 1;
-  const scale = (value: unknown) => (usable(value) ? value * portions : null);
+  const scale = (value: unknown) => (usable(value) ? Math.round(value * portions) : null);
   return {
     calories: scale(recipe.calories),
     proteinG: scale(recipe.proteinG),
