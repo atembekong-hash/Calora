@@ -290,6 +290,10 @@ export function SwipeableSectionPager<T extends string>({
           pagingEnabled
           directionalLockEnabled
           nestedScrollEnabled
+          // Let the native scroll views negotiate the initial vertical drag.
+          // This avoids the outer horizontal JS responder retaining touches
+          // intended for Plus/Create/Profile/Progress vertical panes on Android.
+          disableScrollViewPanResponder
           showsHorizontalScrollIndicator={false}
           overScrollMode="never"
           scrollEventThrottle={16}
