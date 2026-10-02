@@ -53,6 +53,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("accessibilityLabel={`Choose ${option} prompt`}");
   });
 
+  it('omits an empty optional request so pantry ingredients reach the authenticated concept API', () => {
+    expect(source).toContain('const optionalRequest = generatedRequest.trim();');
+    expect(source).toContain('...(optionalRequest ? { request: optionalRequest } : {}),');
+    expect(source).not.toContain('request: generatedRequest,');
+  });
+
   it('reduces the Discover hero widget by 40% while preserving its content layer', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),

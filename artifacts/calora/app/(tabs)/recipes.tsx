@@ -360,13 +360,18 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         : session
           ? logs.slice(0, 3).map((log) => log.name).join(', ')
           : '';
+      // The generated request is optional in the API contract, but an empty
+      // string is not valid when a pantry-based request supplies ingredients.
+      // Omit it instead of turning a valid pantry submission into a local-only
+      // fallback before the authenticated API is ever called.
+      const optionalRequest = generatedRequest.trim();
       const payload = {
         ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean),
         mealType,
         servings: Number(servings),
         maxMinutes: Number(minutes),
         preferences: [...activePreferences, ...(session && profile ? [profile.diet, `${profile.goal} goal`] : [])],
-        request: generatedRequest,
+        ...(optionalRequest ? { request: optionalRequest } : {}),
       };
       const data = session
         ? await requestRecipeConcepts(payload, controller.signal)
