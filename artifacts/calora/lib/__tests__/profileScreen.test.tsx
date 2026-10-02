@@ -106,7 +106,7 @@ vi.mock('@/components/KeyboardAwareScrollViewCompat', () => ({ KeyboardAwareScro
 vi.mock('@/components/BottomSheet', () => ({ BottomSheet: ({ visible, children }: { visible: boolean; children: React.ReactNode }) => visible ? <div role="dialog">{children}</div> : null }));
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 vi.mock('@/components/SwipeableTabList', () => ({
-  SwipeableSectionPager: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SwipeableSectionPager: ({ children, renderItem, activeItem }: { children?: React.ReactNode; renderItem?: (item: string) => React.ReactNode; activeItem?: string }) => <div>{renderItem && activeItem ? renderItem(activeItem) : children}</div>,
   SwipeableTabList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

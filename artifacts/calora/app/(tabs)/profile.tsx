@@ -800,8 +800,8 @@ export default function ProfileScreen() {
           </Pressable>
         )}
       />
-      <ScrollView contentContainerStyle={[styles.profileContent, { paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
-
+      <View style={styles.profileViewport}>
+        <View style={styles.profileHeaderContent}>
         {/* ── Profile card ── */}
         <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
@@ -847,14 +847,20 @@ export default function ProfileScreen() {
           })}
         </SwipeableTabList>
 
+        </View>
         <SwipeableSectionPager
           items={PROFILE_TABS}
           activeItem={profileTab}
           onChange={setProfileTab}
-          accessibilityLabel="Profile section content"
-          testID="profile-section-content"
-        >
-        <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
+          renderItem={(tab) => (
+            <ScrollView
+              style={styles.profilePaneScroll}
+              contentContainerStyle={[styles.profilePaneContent, { paddingBottom: insets.bottom + 104 }]}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+        <View style={tab === 'you' ? undefined : styles.hiddenSection}>
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 2)}>
@@ -916,7 +922,7 @@ export default function ProfileScreen() {
 
         </View>
 
-        <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
+        <View style={tab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Reminders ── */}
         <Animated.View entering={enterMotion('screen', 4)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 16, marginBottom: 6 }]}>Reminders</Text>
@@ -1179,7 +1185,7 @@ export default function ProfileScreen() {
 
         </View>
 
-        <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
+        <View style={tab === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── Calora Pro ── */}
         <View style={styles.planHeader}>
           <View>
@@ -1263,7 +1269,7 @@ export default function ProfileScreen() {
 
         </View>
 
-        <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
+        <View style={tab === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
            <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text></View>
@@ -1360,7 +1366,7 @@ export default function ProfileScreen() {
 
         </View>
 
-        <View style={profileTab === 'account' ? undefined : styles.hiddenSection}>
+        <View style={tab === 'account' ? undefined : styles.hiddenSection}>
         {/* ── Account ── */}
         <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
 
@@ -1426,8 +1432,16 @@ export default function ProfileScreen() {
         ))}
         <Text style={[styles.version, { color: colors.mutedForeground }]}>{BRAND.copyright} · {BRAND.name} 1.0 · Made for steadier days</Text>
         </View>
-        </SwipeableSectionPager>
-      </ScrollView>
+            </ScrollView>
+          )}
+          renderWindow={1}
+          nativePaging
+          fillViewport
+          style={styles.profilePager}
+          accessibilityLabel="Profile section content"
+          testID="profile-section-content"
+        />
+      </View>
 
       {/* ── Billing modal ── */}
       <Modal visible={billingModal !== null} transparent animationType="fade" onRequestClose={() => setBillingModal(null)}>
@@ -1939,7 +1953,11 @@ function makeStyles(f: number) {
   notificationActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   notificationClearButton: { paddingHorizontal: 8, paddingVertical: 9 },
   notificationClearText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  profileContent: { paddingTop: 22, paddingHorizontal: 20 },
+  profileViewport: { flex: 1, minHeight: 0 },
+  profileHeaderContent: { paddingTop: 22, paddingHorizontal: 20 },
+  profilePager: { flex: 1, minHeight: 0 },
+  profilePaneScroll: { flex: 1, minHeight: 0 },
+  profilePaneContent: { paddingTop: 2, paddingHorizontal: 20 },
   profileTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 18 },
   profileTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 6 },
   profileTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },

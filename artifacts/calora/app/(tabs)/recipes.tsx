@@ -44,7 +44,7 @@ import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
-import { handleGeneratedRecipeImageError, markGeneratedRecipeImageRendered, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
+import { handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
 import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
@@ -120,7 +120,11 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
   const activeAccountIdRef = useRef(user?.id ?? null);
   activeAccountIdRef.current = user?.id ?? null;
   const localRecipe = isLocalRecipe(recipe) ? recipe : null;
-  const generatedImage = Boolean(localRecipe && localRecipe.imageProvenance === 'generated');
+  // A new user-created or Calora AI recipe starts as a generated-media
+  // candidate before its response writes imageProvenance back to storage.
+  // Keep this classification aligned with the lifecycle refresher so no
+  // generic fallback photo can impersonate that recipe's pending image.
+  const generatedImage = Boolean(localRecipe && isGeneratedRecipeImageCandidate(localRecipe));
   const state = localRecipe?.imageStatus === 'pending' ? 'generating'
     : localRecipe?.imageStatus === 'ready' ? 'url_ready'
       : localRecipe?.imageStatus === 'failed' ? 'retryable_error'
@@ -153,20 +157,34 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
         recyclingKey={`${recipe.id}:${recipeImageUrl}`}
         style={[styles.recipeImage, { height }]}
       />
+    ) : generatedImage ? (
+    <View
+      accessible
+      accessibilityLabel={state === 'retryable_error' ? `${recipe.name} recipe photo is unavailable` : `${recipe.name} recipe photo is being created`}
+      style={[styles.recipeImage, styles.generatedImageState, { height }]}
+    >
+      {state === 'retryable_error' ? (
+        <Pressable accessibilityLabel={`Retry ${recipe.name} recipe photo`} onPress={retry} style={styles.imageFallbackCopy}>
+          <Feather name="refresh-cw" size={22} color="#d4eadc" />
+          <Text style={styles.imageFallbackText}>Retry recipe photo</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.imageFallbackCopy}>
+          <ActivityIndicator size="small" color="#d4eadc" />
+          <Text style={styles.imageFallbackText}>Creating recipe photo…</Text>
+        </View>
+      )}
+    </View>
     ) : (
     <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
        <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
-      {generatedImage && state === 'retryable_error' ? <Pressable accessibilityLabel={`Retry ${recipe.name} recipe photo`} onPress={retry} style={styles.imageFallbackCopy}>
-         <Feather name="refresh-cw" size={22} color="#d4eadc" /><Text style={styles.imageFallbackText}>Retry photo</Text>
-      </Pressable> : null}
     </View>)}
     {generatedImage && recipeImageUrl && !imageFailed && !photoPending && (
       <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image${localRecipe?.imageReviewState === 'needs_review' ? ' that needs review' : ''}`} pointerEvents="none" style={styles.generatedImageBadge}>
         <Text style={styles.generatedImageBadgeText}>{localRecipe?.imageReviewState === 'needs_review' ? 'AI-generated · needs review' : 'AI-generated image'}</Text>
       </View>
     )}
-    {photoPending && !recipeImageUrl && <View style={styles.photoPendingOverlay}><ActivityIndicator size="small" color="#ffffff" /><Text style={styles.photoPendingText}>Creating recipe photo…</Text></View>}
   </View>;
 }
 
@@ -342,13 +360,18 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         : session
           ? logs.slice(0, 3).map((log) => log.name).join(', ')
           : '';
+      // The generated request is optional in the API contract, but an empty
+      // string is not valid when a pantry-based request supplies ingredients.
+      // Omit it instead of turning a valid pantry submission into a local-only
+      // fallback before the authenticated API is ever called.
+      const optionalRequest = generatedRequest.trim();
       const payload = {
         ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean),
         mealType,
         servings: Number(servings),
         maxMinutes: Number(minutes),
         preferences: [...activePreferences, ...(session && profile ? [profile.diet, `${profile.goal} goal`] : [])],
-        request: generatedRequest,
+        ...(optionalRequest ? { request: optionalRequest } : {}),
       };
       const data = session
         ? await requestRecipeConcepts(payload, controller.signal)
@@ -1145,7 +1168,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       recipeSource,
       name: detail.name,
       image: detail.image ?? '',
-      ...(isLocalRecipe(detail) && detail.imageProvenance === 'generated' ? {
+      ...(isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail) ? {
         generatedMediaId: detail.imageMediaId ?? undefined,
         generatedImageId: detail.imageId ?? undefined,
         generatedImageUrlExpiresAt: detail.imageUrlExpiresAt ?? undefined,
@@ -1287,7 +1310,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text></View>}
                 {nutritionIncomplete && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="info" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Some nutrition values are unavailable from this recipe source.</Text></View>}
                  {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && ['failed', 'retryable_error'].includes(detail.imageStatus ?? '') && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="image" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo is temporarily unavailable.</Text><Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
-                 {isLocalRecipe(detail) && detail.imageProvenance === 'generated' && detail.imageReviewState === 'needs_review' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="eye" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>AI-generated preview. Check that it matches your recipe.</Text><Pressable accessibilityLabel="Recipe photo matches" onPress={() => void reviewRecipeImage(detail, 'accepted', updateRecipe)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Looks right</Text></Pressable><Pressable accessibilityLabel="Regenerate mismatched recipe photo" onPress={() => { void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail)); }}><Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text></Pressable></View>}
+                 {isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail) && detail.imageReviewState === 'needs_review' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="eye" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>AI-generated preview. Check that it matches your recipe.</Text><Pressable accessibilityLabel="Recipe photo matches" onPress={() => void reviewRecipeImage(detail, 'accepted', updateRecipe)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Looks right</Text></Pressable><Pressable accessibilityLabel="Regenerate mismatched recipe photo" onPress={() => { void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail)); }}><Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text></Pressable></View>}
                 {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>No verified nutrition. Save it, then add nutrition before logging.</Text></View>}
                 {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}{premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}{premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}{premiumFields.fiberG ? `Fiber ${formatGrams(premiumFields.fiberG)}. ` : ''}{premiumFields.sodiumMg ? `Sodium ${formatWhole(premiumFields.sodiumMg)} mg.` : ''}</Text></View> : null}
 
@@ -1623,6 +1646,7 @@ export default function RecipesScreen() {
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
   const discoverScrollYRef = useRef(0);
+  const discoverRecipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const premiumScrollYRef = useRef(0);
   const premiumRecipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
@@ -1802,6 +1826,13 @@ export default function RecipesScreen() {
     loadingMoreRef.current = true;
     setRemoteOffset(remoteNextOffset);
   };
+  const loadMoreDiscoverRecipesIfAtEnd = (section: RecipeSection) => {
+    if (section !== 'discover' || activeSection !== 'discover') return;
+    const { offsetY, viewportHeight, contentHeight } = discoverRecipeScrollMetricsRef.current;
+    if (viewportHeight > 0 && contentHeight > 0 && offsetY + viewportHeight >= contentHeight - RECIPE_PREFETCH_DISTANCE) {
+      loadMoreRecipes();
+    }
+  };
   const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {
     const { offsetY, viewportHeight, contentHeight } = premiumRecipeScrollMetricsRef.current;
     if (shouldLoadMorePremiumRecipes({ section, activeSection, offsetY, viewportHeight, contentHeight, prefetchDistance: PREMIUM_RECIPE_PREFETCH_DISTANCE })) {
@@ -1822,7 +1853,12 @@ export default function RecipesScreen() {
     }
     if (section !== 'discover' || activeSection !== 'discover') return;
     discoverScrollYRef.current = contentOffset.y;
-    if (contentOffset.y + layoutMeasurement.height >= contentSize.height - RECIPE_PREFETCH_DISTANCE) loadMoreRecipes();
+    discoverRecipeScrollMetricsRef.current = {
+      offsetY: contentOffset.y,
+      viewportHeight: layoutMeasurement.height,
+      contentHeight: contentSize.height,
+    };
+    loadMoreDiscoverRecipesIfAtEnd(section);
   };
   const changeSection = (section: RecipeSection) => {
     if (section !== activeSection) setActiveSection(section);
@@ -1837,14 +1873,26 @@ export default function RecipesScreen() {
         nestedScrollEnabled
         overScrollMode="never"
         onLayout={(event) => {
-          if (section !== 'premium') return;
-          premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-          loadMorePremiumRecipesIfAtEnd(section);
+          if (section === 'premium') {
+            premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+            loadMorePremiumRecipesIfAtEnd(section);
+            return;
+          }
+          if (section === 'discover') {
+            discoverRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+            loadMoreDiscoverRecipesIfAtEnd(section);
+          }
         }}
         onContentSizeChange={(_, contentHeight) => {
-          if (section !== 'premium') return;
-          premiumRecipeScrollMetricsRef.current.contentHeight = contentHeight;
-          loadMorePremiumRecipesIfAtEnd(section);
+          if (section === 'premium') {
+            premiumRecipeScrollMetricsRef.current.contentHeight = contentHeight;
+            loadMorePremiumRecipesIfAtEnd(section);
+            return;
+          }
+          if (section === 'discover') {
+            discoverRecipeScrollMetricsRef.current.contentHeight = contentHeight;
+            loadMoreDiscoverRecipesIfAtEnd(section);
+          }
         }}
         onScroll={(event) => handleRecipeScroll(section, event)}
         onScrollEndDrag={(event) => handleRecipeScroll(section, event)}
@@ -2064,6 +2112,7 @@ function makeStyles(f: number) {
   cardImageFrame: { position: 'relative' },
   recipeImage: { width: '100%', backgroundColor: '#1d4539' },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
+  generatedImageState: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#18382f' },
   imageFallbackCopy: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageFallbackText: { color: '#9dd7bd', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 6 },
   photoPendingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,34,24,0.58)', gap: 7 },

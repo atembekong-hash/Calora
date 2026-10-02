@@ -1661,7 +1661,8 @@ export default function InsightsScreen() {
           </View>
         }
       />
-      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <View style={styles.progressViewport}>
+        <View style={styles.progressHeaderContent}>
         <View style={styles.heroHeader}>
           <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
             <Image key={insightsHeaderImage.hourSlot} source={insightsHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
@@ -1712,18 +1713,26 @@ export default function InsightsScreen() {
             );
           })}
         </SwipeableTabList>
+        </View>
         <SwipeableSectionPager
           items={PROGRESS_VIEWS}
           activeItem={progressView}
           onChange={setProgressView}
-          accessibilityLabel="Progress section content"
-          testID="progress-section-content"
-        >
+          renderItem={(view) => (
+            <Animated.ScrollView
+              style={styles.progressPaneScroll}
+              contentContainerStyle={[styles.progressPaneContent, { paddingBottom: insets.bottom + 104 }]}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
         <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
-          {{ overview: 'Your week and today.', trends: 'Calories, nutrients, and patterns.', weight: 'Weigh-ins, goals, and history.' }[progressView]}
+          {{ overview: 'Your week and today.', trends: 'Calories, nutrients, and patterns.', weight: 'Weigh-ins, goals, and history.' }[view]}
         </Text>
 
-        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
+        <View style={view === 'overview' ? undefined : styles.hiddenSection}>
         <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
 
         {localInsight ? (
@@ -1799,7 +1808,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
         </View>
 
-        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
+        <View style={view === 'trends' ? undefined : styles.hiddenSection}>
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
@@ -1863,7 +1872,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
         </View>
 
-        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
+        <View style={view === 'overview' ? undefined : styles.hiddenSection}>
         <AnimatedReveal delay={480}>
           <View style={[styles.signalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.signalCardHeader}>
@@ -2026,7 +2035,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
         </View>
 
-        <View style={progressView === 'weight' ? undefined : styles.hiddenSection}>
+        <View style={view === 'weight' ? undefined : styles.hiddenSection}>
         <View style={styles.weightHeader}>
           <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Trends matter more than one day.</Text></View>
           <View style={styles.weightHeaderButtons}>
@@ -2173,7 +2182,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
         </View>
 
-        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
+        <View style={view === 'trends' ? undefined : styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
         <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
@@ -2192,8 +2201,16 @@ export default function InsightsScreen() {
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
         </View>
-        </SwipeableSectionPager>
-      </Animated.ScrollView>
+            </Animated.ScrollView>
+          )}
+          renderWindow={1}
+          nativePaging
+          fillViewport
+          style={styles.progressPager}
+          accessibilityLabel="Progress section content"
+          testID="progress-section-content"
+        />
+      </View>
       <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
@@ -2385,6 +2402,11 @@ function makeStyles(f: number) {
   localInsightEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9, marginBottom: 3 },
   localInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 19 * f },
   localInsightMessage: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 3 },
+  progressViewport: { flex: 1, minHeight: 0 },
+  progressHeaderContent: { paddingTop: 18, paddingHorizontal: 20 },
+  progressPager: { flex: 1, minHeight: 0 },
+  progressPaneScroll: { flex: 1, minHeight: 0 },
+  progressPaneContent: { paddingTop: 2, paddingHorizontal: 20 },
   progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
   progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
   progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },

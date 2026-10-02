@@ -53,6 +53,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("accessibilityLabel={`Choose ${option} prompt`}");
   });
 
+  it('omits an empty optional request so pantry ingredients reach the authenticated concept API', () => {
+    expect(source).toContain('const optionalRequest = generatedRequest.trim();');
+    expect(source).toContain('...(optionalRequest ? { request: optionalRequest } : {}),');
+    expect(source).not.toContain('request: generatedRequest,');
+  });
+
   it('reduces the Discover hero widget by 40% while preserving its content layer', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
@@ -207,8 +213,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
-    expect(source).toContain("if (section !== 'premium') return;");
+    expect(source).toContain("if (section === 'premium') {");
+    expect(source).toContain("if (section === 'discover') {");
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd(section);');
+    expect(source).toContain('loadMoreDiscoverRecipesIfAtEnd(section);');
     expect(source).toContain('shouldLoadMorePremiumRecipes({ section, activeSection');
     expect(source).toContain('onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}');
     expect(source).toContain('const premiumScrollYRef = useRef(0)');
@@ -219,6 +227,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
+  });
+
+  it('does not disguise a pending or failed generated recipe image as a food-photo fallback', () => {
+    expect(source).toContain('isGeneratedRecipeImageCandidate(localRecipe)');
+    expect(source).toContain('Creating recipe photo…');
+    expect(source).toContain('Retry recipe photo');
+    expect(source).toContain('generatedImageState');
+    expect(source).toContain('isGeneratedRecipeImageCandidate(detail)');
   });
 
   it('keeps routed and saved Plus failures explicit, scoped, and actionable', () => {
