@@ -99,7 +99,6 @@ export async function clearDiarySyncState(scope = activeAccountScope): Promise<v
 export function setDiarySyncAccountScope(accountId?: string | null): void {
   const nextScope = accountId?.trim() || 'guest';
   if (nextScope === activeAccountScope) return;
-  const previousScope = activeAccountScope;
   activeAccountScope = nextScope;
   accountScopeGeneration++;
   _syncedIdSet = null;
@@ -113,9 +112,11 @@ export function setDiarySyncAccountScope(accountId?: string | null): void {
   pendingDeletesLoaded = false;
   upsertInFlight = false;
   deleteInFlight = false;
-  // Sync metadata is disposable. Clear the previous namespace asynchronously;
-  // the synchronous in-memory reset above prevents cross-account reads.
-  void clearDiarySyncState(previousScope).catch(() => undefined);
+  // Keep every account namespace intact. It contains only sync bookkeeping,
+  // but discarding it during an ordinary sign-out/account switch would turn a
+  // later partial local snapshot into an ambiguous deletion candidate. The
+  // synchronous in-memory reset above is sufficient to prevent cross-account
+  // reads; explicit account deletion remains the only cleanup path.
   void migrateLegacyDiarySyncState(nextScope);
 }
 
@@ -792,7 +793,13 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
 }
 
 /**
- * Push local changes, settle deletes, then pull the complete account diary.
+ * Push local changes, settle explicitly recorded deletes, then pull the
+ * complete account diary.
+ *
+ * Missing local entries are never inferred to be deletes. A storage eviction,
+ * interrupted hydration, or a fresh install can otherwise look identical to a
+ * person's intent to remove historical records. Deletion is only replicated
+ * after CaloraContext records a durable tombstone for a direct user action.
  * Server records win unless this device still has a strictly newer unsent edit.
  */
 export async function reconcileDiaryState(
@@ -802,13 +809,9 @@ export async function reconcileDiaryState(
   const scopeAtStart = accountScopeGeneration;
   await ensureSigsLoaded();
   await ensurePendingDeletesLoaded();
-  const previouslySynced = new Set(await loadSyncedIds());
   const localRealLogs = logs.filter((log) => !isStarterLog(log));
-  const localIds = new Set(localRealLogs.map((log) => log.id));
-  const removedIds = [...previouslySynced].filter((id) => !localIds.has(id));
-
-  for (const id of removedIds) recordDiaryDelete(id);
-  if (removedIds.length > 0) await syncDiaryDeletes(removedIds, accessToken);
+  const explicitlyDeletedIds = [...pendingDeletes.keys()];
+  if (explicitlyDeletedIds.length > 0) await syncDiaryDeletes(explicitlyDeletedIds, accessToken);
   await syncDiaryLogs(localRealLogs, accessToken);
 
   const response = await syncOutbox(

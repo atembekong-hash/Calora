@@ -4,6 +4,7 @@ import {
   GENERATED_RECIPE_STALE_GENERATION_MS,
   clearGeneratedRecipeImageRefreshes,
   decideGeneratedRecipeImageRefresh,
+  isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
   type GeneratedRecipeImageCandidate,
@@ -36,6 +37,33 @@ afterEach(() => {
 });
 
 describe('generated recipe image renewal decision', () => {
+  it('classifies newly created local recipes before generated provenance is persisted', () => {
+    expect(isGeneratedRecipeImageCandidate(generatedRecipe({
+      imageProvenance: undefined,
+      imageId: undefined,
+      image: null,
+      imageStatus: 'pending',
+      sourceType: 'user_created',
+    }))).toBe(true);
+  });
+
+  it('never classifies provider images as lifecycle-managed generated media', () => {
+    expect(isGeneratedRecipeImageCandidate(generatedRecipe({
+      imageProvenance: 'provider',
+      sourceType: 'user_created',
+    }))).toBe(false);
+  });
+
+  it('leaves ordinary local imports outside the generated-media lifecycle', () => {
+    expect(isGeneratedRecipeImageCandidate(generatedRecipe({
+      sourceType: 'imported',
+      imageProvenance: 'fallback',
+      imageId: undefined,
+      image: null,
+      imageStatus: undefined,
+    }))).toBe(false);
+  });
+
   it('reclaims only server generations that have exceeded the interrupted-request window', () => {
     expect(isStaleGeneratedRecipeMedia({
       status: 'generating',

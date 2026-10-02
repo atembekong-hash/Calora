@@ -189,6 +189,22 @@ describe('diary sync encrypted persistence and lifecycle cleanup', () => {
 
     expect(Object.keys(store).some((key) => key.endsWith(':user-delete'))).toBe(false);
   });
+
+  it('retains an account namespace across an ordinary sign-out and return', async () => {
+    const { setDiarySyncAccountScope, syncDiaryLogs, loadSyncedIds } = await freshDiarySync();
+    setDiarySyncAccountScope('user-returning');
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    await syncDiaryLogs([makeLog({ id: 'returning-history' })]);
+    setDiarySyncAccountScope(null);
+    setDiarySyncAccountScope('user-returning');
+
+    await expect(loadSyncedIds()).resolves.toEqual(new Set(['returning-history']));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -529,6 +545,23 @@ describe('reconcileDiaryState: cross-device restore and merge', () => {
         syncUpdatedAt: '2026-08-27T10:00:00.000Z',
       }),
     ]);
+  });
+
+  it('does not convert a missing local snapshot into deletes for previously synced history', async () => {
+    store['@calora/synced-diary-ids'] = JSON.stringify(['historical-log']);
+    const { reconcileDiaryState } = await freshDiarySync();
+    mockSyncOutbox.mockResolvedValue({
+      accepted: [],
+      conflicts: [],
+      records: [makeServerRecord({ clientId: 'historical-log', name: 'Recovered history' })],
+      nextCursor: '',
+    });
+
+    const restored = await reconcileDiaryState([]);
+
+    expect(restored).toEqual([expect.objectContaining({ id: 'historical-log', name: 'Recovered history' })]);
+    expect(mockSyncOutbox).toHaveBeenCalledTimes(1);
+    expect(mockSyncOutbox.mock.calls[0][0].mutations).toEqual([]);
   });
 
   it('keeps a newer offline edit when its upload fails, then retries it', async () => {
