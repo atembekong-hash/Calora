@@ -70,10 +70,16 @@ overrides:
   # image-size has no published release beyond the vulnerable 2.0.2 line.
   # Use the narrowly patched, local-compatible package until upstream ships one.
   image-size: "file:vendor/image-size"
-  # minimatch 10 accepts brace-expansion 5.x; pin its patched DoS release.
-  "minimatch@10.2.5>brace-expansion": "5.0.9"
-  # Pin known compatible fixes for high-severity transitive advisories.
-  "fast-uri@3.1.4": "3.1.7"
+  # Pin each supported minimatch major to its compatible brace-expansion DoS fix.
+  "minimatch@3.1.5>brace-expansion": "1.1.21"
+  "minimatch@9.0.9>brace-expansion": "2.1.7"
+  "minimatch@10.2.5>brace-expansion": "5.0.12"
+  # Keep each direct parent on its compatible patched transitive release.
+  "jsdom@30.0.1>undici": "8.11.2"
+  "@expo/cli@54.0.23>undici": "6.28.1"
+  "@expo/cli@54.0.27>undici": "6.28.1"
+  "ajv@8.20.0>fast-uri": "3.1.8"
+  "typedoc@0.28.20>markdown-it": "14.3.2"
   # Fix Express/body-parser query parsing and navigation URL decoding advisories.
   qs: "6.16.0"
   "decode-uri-component": "0.5.0"
