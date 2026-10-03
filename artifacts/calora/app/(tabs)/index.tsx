@@ -23,10 +23,11 @@ import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
+import { StepMilestoneCelebration } from '@/components/StepMilestoneCelebration';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
-import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Svg, { Circle, Path } from 'react-native-svg';
+import Animated, { Easing, ReduceMotion, useAnimatedProps, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -105,8 +106,8 @@ import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { ConfirmedDeletionControl } from '@/components/ConfirmedDeletionControl';
 import { isLiveSessionOnly, type LiveStepTrackingState } from '@/lib/steps/stepTracking';
-
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // Calorie gauge geometry — computed once at module load, stable across renders
 const GAUGE_VBW = 260;
@@ -663,6 +664,94 @@ function stepStatusCopy(
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
+const STEPS_RING_SIZE = 142;
+const STEPS_RING_STROKE = 10;
+const STEPS_RING_RADIUS = (STEPS_RING_SIZE - STEPS_RING_STROKE) / 2;
+const STEPS_RING_LENGTH = 2 * Math.PI * STEPS_RING_RADIUS;
+
+function StepProgressRing({
+  steps,
+  dailyStepGoal,
+  progress,
+  colors,
+  accessibilitySummary,
+}: {
+  steps: number | null;
+  dailyStepGoal: number;
+  progress: number;
+  colors: ReturnType<typeof useCalora>['colors'];
+  accessibilitySummary: string;
+}) {
+  const dashOffset = useSharedValue(STEPS_RING_LENGTH);
+  const scale = useSharedValue(1);
+  const previousSteps = useRef<number | null>(steps);
+
+  useEffect(() => {
+    dashOffset.value = withTiming(STEPS_RING_LENGTH * (1 - progress), {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
+  }, [dashOffset, progress]);
+
+  useEffect(() => {
+    if (steps !== null && previousSteps.current !== null && steps > previousSteps.current) {
+      scale.value = withSequence(
+        withTiming(1.025, { duration: 110, reduceMotion: ReduceMotion.System }),
+        withSpring(1, { damping: 13, stiffness: 230, reduceMotion: ReduceMotion.System }),
+      );
+    }
+    previousSteps.current = steps;
+  }, [scale, steps]);
+
+  const ringProps = useAnimatedProps(() => ({
+    strokeDashoffset: dashOffset.value,
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={accessibilitySummary}
+      testID="dashboard-steps-value"
+      style={[styles.stepsRing, ringStyle]}
+    >
+      <Svg testID="dashboard-steps-ring" width={STEPS_RING_SIZE} height={STEPS_RING_SIZE} viewBox={`0 0 ${STEPS_RING_SIZE} ${STEPS_RING_SIZE}`}>
+        <Circle
+          cx={STEPS_RING_SIZE / 2}
+          cy={STEPS_RING_SIZE / 2}
+          r={STEPS_RING_RADIUS}
+          stroke={colors.muted}
+          strokeWidth={STEPS_RING_STROKE}
+          fill="none"
+        />
+        <AnimatedCircle
+          animatedProps={ringProps}
+          cx={STEPS_RING_SIZE / 2}
+          cy={STEPS_RING_SIZE / 2}
+          r={STEPS_RING_RADIUS}
+          stroke={colors.primary}
+          strokeWidth={STEPS_RING_STROKE}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={STEPS_RING_LENGTH}
+          transform={`rotate(-90 ${STEPS_RING_SIZE / 2} ${STEPS_RING_SIZE / 2})`}
+        />
+      </Svg>
+      <View pointerEvents="none" accessible={false} style={styles.stepsRingCopy}>
+        <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.stepsRingValue, { color: colors.foreground }]}>
+          {steps === null ? '—' : formatWhole(steps)}
+        </Text>
+        <Text style={[styles.stepsRingLabel, { color: colors.mutedForeground }]}>steps</Text>
+        <Text style={[styles.stepsRingGoal, { color: colors.mutedForeground }]}>of {formatWhole(dailyStepGoal)}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
 function StepsTodayCard({
   colors,
   tracking,
@@ -672,6 +761,8 @@ function StepsTodayCard({
   onRetryLiveSteps,
   onOpenMotionSettings,
   onOpenHealth,
+  milestone,
+  onDismissMilestone,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   tracking: LiveStepTrackingState;
@@ -681,6 +772,8 @@ function StepsTodayCard({
   onRetryLiveSteps: () => void;
   onOpenMotionSettings: () => void;
   onOpenHealth: () => void;
+  milestone: number | null;
+  onDismissMilestone: (milestone: number) => void;
 }) {
   const steps = tracking.displayedSteps;
   const progress = steps === null ? 0 : Math.min(steps / dailyStepGoal, 1);
@@ -754,13 +847,20 @@ function StepsTodayCard({
         </View>
         {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
       </View>
-      <Text accessible accessibilityRole="text" accessibilityLabel={accessibilitySummary} testID="dashboard-steps-value" style={[styles.stepsValue, { color: colors.foreground }]}>
-        {steps === null ? '—' : formatWhole(steps)}
-        <Text style={[styles.stepsGoal, { color: colors.mutedForeground }]}> / {formatWhole(dailyStepGoal)}</Text>
-      </Text>
-      <View style={[styles.stepsTrack, { backgroundColor: colors.muted }]}>
-        <View style={[styles.stepsFill, { backgroundColor: colors.primary, width: `${progress * 100}%` }]} />
-      </View>
+      <StepProgressRing
+        steps={steps}
+        dailyStepGoal={dailyStepGoal}
+        progress={progress}
+        colors={colors}
+        accessibilitySummary={accessibilitySummary}
+      />
+      {milestone !== null && (
+        <StepMilestoneCelebration
+          milestone={milestone}
+          colors={colors}
+          onDismiss={() => onDismissMilestone(milestone)}
+        />
+      )}
       {actionLabel && onPress && (
         <Pressable
           accessibilityRole="button"
@@ -1467,8 +1567,8 @@ const gaugeStyles = makeGaugeStyles(1.0);
 export default function HomeScreen() {
   const {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
-    livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, dailyStepGoal,
-    startLiveStepTracking, setLiveStepsDashboardFocused, openMotionSettings, weights,
+    livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
+    startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
     updateProfile,
   } = useCalora();
@@ -1817,6 +1917,8 @@ export default function HomeScreen() {
             healthConnection={healthConnection}
             onEnableLiveSteps={() => { void startLiveStepTracking(true); }}
             onRetryLiveSteps={() => { void startLiveStepTracking(); }}
+            milestone={liveStepMilestones[0] ?? null}
+            onDismissMilestone={dismissLiveStepMilestone}
             onOpenMotionSettings={() => {
               void openMotionSettings().catch((error) => {
                 Alert.alert(
@@ -2046,10 +2148,11 @@ function makeStyles(f: number) {
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
-  stepsValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.7, marginTop: 16 },
-  stepsGoal: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, letterSpacing: 0 },
-  stepsTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginTop: 12 },
-  stepsFill: { height: '100%', borderRadius: 4 },
+  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  stepsRingCopy: { position: 'absolute', left: 22, right: 22, alignItems: 'center', justifyContent: 'center' },
+  stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
+  stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
+  stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
   stepsAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingHorizontal: 12 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: 28 },

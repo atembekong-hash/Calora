@@ -44,6 +44,22 @@ function greatest(...values: Array<number | null>): number | null {
   return numeric.length ? Math.max(...numeric) : null;
 }
 
+/** A successful provider read must never mask a motion permission/error state. */
+function statusAfterProviderConfirmation(
+  state: LiveStepTrackingState,
+): LiveStepStatus {
+  if (state.status === "live") return "live";
+  if (
+    state.status === "permission-required"
+    || state.status === "denied"
+    || state.status === "unavailable"
+    || state.status === "error"
+  ) {
+    return state.status;
+  }
+  return "confirmed";
+}
+
 export function localStepDay(now = new Date()): string {
   const year = now.getFullYear();
   const month = `${now.getMonth() + 1}`.padStart(2, "0");
@@ -99,9 +115,9 @@ export function reconcileProviderSteps(
       ...state,
       providerSteps: normalizedProvider,
       displayedSteps: normalizedProvider,
-      status: state.status === "live" ? "live" : "confirmed",
+      status: statusAfterProviderConfirmation(state),
       updatedAt,
-      error: null,
+      error: state.status === "error" ? state.error : null,
     };
   }
 
@@ -115,9 +131,9 @@ export function reconcileProviderSteps(
       providerSteps: normalizedProvider,
       sessionBaseSteps: Math.max(0, normalizedProvider - state.sessionSteps),
       displayedSteps: normalizedProvider,
-      status: state.status === "live" ? "live" : "confirmed",
+      status: statusAfterProviderConfirmation(state),
       updatedAt,
-      error: null,
+      error: state.status === "error" ? state.error : null,
     };
   }
 
