@@ -33,6 +33,7 @@ import {
 } from '@/lib/steps/stepTracking';
 import { stepMotionService } from '@/lib/steps/stepMotion';
 import type { MotionStepSubscription } from '@/lib/steps/stepMotion.types';
+import { crossedStepMilestones } from '@/lib/steps/stepMilestones';
 import { AppState, useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -398,6 +399,10 @@ type CaloraContextValue = {
   healthConnection: HealthConnection;
   /** Foreground live-motion overlay; not separately persisted or synced. */
   liveStepTracking: LiveStepTrackingState;
+  /** Thousand-step boundaries crossed by the current native foreground session. */
+  liveStepMilestones: number[];
+  /** Removes the displayed foreground-only step celebration from the queue. */
+  dismissLiveStepMilestone: (milestone: number) => void;
   dailyStepGoal: number;
   setDailyStepGoal: (goal: number) => void;
   /** Begins a foreground-only motion session; permission requests stay user initiated. */
@@ -644,6 +649,7 @@ export function CaloraProvider({
   const healthConnectionRef = useRef(healthConnection);
   const [dailyStepGoal, setDailyStepGoalState] = useState(DEFAULT_DAILY_STEP_GOAL);
   const [liveStepTracking, setLiveStepTracking] = useState<LiveStepTrackingState>(() => createLiveStepTrackingState(localStepDay()));
+  const [liveStepMilestones, setLiveStepMilestones] = useState<number[]>([]);
   const liveStepTrackingRef = useRef(liveStepTracking);
   const liveStepSubscriptionRef = useRef<MotionStepSubscription | null>(null);
   const liveStepEpochRef = useRef(0);
@@ -1152,6 +1158,7 @@ export function CaloraProvider({
     clearLiveStepReconciliationRetries();
     liveStepSubscriptionRef.current?.remove();
     liveStepSubscriptionRef.current = null;
+    setLiveStepMilestones([]);
     commitLiveStepTracking(suspendLiveStepSession(liveStepTrackingRef.current));
   }, [clearLiveStepReconciliationRetries, commitLiveStepTracking]);
 
@@ -1294,20 +1301,38 @@ export function CaloraProvider({
     const currentDay = localStepDay();
     if (tracking.day !== currentDay) {
       tracking = createLiveStepTrackingState(currentDay);
+      setLiveStepMilestones([]);
       commitLiveStepTracking(tracking);
     }
 
-    // The Health provider remains durable. A failed/denied read leaves the
-    // last confirmed or provisional visual value intact rather than inventing
-    // a zero for the dashboard.
-    await syncHealth();
-    if (!isCurrent()) return;
-    tracking = liveStepTrackingRef.current;
-    const snapshot = healthConnectionRef.current.snapshot;
-    if (snapshot?.steps !== null && snapshot?.steps !== undefined) {
-      tracking = reconcileProviderSteps(tracking, snapshot.steps, snapshot.syncedAt);
+    // Keep any cached daily aggregate, but do not wait for a Health Connect or
+    // HealthKit read before subscribing to the native foreground Pedometer.
+    // Provider aggregation can take seconds (and may batch data); delaying this
+    // subscription made a visible walking session appear to lag.
+    const cachedSnapshot = healthConnectionRef.current.snapshot;
+    if (cachedSnapshot?.steps !== null && cachedSnapshot?.steps !== undefined) {
+      tracking = reconcileProviderSteps(
+        tracking,
+        cachedSnapshot.steps,
+        cachedSnapshot.syncedAt,
+      );
       commitLiveStepTracking(tracking);
     }
+
+    void syncHealth().then((outcome) => {
+      if (outcome.status !== 'synced' || !isCurrent()) return;
+      const snapshot = healthConnectionRef.current.snapshot;
+      if (snapshot?.steps === null || snapshot?.steps === undefined) return;
+      const reconciled = reconcileProviderSteps(
+        liveStepTrackingRef.current,
+        snapshot.steps,
+        snapshot.syncedAt,
+      );
+      commitLiveStepTracking(reconciled);
+      if (needsProviderReconciliation(reconciled)) {
+        scheduleLiveStepReconciliationRetries(epoch);
+      }
+    });
 
     try {
       const capability = requestPermission
@@ -1317,11 +1342,18 @@ export function CaloraProvider({
 
       if (!capability.available || capability.permission !== 'granted') {
         commitLiveStepTracking(
-          motionUnavailableState(tracking, capability.permission, capability.available),
+          motionUnavailableState(
+            liveStepTrackingRef.current,
+            capability.permission,
+            capability.available,
+          ),
         );
         return;
       }
 
+      // A parallel provider sync may already have updated the baseline while
+      // native permission was being read; always start from the freshest state.
+      tracking = liveStepTrackingRef.current;
       const started = beginLiveStepSession(tracking, capability.permission, new Date().toISOString());
       commitLiveStepTracking(started);
       liveStepSubscriptionRef.current = stepMotionService.watchSteps((event) => {
@@ -1345,7 +1377,14 @@ export function CaloraProvider({
           return;
         }
         const projected = projectLiveSteps(current, steps, new Date().toISOString());
+        const crossedMilestones = crossedStepMilestones(
+          current.displayedSteps,
+          projected.displayedSteps,
+        );
         commitLiveStepTracking(projected);
+        if (crossedMilestones.length > 0) {
+          setLiveStepMilestones((queued) => [...queued, ...crossedMilestones]);
+        }
         if (needsProviderReconciliation(projected)) {
           scheduleLiveStepReconciliationRetries(epoch);
         }
@@ -1353,7 +1392,14 @@ export function CaloraProvider({
     } catch (error) {
       if (!isCurrent()) return;
       const message = error instanceof Error ? error.message : 'Live steps could not be started.';
-      commitLiveStepTracking(motionUnavailableState(tracking, 'unavailable', false, message));
+      commitLiveStepTracking(
+        motionUnavailableState(
+          liveStepTrackingRef.current,
+          'unavailable',
+          false,
+          message,
+        ),
+      );
     }
   }, [clearLiveStepReconciliationRetries, commitLiveStepTracking, hydrated, scheduleLiveStepReconciliationRetries, stopLiveStepSubscription, syncHealth]);
 
@@ -1374,6 +1420,14 @@ export function CaloraProvider({
   const stopLiveStepTracking = useCallback(() => {
     setLiveStepsDashboardFocused(false);
   }, [setLiveStepsDashboardFocused]);
+
+  const dismissLiveStepMilestone = useCallback((milestone: number) => {
+    setLiveStepMilestones((queued) =>
+      queued[0] === milestone
+        ? queued.slice(1)
+        : queued.filter((candidate) => candidate !== milestone),
+    );
+  }, []);
 
   restartLiveStepTrackingRef.current = () => {
     if (!liveStepsDashboardFocusedRef.current) return;
@@ -1682,6 +1736,8 @@ export function CaloraProvider({
     healthConnected,
     healthConnection,
     liveStepTracking,
+    liveStepMilestones,
+    dismissLiveStepMilestone,
     dailyStepGoal,
     setDailyStepGoal: (goal) => {
       const next = normalizeDailyStepGoal(goal);
@@ -2360,6 +2416,7 @@ export function CaloraProvider({
 	          setProfilePhotoUriState(null);
 	          healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
 	          setDailyStepGoalState(DEFAULT_DAILY_STEP_GOAL);
+	          setLiveStepMilestones([]);
 	          const clearedLiveSteps = createLiveStepTrackingState(localStepDay());
 	          liveStepTrackingRef.current = clearedLiveSteps;
 	          setLiveStepTracking(clearedLiveSteps);
@@ -2544,7 +2601,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, dismissLiveStepMilestone, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

@@ -510,7 +510,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("? 'Update Health access'");
     expect(source).toContain("? 'Sync Health'");
     expect(source).toContain('const accessibilitySummary = `${accessibilityPrefix}:');
-    expect(source).toContain('accessible accessibilityRole="text" accessibilityLabel={accessibilitySummary}');
+    expect(source).toContain('accessibilityRole="text"');
+    expect(source).toContain('accessibilityLabel={accessibilitySummary}');
     expect(source).toContain('accessibilityRole="header"');
   });
 
@@ -528,6 +529,23 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("? 'Retry live steps'");
     expect(source).toContain('onOpenMotionSettings');
     expect(source).toContain('minHeight: 44');
+  });
+
+  it('renders the live step total inside an accessible progress ring and queues foreground milestones', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('function StepProgressRing');
+    expect(source).toContain('testID="dashboard-steps-value"');
+    expect(source).toContain('strokeDasharray={STEPS_RING_LENGTH}');
+    expect(source).toContain('testID="dashboard-steps-ring"');
+    expect(source).toContain('<StepMilestoneCelebration');
+    expect(source).toContain('milestone={liveStepMilestones[0] ?? null}');
+    expect(source).toContain('onDismissMilestone={dismissLiveStepMilestone}');
   });
 
   it('follows today across a local-day change without overwriting a deliberate historical date', async () => {

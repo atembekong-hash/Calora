@@ -13,6 +13,7 @@ import {
   suspendLiveStepSession,
 } from "../steps/stepTracking";
 import { normalizeMotionStepEvent } from "../steps/stepMotion.types";
+import { crossedStepMilestones, nextStepMilestone } from "../steps/stepMilestones";
 
 describe("live step tracking reconciliation", () => {
   const day = "2026-09-26";
@@ -89,6 +90,28 @@ describe("live step tracking reconciliation", () => {
     );
     expect(nextMotionEvent.displayedSteps).toBe(1_011);
     expect(needsProviderReconciliation(reconciled)).toBe(false);
+  });
+
+  it("keeps a motion permission or retry state while accepting a provider total", () => {
+    const denied = motionUnavailableState(
+      createLiveStepTrackingState(day),
+      "denied",
+      true,
+    );
+    const reconciledDenied = reconcileProviderSteps(denied, 1_000, startedAt);
+    expect(reconciledDenied.status).toBe("denied");
+    expect(reconciledDenied.providerSteps).toBe(1_000);
+    expect(reconciledDenied.displayedSteps).toBe(1_000);
+
+    const errored = motionUnavailableState(
+      createLiveStepTrackingState(day),
+      "unavailable",
+      false,
+      "Live steps could not be started.",
+    );
+    const reconciledError = reconcileProviderSteps(errored, 1_000, startedAt);
+    expect(reconciledError.status).toBe("error");
+    expect(reconciledError.error).toBe("Live steps could not be started.");
   });
 
   it("never regresses a live projection when a native counter restarts", () => {
@@ -175,5 +198,13 @@ describe("live step tracking reconciliation", () => {
   it("uses the user local day rather than UTC for rollover state", () => {
     expect(localStepDay(new Date(2026, 8, 26, 23, 59, 59))).toBe("2026-09-26");
     expect(localStepDay(new Date(2026, 8, 27, 0, 0, 0))).toBe("2026-09-27");
+  });
+
+  it("emits each crossed thousand only for a forward native step event", () => {
+    expect(crossedStepMilestones(998, 1_001)).toEqual([1_000]);
+    expect(crossedStepMilestones(1_999, 3_002)).toEqual([2_000, 3_000]);
+    expect(crossedStepMilestones(1_000, 1_000)).toEqual([]);
+    expect(crossedStepMilestones(1_000, 999)).toEqual([]);
+    expect(nextStepMilestone(3_001)).toBe(4_000);
   });
 });
