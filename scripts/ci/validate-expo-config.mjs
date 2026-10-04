@@ -18,8 +18,8 @@ if (expo?.version !== "1.0.1") failures.push("expo.version must be 1.0.1");
 if (expo?.ios?.bundleIdentifier !== "com.etiendem.caloraapp") {
   failures.push("expo.ios.bundleIdentifier is incorrect");
 }
-if (expo?.ios?.buildNumber !== "13") {
-  failures.push("iOS buildNumber must be 13");
+if (expo?.ios?.buildNumber !== "14") {
+  failures.push("iOS buildNumber must be 14");
 }
 if (expo?.android?.package !== "com.etiendem.caloraapp") {
   failures.push("expo.android.package is incorrect");
