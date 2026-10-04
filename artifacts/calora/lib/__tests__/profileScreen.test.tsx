@@ -53,7 +53,15 @@ const harness = vi.hoisted(() => {
     notificationPreferences, updateNotificationPreferences, livingMemory: { mealObservations: {}, waterObservations: {}, moodObservations: {}, activityObservations: {}, plannerObservations: {} },
     logs: [], fontSizeScale: 'default', setFontSizeScale: vi.fn(), profilePhotoUri: null, setProfilePhotoUri: vi.fn(), fontScale: 1,
   };
-  return { state, calora, notificationPreferences, colors, router: { push: vi.fn(), navigate: vi.fn() }, useSubscription: vi.fn() };
+  return {
+    state,
+    calora,
+    notificationPreferences,
+    colors,
+    router: { push: vi.fn(), navigate: vi.fn() },
+    signOut: vi.fn(async () => ({ error: null })),
+    useSubscription: vi.fn(),
+  };
 });
 
 vi.mock('expo-router', () => ({
@@ -61,7 +69,7 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ tab: harness.state.tab, open: harness.state.open }),
 }));
 vi.mock('@/context/CaloraContext', () => ({ useCalora: () => harness.calora }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: harness.state.user }) }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: harness.state.user, signOut: harness.signOut }) }));
 vi.mock('@/lib/revenuecat', () => ({
   REVENUECAT_ENTITLEMENT_IDENTIFIER: 'caloraapp_pro',
   useSubscription: () => harness.useSubscription(),
@@ -154,6 +162,8 @@ beforeEach(() => {
   harness.calora.onboardingStep = 0;
   harness.calora.persistenceError = null;
   harness.calora.retryPersistence = vi.fn(async () => undefined);
+  harness.calora.clearAllData = vi.fn(async () => undefined);
+  harness.signOut.mockResolvedValue({ error: null });
   harness.useSubscription.mockReturnValue(makeSubscription());
   vi.clearAllMocks();
 });
