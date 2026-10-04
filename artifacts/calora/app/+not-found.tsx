@@ -1,7 +1,8 @@
 import { Link, Stack, router } from 'expo-router';
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { recoverFromNotFoundRoute } from '@/lib/notFoundRecovery';
 
 /**
  * Not-Found screen.
@@ -14,8 +15,14 @@ export default function NotFoundScreen() {
   const colors = useColors();
 
   useEffect(() => {
-    // Immediate redirect — covers the proxy-prefix routing edge-case on web.
-    const t = setTimeout(() => router.replace('/'), 300);
+    // Expo Router cannot always replace an unmatched web route. Use a
+    // document navigation there; native retains the in-app router path.
+    const t = setTimeout(() => {
+      const webLocation = Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location
+        : null;
+      recoverFromNotFoundRoute({ platform: Platform.OS, router, webLocation });
+    }, 300);
     return () => clearTimeout(t);
   }, []);
 
