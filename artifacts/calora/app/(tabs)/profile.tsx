@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
 import type { HealthSyncOutcome } from '@/context/CaloraContext';
 import { ClearAllDataError } from '@/lib/clearAllData';
+import { completeDeviceLocalReset } from '@/lib/deviceLocalReset';
 import {
   formatTime,
   type HydrationReminderPrefs,
@@ -91,7 +92,7 @@ export function notificationOutcomeMessage(result: NotificationReconciliationRes
 
 export default function ProfileScreen() {
   const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const {
     colors, themePreference, setThemePreference,
     profile, onboardingComplete, onboardingStep, onboardingDraft, updateProfile,
@@ -579,23 +580,29 @@ export default function ProfileScreen() {
     if (confirmingRef.current) return;
     confirmingRef.current = true;
     try {
-      await clearAllData();
+      const resetOutcome = await completeDeviceLocalReset(clearAllData, signOut);
       setPrivacyModal(null);
-    } catch (error) {
-      if (error instanceof ClearAllDataError && error.kind === 'partial-cleanup') {
-        setPrivacyModal(null);
+      if (resetOutcome.signOutError) {
+        Alert.alert(
+          'Local data deleted; sign-out needs attention',
+          'Your Calora data was removed from this device, but the device could not finish signing out. Close and reopen Calora, then sign out before starting fresh. Your remote account and synced data were not deleted.',
+        );
+      } else if (resetOutcome.cleanupFailures.length > 0) {
         Alert.alert(
           'Local data deleted with cleanup pending',
-          `Your local data was deleted, but ${error.cleanupFailures.join(', ')} could not be fully cleaned up. Please try again.`,
+          `Your local data was deleted and this device was signed out, but ${resetOutcome.cleanupFailures.join(', ')} could not be fully cleaned up. Please try again. Your remote account and synced data were not deleted.`,
         );
-      } else {
+      }
+    } catch (error) {
+      if (error instanceof ClearAllDataError) {
         Alert.alert(
           'Local deletion incomplete',
           'Your main local data could not be fully deleted. Some device cleanup may still have occurred. Please try again.',
         );
+      } else {
+        Alert.alert('Local deletion incomplete', 'Local data could not be deleted. Please try again.');
       }
-    }
-    finally { confirmingRef.current = false; }
+    } finally { confirmingRef.current = false; }
   };
 
   const handleHealthConnect = async () => {
@@ -1428,7 +1435,7 @@ export default function ProfileScreen() {
         </View>
         {[
           { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · managed profile photo embedded when available · ${syncState === 'needs-attention' ? 'backup needs attention' : syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
-           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device’s diary, profile, wellness, health snapshot, and saved data. Synced account data stays protected.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
+           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device’s diary, profile, wellness, health snapshot, and saved data, then sign out this device. Synced account data stays protected.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },
            { icon: 'help-circle' as const, title: 'Help', body: 'Support and answers.', onPress: () => setInfoModal('help'), disabled: false },
@@ -1549,7 +1556,7 @@ export default function ProfileScreen() {
               <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Delete local data?</Text>
-            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your local diary, profile and photo, weights, wellness records, health connection snapshot, reminders, saved meals, Planner data, memories, and Coach history from this device. It does not delete your account or remotely synced data. Your HealthKit or Health Connect permission remains controlled in device settings. This cannot be undone on this device.</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your local diary, profile and photo, weights, wellness records, health connection snapshot, reminders, saved meals, Planner data, memories, and Coach history from this device, then signs out this device. It does not delete your account or remotely synced data. Your HealthKit or Health Connect permission remains controlled in device settings. This cannot be undone on this device.</Text>
             <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
               <Feather name="alert-triangle" size={15} color={colors.warning} />
               <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>This device-only action is permanent.</Text>
