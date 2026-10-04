@@ -11,6 +11,10 @@ vi.mock('expo-notifications', () => ({
   dismissNotificationAsync: vi.fn(),
 }));
 
+// Existing lifecycle coverage exercises native scheduling semantics by default.
+// Web capability behavior is covered explicitly below with `platform: 'web'`.
+vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
+
 import * as Notifications from 'expo-notifications';
 import { normalizeNotificationPreferences } from '../notificationPreferences';
 import {
@@ -23,6 +27,8 @@ import {
 import {
   cancelNotificationPlanForClear,
   reconcileHydratedNotificationPlan,
+  reconcileUserNotificationPlan,
+  supportsLocalNotificationScheduling,
 } from '../notificationLifecycle';
 
 function makeAdapter(permission = true) {
@@ -391,5 +397,34 @@ describe('local notification reconciliation', () => {
     ]);
 
     expect(scheduled).toEqual([]);
+  });
+
+  it('treats web as explicitly unavailable without calling native scheduler APIs', async () => {
+    const adapter = makeAdapter();
+    const preferences = normalizeNotificationPreferences({
+      categories: {
+        goal: { enabled: true, preferences: { enabled: true, hour: 20, minute: 0 } },
+      },
+    });
+
+    expect(supportsLocalNotificationScheduling('web')).toBe(false);
+    expect(supportsLocalNotificationScheduling('ios')).toBe(true);
+
+    await expect(reconcileUserNotificationPlan(preferences, adapter, 'web')).resolves.toEqual({
+      status: 'unavailable',
+      scheduledCount: 0,
+    });
+    await expect(reconcileHydratedNotificationPlan(preferences, adapter, 'web')).resolves.toEqual({
+      status: 'unavailable',
+      scheduledCount: 0,
+    });
+    await expect(cancelNotificationPlanForClear(adapter, 'web')).resolves.toBeUndefined();
+
+    expect(adapter.getScheduled).not.toHaveBeenCalled();
+    expect(adapter.cancel).not.toHaveBeenCalled();
+    expect(adapter.permissionGranted).not.toHaveBeenCalled();
+    expect(adapter.schedule).not.toHaveBeenCalled();
+    expect(Notifications.getPresentedNotificationsAsync).not.toHaveBeenCalled();
+    expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalled();
   });
 });

@@ -183,6 +183,8 @@ export default function ProfileScreen() {
   const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
   const [notificationReconcileError, setNotificationReconcileError] = useState<string | null>(null);
   const [notificationUpdating, setNotificationUpdating] = useState(false);
+  const localNotificationSchedulingSupported = Platform.OS !== 'web';
+  const notificationControlsDisabled = notificationUpdating || !localNotificationSchedulingSupported;
 
   // Saved meal creation modal
   const [savedMealModal, setSavedMealModal] = useState(false);
@@ -308,6 +310,10 @@ export default function ProfileScreen() {
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
+    if (!localNotificationSchedulingSupported) {
+      setNotificationPermissionDenied(false);
+      return;
+    }
     (async () => {
       try {
         const permission = await Notifications.getPermissionsAsync();
@@ -980,7 +986,11 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Notifications</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-               {notificationUpdating ? 'Saving reminder settings…' : notificationPreferences.masterEnabled ? 'On this device' : 'Paused · choices saved'}
+               {notificationUpdating
+                 ? 'Saving reminder settings…'
+                 : !localNotificationSchedulingSupported
+                   ? 'Available in the Calora mobile app'
+                   : notificationPreferences.masterEnabled ? 'On this device' : 'Paused · choices saved'}
             </Text>
           </View>
           <Switch
@@ -988,7 +998,7 @@ export default function ProfileScreen() {
             testID="notification-master-toggle"
             value={notificationPreferences.masterEnabled}
             onValueChange={(masterEnabled) => void applyNotificationPrefs((current) => ({ ...current, masterEnabled }))}
-            disabled={notificationUpdating}
+            disabled={notificationControlsDisabled}
             trackColor={{ false: colors.muted, true: colors.primary }}
             thumbColor={colors.primaryForeground}
           />
@@ -1010,7 +1020,7 @@ export default function ProfileScreen() {
               testID="quiet-hours-toggle"
               value={notificationPreferences.quietHours.enabled}
               onValueChange={(enabled) => void applyNotificationPrefs((current) => ({ ...current, quietHours: { ...current.quietHours, enabled } }))}
-              disabled={notificationUpdating}
+              disabled={notificationControlsDisabled}
               trackColor={{ false: colors.muted, true: colors.primary }}
               thumbColor={colors.primaryForeground}
             />
@@ -1028,8 +1038,8 @@ export default function ProfileScreen() {
                       <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(time.hour, time.minute)}</Text>
                     </View>
                     <View style={styles.reminderNudge}>
-                      <Pressable accessibilityLabel={`Decrease quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-decrease`} onPress={() => nudgeQuietTime(field, -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                      <Pressable accessibilityLabel={`Increase quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-increase`} onPress={() => nudgeQuietTime(field, 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                      <Pressable accessibilityLabel={`Decrease quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-decrease`} onPress={() => nudgeQuietTime(field, -15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                      <Pressable accessibilityLabel={`Increase quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-increase`} onPress={() => nudgeQuietTime(field, 15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                     </View>
                   </View>
                 );
@@ -1050,7 +1060,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Retry notification setup"
             testID="retry-notification-setup"
             onPress={() => { void applyNotificationPrefs((current) => current); }}
-            disabled={notificationUpdating}
+            disabled={notificationControlsDisabled}
             style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
           >
             <Feather name="alert-circle" size={14} color={colors.foreground} />
@@ -1072,7 +1082,7 @@ export default function ProfileScreen() {
                  : 'Off'}
             </Text>
           </View>
-           <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
+           <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} disabled={notificationControlsDisabled} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
         </View>
 
         {hydrationReminderPrefs.enabled && (
@@ -1087,13 +1097,13 @@ export default function ProfileScreen() {
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease wake hour" onPress={() => nudgeHydrationHour('wakeHour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase wake hour" onPress={() => nudgeHydrationHour('wakeHour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease wake hour" onPress={() => nudgeHydrationHour('wakeHour', -1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase wake hour" onPress={() => nudgeHydrationHour('wakeHour', 1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', -15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', 15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
               </View>
             </View>
@@ -1110,13 +1120,13 @@ export default function ProfileScreen() {
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease sleep hour" onPress={() => nudgeHydrationHour('sleepHour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase sleep hour" onPress={() => nudgeHydrationHour('sleepHour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease sleep hour" onPress={() => nudgeHydrationHour('sleepHour', -1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase sleep hour" onPress={() => nudgeHydrationHour('sleepHour', 1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', -15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', 15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
               </View>
             </View>
@@ -1130,7 +1140,7 @@ export default function ProfileScreen() {
                 {([1, 1.5, 2, 3] as const).map((h) => {
                   const selected = hydrationReminderPrefs.intervalHours === h;
                   return (
-                    <Pressable key={h} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminderPrefs, intervalHours: h })} disabled={notificationUpdating} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
+                    <Pressable key={h} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminderPrefs, intervalHours: h })} disabled={notificationControlsDisabled} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
                       <Text style={[styles.intervalChipText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{h}h</Text>
                     </Pressable>
                   );
@@ -1167,17 +1177,17 @@ export default function ProfileScreen() {
                     <View style={styles.reminderNudgeGroup}>
                       <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                       <View style={styles.reminderNudge}>
-                        <Pressable accessibilityLabel={`Decrease ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
-                        <Pressable accessibilityLabel={`Increase ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Decrease ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', -1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Increase ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', 1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
                       </View>
                       <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                       <View style={styles.reminderNudge}>
-                        <Pressable accessibilityLabel={`Decrease ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
-                        <Pressable accessibilityLabel={`Increase ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Decrease ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', -15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Increase ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', 15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
                       </View>
                     </View>
                   )}
-                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminderPrefs, [meal.key]: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminderPrefs, [meal.key]: val })} disabled={notificationControlsDisabled} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
                 </View>
               </View>
             );
@@ -1214,17 +1224,17 @@ export default function ProfileScreen() {
             <View style={styles.reminderNudgeGroup}>
               <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
               <View style={styles.reminderNudge}>
-                <Pressable accessibilityLabel="Decrease goal reminder hour" onPress={() => nudgeGoalTime('hour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                <Pressable accessibilityLabel="Increase goal reminder hour" onPress={() => nudgeGoalTime('hour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Decrease goal reminder hour" onPress={() => nudgeGoalTime('hour', -1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase goal reminder hour" onPress={() => nudgeGoalTime('hour', 1)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
               </View>
               <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
               <View style={styles.reminderNudge}>
-                <Pressable accessibilityLabel="Decrease goal reminder minute" onPress={() => nudgeGoalTime('minute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                <Pressable accessibilityLabel="Increase goal reminder minute" onPress={() => nudgeGoalTime('minute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Decrease goal reminder minute" onPress={() => nudgeGoalTime('minute', -15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase goal reminder minute" onPress={() => nudgeGoalTime('minute', 15)} disabled={notificationControlsDisabled} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
               </View>
             </View>
           )}
-          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} disabled={notificationControlsDisabled} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
         </View>
         </Animated.View>
 
