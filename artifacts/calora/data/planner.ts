@@ -167,6 +167,31 @@ export function applySlotReplace(
 }
 
 /**
+ * Reports whether a non-destructive Planner move or copy can be applied.
+ *
+ * Move/copy deliberately never replaces an occupied slot: replacement is a
+ * separate, explicit user action. Keeping this decision pure lets callers
+ * display a truthful outcome before they create undo state or acknowledge a
+ * mutation that was refused.
+ */
+export type PlannerMealMoveAvailability = 'available' | 'missing' | 'same-day' | 'occupied';
+
+export function plannerMealMoveAvailability(
+  plannerMeals: readonly PlannerMeal[],
+  mealId: string,
+  destinationDay: string,
+): PlannerMealMoveAvailability {
+  const existing = plannerMeals.find((meal) => meal.id === mealId);
+  if (!existing) return 'missing';
+  if (existing.day === destinationDay) return 'same-day';
+  return plannerMeals.some(
+    (meal) => meal.day === destinationDay && meal.meal === existing.meal && meal.id !== mealId,
+  )
+    ? 'occupied'
+    : 'available';
+}
+
+/**
  * Identity-based replace — used by the catalog "Replace meal" sheet in the planner.
  *
  * Swaps the meal whose id matches target.id, assigning the replacement a

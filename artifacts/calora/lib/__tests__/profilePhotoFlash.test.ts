@@ -46,9 +46,11 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 const {
   _asyncStore,
   _getAsyncBlocker,
+  _asyncSetItemError,
   blockNextAsyncRead,
 } = vi.hoisted(() => {
   const _asyncStore: Record<string, string> = {};
+  const _asyncSetItemError = { current: null as Error | null };
   let _blocker: Promise<void> | null = null;
   let _release: (() => void) | null = null;
 
@@ -60,7 +62,7 @@ const {
   // getAsyncBlocker returns the current blocker so the mock factory can await it.
   function _getAsyncBlocker() { return _blocker; }
 
-  return { _asyncStore, _getAsyncBlocker, blockNextAsyncRead };
+  return { _asyncStore, _getAsyncBlocker, _asyncSetItemError, blockNextAsyncRead };
 });
 
 // ── Shared mutable state: FileSystem ─────────────────────────────────────────
@@ -93,7 +95,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
       if (b) await b;
       return _asyncStore[k] ?? null;
     }),
-    setItem:    vi.fn(async (k: string, v: string) => { _asyncStore[k] = v; }),
+    setItem:    vi.fn(async (k: string, v: string) => {
+      if (_asyncSetItemError.current) throw _asyncSetItemError.current;
+      _asyncStore[k] = v;
+    }),
     removeItem: vi.fn(async (k: string) => { delete _asyncStore[k]; }),
   },
 }));
@@ -189,6 +194,7 @@ async function renderAndAwaitHydration() {
 beforeEach(() => {
   // Clear AsyncStorage backing store.
   Object.keys(_asyncStore).forEach((k) => { delete _asyncStore[k]; });
+  _asyncSetItemError.current = null;
   // Reset FileSystem to report file as present (default safe behaviour).
   _fsGetInfoResult.exists = true;
   // Reset all mock call histories so per-test assertions are not contaminated
@@ -202,6 +208,41 @@ beforeEach(() => {
   _healthRequestConnection.mockResolvedValue(unavailable);
   _healthSync.mockRejectedValue(new Error('Health data is unavailable on this platform.'));
   vi.restoreAllMocks();
+});
+
+describe('real CaloraProvider — local recipe durable commit boundary', () => {
+  it('does not publish a newly created recipe when encrypted local persistence fails', async () => {
+    const { result } = await renderAndAwaitHydration();
+    const draft = {
+      name: 'Durable test recipe',
+      ingredients: ['Oats'],
+      tags: ['My recipes'],
+      source: 'Calora test',
+      sourceUrl: '',
+      calories: 200,
+    };
+    _asyncSetItemError.current = new Error('storage-full');
+
+    await act(async () => {
+      await expect(result.current.saveRecipe(draft)).rejects.toThrow('storage-full');
+    });
+
+    expect(result.current.localRecipes).toHaveLength(0);
+    expect(result.current.persistenceError).toContain('Changes are waiting to be saved');
+
+    _asyncSetItemError.current = null;
+    await act(async () => {
+      await result.current.saveRecipe(draft);
+    });
+
+    expect(result.current.localRecipes).toHaveLength(1);
+    expect(result.current.localRecipes[0]?.name).toBe('Durable test recipe');
+    expect(result.current.persistenceError).toBeNull();
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    expect(persisted?.localRecipes).toEqual([
+      expect.objectContaining({ name: 'Durable test recipe' }),
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------

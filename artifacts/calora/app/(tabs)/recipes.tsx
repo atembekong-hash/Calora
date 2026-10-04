@@ -404,13 +404,16 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     }
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
+    let recipe: Omit<CaloraRecipe, 'id'>;
+    let usedLocalFallback = false;
     try {
       const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: Number(servings) });
-      onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', nutritionNote: generated.nutritionNote, createdAt: new Date().toISOString() }));
+      recipe = { name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', nutritionNote: generated.nutritionNote, createdAt: new Date().toISOString() };
     } catch {
       // Creating a local draft preserves the user's chosen concept without
       // pretending that unavailable AI output was received.
-      onOpenRecipe(saveRecipe({
+      usedLocalFallback = true;
+      recipe = {
         name: concept.title,
         description: concept.summary,
         ingredients: concept.keyIngredients,
@@ -426,8 +429,16 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         nutritionConfidence: 'user_entered',
         nutritionSource: 'User review required',
         createdAt: new Date().toISOString(),
-      }));
-      setError('Recipe details are temporarily unavailable. A local draft was saved for you to review and edit.');
+      };
+    }
+    try {
+      const saved = await saveRecipe(recipe);
+      onOpenRecipe(saved);
+      if (usedLocalFallback) {
+        setError('Recipe details are temporarily unavailable. A local draft was saved for you to review and edit.');
+      }
+    } catch {
+      setError('Recipe could not be saved on this device. Check storage and try again.');
     } finally { finishingRef.current = false; setFinishingTitle(null); }
   };
   return <View>
@@ -1540,7 +1551,9 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
   const [fat, setFat] = useState('');
   const [ingredients, setIngredients] = useState('');
   const [error, setError] = useState('');
-  const create = () => {
+  const [saving, setSaving] = useState(false);
+  const create = async () => {
+    if (saving) return;
     if (!name.trim()) {
       setError('Enter a recipe name.');
       return;
@@ -1561,32 +1574,39 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       return;
     }
     Keyboard.dismiss();
-    const saved = saveRecipe({
-      name: name.trim(),
-      ingredients: ingredients.split('\n').map((item) => item.trim()).filter(Boolean),
-      tags: ['My recipes'],
-      source: `Created in ${BRAND.name}`,
-      sourceUrl: URLS.main,
-      calories: parsedCalories,
-      proteinG: parseNutritionInput(protein),
-      carbsG: parseNutritionInput(carbs),
-      fatG: parseNutritionInput(fat),
-      category: 'Personal',
-      area: null,
-      image: null,
-      imageStatus: 'pending',
-      sourceType: 'user_created',
-      sourceProvider: BRAND.name,
-      nutritionConfidence: 'user_entered',
-      nutritionSource: 'User entered',
-      instructions: null,
-      description: null,
-      prepMinutes: null,
-    });
-    setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); setIngredients('');
-    setError('');
-    onClose();
-    onCreated(saved);
+    setSaving(true);
+    try {
+      const saved = await saveRecipe({
+        name: name.trim(),
+        ingredients: ingredients.split('\n').map((item) => item.trim()).filter(Boolean),
+        tags: ['My recipes'],
+        source: `Created in ${BRAND.name}`,
+        sourceUrl: URLS.main,
+        calories: parsedCalories,
+        proteinG: parseNutritionInput(protein),
+        carbsG: parseNutritionInput(carbs),
+        fatG: parseNutritionInput(fat),
+        category: 'Personal',
+        area: null,
+        image: null,
+        imageStatus: 'pending',
+        sourceType: 'user_created',
+        sourceProvider: BRAND.name,
+        nutritionConfidence: 'user_entered',
+        nutritionSource: 'User entered',
+        instructions: null,
+        description: null,
+        prepMinutes: null,
+      });
+      setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); setIngredients('');
+      setError('');
+      onClose();
+      onCreated(saved);
+    } catch {
+      setError('Recipe could not be saved on this device. Check storage and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <BottomSheet animationType="none" visible={visible} onRequestClose={onClose} sheetStyle={{ backgroundColor: colors.background }}>
@@ -1603,7 +1623,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
           <View style={styles.numberGrid}>{[['Calories', calories, setCalories], ['Protein g', protein, setProtein], ['Carbs g', carbs, setCarbs], ['Fat g', fat, setFat]].map(([label, value, setter]) => <View key={label as string} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput accessibilityLabel={label as string} value={value as string} onChangeText={(text) => { (setter as (next: string) => void)(normalizeWholeNumberInput(text)); setError(''); }} keyboardType="number-pad" returnKeyType="next" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}</View>
           <TextInput accessibilityLabel="Recipe ingredients" value={ingredients} onChangeText={(value) => { setIngredients(value); setError(''); }} multiline placeholder="Ingredients, one per line" placeholderTextColor={colors.mutedForeground} style={[styles.ingredientsInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
           {error ? <View style={[styles.formError, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={15} color={colors.destructive} /><Text style={[styles.formErrorText, { color: colors.destructive }]}>{error}</Text></View> : null}
-          <Pressable accessibilityLabel="Save your recipe" onPress={create} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Save recipe</Text></Pressable>
+          <Pressable accessibilityLabel="Save your recipe" disabled={saving} onPress={() => { void create(); }} style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{saving ? 'Saving recipe…' : 'Save recipe'}</Text></Pressable>
           <Pressable accessibilityLabel="Cancel recipe creation" onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
     </BottomSheet>

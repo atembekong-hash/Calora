@@ -276,6 +276,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('accessibilityLabel="Estimated nutrition disclosure"');
   });
 
+  it('awaits durable local recipe creation before opening a recipe or reporting success', () => {
+    expect(source).toContain('const saved = await saveRecipe(recipe);');
+    expect(source).toContain('const saved = await saveRecipe({');
+    expect(source).toContain('Recipe could not be saved on this device. Check storage and try again.');
+    expect(source).toContain('disabled={saving}');
+    expect(source).toContain("{saving ? 'Saving recipe…' : 'Save recipe'}");
+  });
+
   it('keeps nutrition portions explicit without guessing ingredient quantities', () => {
     expect(source).toContain("import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing'");
     expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing'");

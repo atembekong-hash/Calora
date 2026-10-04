@@ -41,7 +41,7 @@ import type { RecipeNutritionFacts } from '@workspace/api-zod/recipe-nutrition';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, normalizePlannerWeekStart, shoppingChecksByName, shoppingNameKey, shoppingWeekChecksByName, toggleShoppingCheckByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, normalizePlannerWeekStart, plannerMealMoveAvailability, shoppingChecksByName, shoppingNameKey, shoppingWeekChecksByName, toggleShoppingCheckByName } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
   type FoodMemoryCorrection,
@@ -529,7 +529,8 @@ type CaloraContextValue = {
   setActivity: (date: string, activity: DailyActivity) => void;
   setActivityMinutes: (date: string, minutes: number) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
-  saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => CaloraRecipe;
+  /** Resolves only after a new personal recipe is durably committed locally. */
+  saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => Promise<CaloraRecipe>;
   /** Restores a server-owned generated recipe using its stable client recipe ID. */
   restoreRecipe: (recipe: CaloraRecipe) => void;
   updateRecipe: (recipeId: string, patch: Partial<Omit<CaloraRecipe, 'id'>>) => void;
@@ -593,7 +594,8 @@ type CaloraContextValue = {
   teachRepeatMemory: (memoryId: string) => void;
   setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
   updatePlannerMeals: (meals: PlannerMeal[]) => void;
-  movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
+  /** Reports a refused destination so callers never acknowledge a no-op as a move/copy. */
+  movePlannerMeal: (mealId: string, day: string, copy: boolean) => 'applied' | 'missing' | 'same-day' | 'occupied';
   toggleShoppingItem: (itemId: string) => void;
   toggleShoppingItemByName: (name: string, weekStart?: string) => void;
   addIngredientsToShopping: (ingredients: string[], sourceId: string) => void;
@@ -2317,11 +2319,32 @@ export function CaloraProvider({
       setSavedMeals((current) => [...current, saved]);
       queueMutation('savedMeal', 'upsert');
     },
-    saveRecipe: (recipe) => {
+    saveRecipe: async (recipe) => {
+      const currentSnapshot = exportSnapshotRef.current;
+      if (!currentSnapshot) {
+        throw new Error('Your recipes are still loading. Please try again.');
+      }
       const saved = { ...recipe, id: makeId('recipe'), isLocal: true };
-      updateExportField('localRecipes', (current) => [...current as CaloraRecipe[], saved]);
+      const persistedSnapshot = {
+        ...currentSnapshot,
+        localRecipes: [...currentSnapshot.localRecipes as CaloraRecipe[], saved],
+      };
+      // Install the authoritative snapshot before storage I/O. A later
+      // render-driven autosave must never race this explicit boundary and
+      // write the older recipe collection over the successful commit.
+      exportSnapshotRef.current = persistedSnapshot;
+      try {
+        await commitSnapshot(persistedSnapshot);
+      } catch (error) {
+        // When no concurrent mutation has incorporated this pending recipe,
+        // restore the pre-save snapshot so a general retry cannot make a
+        // failed, never-published creation appear later without user action.
+        if (exportSnapshotRef.current === persistedSnapshot) {
+          exportSnapshotRef.current = currentSnapshot;
+        }
+        throw error;
+      }
       setLocalRecipes((current) => [...current, saved]);
-      queueMutation('savedMeal', 'upsert');
       return saved;
     },
     restoreRecipe: (recipe) => {
@@ -2700,13 +2723,11 @@ export function CaloraProvider({
     },
     movePlannerMeal: (mealId, day, copy) => {
       const existing = plannerMeals.find((meal) => meal.id === mealId);
-      if (!existing) return;
-      const destination = plannerMeals.find(
-        (meal) => meal.day === day && meal.meal === existing.meal && meal.id !== mealId,
-      );
+      const availability = plannerMealMoveAvailability(plannerMeals, mealId, day);
+      if (availability !== 'available') return availability;
+      if (!existing) return 'missing';
       // A move/copy is a non-destructive action. Replacements have their own
       // explicit flow, so never silently remove an occupied destination slot.
-      if (destination) return;
       const next = copy
         ? [
             { ...existing, id: makeId('planned'), day },
@@ -2727,9 +2748,10 @@ export function CaloraProvider({
       updateExportField('livingMemory', (current) => replacePlannerObservations(current as LivingMemory, next));
       setPlannerMealsState(next);
        setShoppingItems(nextShopping);
-       setPlannerRevision((revision) => revision + 1);
+      setPlannerRevision((revision) => revision + 1);
       setLivingMemory((current) => replacePlannerObservations(current, next));
       queueMutation('settings', 'upsert');
+      return 'applied';
     },
     toggleShoppingItem: (itemId) => {
       updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item));

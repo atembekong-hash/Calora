@@ -278,7 +278,7 @@ export default function PlannerScreen() {
   const [weekOverviewVisible, setWeekOverviewVisible] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
-  const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string; displacedMeal?: PlannerMeal } | null>(null);
+  const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string } | null>(null);
   const [undoSwapMeal, setUndoSwapMeal] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -644,27 +644,34 @@ export default function PlannerScreen() {
 
   const moveOrCopyMeal = (day: string, copy: boolean) => {
     if (!actionMeal) return;
+    const outcome = movePlannerMeal(actionMeal.id, day, copy);
+    if (outcome !== 'applied') {
+      setActionMeal(null);
+      setActionMode(null);
+      if (outcome === 'occupied') {
+        acknowledge(`That ${actionMeal.meal.toLowerCase()} slot is already filled. Use Replace to change it.`);
+      } else if (outcome === 'same-day') {
+        acknowledge(`${actionMeal.name} is already planned for that day.`);
+      } else {
+        acknowledge('That meal is no longer in your plan.');
+      }
+      return;
+    }
     if (!copy) {
       // Capture original day before the move so user can undo
       const originalDay = actionMeal.day;
       const mealId = actionMeal.id;
       const mealName = actionMeal.name;
-      // Capture any existing meal occupying the destination slot (same meal type)
-      // so undo can restore it rather than orphaning it.
-      const displacedMeal = plannerMeals.find(
-        (m) => m.day === day && m.meal === actionMeal.meal && m.id !== actionMeal.id,
-      );
       // Clear any remove-undo or swap-undo so only one undo affordance is active
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
       setUndoSwapMeal(null);
-      setUndoMoveMeal({ mealId, originalDay, mealName, displacedMeal });
+      setUndoMoveMeal({ mealId, originalDay, mealName });
       undoTimerRef.current = setTimeout(() => {
         setUndoMoveMeal(null);
         undoTimerRef.current = null;
       }, 6000);
     }
-    movePlannerMeal(actionMeal.id, day, copy);
     setActionMeal(null);
     setActionMode(null);
     acknowledge(`${actionMeal.name} ${copy ? 'copied' : 'moved'} to ${dayFormatter.format(parseDate(day))}.`, copy ? 2600 : 6000);
@@ -675,26 +682,20 @@ export default function PlannerScreen() {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     const movedMeal = plannerMeals.find((m) => m.id === undoMoveMeal.mealId);
     if (movedMeal) {
-      // Move the meal back to its original slot, clearing anything that may now
-      // occupy that slot (safety deduplication).
-      let next = plannerMeals.filter(
-        (m) => m.id !== undoMoveMeal.mealId && !(m.day === undoMoveMeal.originalDay && m.meal === movedMeal.meal),
+      const originalSlotOccupied = plannerMeals.some(
+        (meal) => meal.id !== movedMeal.id
+          && meal.day === undoMoveMeal.originalDay
+          && meal.meal === movedMeal.meal,
       );
-      next = [...next, { ...movedMeal, day: undoMoveMeal.originalDay }];
-      // Restore the displaced meal (if any) to the destination slot it was
-      // bumped from, removing anything that may now be in that position.
-      if (undoMoveMeal.displacedMeal) {
-        const { displacedMeal } = undoMoveMeal;
-        next = [
-          ...next.filter((m) => !(m.day === movedMeal.day && m.meal === displacedMeal.meal)),
-          displacedMeal,
-        ];
+      if (originalSlotOccupied) {
+        acknowledge(`Could not move ${undoMoveMeal.mealName} back because its original slot is now filled.`);
+      } else {
+        updatePlannerMeals(plannerMeals.map((meal) => (
+          meal.id === movedMeal.id ? { ...meal, day: undoMoveMeal.originalDay } : meal
+        )));
+        acknowledge(`${undoMoveMeal.mealName} moved back.`);
       }
-      updatePlannerMeals(next);
-    } else {
-      // Meal was removed during the undo window — nothing to restore.
     }
-    acknowledge(`${undoMoveMeal.mealName} moved back.`);
     setUndoMoveMeal(null);
   };
 
