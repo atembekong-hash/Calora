@@ -70,6 +70,11 @@ overrides:
   # image-size has no published release beyond the vulnerable 2.0.2 line.
   # Use the narrowly patched, local-compatible package until upstream ships one.
   image-size: "file:vendor/image-size"
+  # No upstream npm release currently fixes the following high-severity
+  # advisories. Keep the reviewed source-level fixes local and replace them
+  # with upstream releases as soon as the release audit recognizes one.
+  node-forge: "file:vendor/node-forge"
+  braces: "file:vendor/braces"
   # Pin each supported minimatch major to its compatible brace-expansion DoS fix.
   "minimatch@3.1.5>brace-expansion": "1.1.21"
   "minimatch@9.0.9>brace-expansion": "2.1.7"
