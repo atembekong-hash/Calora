@@ -698,12 +698,12 @@ describe('accessibility labels — static invariants', () => {
     expect(contextSource).toContain('acceptedFoodDraftIdsRef.current.has(draftId)');
   });
 
-  it('persists an accepted review immediately after its diary outbox mutation', () => {
+  it('durably commits an accepted review before publishing its diary outbox mutation', () => {
     const acceptanceStart = contextSource.indexOf('acceptFoodMemory: (draftId, draftOverride) =>');
     const acceptanceEnd = contextSource.indexOf('rejectFoodMemory:', acceptanceStart + 1);
     const acceptanceSource = contextSource.slice(acceptanceStart, acceptanceEnd);
     expect(acceptanceSource).toContain("entity: 'diaryEntry' as const, operation: 'upsert' as const");
-    expect(acceptanceSource).toContain('enqueueAutosave(pm.current, persistedSnapshot)');
-    expect(acceptanceSource).toContain('await pm.current.flush()');
+    expect(acceptanceSource).toContain('await commitSnapshot(persistedSnapshot)');
+    expect(acceptanceSource).toContain('Do not publish visible/ref state until the complete log');
   });
 });

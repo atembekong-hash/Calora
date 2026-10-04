@@ -95,7 +95,7 @@ export default function ProfileScreen() {
   const {
     colors, themePreference, setThemePreference,
     profile, onboardingComplete, onboardingStep, onboardingDraft, updateProfile,
-    profileSyncError, retryProfileSync,
+    profileSyncError, retryProfileSync, persistenceError, retryPersistence,
     healthConnected, healthConnection, connectHealth, openHealthSettings, syncHealth, disconnectHealth,
     dailyStepGoal, setDailyStepGoal,
     exportData, clearAllData, isClearing, syncState,
@@ -585,12 +585,12 @@ export default function ProfileScreen() {
       if (error instanceof ClearAllDataError && error.kind === 'partial-cleanup') {
         setPrivacyModal(null);
         Alert.alert(
-          'Data deleted with cleanup pending',
-          `Your personal data was deleted, but ${error.cleanupFailures.join(', ')} could not be fully cleaned up. Please try again.`,
+          'Local data deleted with cleanup pending',
+          `Your local data was deleted, but ${error.cleanupFailures.join(', ')} could not be fully cleaned up. Please try again.`,
         );
       } else {
         Alert.alert(
-          'Delete incomplete',
+          'Local deletion incomplete',
           'Your main local data could not be fully deleted. Some device cleanup may still have occurred. Please try again.',
         );
       }
@@ -733,7 +733,12 @@ export default function ProfileScreen() {
         return;
       }
     }
-    updateProfile({ name: editName.trim() });
+    try {
+      await updateProfile({ name: editName.trim() });
+    } catch {
+      setProfileEditError('Your changes are waiting to be saved. Check device storage and retry.');
+      return;
+    }
     setProfilePhotoUri(cleanUri);
     if (profilePhotoUri && cleanUri && profilePhotoUri !== cleanUri) {
       void deleteProfilePhoto(FileSystem, user?.id, profilePhotoUri).then((cleanup) => {
@@ -879,6 +884,22 @@ export default function ProfileScreen() {
             <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Retry</Text>
           </Pressable>
         )}
+        {persistenceError && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry saving changes on this device"
+            testID="retry-local-persistence"
+            onPress={() => { void retryPersistence().catch(() => undefined); }}
+            style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          >
+            <Feather name="save" size={14} color={colors.destructive} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.notificationSettingsButtonText, { color: colors.foreground }]}>Changes are waiting to be saved</Text>
+              <Text style={[styles.settingBody, { color: colors.mutedForeground }]} numberOfLines={2}>{persistenceError}</Text>
+            </View>
+            <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Retry</Text>
+          </Pressable>
+        )}
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 2)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
@@ -928,7 +949,7 @@ export default function ProfileScreen() {
             {(['metric', 'imperial'] as const).map((u) => {
               const sel = units === u;
               return (
-                <Pressable key={u} accessibilityRole="radio" accessibilityState={{ selected: sel }} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                <Pressable key={u} accessibilityRole="radio" accessibilityState={{ selected: sel }} accessibilityLabel={`${u} units`} onPress={() => { void updateProfile({ units: u }).catch(() => undefined); }} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
                   <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
                 </Pressable>
               );
@@ -1407,7 +1428,7 @@ export default function ProfileScreen() {
         </View>
         {[
           { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · managed profile photo embedded when available · ${syncState === 'needs-attention' ? 'backup needs attention' : syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
-           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove local diary, profile, wellness, health snapshot, and saved data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
+           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device’s diary, profile, wellness, health snapshot, and saved data. Synced account data stays protected.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },
            { icon: 'help-circle' as const, title: 'Help', body: 'Support and answers.', onPress: () => setInfoModal('help'), disabled: false },
@@ -1528,13 +1549,13 @@ export default function ProfileScreen() {
               <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Delete local data?</Text>
-            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your local diary, profile and photo, weights, wellness records, health connection snapshot, reminders, saved meals, Planner data, memories, and Coach history from this device. Your HealthKit or Health Connect permission remains controlled in device settings. This cannot be undone.</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your local diary, profile and photo, weights, wellness records, health connection snapshot, reminders, saved meals, Planner data, memories, and Coach history from this device. It does not delete your account or remotely synced data. Your HealthKit or Health Connect permission remains controlled in device settings. This cannot be undone on this device.</Text>
             <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
               <Feather name="alert-triangle" size={15} color={colors.warning} />
-              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>This action is permanent.</Text>
+              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>This device-only action is permanent.</Text>
             </View>
-            <Pressable accessibilityLabel="Delete everything" disabled={isClearing} onPress={handleConfirmDelete} style={[styles.dialogButton, { backgroundColor: colors.warning, opacity: isClearing ? 0.6 : 1 }]}>
-              {isClearing ? <ActivityIndicator size="small" color={colors.foreground} /> : <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text>}
+            <Pressable accessibilityLabel="Delete local data" disabled={isClearing} onPress={handleConfirmDelete} style={[styles.dialogButton, { backgroundColor: colors.warning, opacity: isClearing ? 0.6 : 1 }]}>
+              {isClearing ? <ActivityIndicator size="small" color={colors.foreground} /> : <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete local data</Text>}
             </Pressable>
             <Pressable accessibilityLabel="Close privacy dialog" disabled={isClearing} onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, opacity: isClearing ? 0.4 : 1, marginTop: 8 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Keep my data</Text>

@@ -37,17 +37,19 @@ export class PersistenceManager {
   ) {}
 
   /**
-   * Enqueue an autosave write.  Calls dispatched while a clear() is in-flight
-   * are silently dropped so that no stale pre-clear snapshot can land in
-   * storage after the removeItem has run.  Any write error is silently
-   * absorbed so the queue keeps moving (the next write or clear will still
-   * execute).
+   * Enqueue an autosave write. Calls dispatched while a clear() is in-flight
+   * are intentionally dropped so stale pre-clear state cannot be resurrected.
+   *
+   * The returned promise is the result for this exact snapshot. The internal
+   * queue separately absorbs that result so a failed write cannot deadlock a
+   * later autosave or clear(). This keeps serialization safety while allowing
+   * an explicit commit boundary to surface a real storage failure to the UI.
    */
-  enqueueWrite(state: object): void {
-    if (this.clearingCount > 0) return;
-    this.queue = this.queue
-      .catch(() => undefined)
-      .then(() => this.storage.setItem(this.key, JSON.stringify(state)));
+  enqueueWrite(state: object): Promise<void> {
+    if (this.clearingCount > 0) return Promise.resolve();
+    const write = this.queue.then(() => this.storage.setItem(this.key, JSON.stringify(state)));
+    this.queue = write.catch(() => undefined);
+    return write;
   }
 
   /**
@@ -68,11 +70,14 @@ export class PersistenceManager {
    */
   async clear(): Promise<void> {
     this.clearingCount++;
-    this.queue = this.queue
+    const clear = this.queue
       .catch(() => undefined)
       .then(() => this.storage.removeItem(this.key));
+    // Report this clear failure to its caller, but recover the serialized
+    // queue so a later explicit retry or normal autosave can still run.
+    this.queue = clear.catch(() => undefined);
     try {
-      await this.queue;
+      await clear;
     } finally {
       this.clearingCount--;
     }

@@ -38,8 +38,8 @@ function stampSchemaVersion<T extends object>(
  *                tests) to persist.
  */
 export function enqueueAutosave(
-  pm: { enqueueWrite(state: object): void },
+  pm: { enqueueWrite(state: object): void | Promise<void> },
   state: object,
-): void {
-  pm.enqueueWrite(stampSchemaVersion(state));
+): Promise<void> {
+  return Promise.resolve(pm.enqueueWrite(stampSchemaVersion(state)));
 }

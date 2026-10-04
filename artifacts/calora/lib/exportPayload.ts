@@ -53,6 +53,13 @@ export interface CaloraExportState {
   dailyStepGoal: number;
   consentAccepted: boolean;
   outbox: unknown[];
+  /**
+   * Account-scoped retry intent for a profile mutation that is durable locally
+   * but has not yet reached the remote profile record. This is intentionally
+   * excluded from portable exports because it is transport bookkeeping, not a
+   * second user-facing profile record.
+   */
+  pendingProfileSync?: unknown;
   coachConsentAccepted: boolean;
   coachMessages: unknown[];
   goalCelebrationSeenTargetKg: number | null;
@@ -118,9 +125,11 @@ export function buildExportPayload(
   const {
     profilePhotoUri: _profilePhotoUri,
     onboardingDraft = null,
+    pendingProfileSync: _pendingProfileSync,
     ...portableState
   } = state;
   void _profilePhotoUri;
+  void _pendingProfileSync;
   return JSON.stringify(
     { schemaVersion, ...portableState, onboardingDraft, profilePhoto },
     null,

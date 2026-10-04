@@ -2332,7 +2332,7 @@ export default function InsightsScreen() {
                   setGoalError(result.message);
                   return;
                 }
-                updateProfile({ targetWeightKg: result.targetWeightKg });
+                void updateProfile({ targetWeightKg: result.targetWeightKg }).catch(() => undefined);
                 setGoalInput('');
                 setGoalError('');
                 setShowGoalEdit(false);

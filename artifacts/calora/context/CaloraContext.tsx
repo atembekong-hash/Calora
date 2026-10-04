@@ -273,6 +273,16 @@ export type OutboxMutation = {
   createdAt: string;
 };
 
+/**
+ * Durable, account-scoped intent to retry a local profile mutation remotely.
+ * The encrypted local snapshot remains the source for offline continuity; this
+ * field only prevents an interrupted remote profile write from being forgotten
+ * across a process restart.
+ */
+type PendingProfileSyncIntent = {
+  profile: LocalProfile;
+  queuedAt: string;
+};
 
 export type CaloraState = {
   schemaVersion?: number;
@@ -296,6 +306,7 @@ export type CaloraState = {
   dailyStepGoal?: number;
   consentAccepted: boolean;
   outbox: OutboxMutation[];
+  pendingProfileSync?: PendingProfileSyncIntent | null;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   shoppingItems: ShoppingItem[];
@@ -355,6 +366,39 @@ function normalizeOnboardingDraft(value: unknown): OnboardingDraft | null {
   return draft as OnboardingDraft;
 }
 
+function normalizePendingProfileSyncIntent(value: unknown): PendingProfileSyncIntent | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as { profile?: unknown; queuedAt?: unknown };
+  const profile = candidate.profile;
+  if (!profile || typeof profile !== 'object' || typeof candidate.queuedAt !== 'string') return null;
+  const local = profile as Partial<LocalProfile>;
+  const requiredNumbers = [
+    local.heightCm,
+    local.weightKg,
+    local.targetWeightKg,
+    local.age,
+    local.calorieTarget,
+  ];
+  if (
+    typeof local.name !== 'string'
+    || !local.name.trim()
+    || !['lose', 'maintain', 'gain'].includes(local.goal ?? '')
+    || !['low', 'moderate', 'high'].includes(local.activity ?? '')
+    || !['Everything', 'Vegetarian', 'Vegan', 'High protein'].includes(local.diet ?? '')
+    || requiredNumbers.some((entry) => typeof entry !== 'number' || !Number.isFinite(entry))
+    || (local.targetMode !== undefined && !['automatic', 'custom'].includes(local.targetMode))
+    || (local.units !== undefined && !['metric', 'imperial'].includes(local.units))
+    || [local.proteinTargetGrams, local.carbsTargetGrams, local.fatTargetGrams]
+      .some((entry) => entry !== undefined && (typeof entry !== 'number' || !Number.isFinite(entry)))
+  ) {
+    return null;
+  }
+  return {
+    profile: local as LocalProfile,
+    queuedAt: candidate.queuedAt,
+  };
+}
+
 function normalizeMemoryImageMetadata<T extends FoodMemoryDraft>(memory: T): T {
   return {
     ...memory,
@@ -387,6 +431,9 @@ type CaloraContextValue = {
   profileSyncReady: boolean;
   profileSyncError: string | null;
   retryProfileSync: () => void;
+  /** Local encrypted-storage write status. A retry never discards in-memory changes. */
+  persistenceError: string | null;
+  retryPersistence: () => Promise<void>;
   themePreference: ThemePreference;
   mode: 'light' | 'dark';
   colors: typeof colors.light;
@@ -491,7 +538,7 @@ type CaloraContextValue = {
   setOnboardingStep: (step: number) => void;
   setOnboardingDraft: (draft: OnboardingDraft | null) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => Promise<void>;
-  updateProfile: (patch: Partial<Profile>) => void;
+  updateProfile: (patch: Partial<Profile>) => Promise<void>;
   setHealthConnected: (connected: boolean) => void;
   connectHealth: () => Promise<HealthConnection>;
   /** Opens the provider's OS settings when the native platform supports it. */
@@ -501,6 +548,7 @@ type CaloraContextValue = {
   clearOutbox: () => void;
   exportData: () => Promise<string>;
   exportRawStorageData: () => Promise<string | null>;
+  /** Clears this device's encrypted account-scoped snapshot and owned local artifacts only. */
   clearAllData: () => Promise<void>;
   isClearing: boolean;
   retryHydration: () => void;
@@ -714,18 +762,24 @@ export function CaloraProvider({
   const [notificationScopeReady, setNotificationScopeReady] = useState(false);
   const [profileSyncReady, setProfileSyncReady] = useState(false);
   const [profileSyncError, setProfileSyncError] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [profileSyncAttempt, setProfileSyncAttempt] = useState(0);
   const profileSyncEpochRef = useRef(0);
   const profileSyncAbortRef = useRef<AbortController | null>(null);
-  const pendingProfileSyncRef = useRef<{ accountId: string; profile: LocalProfile; epoch: number } | null>(null);
+  const pendingProfileSyncRef = useRef<{
+    accountId: string;
+    profile: LocalProfile;
+    epoch: number;
+    queuedAt: string;
+  } | null>(null);
   // Monotonic within the mounted account scope. An older background PUT cannot
   // clear the pending/error state for a newer local profile edit.
   const profileEditSyncRevisionRef = useRef(0);
-  const invalidateProfileSync = useCallback(() => {
+  const invalidateProfileSync = useCallback((clearPendingIntent = false) => {
     profileSyncEpochRef.current += 1;
     profileSyncAbortRef.current?.abort();
     profileSyncAbortRef.current = null;
-    pendingProfileSyncRef.current = null;
+    if (clearPendingIntent) pendingProfileSyncRef.current = null;
   }, []);
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
@@ -756,9 +810,10 @@ export function CaloraProvider({
       liveStepSubscriptionRef.current = null;
       CoachFactRequestLifecycle.invalidateAll();
       invalidateAllCoachLifecycleEpochs('account_switch');
+      invalidateProfileSync(true);
       void coachFactConsentCache.clear(accountId ?? null);
     };
-  }, [accountId]);
+  }, [accountId, invalidateProfileSync]);
   const encryptedStorage = useRef(new EncryptedStorageAdapter(AsyncStorage, secureStoreKeyAdapter)).current;
   const pm = useRef(new PersistenceManager(encryptedStorage, storageKey));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
@@ -774,6 +829,23 @@ export function CaloraProvider({
       exportSnapshotRef.current = { ...exportSnapshotRef.current, ...patch };
     }
   }, []);
+  const reportPersistenceError = useCallback(() => {
+    setPersistenceError('Changes are waiting to be saved on this device. Check storage and retry.');
+  }, []);
+  const commitSnapshot = useCallback(async (snapshot: CaloraExportState): Promise<void> => {
+    try {
+      await enqueueAutosave(pm.current, snapshot);
+      setPersistenceError(null);
+    } catch (error) {
+      reportPersistenceError();
+      throw error;
+    }
+  }, [reportPersistenceError]);
+  const retryPersistence = useCallback(async () => {
+    const snapshot = exportSnapshotRef.current;
+    if (!snapshot) return;
+    await commitSnapshot(snapshot);
+  }, [commitSnapshot]);
   const updateExportField = useCallback(<K extends keyof CaloraExportState,>(
     key: K,
     updater: (current: CaloraExportState[K]) => CaloraExportState[K],
@@ -850,6 +922,9 @@ export function CaloraProvider({
     }
     const saved = removeExactLegacyStarterFixtures(rawSaved);
     const base = exportSnapshotRef.current;
+    const restoredProfileIntent = accountId
+      ? normalizePendingProfileSyncIntent(saved.pendingProfileSync)
+      : null;
     const effectivePlannerMeals: PlannerMeal[] = saved.plannerMeals
       ? normalizePlannerMealImageIdentities(saved.plannerMeals as PlannerMeal[]) as PlannerMeal[]
       : (base?.plannerMeals as PlannerMeal[] | undefined) ?? plannerMeals;
@@ -868,6 +943,21 @@ export function CaloraProvider({
       const hydratedProfile = { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } as Profile;
       profileRef.current = hydratedProfile;
       setProfile(hydratedProfile);
+    }
+    if (restoredProfileIntent && accountId) {
+      // A failed remote profile write is newer than the last server response.
+      // Keep the durable local value visible and retry that exact intent before
+      // any remote reconciliation can overwrite it with stale data.
+      profileRef.current = restoredProfileIntent.profile;
+      pendingProfileSyncRef.current = {
+        accountId,
+        profile: restoredProfileIntent.profile,
+        epoch: profileSyncEpochRef.current,
+        queuedAt: restoredProfileIntent.queuedAt,
+      };
+      setProfile(restoredProfileIntent.profile);
+      setOnboardingComplete(true);
+      setOnboardingDraftState(null);
     }
      const normalizedLogs = saved.logs?.map((log) => normalizeFoodLogNutrition(normalizeLogImageMetadata({
        ...log,
@@ -954,7 +1044,8 @@ export function CaloraProvider({
           onboardingStep: saved.onboardingStep !== undefined
             ? normalizeOnboardingStep(saved.onboardingStep)
             : base.onboardingStep,
-         profile: saved.profile ? { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } : base.profile,
+         profile: restoredProfileIntent?.profile
+           ?? (saved.profile ? { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } : base.profile),
          logs: saved.logs ? normalizedLogs : base.logs,
          weights: saved.weights ?? base.weights,
          waterLogs: saved.waterLogs ?? base.waterLogs,
@@ -972,6 +1063,7 @@ export function CaloraProvider({
            : base.dailyStepGoal,
          consentAccepted: saved.consentAccepted ?? base.consentAccepted,
          outbox: saved.outbox ?? base.outbox,
+         pendingProfileSync: restoredProfileIntent,
          plannerWeekStart: effectivePlannerWeekStart,
          plannerMeals: effectivePlannerMeals,
          shoppingItems: effectiveShoppingItems,
@@ -997,6 +1089,29 @@ export function CaloraProvider({
        };
      }
   });
+  const stageProfileSyncIntent = useCallback(async (nextProfile: LocalProfile, scope: string, epoch: number) => {
+    const queuedAt = new Date().toISOString();
+    pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch, queuedAt };
+    patchExportSnapshot({ pendingProfileSync: { profile: nextProfile, queuedAt } });
+    const snapshot = exportSnapshotRef.current;
+    if (!snapshot) throw new Error('Profile changes are still loading locally. Please try again.');
+    // The retry intent is written before the remote mutation begins. A process
+    // kill or network interruption can therefore never erase the fact that the
+    // local profile is newer than the last remote record.
+    await commitSnapshot(snapshot);
+    setProfileSyncReady(false);
+    setProfileSyncError(null);
+  }, [commitSnapshot, patchExportSnapshot]);
+
+  const clearProfileSyncIntent = useCallback(async (scope: string, epoch: number) => {
+    const pending = pendingProfileSyncRef.current;
+    if (!pending || pending.accountId !== scope || pending.epoch !== epoch) return;
+    patchExportSnapshot({ pendingProfileSync: null });
+    const snapshot = exportSnapshotRef.current;
+    if (snapshot) await commitSnapshot(snapshot);
+    pendingProfileSyncRef.current = null;
+  }, [commitSnapshot, patchExportSnapshot]);
+
   const persistCompletedProfile = useCallback(async (nextProfile: LocalProfile, scope: string, epoch: number, signal: AbortSignal) => {
     if (!scope || epoch !== profileSyncEpochRef.current) return;
     setProfileSyncReady(false);
@@ -1004,16 +1119,15 @@ export function CaloraProvider({
     try {
       await saveRemoteProfile(nextProfile, { accountId: scope, signal });
       if (epoch !== profileSyncEpochRef.current) return;
-      pendingProfileSyncRef.current = null;
+      await clearProfileSyncIntent(scope, epoch);
       setProfileSyncError(null);
       setProfileSyncReady(true);
     } catch (error) {
       if (epoch !== profileSyncEpochRef.current) return;
-      pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
       setProfileSyncError(error instanceof Error ? error.message : 'Account setup could not be synchronized.');
       setProfileSyncReady(false);
     }
-  }, []);
+  }, [clearProfileSyncIntent]);
 
   const persistProfileEdit = useCallback(async (nextProfile: LocalProfile, scope: string, epoch: number) => {
     if (!scope || epoch !== profileSyncEpochRef.current) return;
@@ -1022,20 +1136,19 @@ export function CaloraProvider({
     profileSyncAbortRef.current?.abort();
     const controller = new AbortController();
     profileSyncAbortRef.current = controller;
-    pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
     try {
       await saveRemoteProfile(nextProfile, { accountId: scope, signal: controller.signal });
       if (epoch !== profileSyncEpochRef.current || revision !== profileEditSyncRevisionRef.current) return;
-      pendingProfileSyncRef.current = null;
+      await clearProfileSyncIntent(scope, epoch);
       setProfileSyncError(null);
+      setProfileSyncReady(true);
     } catch (error) {
       if (epoch !== profileSyncEpochRef.current || revision !== profileEditSyncRevisionRef.current) return;
-      pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
       // The local snapshot remains available offline, but the UI must not imply
       // that the account-level edit has reached another device.
       setProfileSyncError(error instanceof Error ? error.message : 'Profile changes could not be synchronized.');
     }
-  }, []);
+  }, [clearProfileSyncIntent]);
 
   const retryProfileSync = useCallback(() => {
     if (hydrationError) {
@@ -1077,6 +1190,19 @@ export function CaloraProvider({
     if (!accountId) {
       setProfileSyncReady(true);
       setProfileSyncError(null);
+      return () => {
+        active = false;
+        invalidateProfileSync();
+      };
+    }
+
+    const pending = pendingProfileSyncRef.current;
+    if (pending?.accountId === accountId) {
+      // Never reconcile a stale server profile over a newer local edit that
+      // survived an interrupted request. The intent was encrypted before the
+      // request started, so retry it first; successful PUT is idempotent.
+      pendingProfileSyncRef.current = { ...pending, epoch };
+      void persistProfileEdit(pending.profile, accountId, epoch);
       return () => {
         active = false;
         invalidateProfileSync();
@@ -1574,6 +1700,10 @@ export function CaloraProvider({
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
+    const pendingProfileSyncRefValue = pendingProfileSyncRef.current;
+    const pendingProfileSync = pendingProfileSyncRefValue && pendingProfileSyncRefValue.accountId === accountId
+      ? { profile: pendingProfileSyncRefValue.profile, queuedAt: pendingProfileSyncRefValue.queuedAt }
+      : undefined;
     const state: CaloraState = {
       onboardingComplete,
       onboardingStep,
@@ -1594,6 +1724,7 @@ export function CaloraProvider({
       dailyStepGoal,
       consentAccepted,
       outbox,
+      pendingProfileSync,
       plannerWeekStart,
       plannerMeals,
       shoppingItems,
@@ -1613,8 +1744,8 @@ export function CaloraProvider({
       fontSizeScale,
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
-     enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
+     void enqueueAutosave(pm.current, state).catch(() => reportPersistenceError());
+  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -1691,6 +1822,7 @@ export function CaloraProvider({
   // React state. Export therefore never mixes refs with stale render closures.
   const normalizedExportPreferences = normalizeNotificationPreferences(notificationPreferences);
   const normalizedExportMirrors = legacyReminderMirrors(normalizedExportPreferences);
+  const pendingProfileSyncRefValue = pendingProfileSyncRef.current;
   exportSnapshotRef.current = {
     onboardingComplete,
     onboardingStep,
@@ -1723,6 +1855,9 @@ export function CaloraProvider({
     dailyStepGoal,
     consentAccepted,
     outbox,
+    pendingProfileSync: pendingProfileSyncRefValue && pendingProfileSyncRefValue.accountId === accountId
+      ? { profile: pendingProfileSyncRefValue.profile, queuedAt: pendingProfileSyncRefValue.queuedAt }
+      : undefined,
     coachConsentAccepted,
     coachMessages,
     goalCelebrationSeenTargetKg,
@@ -1751,6 +1886,8 @@ export function CaloraProvider({
     profileSyncReady,
     profileSyncError,
     retryProfileSync,
+    persistenceError,
+    retryPersistence,
     themePreference,
     mode,
     colors: mode === 'dark' ? colors.dark : colors.light,
@@ -2032,8 +2169,7 @@ export function CaloraProvider({
         if (existingPlannerLog) {
           const nextDrafts = foodDraftsRef.current.filter((item) => item.id !== draftId);
           const persistedSnapshot = { ...exportSnapshotRef.current, foodDrafts: nextDrafts };
-          enqueueAutosave(pm.current, persistedSnapshot);
-          await pm.current.flush();
+          await commitSnapshot(persistedSnapshot);
           acceptedFoodDraftIdsRef.current.add(draftId);
           foodDraftsRef.current = nextDrafts;
           exportSnapshotRef.current = persistedSnapshot;
@@ -2077,8 +2213,7 @@ export function CaloraProvider({
         };
         // Do not publish visible/ref state until the complete log, memory,
         // draft removal, living-memory update, and outbox snapshot is durable.
-        enqueueAutosave(pm.current, persistedSnapshot);
-        await pm.current.flush();
+        await commitSnapshot(persistedSnapshot);
         acceptedFoodDraftIdsRef.current.add(draftId);
         logsRef.current = nextLogs;
         foodDraftsRef.current = nextDrafts;
@@ -2232,6 +2367,7 @@ export function CaloraProvider({
        // in-memory completion and leave the write for a later autosave effect:
        // a close, process kill, or reload immediately after "Enter Calora"
        // would otherwise make the next launch look like a first run.
+       const queuedAt = accountId ? new Date().toISOString() : null;
        const completedSnapshot = {
          ...currentSnapshot,
          profile: nextProfile,
@@ -2239,14 +2375,14 @@ export function CaloraProvider({
          onboardingComplete: true,
          onboardingStep: 0,
          onboardingDraft: null,
+         pendingProfileSync: queuedAt ? { profile: nextProfile, queuedAt } : null,
        };
        // Update the authoritative in-memory snapshot before awaiting I/O. This
        // prevents a concurrent autosave from publishing the just-finished
        // onboarding draft over the completed profile while the storage write is
        // in flight.
        exportSnapshotRef.current = completedSnapshot;
-       enqueueAutosave(pm.current, completedSnapshot);
-       await pm.current.flush();
+       await commitSnapshot(completedSnapshot);
       patchExportSnapshot({
         profile: nextProfile,
         consentAccepted: consent,
@@ -2265,14 +2401,14 @@ export function CaloraProvider({
           const epoch = profileSyncEpochRef.current;
           const controller = new AbortController();
           profileSyncAbortRef.current = controller;
-         pendingProfileSyncRef.current = { accountId, profile: nextProfile, epoch };
+         pendingProfileSyncRef.current = { accountId, profile: nextProfile, epoch, queuedAt: queuedAt! };
           void persistCompletedProfile(nextProfile, accountId, epoch, controller.signal);
        } else {
          setProfileSyncReady(true);
          setProfileSyncError(null);
        }
     },
-    updateProfile: (patch) => {
+    updateProfile: async (patch) => {
       const nextProfile = profileRef.current ? { ...profileRef.current, ...patch } : null;
       profileRef.current = nextProfile;
       setProfile(nextProfile);
@@ -2280,10 +2416,11 @@ export function CaloraProvider({
       // A profile edit must not depend solely on a later render-driven
       // autosave. Persist its committed value now so an immediate close or
       // route change cannot make a newly visible name appear to disappear.
-      if (exportSnapshotRef.current) enqueueAutosave(pm.current, exportSnapshotRef.current);
-      queueMutation('profile', 'upsert');
       if (accountId && nextProfile) {
+        await stageProfileSyncIntent(nextProfile, accountId, profileSyncEpochRef.current);
         void persistProfileEdit(nextProfile, accountId, profileSyncEpochRef.current);
+      } else if (exportSnapshotRef.current) {
+        await commitSnapshot(exportSnapshotRef.current);
       }
     },
     hydrationReminders,
@@ -2382,12 +2519,18 @@ export function CaloraProvider({
         });
         return buildExportPayload(STORAGE_SCHEMA_VERSION, snapshot, portableProfilePhoto);
       },
+    // This is intentionally a device-local reset. It never calls DELETE
+    // /v1/profile or any remote diary/account endpoint; server-side erasure is
+    // handled only by the separately confirmed account-deletion lifecycle.
     clearAllData: async () => {
       if (clearingRef.current) return;
       clearingRef.current = true;
       // Abort the account-scoped profile request before the destructive async
       // boundary so an old remote response cannot restore profile/export state.
-      invalidateProfileSync();
+      // Unlike ordinary retry invalidation, a device-local reset must also
+      // discard its encrypted retry intent: preserving it could otherwise
+      // replay a pre-reset profile PUT after this device has been cleared.
+      invalidateProfileSync(true);
       clearPostLogInsight();
       // Invalidate health work before the first async clear boundary. Every
       // sync completion is epoch-gated, so stale device results cannot
@@ -2658,7 +2801,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, dismissLiveStepMilestone, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, commitSnapshot, consentAccepted, dailyStepGoal, diarySyncState, dismissLiveStepMilestone, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, persistenceError, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryPersistence, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

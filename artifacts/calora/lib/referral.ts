@@ -1,15 +1,14 @@
-/**
- * Referral helpers — pending invite code storage and reward activation state.
- *
- * A code arriving via the caloraapp://invite/<code> deep link (or the
- * mycaloraapp.com/invite/<code> universal link) is stored locally until the
- * user signs in and redeems it. Activation ("first saved meal") is
- * tracked per user so the activate endpoint is only retried until it settles.
- */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PENDING_CODE_KEY = 'calora-pending-invite-code';
-const ACTIVATED_KEY_PREFIX = 'calora-referral-activated:';
+const PENDING_CODE_KEY = 'calora-pending-invite-code-v2';
+const LEGACY_PENDING_CODE_KEY = 'calora-pending-invite-code';
+const REFERRAL_CODE_PATTERN = /^[A-Z0-9]{4,16}$/;
+
+type PendingInviteRecord = {
+  code: string;
+  /** Undefined only for a legacy record or a guest deep link awaiting explicit redemption. */
+  accountId?: string;
+};
 
 type ActivationResult = {
   status: 'none' | 'pending' | 'rewarded';
@@ -17,71 +16,139 @@ type ActivationResult = {
   referrerRewarded: boolean;
 };
 
-/**
- * A partial provider failure must remain retryable. `rewarded` only settles on
- * device once both sides' grants are confirmed; `none` is also terminal.
- */
-export function isReferralActivationComplete(result: ActivationResult): boolean {
-  return result.status === 'none' || (
-    result.status === 'rewarded' &&
-    result.referredRewarded &&
-    result.referrerRewarded
-  );
+function normalizeCode(value: unknown): string | null {
+  const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return REFERRAL_CODE_PATTERN.test(normalized) ? normalized : null;
 }
 
-export async function setPendingInviteCode(code: string): Promise<void> {
-  const normalized = code.trim().toUpperCase();
-  if (normalized.length < 4 || normalized.length > 16) return;
+async function readPendingInviteRecord(): Promise<PendingInviteRecord | null> {
   try {
-    await AsyncStorage.setItem(PENDING_CODE_KEY, normalized);
-    console.log('[referral] pending invite code stored (length:', normalized.length, ')');
-  } catch (err) {
-    console.warn('[referral] failed to store pending invite code', err);
+    const encoded = await AsyncStorage.getItem(PENDING_CODE_KEY);
+    if (encoded) {
+      const parsed = JSON.parse(encoded) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        const candidate = parsed as { code?: unknown; accountId?: unknown };
+        const code = normalizeCode(candidate.code);
+        if (code) {
+          return typeof candidate.accountId === 'string' && candidate.accountId.trim()
+            ? { code, accountId: candidate.accountId }
+            : { code };
+        }
+      }
+    }
+
+    // One-time backward-compatible migration. A legacy code is deliberately
+    // guest-scoped: it can be shown to the user but must never auto-redeem into
+    // whichever account later signs into this device.
+    const legacy = normalizeCode(await AsyncStorage.getItem(LEGACY_PENDING_CODE_KEY));
+    if (legacy) {
+      const record = { code: legacy };
+      await AsyncStorage.setItem(PENDING_CODE_KEY, JSON.stringify(record));
+      await AsyncStorage.removeItem(LEGACY_PENDING_CODE_KEY);
+      return record;
+    }
+  } catch {
+    // Referral capture is optional and must never block routing or sign-in.
+  }
+  return null;
+}
+
+/**
+ * Stores an invite with the account that received the link, when one exists.
+ * A guest link remains unbound until that person explicitly applies it after
+ * signing in; it is never automatically attached to a different account.
+ */
+export async function setPendingInviteCode(code: string, accountId?: string | null): Promise<void> {
+  const normalized = normalizeCode(code);
+  if (!normalized) return;
+  try {
+    const record: PendingInviteRecord = accountId?.trim()
+      ? { code: normalized, accountId }
+      : { code: normalized };
+    await AsyncStorage.setItem(PENDING_CODE_KEY, JSON.stringify(record));
+    await AsyncStorage.removeItem(LEGACY_PENDING_CODE_KEY);
+  } catch {
+    // Best-effort referral capture must not make a deep link unusable.
   }
 }
 
-export async function getPendingInviteCode(): Promise<string | null> {
+/** Returns a code only when it is unbound or belongs to the requested account. */
+export async function getPendingInviteCode(accountId?: string | null): Promise<string | null> {
+  const record = await readPendingInviteRecord();
+  if (!record) return null;
+  if (record.accountId && record.accountId !== accountId) return null;
+  return record.code;
+}
+
+/**
+ * Returns a code eligible for automatic redemption. Guest/legacy links never
+ * qualify: redemption requires a deliberate Apply action after sign-in.
+ */
+export async function getAccountBoundPendingInviteCode(accountId: string): Promise<string | null> {
+  const record = await readPendingInviteRecord();
+  return record?.accountId === accountId ? record.code : null;
+}
+
+/**
+ * Associates an unbound link with the current account only at an explicit
+ * redemption boundary. A code that is already owned by another account is not
+ * exposed or reassigned.
+ */
+export async function claimPendingInviteCode(accountId: string, code?: string): Promise<string | null> {
+  const record = await readPendingInviteRecord();
+  const expectedCode = code ? normalizeCode(code) : null;
+  if (!record || (expectedCode && record.code !== expectedCode)) return null;
+  if (record.accountId && record.accountId !== accountId) return null;
+  if (record.accountId === accountId) return record.code;
   try {
-    const code = await AsyncStorage.getItem(PENDING_CODE_KEY);
-    if (code) {
-      console.log('[referral] pending invite code found (length:', code.length, ')');
-    }
-    return code;
+    await AsyncStorage.setItem(PENDING_CODE_KEY, JSON.stringify({ code: record.code, accountId }));
+    return record.code;
   } catch {
     return null;
   }
 }
 
-export async function clearPendingInviteCode(): Promise<void> {
+/** Removes a code only if it is unbound or belongs to the supplied account. */
+export async function clearPendingInviteCode(accountId?: string | null): Promise<void> {
   try {
+    const record = await readPendingInviteRecord();
+    if (record?.accountId && record.accountId !== accountId) return;
     await AsyncStorage.removeItem(PENDING_CODE_KEY);
+    await AsyncStorage.removeItem(LEGACY_PENDING_CODE_KEY);
   } catch {
-    // Non-fatal: the card simply keeps prefilling the code.
+    // Cleanup is best effort; a terminal server result can safely be retried.
   }
 }
 
-/** Whether the activate endpoint has settled (rewarded or no redemption). */
-export async function isReferralActivationSettled(userId: string): Promise<boolean> {
+const REFERRAL_SETTLED_PREFIX = 'calora.referralActivationSettled:';
+
+export async function markReferralActivationSettled(accountId: string): Promise<void> {
   try {
-    return (await AsyncStorage.getItem(ACTIVATED_KEY_PREFIX + userId)) === 'true';
+    await AsyncStorage.setItem(`${REFERRAL_SETTLED_PREFIX}${accountId}`, '1');
+  } catch {
+    // The server remains authoritative; this only prevents duplicate local work.
+  }
+}
+
+export async function isReferralActivationSettled(accountId: string): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(`${REFERRAL_SETTLED_PREFIX}${accountId}`)) === '1';
   } catch {
     return false;
   }
 }
 
-export async function markReferralActivationSettled(userId: string): Promise<void> {
+export async function clearReferralActivationSettled(accountId: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(ACTIVATED_KEY_PREFIX + userId, 'true');
-  } catch (err) {
-    console.warn('[referral] failed to persist activation state', err);
+    await AsyncStorage.removeItem(`${REFERRAL_SETTLED_PREFIX}${accountId}`);
+  } catch {
+    // Best-effort cleanup for deleted/local-reset account scopes.
   }
 }
 
-/** Reset the settled flag — intended for tests and edge-case resets only. */
-export async function clearReferralActivationSettled(userId: string): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(ACTIVATED_KEY_PREFIX + userId);
-  } catch {
-    // Non-fatal.
-  }
+/** A partial provider failure stays retryable until both grants are confirmed. */
+export function isReferralActivationComplete(result: ActivationResult): boolean {
+  return result.status === 'none' || (
+    result.status === 'rewarded' && result.referredRewarded && result.referrerRewarded
+  );
 }

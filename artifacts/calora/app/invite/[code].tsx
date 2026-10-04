@@ -3,8 +3,9 @@
  * https://mycaloraapp.com/invite/<code>.
  *
  * Stores the code locally, then routes signed-in users to Profile (where the
- * referral card prefills it) and signed-out users to account creation. The
- * ReferralActivator auto-redeems the stored code after sign-in.
+ * referral card prefills it) and signed-out users to account creation. A code
+ * is bound to the active account when one receives the link; guest codes
+ * require an explicit Apply action after sign-in.
  */
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -38,14 +39,14 @@ export default function InviteScreen() {
     void (async () => {
       if (typeof code === 'string' && code.length > 0) {
         try {
-          await setPendingInviteCode(code);
+          await setPendingInviteCode(code, user?.id);
         } catch {
           // Keep this transient route navigable if device storage is unavailable.
         }
       }
       router.replace(getInviteDestination(Boolean(user), applicationReady));
     })();
-  }, [applicationReady, code, user, isLoading, router]);
+  }, [applicationReady, code, user?.id, isLoading, router]);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
