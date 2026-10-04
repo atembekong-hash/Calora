@@ -10,7 +10,8 @@ const source = readFileSync(
 describe('native recipe pager contract', () => {
   it('uses a directional native pager for vertically scrollable section panes', () => {
     expect(source).toContain('nativePaging?: boolean;');
-    expect(source).toContain('if (nativePaging && hasAdjacentPages && renderItem)');
+    expect(source).toContain("const useNativePaging = nativePaging && Platform.OS !== 'web';");
+    expect(source).toContain('if (useNativePaging && hasAdjacentPages && renderItem)');
     expect(source).toContain('horizontal');
     expect(source).toContain('pagingEnabled');
     expect(source).toContain('directionalLockEnabled');
@@ -20,7 +21,7 @@ describe('native recipe pager contract', () => {
   });
 
   it('does not wrap native recipe pages in the custom parent pan recognizer', () => {
-    const nativePagerStart = source.indexOf('if (nativePaging && hasAdjacentPages && renderItem)');
+    const nativePagerStart = source.indexOf('if (useNativePaging && hasAdjacentPages && renderItem)');
     const nativePager = source.slice(nativePagerStart, source.indexOf('\n  return (', nativePagerStart));
 
     expect(nativePagerStart).toBeGreaterThan(-1);
