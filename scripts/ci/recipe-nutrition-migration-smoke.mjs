@@ -17,7 +17,7 @@ if (!databaseUrl) {
   );
 }
 
-// Migrations 0001–0008 are forward-only additions to Calora's existing base
+// Migrations 0001–0012 are forward-only additions to Calora's existing base
 // application schema. This is the smallest representative base required by
 // those immutable migrations; it deliberately omits the nutrition cache. A
 // blank public schema is not a supported migration input because the historic
@@ -34,6 +34,29 @@ const prerequisiteSchema = `
   );
   CREATE TABLE calora_referral_qualifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), external_user_id text NOT NULL);
   CREATE TABLE calora_capture_rate_limits (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), key text NOT NULL);
+  -- Representative existing account profile: migration 0012 must add only
+  -- nullable columns and must never infer or write preference values here.
+  CREATE TABLE calora_profiles (
+    user_id uuid PRIMARY KEY,
+    goal text NOT NULL,
+    activity_level text NOT NULL,
+    diet_preference text NOT NULL,
+    age integer NOT NULL,
+    height_cm numeric(5, 1) NOT NULL,
+    weight_kg numeric(5, 1) NOT NULL,
+    target_weight_kg numeric(5, 1) NOT NULL,
+    calorie_target integer NOT NULL,
+    consent_version text NOT NULL,
+    consent_accepted_at timestamptz NOT NULL,
+    updated_at timestamptz NOT NULL
+  );
+  INSERT INTO calora_profiles (
+    user_id, goal, activity_level, diet_preference, age, height_cm, weight_kg,
+    target_weight_kg, calorie_target, consent_version, consent_accepted_at, updated_at
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000012', 'maintain', 'moderate', 'Everything', 31,
+    170.0, 72.0, 72.0, 2100, 'calora-onboarding-v1', now(), now()
+  );
 `;
 
 const legacySchema = `${prerequisiteSchema}
@@ -113,7 +136,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 11) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 12) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -137,6 +160,44 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 11) {
       actual.get("meal_id"),
       "text",
       `${scenario} migration must retain the canonical meal identifier`,
+    );
+
+    const preferenceColumns = await client.query(
+      `SELECT column_name, data_type, is_nullable
+         FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'calora_profiles'
+          AND column_name IN ('target_mode', 'protein_target_grams', 'carbs_target_grams', 'fat_target_grams', 'units')`,
+    );
+    const preferenceMap = new Map(
+      preferenceColumns.rows.map((row) => [row.column_name, row]),
+    );
+    for (const [column, type] of [
+      ['target_mode', 'text'],
+      ['protein_target_grams', 'integer'],
+      ['carbs_target_grams', 'integer'],
+      ['fat_target_grams', 'integer'],
+      ['units', 'text'],
+    ]) {
+      const columnInfo = preferenceMap.get(column);
+      assert.equal(columnInfo?.data_type, type, `${scenario} must add ${column} with its intended type`);
+      assert.equal(columnInfo?.is_nullable, 'YES', `${scenario} must keep legacy ${column} unknown until an explicit save`);
+    }
+    const legacyProfile = await client.query(
+      `SELECT target_mode, protein_target_grams, carbs_target_grams, fat_target_grams, units
+         FROM calora_profiles
+        WHERE user_id = '00000000-0000-0000-0000-000000000012'`,
+    );
+    assert.deepEqual(
+      legacyProfile.rows,
+      [{
+        target_mode: null,
+        protein_target_grams: null,
+        carbs_target_grams: null,
+        fat_target_grams: null,
+        units: null,
+      }],
+      `${scenario} migration must not backfill inferred profile preferences`,
     );
 
     const history = await client.query(
@@ -348,7 +409,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  4,
+  5,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -372,8 +433,8 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    4,
-    "historical upgrade must append only 0009, 0010, and 0011",
+    5,
+    "historical upgrade must append only 0009 through 0012",
   );
 } finally {
   await historicalUpgrade.end();

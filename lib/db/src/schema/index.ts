@@ -39,13 +39,13 @@ export const profilesTable = pgTable("calora_profiles", {
   weightKg: numeric("weight_kg", { precision: 5, scale: 1 }).notNull(),
   targetWeightKg: numeric("target_weight_kg", { precision: 5, scale: 1 }).notNull(),
   calorieTarget: integer("calorie_target").notNull(),
-  /** Cross-device nutrition-target mode; legacy rows use the safe custom default. */
-  targetMode: text("target_mode").notNull().default("custom"),
+  /** Nullable for legacy rows until the account explicitly saves a preference. */
+  targetMode: text("target_mode"),
   proteinTargetGrams: integer("protein_target_grams"),
   carbsTargetGrams: integer("carbs_target_grams"),
   fatTargetGrams: integer("fat_target_grams"),
-  /** Display preference, not a measurement conversion of stored SI values. */
-  units: text("units").notNull().default("metric"),
+  /** Nullable for legacy rows; display units never rewrite stored SI values. */
+  units: text("units"),
   consentVersion: text("consent_version").notNull(),
   consentAcceptedAt: timestamp("consent_accepted_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

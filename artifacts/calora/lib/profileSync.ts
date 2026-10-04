@@ -87,14 +87,15 @@ export function toProfileInput(profile: LocalProfile): ProfileInput {
 }
 
 /**
- * Remote storage owns onboarding fields. Local-only macro/unit preferences are
- * retained when a device already has them, so reinstall restoration does not
- * accidentally erase a richer local profile shape.
+ * Remote storage owns onboarding fields and explicitly saved preferences. A
+ * legacy remote row has NULL preference fields, which means unknown rather than
+ * a default selected for the member; retain any local values in that case.
  */
 export function mergeRemoteProfile(
   local: LocalProfile | null,
   remote: RemoteProfile,
 ): LocalProfile {
+  const remoteHasPreferenceSnapshot = remote.targetMode != null || remote.units != null;
   return {
     ...(local ?? {}),
     name: remote.name,
@@ -106,11 +107,17 @@ export function mergeRemoteProfile(
     targetWeightKg: remote.targetWeightKg,
     age: remote.age,
     calorieTarget: remote.calorieTarget,
-    targetMode: remote.targetMode,
-    proteinTargetGrams: remote.proteinTargetGrams ?? undefined,
-    carbsTargetGrams: remote.carbsTargetGrams ?? undefined,
-    fatTargetGrams: remote.fatTargetGrams ?? undefined,
-    units: remote.units,
+    targetMode: remote.targetMode ?? local?.targetMode,
+    proteinTargetGrams: remoteHasPreferenceSnapshot
+      ? remote.proteinTargetGrams ?? undefined
+      : local?.proteinTargetGrams,
+    carbsTargetGrams: remoteHasPreferenceSnapshot
+      ? remote.carbsTargetGrams ?? undefined
+      : local?.carbsTargetGrams,
+    fatTargetGrams: remoteHasPreferenceSnapshot
+      ? remote.fatTargetGrams ?? undefined
+      : local?.fatTargetGrams,
+    units: remote.units ?? local?.units,
   };
 }
 

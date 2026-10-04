@@ -46,11 +46,16 @@ function serializeProfile(
     weightKg: Number(row.weightKg),
     targetWeightKg: Number(row.targetWeightKg),
     calorieTarget: row.calorieTarget,
-    targetMode: row.targetMode === "automatic" ? "automatic" : "custom",
+    // NULL marks a pre-preference legacy row. Do not invent a user choice on
+    // read; the client retains a known local preference until an explicit save
+    // makes this account-authoritative.
+    targetMode: row.targetMode === "automatic" || row.targetMode === "custom"
+      ? row.targetMode
+      : null,
     proteinTargetGrams: row.proteinTargetGrams ?? null,
     carbsTargetGrams: row.carbsTargetGrams ?? null,
     fatTargetGrams: row.fatTargetGrams ?? null,
-    units: row.units === "imperial" ? "imperial" : "metric",
+    units: row.units === "imperial" || row.units === "metric" ? row.units : null,
     consentVersion: row.consentVersion,
     updatedAt: row.updatedAt.toISOString(),
   };

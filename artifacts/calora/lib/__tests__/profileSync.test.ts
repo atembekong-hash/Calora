@@ -69,6 +69,15 @@ const remoteProfile = {
   updatedAt: '2026-09-09T12:00:00.000Z',
 };
 
+const legacyRemoteProfile = {
+  ...remoteProfile,
+  targetMode: null,
+  proteinTargetGrams: null,
+  carbsTargetGrams: null,
+  fatTargetGrams: null,
+  units: null,
+};
+
 describe('profile sync launch boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -144,6 +153,16 @@ describe('profile sync launch boundary', () => {
       carbsTargetGrams: 210,
       fatTargetGrams: 70,
       units: 'metric',
+    });
+  });
+
+  it('keeps known local preferences when a legacy remote profile has no preference snapshot', () => {
+    expect(mergeRemoteProfile(localProfile, legacyRemoteProfile)).toMatchObject({
+      targetMode: 'automatic',
+      proteinTargetGrams: 140,
+      carbsTargetGrams: 180,
+      fatTargetGrams: 60,
+      units: 'imperial',
     });
   });
 

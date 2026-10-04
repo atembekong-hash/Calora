@@ -1075,11 +1075,17 @@ components:
         weightKg: { type: number, minimum: 25, maximum: 500 }
         targetWeightKg: { type: number, minimum: 25, maximum: 500 }
         calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
-        targetMode: { type: string, enum: [automatic, custom] }
+        targetMode:
+          type: string
+          enum: [automatic, custom]
+          nullable: true
         proteinTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
         carbsTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
         fatTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
-        units: { type: string, enum: [metric, imperial] }
+        units:
+          type: string
+          enum: [metric, imperial]
+          nullable: true
         consentVersion: { type: string, enum: [calora-onboarding-v1] }
         updatedAt: { type: string, format: date-time }
     ProfileInput:

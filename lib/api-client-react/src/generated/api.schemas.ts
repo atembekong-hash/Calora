@@ -49,7 +49,7 @@ export const ProfileDiet = {
   High_protein: 'High protein',
 } as const;
 
-export type ProfileTargetMode = typeof ProfileTargetMode[keyof typeof ProfileTargetMode];
+export type ProfileTargetMode = typeof ProfileTargetMode[keyof typeof ProfileTargetMode] | null;
 
 
 export const ProfileTargetMode = {
@@ -57,7 +57,7 @@ export const ProfileTargetMode = {
   custom: 'custom',
 } as const;
 
-export type ProfileUnits = typeof ProfileUnits[keyof typeof ProfileUnits];
+export type ProfileUnits = typeof ProfileUnits[keyof typeof ProfileUnits] | null;
 
 
 export const ProfileUnits = {

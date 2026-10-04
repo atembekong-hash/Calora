@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ProfileTargetMode = typeof ProfileTargetMode[keyof typeof ProfileTargetMode];
+export type ProfileTargetMode = typeof ProfileTargetMode[keyof typeof ProfileTargetMode] | null;
 
 
 export const ProfileTargetMode = {

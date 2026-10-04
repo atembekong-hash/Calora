@@ -143,6 +143,33 @@ describe('profile persistence routes', () => {
     expect(ensureUserRow).toHaveBeenCalledWith('auth-user', 'alex@example.com');
   });
 
+  it('returns legacy unset preferences as unknown rather than inferred defaults', async () => {
+    queued.push([{
+      profile: {
+        ...row,
+        targetMode: null,
+        proteinTargetGrams: null,
+        carbsTargetGrams: null,
+        fatTargetGrams: null,
+        units: null,
+      },
+      name: 'Alex',
+    }]);
+
+    const response = await request(buildApp())
+      .get('/v1/profile')
+      .set('Authorization', 'Bearer token');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      targetMode: null,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: null,
+    });
+  });
+
   it('upserts onboarding preferences and records the initial consent atomically', async () => {
     queued.push([], [{ ...row, userId: 'internal-user', targetMode: 'automatic', proteinTargetGrams: 140, carbsTargetGrams: 180, fatTargetGrams: 60, units: 'imperial' }], [], []);
     const putResponse = await request(buildApp())
