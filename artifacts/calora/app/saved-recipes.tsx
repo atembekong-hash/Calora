@@ -158,7 +158,7 @@ function SourceSection({
 }
 
 export default function SavedRecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe } = useCalora();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<SavedFilter>('all');
@@ -246,7 +246,7 @@ export default function SavedRecipesScreen() {
     }, 3800);
   };
 
-  useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe });
+  useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe, restoreRecipe });
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>

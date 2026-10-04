@@ -6,13 +6,14 @@
  * keyed by the server-resolved Calora user row, never by a client-supplied id.
  */
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, profilesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 
 const router: IRouter = Router();
+const ONBOARDING_CONSENT_VERSION = "calora-onboarding-v1";
 const UpdateProfileBody = z.object({
   name: z.string().min(1).max(120),
   goal: z.enum(["lose", "maintain", "gain"]),
@@ -23,7 +24,12 @@ const UpdateProfileBody = z.object({
   weightKg: z.number().min(25).max(500),
   targetWeightKg: z.number().min(25).max(500),
   calorieTarget: z.number().int().min(800).max(10000),
-  consentVersion: z.string().min(1),
+  targetMode: z.enum(["automatic", "custom"]).optional(),
+  proteinTargetGrams: z.number().int().min(0).max(1000).nullable().optional(),
+  carbsTargetGrams: z.number().int().min(0).max(1000).nullable().optional(),
+  fatTargetGrams: z.number().int().min(0).max(1000).nullable().optional(),
+  units: z.enum(["metric", "imperial"]).optional(),
+  consentVersion: z.literal(ONBOARDING_CONSENT_VERSION),
 });
 
 function serializeProfile(
@@ -40,6 +46,11 @@ function serializeProfile(
     weightKg: Number(row.weightKg),
     targetWeightKg: Number(row.targetWeightKg),
     calorieTarget: row.calorieTarget,
+    targetMode: row.targetMode === "automatic" ? "automatic" : "custom",
+    proteinTargetGrams: row.proteinTargetGrams ?? null,
+    carbsTargetGrams: row.carbsTargetGrams ?? null,
+    fatTargetGrams: row.fatTargetGrams ?? null,
+    units: row.units === "imperial" ? "imperial" : "metric",
     consentVersion: row.consentVersion,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -91,25 +102,31 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
   const userId = await ensureUserRow(auth.id, auth.email);
   const now = new Date();
   const input = parsed.data;
-  const [profile] = await db
-    .insert(profilesTable)
-    .values({
-      userId,
-      goal: input.goal,
-      activityLevel: input.activity,
-      dietPreference: input.diet,
-      age: input.age,
-      heightCm: String(input.heightCm),
-      weightKg: String(input.weightKg),
-      targetWeightKg: String(input.targetWeightKg),
-      calorieTarget: input.calorieTarget,
-      consentVersion: input.consentVersion,
-      consentAcceptedAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: profilesTable.userId,
-      set: {
+  const profile = await db.transaction(async (tx) => {
+    // Preserve optional fields from a supported older client. New clients send
+    // the complete profile snapshot, so this is last-write-wins only within the
+    // account-owning profile row — never across accounts.
+    const existingRows = await tx
+      .select()
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, userId))
+      .limit(1);
+    const existing = existingRows[0];
+    const targetMode = input.targetMode ?? (existing?.targetMode === "automatic" ? "automatic" : "custom");
+    const units = input.units ?? (existing?.units === "imperial" ? "imperial" : "metric");
+    const proteinTargetGrams = input.proteinTargetGrams === undefined
+      ? existing?.proteinTargetGrams ?? null
+      : input.proteinTargetGrams;
+    const carbsTargetGrams = input.carbsTargetGrams === undefined
+      ? existing?.carbsTargetGrams ?? null
+      : input.carbsTargetGrams;
+    const fatTargetGrams = input.fatTargetGrams === undefined
+      ? existing?.fatTargetGrams ?? null
+      : input.fatTargetGrams;
+    const [saved] = await tx
+      .insert(profilesTable)
+      .values({
+        userId,
         goal: input.goal,
         activityLevel: input.activity,
         dietPreference: input.diet,
@@ -118,17 +135,61 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
         weightKg: String(input.weightKg),
         targetWeightKg: String(input.targetWeightKg),
         calorieTarget: input.calorieTarget,
+        targetMode,
+        proteinTargetGrams,
+        carbsTargetGrams,
+        fatTargetGrams,
+        units,
         consentVersion: input.consentVersion,
-        consentAcceptedAt: now,
+        consentAcceptedAt: existing?.consentAcceptedAt ?? now,
         updatedAt: now,
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: profilesTable.userId,
+        set: {
+        goal: input.goal,
+        activityLevel: input.activity,
+        dietPreference: input.diet,
+        age: input.age,
+        heightCm: String(input.heightCm),
+        weightKg: String(input.weightKg),
+        targetWeightKg: String(input.targetWeightKg),
+        calorieTarget: input.calorieTarget,
+        targetMode,
+        proteinTargetGrams,
+        carbsTargetGrams,
+        fatTargetGrams,
+        units,
+        consentVersion: input.consentVersion,
+        consentAcceptedAt: existing?.consentAcceptedAt ?? now,
+        updatedAt: now,
+        },
+      })
+      .returning();
 
-  await db
-    .update(usersTable)
-    .set({ displayName: input.name.trim(), updatedAt: now })
-    .where(eq(usersTable.id, userId));
+    await tx
+      .update(usersTable)
+      .set({ displayName: input.name.trim(), updatedAt: now })
+      .where(eq(usersTable.id, userId));
+
+    if (!existing) {
+      // The profile row is the current consent state; this immutable event is
+      // the onboarding acceptance audit record. The conditional insert keeps a
+      // retried first profile write from inventing duplicate acceptance events.
+      await tx.execute(sql`
+        INSERT INTO calora_consent_events (user_id, consent_type, version, accepted, created_at)
+        SELECT ${userId}, 'onboarding', ${ONBOARDING_CONSENT_VERSION}, true, ${now}
+        WHERE NOT EXISTS (
+          SELECT 1 FROM calora_consent_events
+          WHERE user_id = ${userId}
+            AND consent_type = 'onboarding'
+            AND version = ${ONBOARDING_CONSENT_VERSION}
+            AND accepted = true
+        )
+      `);
+    }
+    return saved;
+  });
 
   res.json(serializeProfile(profile, input.name));
 });

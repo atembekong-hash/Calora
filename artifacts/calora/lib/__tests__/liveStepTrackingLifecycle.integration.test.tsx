@@ -161,6 +161,8 @@ vi.mock("@/lib/health/healthService", () => ({
 import { act, renderHook } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { CaloraProvider, useCalora } from "@/context/CaloraContext";
+import { storageKeyForAccount } from "@/lib/accountStorage";
+import { STORAGE_SCHEMA_VERSION } from "@/lib/storageSchema";
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(CaloraProvider, null, children);
@@ -180,6 +182,17 @@ async function focusDashboard(
   await act(async () => {
     handle.result.current.setLiveStepsDashboardFocused(true);
     await Promise.resolve();
+  });
+}
+
+/**
+ * The native provider's permission belongs to the device, but only this
+ * persisted connection represents an explicit Calora-account choice to use it.
+ */
+function persistAccountHealthConnection() {
+  asyncStore.values[storageKeyForAccount(null)] = JSON.stringify({
+    schemaVersion: STORAGE_SCHEMA_VERSION,
+    healthConnection: health.connection,
   });
 }
 
@@ -241,6 +254,7 @@ describe("foreground live-step lifecycle", () => {
         finishSync = () => resolve(health.snapshot);
       }),
     );
+    persistAccountHealthConnection();
     const handle = await renderAndAwaitHydration();
 
     await act(async () => {
@@ -325,6 +339,7 @@ describe("foreground live-step lifecycle", () => {
       weights: [],
     };
     motion.capability = { available: true, permission: "denied" };
+    persistAccountHealthConnection();
     const handle = await renderAndAwaitHydration();
 
     await act(async () => {
@@ -374,6 +389,7 @@ describe("foreground live-step lifecycle", () => {
       workouts: [],
       weights: [],
     };
+    persistAccountHealthConnection();
     const handle = await renderAndAwaitHydration();
     vi.useFakeTimers();
 
@@ -397,6 +413,30 @@ describe("foreground live-step lifecycle", () => {
     expect(health.service.sync).toHaveBeenCalled();
     expect(handle.result.current.liveStepTracking.providerSteps).toBe(1_005);
     expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_005);
+  });
+
+  it("does not read an already-authorized device provider until this account connects", async () => {
+    health.connection = {
+      provider: "healthkit",
+      authorization: "authorized",
+      granted: ["steps"],
+    };
+    health.snapshot = {
+      syncedAt: "2026-09-26T09:00:00.000Z",
+      steps: 1_000,
+      activeEnergyKcal: null,
+      workouts: [],
+      weights: [],
+    };
+
+    const handle = await renderAndAwaitHydration();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(handle.result.current.healthConnected).toBe(false);
+    expect(handle.result.current.healthConnection.authorization).toBe("notConnected");
+    expect(health.service.sync).not.toHaveBeenCalled();
   });
 
   it("starts one fresh stream after repeated background-to-active transitions and ignores stale callbacks", async () => {

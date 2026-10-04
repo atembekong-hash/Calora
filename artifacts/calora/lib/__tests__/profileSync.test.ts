@@ -45,6 +45,9 @@ const localProfile = {
   calorieTarget: 1800,
   targetMode: 'automatic' as const,
   proteinTargetGrams: 140,
+  carbsTargetGrams: 180,
+  fatTargetGrams: 60,
+  units: 'imperial' as const,
 };
 
 const remoteProfile = {
@@ -57,7 +60,12 @@ const remoteProfile = {
   targetWeightKg: 75,
   age: 33,
   calorieTarget: 2200,
-  consentVersion: 'calora-onboarding-v1',
+  targetMode: 'custom' as const,
+  proteinTargetGrams: 150,
+  carbsTargetGrams: 210,
+  fatTargetGrams: 70,
+  units: 'metric' as const,
+  consentVersion: 'calora-onboarding-v1' as const,
   updatedAt: '2026-09-09T12:00:00.000Z',
 };
 
@@ -120,7 +128,7 @@ describe('profile sync launch boundary', () => {
     await expect(reconcileRemoteProfile(null, false)).rejects.toMatchObject({ status: 503 });
   });
 
-  it('preserves local-only profile preferences while applying remote onboarding fields', () => {
+  it('restores remote profile preferences over stale local preferences after reinstall', () => {
     expect(mergeRemoteProfile(localProfile, remoteProfile)).toMatchObject({
       name: remoteProfile.name,
       goal: remoteProfile.goal,
@@ -131,8 +139,11 @@ describe('profile sync launch boundary', () => {
       targetWeightKg: remoteProfile.targetWeightKg,
       age: remoteProfile.age,
       calorieTarget: remoteProfile.calorieTarget,
-      targetMode: 'automatic',
-      proteinTargetGrams: 140,
+      targetMode: 'custom',
+      proteinTargetGrams: 150,
+      carbsTargetGrams: 210,
+      fatTargetGrams: 70,
+      units: 'metric',
     });
   });
 
@@ -147,6 +158,11 @@ describe('profile sync launch boundary', () => {
       weightKg: 76,
       targetWeightKg: 70,
       calorieTarget: 1800,
+      targetMode: 'automatic',
+      proteinTargetGrams: 140,
+      carbsTargetGrams: 180,
+      fatTargetGrams: 60,
+      units: 'imperial',
       consentVersion: 'calora-onboarding-v1',
     });
     deleteProfileMock.mockResolvedValue(undefined);

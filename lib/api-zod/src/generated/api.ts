@@ -37,6 +37,14 @@ export const getProfileResponseTargetWeightKgMax = 500;
 export const getProfileResponseCalorieTargetMin = 800;
 export const getProfileResponseCalorieTargetMax = 10000;
 
+export const getProfileResponseProteinTargetGramsMin = 0;
+export const getProfileResponseProteinTargetGramsMax = 1000;
+
+export const getProfileResponseCarbsTargetGramsMin = 0;
+export const getProfileResponseCarbsTargetGramsMax = 1000;
+
+export const getProfileResponseFatTargetGramsMin = 0;
+export const getProfileResponseFatTargetGramsMax = 1000;
 
 
 
@@ -50,7 +58,12 @@ export const GetProfileResponse = zod.object({
   "weightKg": zod.number().min(getProfileResponseWeightKgMin).max(getProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(getProfileResponseTargetWeightKgMin).max(getProfileResponseTargetWeightKgMax),
   "calorieTarget": zod.number().int().min(getProfileResponseCalorieTargetMin).max(getProfileResponseCalorieTargetMax),
-  "consentVersion": zod.string().min(1),
+  "targetMode": zod.enum(['automatic', 'custom']),
+  "proteinTargetGrams": zod.number().int().min(getProfileResponseProteinTargetGramsMin).max(getProfileResponseProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.number().int().min(getProfileResponseCarbsTargetGramsMin).max(getProfileResponseCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.number().int().min(getProfileResponseFatTargetGramsMin).max(getProfileResponseFatTargetGramsMax).nullish(),
+  "units": zod.enum(['metric', 'imperial']),
+  "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
 })
 
@@ -75,6 +88,14 @@ export const updateProfileBodyTargetWeightKgMax = 500;
 export const updateProfileBodyCalorieTargetMin = 800;
 export const updateProfileBodyCalorieTargetMax = 10000;
 
+export const updateProfileBodyProteinTargetGramsMin = 0;
+export const updateProfileBodyProteinTargetGramsMax = 1000;
+
+export const updateProfileBodyCarbsTargetGramsMin = 0;
+export const updateProfileBodyCarbsTargetGramsMax = 1000;
+
+export const updateProfileBodyFatTargetGramsMin = 0;
+export const updateProfileBodyFatTargetGramsMax = 1000;
 
 
 
@@ -88,7 +109,12 @@ export const UpdateProfileBody = zod.object({
   "weightKg": zod.number().min(updateProfileBodyWeightKgMin).max(updateProfileBodyWeightKgMax),
   "targetWeightKg": zod.number().min(updateProfileBodyTargetWeightKgMin).max(updateProfileBodyTargetWeightKgMax),
   "calorieTarget": zod.number().int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
-  "consentVersion": zod.string().min(1)
+  "targetMode": zod.enum(['automatic', 'custom']).optional(),
+  "proteinTargetGrams": zod.number().int().min(updateProfileBodyProteinTargetGramsMin).max(updateProfileBodyProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.number().int().min(updateProfileBodyCarbsTargetGramsMin).max(updateProfileBodyCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.number().int().min(updateProfileBodyFatTargetGramsMin).max(updateProfileBodyFatTargetGramsMax).nullish(),
+  "units": zod.enum(['metric', 'imperial']).optional(),
+  "consentVersion": zod.enum(['calora-onboarding-v1'])
 })
 
 export const updateProfileResponseNameMax = 120;
@@ -108,6 +134,14 @@ export const updateProfileResponseTargetWeightKgMax = 500;
 export const updateProfileResponseCalorieTargetMin = 800;
 export const updateProfileResponseCalorieTargetMax = 10000;
 
+export const updateProfileResponseProteinTargetGramsMin = 0;
+export const updateProfileResponseProteinTargetGramsMax = 1000;
+
+export const updateProfileResponseCarbsTargetGramsMin = 0;
+export const updateProfileResponseCarbsTargetGramsMax = 1000;
+
+export const updateProfileResponseFatTargetGramsMin = 0;
+export const updateProfileResponseFatTargetGramsMax = 1000;
 
 
 
@@ -121,7 +155,12 @@ export const UpdateProfileResponse = zod.object({
   "weightKg": zod.number().min(updateProfileResponseWeightKgMin).max(updateProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(updateProfileResponseTargetWeightKgMin).max(updateProfileResponseTargetWeightKgMax),
   "calorieTarget": zod.number().int().min(updateProfileResponseCalorieTargetMin).max(updateProfileResponseCalorieTargetMax),
-  "consentVersion": zod.string().min(1),
+  "targetMode": zod.enum(['automatic', 'custom']),
+  "proteinTargetGrams": zod.number().int().min(updateProfileResponseProteinTargetGramsMin).max(updateProfileResponseProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.number().int().min(updateProfileResponseCarbsTargetGramsMin).max(updateProfileResponseCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.number().int().min(updateProfileResponseFatTargetGramsMin).max(updateProfileResponseFatTargetGramsMax).nullish(),
+  "units": zod.enum(['metric', 'imperial']),
+  "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
 })
 
@@ -209,7 +248,7 @@ export const ListDiaryEntriesResponse = zod.object({
   "proteinG": zod.number().min(listDiaryEntriesResponseEntriesItemOneProteinGMin),
   "carbsG": zod.number().min(listDiaryEntriesResponseEntriesItemOneCarbsGMin),
   "fatG": zod.number().min(listDiaryEntriesResponseEntriesItemOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(listDiaryEntriesResponseEntriesItemOneConfidenceMin).max(listDiaryEntriesResponseEntriesItemOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
@@ -310,7 +349,7 @@ export const CreateDiaryEntryBody = zod.object({
   "proteinG": zod.number().min(createDiaryEntryBodyProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryBodyCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryBodyFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryBodyConfidenceMin).max(createDiaryEntryBodyConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
@@ -404,7 +443,7 @@ export const CreateDiaryEntryResponse = zod.object({
   "proteinG": zod.number().min(createDiaryEntryResponseOneProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryResponseOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryResponseOneConfidenceMin).max(createDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
@@ -549,7 +588,7 @@ export const UpdateDiaryEntryResponse = zod.object({
   "proteinG": zod.number().min(updateDiaryEntryResponseOneProteinGMin),
   "carbsG": zod.number().min(updateDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(updateDiaryEntryResponseOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
@@ -745,7 +784,7 @@ export const SyncOutboxResponse = zod.object({
   "proteinG": zod.number().min(syncOutboxResponseRecordsItemProteinGMin),
   "carbsG": zod.number().min(syncOutboxResponseRecordsItemCarbsGMin),
   "fatG": zod.number().min(syncOutboxResponseRecordsItemFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(syncOutboxResponseRecordsItemConfidenceMin).max(syncOutboxResponseRecordsItemConfidenceMax),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
@@ -1291,6 +1330,30 @@ export const GenerateRecipePhotoBody = zod.object({
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n')
 
 export const generateRecipePhotoResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const generateRecipePhotoResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const generateRecipePhotoResponseRecipePayloadTitleMax = 120;
+
+export const generateRecipePhotoResponseRecipePayloadDescriptionMax = 600;
+
+export const generateRecipePhotoResponseRecipePayloadIngredientsItemMax = 160;
+
+export const generateRecipePhotoResponseRecipePayloadIngredientsMax = 30;
+
+export const generateRecipePhotoResponseRecipePayloadInstructionsItemMax = 500;
+
+export const generateRecipePhotoResponseRecipePayloadInstructionsMax = 20;
+
+export const generateRecipePhotoResponseRecipePayloadCuisineMax = 80;
+
+export const generateRecipePhotoResponseRecipePayloadCategoryMax = 80;
+
+export const generateRecipePhotoResponseRecipePayloadMealTypeMax = 40;
+
+export const generateRecipePhotoResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const generateRecipePhotoResponseRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1298,6 +1361,17 @@ export const GenerateRecipePhotoResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(generateRecipePhotoResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadTitleMax),
+  "description": zod.string().max(generateRecipePhotoResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadIngredientsItemMax)).min(1).max(generateRecipePhotoResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadInstructionsItemMax)).min(1).max(generateRecipePhotoResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(generateRecipePhotoResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(generateRecipePhotoResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(generateRecipePhotoResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadDietaryContextItemMax)).max(generateRecipePhotoResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
@@ -1321,6 +1395,30 @@ export const RefreshRecipePhotoUrlBody = zod.object({
 })
 
 export const refreshRecipePhotoUrlResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const refreshRecipePhotoUrlResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadTitleMax = 120;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadDescriptionMax = 600;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadIngredientsItemMax = 160;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadIngredientsMax = 30;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadInstructionsItemMax = 500;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadInstructionsMax = 20;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadCuisineMax = 80;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadCategoryMax = 80;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadMealTypeMax = 40;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const refreshRecipePhotoUrlResponseRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1328,6 +1426,17 @@ export const RefreshRecipePhotoUrlResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(refreshRecipePhotoUrlResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadTitleMax),
+  "description": zod.string().max(refreshRecipePhotoUrlResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadIngredientsItemMax)).min(1).max(refreshRecipePhotoUrlResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadInstructionsItemMax)).min(1).max(refreshRecipePhotoUrlResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(refreshRecipePhotoUrlResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(refreshRecipePhotoUrlResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(refreshRecipePhotoUrlResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadDietaryContextItemMax)).max(refreshRecipePhotoUrlResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
@@ -1346,6 +1455,30 @@ export const RefreshRecipePhotoUrlResponse = zod.object({
  * @summary Recover the current account's active generated recipe media
  */
 export const listRecipeMediaResponseMediaItemContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const listRecipeMediaResponseMediaItemRecipePayloadClientRecipeIdMax = 128;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadTitleMax = 120;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadDescriptionMax = 600;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadIngredientsItemMax = 160;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadIngredientsMax = 30;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadInstructionsItemMax = 500;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadInstructionsMax = 20;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadCuisineMax = 80;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadCategoryMax = 80;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadMealTypeMax = 40;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadDietaryContextItemMax = 80;
+
+export const listRecipeMediaResponseMediaItemRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1354,6 +1487,17 @@ export const ListRecipeMediaResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(listRecipeMediaResponseMediaItemContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadTitleMax),
+  "description": zod.string().max(listRecipeMediaResponseMediaItemRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadIngredientsItemMax)).min(1).max(listRecipeMediaResponseMediaItemRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadInstructionsItemMax)).min(1).max(listRecipeMediaResponseMediaItemRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(listRecipeMediaResponseMediaItemRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(listRecipeMediaResponseMediaItemRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(listRecipeMediaResponseMediaItemRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadDietaryContextItemMax)).max(listRecipeMediaResponseMediaItemRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
@@ -1377,6 +1521,30 @@ export const GetRecipeMediaParams = zod.object({
 })
 
 export const getRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRecipeMediaResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const getRecipeMediaResponseRecipePayloadTitleMax = 120;
+
+export const getRecipeMediaResponseRecipePayloadDescriptionMax = 600;
+
+export const getRecipeMediaResponseRecipePayloadIngredientsItemMax = 160;
+
+export const getRecipeMediaResponseRecipePayloadIngredientsMax = 30;
+
+export const getRecipeMediaResponseRecipePayloadInstructionsItemMax = 500;
+
+export const getRecipeMediaResponseRecipePayloadInstructionsMax = 20;
+
+export const getRecipeMediaResponseRecipePayloadCuisineMax = 80;
+
+export const getRecipeMediaResponseRecipePayloadCategoryMax = 80;
+
+export const getRecipeMediaResponseRecipePayloadMealTypeMax = 40;
+
+export const getRecipeMediaResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const getRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1384,6 +1552,17 @@ export const GetRecipeMediaResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(getRecipeMediaResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(getRecipeMediaResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(getRecipeMediaResponseRecipePayloadTitleMax),
+  "description": zod.string().max(getRecipeMediaResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(getRecipeMediaResponseRecipePayloadIngredientsItemMax)).min(1).max(getRecipeMediaResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(getRecipeMediaResponseRecipePayloadInstructionsItemMax)).min(1).max(getRecipeMediaResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(getRecipeMediaResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(getRecipeMediaResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(getRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(getRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(getRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
@@ -1406,6 +1585,30 @@ export const RetryRecipeMediaParams = zod.object({
 })
 
 export const retryRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const retryRecipeMediaResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const retryRecipeMediaResponseRecipePayloadTitleMax = 120;
+
+export const retryRecipeMediaResponseRecipePayloadDescriptionMax = 600;
+
+export const retryRecipeMediaResponseRecipePayloadIngredientsItemMax = 160;
+
+export const retryRecipeMediaResponseRecipePayloadIngredientsMax = 30;
+
+export const retryRecipeMediaResponseRecipePayloadInstructionsItemMax = 500;
+
+export const retryRecipeMediaResponseRecipePayloadInstructionsMax = 20;
+
+export const retryRecipeMediaResponseRecipePayloadCuisineMax = 80;
+
+export const retryRecipeMediaResponseRecipePayloadCategoryMax = 80;
+
+export const retryRecipeMediaResponseRecipePayloadMealTypeMax = 40;
+
+export const retryRecipeMediaResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const retryRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1413,6 +1616,17 @@ export const RetryRecipeMediaResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(retryRecipeMediaResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadTitleMax),
+  "description": zod.string().max(retryRecipeMediaResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadIngredientsItemMax)).min(1).max(retryRecipeMediaResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadInstructionsItemMax)).min(1).max(retryRecipeMediaResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(retryRecipeMediaResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(retryRecipeMediaResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(retryRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(retryRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
@@ -1439,6 +1653,30 @@ export const ReviewRecipeMediaBody = zod.object({
 })
 
 export const reviewRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const reviewRecipeMediaResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const reviewRecipeMediaResponseRecipePayloadTitleMax = 120;
+
+export const reviewRecipeMediaResponseRecipePayloadDescriptionMax = 600;
+
+export const reviewRecipeMediaResponseRecipePayloadIngredientsItemMax = 160;
+
+export const reviewRecipeMediaResponseRecipePayloadIngredientsMax = 30;
+
+export const reviewRecipeMediaResponseRecipePayloadInstructionsItemMax = 500;
+
+export const reviewRecipeMediaResponseRecipePayloadInstructionsMax = 20;
+
+export const reviewRecipeMediaResponseRecipePayloadCuisineMax = 80;
+
+export const reviewRecipeMediaResponseRecipePayloadCategoryMax = 80;
+
+export const reviewRecipeMediaResponseRecipePayloadMealTypeMax = 40;
+
+export const reviewRecipeMediaResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const reviewRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
+
 
 
 
@@ -1446,6 +1684,17 @@ export const ReviewRecipeMediaResponse = zod.object({
   "mediaId": zod.string().uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(reviewRecipeMediaResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadTitleMax),
+  "description": zod.string().max(reviewRecipeMediaResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadIngredientsItemMax)).min(1).max(reviewRecipeMediaResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadInstructionsItemMax)).min(1).max(reviewRecipeMediaResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(reviewRecipeMediaResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(reviewRecipeMediaResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(reviewRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(reviewRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
   "imageId": zod.string().uuid().nullable(),
   "imageUrl": zod.string().url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),

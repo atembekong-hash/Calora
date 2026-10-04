@@ -39,12 +39,23 @@ export class CoachFactConsentCache {
   async write(accountId: string | null, status: CoachFactConsentStatus): Promise<void> {
     if (!accountId?.trim()) return;
     const cached: CoachFactConsentCacheStatus = { ...status, refreshedAt: new Date().toISOString() };
-    await this.storage.setItem(keyFor(accountId), JSON.stringify(cached));
+    try {
+      // This is display-only cache state; server-side consent remains
+      // authoritative. A local storage failure must not surface as an
+      // unhandled promise rejection or alter that authority.
+      await this.storage.setItem(keyFor(accountId), JSON.stringify(cached));
+    } catch {
+      // Best-effort cache only.
+    }
   }
 
   async clear(accountId: string | null): Promise<void> {
     if (!accountId?.trim()) return;
-    await this.storage.removeItem(keyFor(accountId));
+    try {
+      await this.storage.removeItem(keyFor(accountId));
+    } catch {
+      // Best-effort cache only; no consent state is inferred locally.
+    }
   }
 }
 

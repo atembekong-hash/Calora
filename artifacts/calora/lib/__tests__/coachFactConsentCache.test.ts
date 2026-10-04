@@ -35,4 +35,15 @@ describe('CoachFactConsentCache', () => {
     CoachFactRequestLifecycle.invalidateAll();
     expect(lifecycle.canAccept(scope, context, { accountId: 'account-a', hydrationGeneration: 1 })).toBe(false);
   });
+
+  it('contains display-cache write and clear failures without inferring consent', async () => {
+    const storage = memoryStorage();
+    storage.setItem.mockRejectedValueOnce(new Error('storage unavailable'));
+    storage.removeItem.mockRejectedValueOnce(new Error('storage unavailable'));
+    const cache = new CoachFactConsentCache(storage);
+
+    await expect(cache.write('account-a', current)).resolves.toBeUndefined();
+    await expect(cache.clear('account-a')).resolves.toBeUndefined();
+    expect(await cache.read('account-a')).toBeNull();
+  });
 });

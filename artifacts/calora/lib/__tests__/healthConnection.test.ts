@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { needsActiveEnergyAuthorization, needsStepsAuthorization, normalizeHealthConnection } from '../healthConnection';
+import { needsActiveEnergyAuthorization, needsStepsAuthorization, normalizeHealthConnection, resolveAccountHealthProbe } from '../healthConnection';
 
 describe('normalizeHealthConnection', () => {
   it('does not trust a legacy connected flag without provider metadata', () => {
@@ -81,5 +81,13 @@ describe('normalizeHealthConnection', () => {
     expect(needsStepsAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['activeEnergy'] })).toBe(true);
     expect(needsStepsAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['steps'] })).toBe(false);
     expect(needsStepsAuthorization({ provider: 'healthkit', authorization: 'requested', granted: [] })).toBe(false);
+  });
+
+  it('requires each account to connect before device-wide Health permission is used', () => {
+    const provider = { provider: 'health-connect' as const, authorization: 'authorized' as const, granted: ['steps' as const] };
+    expect(resolveAccountHealthProbe({ provider: 'unsupported', authorization: 'unavailable', granted: [] }, provider))
+      .toEqual({ provider: 'health-connect', authorization: 'notConnected', granted: [] });
+    expect(resolveAccountHealthProbe({ provider: 'health-connect', authorization: 'authorized', granted: ['steps'] }, provider))
+      .toEqual(provider);
   });
 });

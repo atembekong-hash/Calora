@@ -22,6 +22,7 @@ import { useCalora } from '@/context/CaloraContext';
 import {
   isStarterLog,
   diaryLogSignature,
+  hasPermanentlyRejectedDiaryMutations,
   reconcileDiaryState,
   setDiarySyncAccountScope,
 } from '@/lib/diarySync';
@@ -95,7 +96,9 @@ export function useDiarySync() {
         // unsettled session IDs on a later sync or app launch.
         await syncCaptureApprovals(mergedLogs, accessTokenAtStart);
         if (!active) return;
-        setDiarySyncState('synced');
+        // A permanent conflict is deliberately retained locally, but it is not
+        // backed up. Never represent that account as fully synchronized.
+        setDiarySyncState(await hasPermanentlyRejectedDiaryMutations() ? 'needs-attention' : 'synced');
       } catch (err) {
         console.warn('[diary-sync] background sync failed', err);
         setDiarySyncState('needs-connection');

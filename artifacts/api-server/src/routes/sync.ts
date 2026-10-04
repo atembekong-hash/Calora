@@ -45,6 +45,7 @@ const MEALS = new Set(["Breakfast", "Lunch", "Dinner", "Snack"]);
 const PROVENANCE = new Set([
   "USDA verified",
   "Brand verified",
+  "Restaurant verified",
   "Barcode verified",
   "Photo estimate",
   "Manual",

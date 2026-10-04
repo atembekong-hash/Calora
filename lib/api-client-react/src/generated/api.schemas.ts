@@ -49,6 +49,29 @@ export const ProfileDiet = {
   High_protein: 'High protein',
 } as const;
 
+export type ProfileTargetMode = typeof ProfileTargetMode[keyof typeof ProfileTargetMode];
+
+
+export const ProfileTargetMode = {
+  automatic: 'automatic',
+  custom: 'custom',
+} as const;
+
+export type ProfileUnits = typeof ProfileUnits[keyof typeof ProfileUnits];
+
+
+export const ProfileUnits = {
+  metric: 'metric',
+  imperial: 'imperial',
+} as const;
+
+export type ProfileConsentVersion = typeof ProfileConsentVersion[keyof typeof ProfileConsentVersion];
+
+
+export const ProfileConsentVersion = {
+  'calora-onboarding-v1': 'calora-onboarding-v1',
+} as const;
+
 export interface Profile {
   /**
      * @minLength 1
@@ -83,8 +106,24 @@ export interface Profile {
      * @maximum 10000
      */
   calorieTarget: number;
-  /** @minLength 1 */
-  consentVersion: string;
+  targetMode: ProfileTargetMode;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  proteinTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  carbsTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  fatTargetGrams?: number | null;
+  units: ProfileUnits;
+  consentVersion: ProfileConsentVersion;
   updatedAt: string;
 }
 
@@ -114,6 +153,29 @@ export const ProfileInputDiet = {
   Vegetarian: 'Vegetarian',
   Vegan: 'Vegan',
   High_protein: 'High protein',
+} as const;
+
+export type ProfileInputTargetMode = typeof ProfileInputTargetMode[keyof typeof ProfileInputTargetMode];
+
+
+export const ProfileInputTargetMode = {
+  automatic: 'automatic',
+  custom: 'custom',
+} as const;
+
+export type ProfileInputUnits = typeof ProfileInputUnits[keyof typeof ProfileInputUnits];
+
+
+export const ProfileInputUnits = {
+  metric: 'metric',
+  imperial: 'imperial',
+} as const;
+
+export type ProfileInputConsentVersion = typeof ProfileInputConsentVersion[keyof typeof ProfileInputConsentVersion];
+
+
+export const ProfileInputConsentVersion = {
+  'calora-onboarding-v1': 'calora-onboarding-v1',
 } as const;
 
 export interface ProfileInput {
@@ -150,8 +212,24 @@ export interface ProfileInput {
      * @maximum 10000
      */
   calorieTarget: number;
-  /** @minLength 1 */
-  consentVersion: string;
+  targetMode?: ProfileInputTargetMode;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  proteinTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  carbsTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  fatTargetGrams?: number | null;
+  units?: ProfileInputUnits;
+  consentVersion: ProfileInputConsentVersion;
 }
 
 export interface Provenance {
@@ -261,6 +339,7 @@ export type DiaryEntryInputProvenance = typeof DiaryEntryInputProvenance[keyof t
 export const DiaryEntryInputProvenance = {
   USDA_verified: 'USDA verified',
   Brand_verified: 'Brand verified',
+  Restaurant_verified: 'Restaurant verified',
   Barcode_verified: 'Barcode verified',
   Photo_estimate: 'Photo estimate',
   Manual: 'Manual',
@@ -416,6 +495,7 @@ export type SyncDiaryRecordProvenance = typeof SyncDiaryRecordProvenance[keyof t
 export const SyncDiaryRecordProvenance = {
   USDA_verified: 'USDA verified',
   Brand_verified: 'Brand verified',
+  Restaurant_verified: 'Restaurant verified',
   Barcode_verified: 'Barcode verified',
   Photo_estimate: 'Photo estimate',
   Manual: 'Manual',
@@ -1042,6 +1122,7 @@ export interface RecipeMedia {
   clientRecipeId: string;
   /** @pattern ^[0-9a-f]{64}$ */
   contentHash: string;
+  recipePayload: RecipePhotoGenerateInput;
   /** @nullable */
   imageId: string | null;
   imageUrl?: string;

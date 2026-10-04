@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-native', () => {
@@ -97,7 +97,7 @@ describe('ConfirmedDeletionControl', () => {
     expect(screen.getByRole('button', { name: 'Delete edited entry' })).toBeTruthy();
   });
 
-  it('deletes exactly once only after the explicit confirmation action', () => {
+  it('deletes exactly once only after the explicit confirmation action', async () => {
     const onConfirm = renderControl();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete edited entry' }));
@@ -105,6 +105,19 @@ describe('ConfirmedDeletionControl', () => {
     fireEvent.click(confirmButton);
     fireEvent.click(confirmButton);
 
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the entry visible and offers retry when durable deletion recording fails', async () => {
+    const onConfirm = renderControl(vi.fn(async () => false));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete edited entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm entry deletion' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/couldn't save this deletion safely/i)).toBeTruthy();
+    });
     expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Confirm entry deletion' })).toBeTruthy();
   });
 });

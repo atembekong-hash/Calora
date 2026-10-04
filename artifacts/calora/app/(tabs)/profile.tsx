@@ -95,6 +95,7 @@ export default function ProfileScreen() {
   const {
     colors, themePreference, setThemePreference,
     profile, onboardingComplete, onboardingStep, onboardingDraft, updateProfile,
+    profileSyncError, retryProfileSync,
     healthConnected, healthConnection, connectHealth, openHealthSettings, syncHealth, disconnectHealth,
     dailyStepGoal, setDailyStepGoal,
     exportData, clearAllData, isClearing, syncState,
@@ -862,6 +863,22 @@ export default function ProfileScreen() {
             >
         <View style={tab === 'you' ? undefined : styles.hiddenSection}>
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
+        {profileSyncError && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry profile synchronization"
+            testID="retry-profile-synchronization"
+            onPress={retryProfileSync}
+            style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          >
+            <Feather name="cloud-off" size={14} color={colors.destructive} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.notificationSettingsButtonText, { color: colors.foreground }]}>Profile changes are saved on this device</Text>
+              <Text style={[styles.settingBody, { color: colors.mutedForeground }]} numberOfLines={2}>{profileSyncError}</Text>
+            </View>
+            <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Retry</Text>
+          </Pressable>
+        )}
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 2)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
@@ -1389,7 +1406,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {[
-          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · managed profile photo embedded when available · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
+          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · managed profile photo embedded when available · ${syncState === 'needs-attention' ? 'backup needs attention' : syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
            { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove local diary, profile, wellness, health snapshot, and saved data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },

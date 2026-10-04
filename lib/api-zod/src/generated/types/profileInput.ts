@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProfileInputActivity } from './profileInputActivity';
+import type { ProfileInputConsentVersion } from './profileInputConsentVersion';
 import type { ProfileInputDiet } from './profileInputDiet';
 import type { ProfileInputGoal } from './profileInputGoal';
+import type { ProfileInputTargetMode } from './profileInputTargetMode';
+import type { ProfileInputUnits } from './profileInputUnits';
 
 export interface ProfileInput {
   /**
@@ -43,6 +46,22 @@ export interface ProfileInput {
      * @maximum 10000
      */
   calorieTarget: number;
-  /** @minLength 1 */
-  consentVersion: string;
+  targetMode?: ProfileInputTargetMode;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  proteinTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  carbsTargetGrams?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  fatTargetGrams?: number | null;
+  units?: ProfileInputUnits;
+  consentVersion: ProfileInputConsentVersion;
 }

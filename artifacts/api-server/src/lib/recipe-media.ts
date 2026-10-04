@@ -45,6 +45,8 @@ export type RecipeMediaResource = {
   mediaId: string;
   clientRecipeId: string;
   contentHash: string;
+  /** Owner-scoped recipe semantics needed to restore a generated recipe on a new device. */
+  recipePayload: RecipePhotoInput;
   imageId: string | null;
   imageUrl?: string;
   imageUrlExpiresAt?: string;
@@ -158,6 +160,7 @@ export function toRecipeMediaResource(row: RecipeMediaRow, locator?: { imageUrl:
     mediaId: row.id,
     clientRecipeId: row.client_recipe_id,
     contentHash: row.content_hash,
+    recipePayload: row.recipe_payload,
     imageId: row.image_id,
     ...(locator ?? {}),
     modelVersion: row.model_version,

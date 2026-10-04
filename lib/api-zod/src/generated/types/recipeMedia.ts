@@ -7,12 +7,14 @@
  */
 import type { RecipeMediaSemanticReviewState } from './recipeMediaSemanticReviewState';
 import type { RecipeMediaStatus } from './recipeMediaStatus';
+import type { RecipePhotoGenerateInput } from './recipePhotoGenerateInput';
 
 export interface RecipeMedia {
   mediaId: string;
   clientRecipeId: string;
   /** @pattern ^[0-9a-f]{64}$ */
   contentHash: string;
+  recipePayload: RecipePhotoGenerateInput;
   /** @nullable */
   imageId: string | null;
   imageUrl?: string;

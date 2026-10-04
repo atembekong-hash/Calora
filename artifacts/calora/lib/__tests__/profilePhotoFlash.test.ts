@@ -1170,6 +1170,11 @@ describe('real CaloraProvider — account switch during hydration', () => {
     const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue({
       ...ACCOUNT_PROFILE,
       consentVersion: 'calora-onboarding-v1',
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
       updatedAt: new Date().toISOString(),
     });
     const scopedWrapper = ({ children }: { children: ReactNode }) =>
@@ -1187,10 +1192,91 @@ describe('real CaloraProvider — account switch during hydration', () => {
     expect(handle.result.current.profileSyncReady).toBe(true);
   });
 
+  it('synchronizes a later authenticated profile edit after onboarding', async () => {
+    const remoteProfile = {
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1' as const,
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
+      updatedAt: new Date().toISOString(),
+    };
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue(remoteProfile);
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      handle.result.current.updateProfile({
+        targetMode: 'custom',
+        proteinTargetGrams: 140,
+        carbsTargetGrams: 180,
+        fatTargetGrams: 60,
+        units: 'imperial',
+      });
+    });
+
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(2));
+    expect(saveRemoteProfile).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        targetMode: 'custom',
+        proteinTargetGrams: 140,
+        carbsTargetGrams: 180,
+        fatTargetGrams: 60,
+        units: 'imperial',
+      }),
+      expect.objectContaining({ accountId: 'user-a', signal: expect.any(AbortSignal) }),
+    );
+    expect(handle.result.current.profileSyncError).toBeNull();
+  });
+
+  it('keeps a later profile edit locally and retries it after a remote failure', async () => {
+    const remoteProfile = {
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1' as const,
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
+      updatedAt: new Date().toISOString(),
+    };
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile')
+      .mockResolvedValueOnce(remoteProfile)
+      .mockRejectedValueOnce(new Error('profile edit sync unavailable'))
+      .mockResolvedValueOnce({ ...remoteProfile, units: 'imperial' as const });
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(1));
+    await act(async () => { handle.result.current.updateProfile({ units: 'imperial' }); });
+
+    await waitFor(() => expect(handle.result.current.profileSyncError).toBe('profile edit sync unavailable'));
+    expect(handle.result.current.profile?.units).toBe('imperial');
+
+    await act(async () => { handle.result.current.retryProfileSync(); });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(3));
+    expect(handle.result.current.profileSyncError).toBeNull();
+  });
+
   it('does not persist a guest onboarding profile remotely', async () => {
     const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue({
       ...ACCOUNT_PROFILE,
       consentVersion: 'calora-onboarding-v1',
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
       updatedAt: new Date().toISOString(),
     });
     const handle = renderHook(() => useCalora(), { wrapper });
@@ -1208,6 +1294,11 @@ describe('real CaloraProvider — account switch during hydration', () => {
       .mockResolvedValue({
         ...ACCOUNT_PROFILE,
         consentVersion: 'calora-onboarding-v1',
+        targetMode: 'custom' as const,
+        proteinTargetGrams: null,
+        carbsTargetGrams: null,
+        fatTargetGrams: null,
+        units: 'metric' as const,
         updatedAt: new Date().toISOString(),
       });
     const scopedWrapper = ({ children }: { children: ReactNode }) =>

@@ -1064,7 +1064,7 @@ components:
           enum: [ok, unavailable]
     Profile:
       type: object
-      required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, consentVersion, updatedAt]
+      required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, targetMode, units, consentVersion, updatedAt]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
         goal: { type: string, enum: [lose, maintain, gain] }
@@ -1075,7 +1075,12 @@ components:
         weightKg: { type: number, minimum: 25, maximum: 500 }
         targetWeightKg: { type: number, minimum: 25, maximum: 500 }
         calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
-        consentVersion: { type: string, minLength: 1 }
+        targetMode: { type: string, enum: [automatic, custom] }
+        proteinTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        carbsTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        fatTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        units: { type: string, enum: [metric, imperial] }
+        consentVersion: { type: string, enum: [calora-onboarding-v1] }
         updatedAt: { type: string, format: date-time }
     ProfileInput:
       type: object
@@ -1090,7 +1095,12 @@ components:
         weightKg: { type: number, minimum: 25, maximum: 500 }
         targetWeightKg: { type: number, minimum: 25, maximum: 500 }
         calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
-        consentVersion: { type: string, minLength: 1 }
+        targetMode: { type: string, enum: [automatic, custom] }
+        proteinTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        carbsTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        fatTargetGrams: { type: integer, minimum: 0, maximum: 1000, nullable: true }
+        units: { type: string, enum: [metric, imperial] }
+        consentVersion: { type: string, enum: [calora-onboarding-v1] }
     Provenance:
       type: object
       required: [source, verifiedAt, correctionVersion]
@@ -1157,7 +1167,7 @@ components:
         proteinG: { type: number, minimum: 0 }
         carbsG: { type: number, minimum: 0 }
         fatG: { type: number, minimum: 0 }
-        provenance: { type: string, enum: ["USDA verified", "Brand verified", "Barcode verified", "Photo estimate", Manual, Recipe] }
+        provenance: { type: string, enum: ["USDA verified", "Brand verified", "Restaurant verified", "Barcode verified", "Photo estimate", Manual, Recipe] }
         confidence: { type: integer, minimum: 0, maximum: 100 }
         clientUpdatedAt: { type: string, format: date-time }
         notes: { type: string, nullable: true }
@@ -1246,7 +1256,7 @@ components:
         proteinG: { type: number, minimum: 0 }
         carbsG: { type: number, minimum: 0 }
         fatG: { type: number, minimum: 0 }
-        provenance: { type: string, enum: [USDA verified, Brand verified, Barcode verified, Photo estimate, Manual, Recipe] }
+        provenance: { type: string, enum: [USDA verified, Brand verified, Restaurant verified, Barcode verified, Photo estimate, Manual, Recipe] }
         confidence: { type: integer, minimum: 0, maximum: 100 }
         notes: { type: string, nullable: true }
         imageUrl: { type: string, nullable: true }
@@ -1473,11 +1483,12 @@ components:
         imageId: { type: string, format: uuid }
     RecipeMedia:
       type: object
-      required: [mediaId, clientRecipeId, contentHash, imageId, modelVersion, promptVersion, status, semanticReviewState, attempts, createdAt, updatedAt]
+      required: [mediaId, clientRecipeId, contentHash, recipePayload, imageId, modelVersion, promptVersion, status, semanticReviewState, attempts, createdAt, updatedAt]
       properties:
         mediaId: { type: string, format: uuid }
         clientRecipeId: { type: string }
         contentHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        recipePayload: { $ref: "#/components/schemas/RecipePhotoGenerateInput" }
         imageId: { type: [string, "null"], format: uuid }
         imageUrl: { type: string, format: uri }
         imageUrlExpiresAt: { type: string, format: date-time }

@@ -12,6 +12,7 @@ export type SyncDiaryRecordProvenance = typeof SyncDiaryRecordProvenance[keyof t
 export const SyncDiaryRecordProvenance = {
   USDA_verified: 'USDA verified',
   Brand_verified: 'Brand verified',
+  Restaurant_verified: 'Restaurant verified',
   Barcode_verified: 'Barcode verified',
   Photo_estimate: 'Photo estimate',
   Manual: 'Manual',

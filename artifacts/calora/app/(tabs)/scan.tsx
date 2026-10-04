@@ -26,7 +26,7 @@ import { captureFlowReducer, classifyCaptureError, initialCaptureFlowState, inte
 import { CAPTURE_ANALYSIS_TIMEOUT_MS, CAPTURE_CAMERA_TIMEOUT_MS, CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS, withCaptureDeadline } from '@/lib/captureDeadline';
 import { prepareCaptureImage } from '@/lib/prepareCaptureImage';
 import { requestAuthenticatedCaptureAnalysis } from '@/lib/captureRequest';
-
+import { deleteOwnedCaptureArtifacts } from '@/lib/captureArtifactCleanup';
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
 
@@ -235,6 +235,7 @@ export default function ScanScreen() {
   const voiceCaptureInFlight = useRef(false);
   const voiceLaunchRequested = useRef(false);
   const voicePendingAfterCameraPermission = useRef(false);
+  const ownedCaptureArtifactsRef = useRef(new Set<string>());
   const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
   const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
   const captureBusy = isCaptureBusy(captureFlow);
@@ -246,6 +247,8 @@ export default function ScanScreen() {
       captureOperationIdRef.current += 1;
       captureAbortRef.current?.abort();
       captureAbortRef.current = null;
+      void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
+      ownedCaptureArtifactsRef.current.clear();
     };
   }, []);
 
@@ -417,8 +420,9 @@ export default function ScanScreen() {
 
     voiceCaptureInFlight.current = true;
     const recordVoice = async () => {
+      let recording: { uri?: string } | null = null;
       try {
-        const recording = await camera.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 });
+        recording = (await camera.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 })) ?? null;
         if (!recording?.uri) {
           setAltCaptureBanner('No recording was captured. Try again, or type your meal description instead.');
           return;
@@ -439,6 +443,7 @@ export default function ScanScreen() {
         setHasScanned(false);
         setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
       } finally {
+        if (recording?.uri) void deleteOwnedCaptureArtifacts(FileSystem, [recording.uri]);
         voiceCaptureInFlight.current = false;
         setVoiceRecording(false);
         setCameraMode('picture');
@@ -560,6 +565,7 @@ export default function ScanScreen() {
       );
       if (!isCurrentOperation(operationId)) return;
       if (!photo?.uri) throw cameraError(`${BRAND.name} did not receive a photo from the camera. Retake it or choose one from your library.`);
+      ownedCaptureArtifactsRef.current.add(photo.uri);
       setCapturedPhotoUri(photo.uri);
       const prepared = await withCaptureDeadline(
         () => prepareCaptureImage({
@@ -572,11 +578,16 @@ export default function ScanScreen() {
         CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS,
       );
       if (!isCurrentOperation(operationId)) return;
+      ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
       const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food';
       await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
+    } finally {
+      void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
+      ownedCaptureArtifactsRef.current.clear();
+      if (isCurrentOperation(operationId)) setCapturedPhotoUri(null);
     }
   };
 
@@ -601,11 +612,18 @@ export default function ScanScreen() {
         CAPTURE_IMAGE_PREPARATION_TIMEOUT_MS,
       );
       if (!isCurrentOperation(operationId)) return;
+      // The prepared output is Calora's cache file. The selected library URI
+      // belongs to the user and is deliberately never deleted.
+      ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
       const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food');
       await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
+    } finally {
+      void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
+      ownedCaptureArtifactsRef.current.clear();
+      if (isCurrentOperation(operationId)) setCapturedPhotoUri(null);
     }
   };
 

@@ -257,6 +257,11 @@ export async function loadPermanentlyRejectedKeys(): Promise<Set<string>> {
   return _permanentlyRejectedKeys;
 }
 
+/** True when this account retains at least one server-rejected diary mutation locally. */
+export async function hasPermanentlyRejectedDiaryMutations(): Promise<boolean> {
+  return (await loadPermanentlyRejectedKeys()).size > 0;
+}
+
 async function persistPermanentlyRejectedKeys(): Promise<void> {
   if (!_permanentlyRejectedKeys) return;
   const generation = accountScopeGeneration;
@@ -513,23 +518,38 @@ async function ensurePendingDeletesLoaded(): Promise<void> {
   if (generation === accountScopeGeneration) pendingDeletesLoaded = true;
 }
 
-async function persistPendingDeletes(): Promise<void> {
+async function persistPendingDeletes(): Promise<boolean> {
   const generation = accountScopeGeneration;
   const key = scopedKey(PENDING_DELETES_KEY);
   try {
-    if (generation !== accountScopeGeneration) return;
+    if (generation !== accountScopeGeneration) return false;
     await diarySyncStorage.setItem(key, JSON.stringify([...pendingDeletes]));
+    return generation === accountScopeGeneration;
   } catch {
-    // In-memory tombstones still protect the current session.
+    // A caller that is about to remove local content must keep the item in
+    // place until this durable write succeeds. In-memory-only tombstones are
+    // insufficient across an interruption or process death.
+    return false;
   }
 }
 
-/** Capture delete time immediately, rather than when connectivity returns. */
-export function recordDiaryDelete(logId: string, clientUpdatedAt = new Date().toISOString()): void {
+/**
+ * Durably record a delete intent before any local diary state disappears.
+ * Returning false means the caller must preserve the local item and offer a
+ * retry rather than risk converting an interruption into an unrecoverable
+ * remote/local divergence.
+ */
+export async function recordDiaryDelete(
+  logId: string,
+  clientUpdatedAt = new Date().toISOString(),
+): Promise<boolean> {
+  const generation = accountScopeGeneration;
+  await ensurePendingDeletesLoaded();
+  if (generation !== accountScopeGeneration) return false;
   if (!pendingDeletes.has(logId)) {
     pendingDeletes.set(logId, { mutationId: generateUUID(), clientUpdatedAt });
-    void persistPendingDeletes();
   }
+  return persistPendingDeletes();
 }
 
 type ServerDiaryRecord = {
@@ -724,8 +744,9 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
       !sessionQuarantinedKeys.has(`del:${id}`),
   );
   if (toDelete.length === 0) return;
-  for (const id of toDelete) recordDiaryDelete(id);
-  await persistPendingDeletes();
+  for (const id of toDelete) {
+    if (!(await recordDiaryDelete(id))) return;
+  }
 
   deleteInFlight = true;
   try {

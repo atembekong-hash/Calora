@@ -7,6 +7,7 @@ import {
   isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
+  restoredRecipeFromMedia,
   type GeneratedRecipeImageCandidate,
 } from '../generatedRecipeImageLifecycle';
 
@@ -119,6 +120,27 @@ describe('generated recipe image renewal decision', () => {
 });
 
 describe('generated recipe image renewal service', () => {
+  it('restores only an owner media payload with the matching stable recipe ID', () => {
+    const restored = restoredRecipeFromMedia({
+      mediaId: 'media-7', clientRecipeId: 'recipe-7', contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
+      imageUrl: 'https://storage.example/signed.png', imageUrlExpiresAt: '2026-10-01T00:00:00.000Z',
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'url_ready', semanticReviewState: 'needs_review', attempts: 1,
+      createdAt: '2026-09-30T00:00:00.000Z', updatedAt: '2026-09-30T00:00:00.000Z',
+      recipePayload: {
+        clientRecipeId: 'recipe-7', title: 'Restored lentil bowl', description: 'A warm bowl.', ingredients: ['Lentils'],
+        instructions: ['Cook lentils.'], dietaryContext: ['vegetarian'], cuisine: 'Mediterranean', category: 'Dinner', mealType: 'dinner',
+      },
+    });
+    expect(restored).toMatchObject({ id: 'recipe-7', name: 'Restored lentil bowl', sourceType: 'calora_ai', imageMediaId: 'media-7', imageProvenance: 'generated' });
+
+    expect(restoredRecipeFromMedia({
+      mediaId: 'media-7', clientRecipeId: 'recipe-7', contentHash: 'a'.repeat(64), imageId: null,
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'generating', semanticReviewState: 'needs_review', attempts: 1,
+      createdAt: '2026-09-30T00:00:00.000Z', updatedAt: '2026-09-30T00:00:00.000Z',
+      recipePayload: { clientRecipeId: 'other-recipe', title: 'Wrong owner link', description: '', ingredients: ['x'], instructions: ['x'], dietaryContext: [] },
+    })).toBeNull();
+  });
+
   it('updates the same recipe with only a renewed signed locator and explicit ready state', async () => {
     const updateRecipe = vi.fn();
     const requestPhotoUrl = vi.fn().mockResolvedValue({
