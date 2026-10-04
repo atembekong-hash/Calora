@@ -222,6 +222,77 @@ describe("foreground live-step lifecycle", () => {
     expect(handle.result.current.liveStepTracking.status).toBe("syncing");
   });
 
+  it("subscribes to native movement before a slow provider aggregate resolves", async () => {
+    health.connection = {
+      provider: "healthkit",
+      authorization: "authorized",
+      granted: ["steps"],
+    };
+    health.snapshot = {
+      syncedAt: "2026-09-26T09:00:00.000Z",
+      steps: 1_000,
+      activeEnergyKcal: null,
+      workouts: [],
+      weights: [],
+    };
+    let finishSync: (() => void) | undefined;
+    health.service.sync.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finishSync = () => resolve(health.snapshot);
+      }),
+    );
+    const handle = await renderAndAwaitHydration();
+
+    await act(async () => {
+      handle.result.current.setLiveStepsDashboardFocused(true);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(health.service.sync).toHaveBeenCalledTimes(1);
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      motion.emit(1);
+    });
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1);
+
+    await act(async () => {
+      finishSync?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(handle.result.current.liveStepTracking.providerSteps).toBe(1_000);
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_000);
+
+    await act(async () => {
+      motion.emit(2);
+    });
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_001);
+  });
+
+  it("queues a single celebration per crossed live thousand without duplicates", async () => {
+    const handle = await renderAndAwaitHydration();
+    await focusDashboard(handle);
+
+    await act(async () => {
+      motion.emit(999);
+      motion.emit(1_002);
+    });
+    expect(handle.result.current.liveStepMilestones).toEqual([1_000]);
+
+    await act(async () => {
+      motion.emit(2_002);
+      motion.emit(2_002);
+    });
+    expect(handle.result.current.liveStepMilestones).toEqual([1_000, 2_000]);
+
+    await act(async () => {
+      handle.result.current.dismissLiveStepMilestone(1_000);
+    });
+    expect(handle.result.current.liveStepMilestones).toEqual([2_000]);
+  });
+
   it("opens app settings after permanent motion denial instead of requesting permission again", async () => {
     motion.capability = { available: true, permission: "denied" };
     const handle = await renderAndAwaitHydration();
@@ -238,6 +309,32 @@ describe("foreground live-step lifecycle", () => {
     });
     expect(motion.openSettings).toHaveBeenCalledTimes(1);
     expect(motion.service.watchSteps).not.toHaveBeenCalled();
+  });
+
+  it("keeps a confirmed Health total when live motion is unavailable", async () => {
+    health.connection = {
+      provider: "healthkit",
+      authorization: "authorized",
+      granted: ["steps"],
+    };
+    health.snapshot = {
+      syncedAt: "2026-09-26T09:00:00.000Z",
+      steps: 1_000,
+      activeEnergyKcal: null,
+      workouts: [],
+      weights: [],
+    };
+    motion.capability = { available: true, permission: "denied" };
+    const handle = await renderAndAwaitHydration();
+
+    await act(async () => {
+      handle.result.current.setLiveStepsDashboardFocused(true);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(handle.result.current.liveStepTracking.status).toBe("denied");
+    expect(handle.result.current.liveStepTracking.providerSteps).toBe(1_000);
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(1_000);
   });
 
   it("restarts the foreground listener when a native counter resets", async () => {
