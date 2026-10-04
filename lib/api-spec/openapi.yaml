@@ -490,8 +490,6 @@ paths:
               schema: { $ref: "#/components/schemas/PremiumRecipeList" }
         "401":
           description: A signed-in Calora account is required
-        "403":
-          description: An active Calora Premium entitlement is required
         "429":
           description: Premium recipe quota exceeded
         "503":
@@ -515,8 +513,6 @@ paths:
               schema: { $ref: "#/components/schemas/PremiumRecipe" }
         "401":
           description: A signed-in Calora account is required
-        "403":
-          description: An active Calora Premium entitlement is required
         "429":
           description: Premium recipe quota exceeded
         "503":

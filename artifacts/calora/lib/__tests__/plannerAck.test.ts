@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { consumePlannerAck, consumeUndoSwap, type PlannerAck, type UndoSwap } from '@/lib/plannerAck';
-import { applySlotReplace } from '@/data/planner';
+import { applySlotReplace, plannerMealMoveAvailability } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 // ---------------------------------------------------------------------------
@@ -121,6 +121,24 @@ describe('consumePlannerAck — add → remove → focus sequence', () => {
 
     // clearAllData fires — plannerMeals is wiped.
     expect(consumePlannerAck(ack, [])).toBeNull();
+  });
+});
+
+describe('plannerMealMoveAvailability — truthful non-destructive move/copy admission', () => {
+  it('permits a move or copy only into a different empty slot', () => {
+    const meals = [makeMeal('source')];
+    expect(plannerMealMoveAvailability(meals, 'source', '2026-08-11')).toBe('available');
+  });
+
+  it('refuses an occupied destination rather than replacing its meal', () => {
+    const meals = [makeMeal('source'), { ...makeMeal('occupied'), day: '2026-08-11', meal: 'Dinner' as const }];
+    expect(plannerMealMoveAvailability(meals, 'source', '2026-08-11')).toBe('occupied');
+  });
+
+  it('identifies same-day and missing-meal no-ops explicitly', () => {
+    const meals = [makeMeal('source')];
+    expect(plannerMealMoveAvailability(meals, 'source', '2026-08-10')).toBe('same-day');
+    expect(plannerMealMoveAvailability(meals, 'missing', '2026-08-11')).toBe('missing');
   });
 });
 
