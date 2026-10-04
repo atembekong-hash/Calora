@@ -1606,7 +1606,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
 }
 
 export default function RecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, fontScale } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe, fontScale } = useCalora();
   const recipesHeaderImage = useHourlyHeaderImage('recipes');
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -1797,7 +1797,7 @@ export default function RecipesScreen() {
     setSelected(exactRecipe);
     router.setParams({ recipeName: undefined });
   }, [recipeId, recipeName, remoteRecipes]);
-  useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe });
+  useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe, restoreRecipe });
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
   const freshRemoteRecipes = useMemo(() => discoverFreshnessSession.order(remoteRecipes, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);

@@ -350,6 +350,21 @@ describe('POST /v1/diary', () => {
     expect(insertCalls).toHaveLength(0);
   });
 
+  it('accepts the Restaurant verified provenance emitted by the mobile client', async () => {
+    queueResults([
+      [{ id: USER_A_UUID }],
+      [diaryRow({ provenance: 'Restaurant verified' })],
+    ]);
+
+    const res = await request(buildApp())
+      .post('/v1/diary')
+      .send({ ...validDiaryBody, provenance: 'Restaurant verified' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.provenance).toBe('Restaurant verified');
+    expect(insertCalls).toHaveLength(1);
+  });
+
   it('accepts an empty body with 400, not a server crash', async () => {
     const res = await request(buildApp()).post('/v1/diary').send({});
     expect(res.status).toBe(400);

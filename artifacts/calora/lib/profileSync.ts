@@ -77,6 +77,11 @@ export function toProfileInput(profile: LocalProfile): ProfileInput {
     weightKg: profile.weightKg,
     targetWeightKg: profile.targetWeightKg,
     calorieTarget: profile.calorieTarget,
+    targetMode: profile.targetMode ?? 'custom',
+    proteinTargetGrams: profile.proteinTargetGrams ?? null,
+    carbsTargetGrams: profile.carbsTargetGrams ?? null,
+    fatTargetGrams: profile.fatTargetGrams ?? null,
+    units: profile.units ?? 'metric',
     consentVersion: ONBOARDING_CONSENT_VERSION,
   };
 }
@@ -101,7 +106,11 @@ export function mergeRemoteProfile(
     targetWeightKg: remote.targetWeightKg,
     age: remote.age,
     calorieTarget: remote.calorieTarget,
-    targetMode: local?.targetMode ?? 'custom',
+    targetMode: remote.targetMode,
+    proteinTargetGrams: remote.proteinTargetGrams ?? undefined,
+    carbsTargetGrams: remote.carbsTargetGrams ?? undefined,
+    fatTargetGrams: remote.fatTargetGrams ?? undefined,
+    units: remote.units,
   };
 }
 

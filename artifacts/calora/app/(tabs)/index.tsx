@@ -1195,10 +1195,11 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
           <ConfirmedDeletionControl
             key={log?.id ?? 'no-log'}
             itemName={name.trim() || log?.name || 'this entry'}
-            onConfirm={() => {
-              if (!log) return;
-              removeLog(log.id);
-              onClose();
+            onConfirm={async () => {
+              if (!log) return false;
+              const removed = await removeLog(log.id);
+              if (removed) onClose();
+              return removed;
             }}
             destructiveColor={colors.destructive}
             foregroundColor={colors.foreground}
@@ -2022,7 +2023,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
-          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved locally · sync pending' : syncState === 'local' ? 'Saved locally · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Verified core nutrition.'}</Text>
+          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-attention' ? 'Saved locally · backup needs attention' : syncState === 'needs-connection' ? 'Saved locally · sync pending' : syncState === 'local' ? 'Saved locally · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Verified core nutrition.'}</Text>
         </View>
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"

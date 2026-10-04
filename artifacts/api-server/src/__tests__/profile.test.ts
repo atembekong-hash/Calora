@@ -7,7 +7,7 @@ const { queued, dbMock } = vi.hoisted(() => {
 
   function chain() {
     const value: Record<string, unknown> = {};
-    for (const method of ['from', 'innerJoin', 'where', 'limit', 'values', 'set', 'returning', 'onConflictDoUpdate']) {
+    for (const method of ['from', 'innerJoin', 'where', 'limit', 'values', 'set', 'returning', 'onConflictDoUpdate', 'execute']) {
       value[method] = () => value;
     }
     value.then = (resolve: (rows: unknown[]) => void, reject: (error: unknown) => void) => {
@@ -18,15 +18,15 @@ const { queued, dbMock } = vi.hoisted(() => {
     return value;
   }
 
-  return {
-    queued,
-    dbMock: {
-      select: () => chain(),
-      insert: () => chain(),
-      update: () => chain(),
-      delete: () => chain(),
-    },
+  const dbMock = {
+    select: () => chain(),
+    insert: () => chain(),
+    update: () => chain(),
+    delete: () => chain(),
+    execute: () => chain(),
+    transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => callback(dbMock)),
   };
+  return { queued, dbMock };
 });
 
 vi.mock('@workspace/db', () => ({
@@ -41,6 +41,11 @@ vi.mock('@workspace/db', () => ({
     weightKg: 'profile.weight_kg',
     targetWeightKg: 'profile.target_weight_kg',
     calorieTarget: 'profile.calorie_target',
+    targetMode: 'profile.target_mode',
+    proteinTargetGrams: 'profile.protein_target_grams',
+    carbsTargetGrams: 'profile.carbs_target_grams',
+    fatTargetGrams: 'profile.fat_target_grams',
+    units: 'profile.units',
     consentVersion: 'profile.consent_version',
     consentAcceptedAt: 'profile.consent_accepted_at',
     updatedAt: 'profile.updated_at',
@@ -63,6 +68,7 @@ vi.mock('../lib/user-rows.js', () => ({
 
 vi.mock('drizzle-orm', () => ({
   eq: (left: unknown, right: unknown) => ({ left, right }),
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
 }));
 
 import profileRouter from '../routes/profile.js';
@@ -137,15 +143,21 @@ describe('profile persistence routes', () => {
     expect(ensureUserRow).toHaveBeenCalledWith('auth-user', 'alex@example.com');
   });
 
-  it('upserts onboarding and clears it for an explicit account reset', async () => {
-    queued.push([{ ...row, userId: 'internal-user' }], []);
+  it('upserts onboarding preferences and records the initial consent atomically', async () => {
+    queued.push([], [{ ...row, userId: 'internal-user', targetMode: 'automatic', proteinTargetGrams: 140, carbsTargetGrams: 180, fatTargetGrams: 60, units: 'imperial' }], [], []);
     const putResponse = await request(buildApp())
       .put('/v1/profile')
       .set('Authorization', 'Bearer token')
-      .send(input);
+      .send({ ...input, targetMode: 'automatic', proteinTargetGrams: 140, carbsTargetGrams: 180, fatTargetGrams: 60, units: 'imperial' });
 
     expect(putResponse.status).toBe(200);
-    expect(putResponse.body).toMatchObject({ name: 'Alex', consentVersion: 'calora-onboarding-v1' });
+    expect(putResponse.body).toMatchObject({
+      name: 'Alex',
+      consentVersion: 'calora-onboarding-v1',
+      targetMode: 'automatic',
+      proteinTargetGrams: 140,
+      units: 'imperial',
+    });
 
     queued.push([], []);
     const deleteResponse = await request(buildApp())
@@ -153,6 +165,16 @@ describe('profile persistence routes', () => {
       .set('Authorization', 'Bearer token');
 
     expect(deleteResponse.status).toBe(204);
+  });
+
+  it('rejects a forged onboarding consent version', async () => {
+    const response = await request(buildApp())
+      .put('/v1/profile')
+      .set('Authorization', 'Bearer token')
+      .send({ ...input, consentVersion: 'arbitrary-client-version' });
+
+    expect(response.status).toBe(400);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
   it('rejects unauthenticated profile access', async () => {

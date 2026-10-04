@@ -1123,6 +1123,13 @@ const ACCOUNT_DELETION_FENCE_CALL_SITES = [
     countSource: "builder default count",
   },
   {
+    file: "recipes.ts",
+    invocation:
+      'accountDeletionFenceSignal("/v1/recipes/media/:mediaId/retry")',
+    routes: ["/v1/recipes/media/:mediaId/retry"],
+    countSource: "builder default count",
+  },
+  {
     file: "referral.ts",
     invocation: 'accountDeletionFenceSignal("/v1/referral")',
     routes: ["/v1/referral"],

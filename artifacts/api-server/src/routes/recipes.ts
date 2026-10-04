@@ -573,11 +573,27 @@ router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to retry a recipe photo." });
   if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
-  const row = await retryOwnerRecipeMedia(user.id, req.params.mediaId);
-  if (!row) return res.status(409).json({ code: "recipe_media_not_retryable", message: "That recipe photo is not currently retryable." });
   try {
-    return res.json(await withRecipePhotoDeletionReadLock(user.id, () => generateClaimedRecipeMedia(user.id, row)));
-  } catch {
+    // Claiming a retry changes persistent media state. Acquire the same
+    // account-deletion read lock before that claim, not only before the
+    // subsequent provider call, so deletion and retry cannot interleave.
+    const generated = await withRecipePhotoDeletionReadLock(user.id, async () => {
+      const row = await retryOwnerRecipeMedia(user.id, req.params.mediaId);
+      if (!row) return null;
+      return generateClaimedRecipeMedia(user.id, row);
+    });
+    if (!generated) {
+      return res.status(409).json({ code: "recipe_media_not_retryable", message: "That recipe photo is not currently retryable." });
+    }
+    return res.json(generated);
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/recipes/media/:mediaId/retry"),
+        "Account deletion fence rejected recipe photo retry",
+      );
+      return res.status(503).json({ message: "Recipe photo retry is temporarily unavailable. Please try again shortly." });
+    }
     return res.status(502).json({ code: "recipe_photo_retryable", retryable: true, message: "Recipe photo generation is temporarily unavailable." });
   }
 });

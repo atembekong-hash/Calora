@@ -14,7 +14,7 @@ import {
 import { verifyProfilePhotoExists, deleteProfilePhoto, isManagedProfilePhotoUri } from '@/lib/profilePhotoStorage';
 import { buildExportPayload, readPortableProfilePhoto, readRawStorageData, type CaloraExportState } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot } from '@/lib/exportGap';
-import { normalizeHealthConnection } from '@/lib/healthConnection';
+import { normalizeHealthConnection, resolveAccountHealthProbe } from '@/lib/healthConnection';
 import { healthService } from '@/lib/health/healthService';
 import { EMPTY_HEALTH_CONNECTION, type HealthConnection, type HealthSnapshot } from '@/lib/health/types';
 import {
@@ -265,7 +265,7 @@ export type OnboardingDraft = {
   consent: boolean;
 };
 
-export type SyncState = 'offline' | 'local' | 'synced' | 'needs-connection';
+export type SyncState = 'offline' | 'local' | 'synced' | 'needs-connection' | 'needs-attention';
 export type OutboxMutation = {
   id: string;
   entity: 'profile' | 'diaryEntry' | 'weight' | 'savedMeal' | 'settings';
@@ -472,7 +472,8 @@ type CaloraContextValue = {
   deleteSavedMeal: (id: string) => void;
   addLog: (log: Omit<FoodLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<FoodLog>) => void;
-  removeLog: (id: string) => void;
+  /** Returns false when the durable deletion tombstone could not be stored. */
+  removeLog: (id: string) => Promise<boolean>;
   addWeight: (kg: number, source?: WeightEntry['source']) => void;
   removeWeight: (id: string) => void;
   updateWeight: (id: string, kg: number) => void;
@@ -482,6 +483,8 @@ type CaloraContextValue = {
   setActivityMinutes: (date: string, minutes: number) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
   saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => CaloraRecipe;
+  /** Restores a server-owned generated recipe using its stable client recipe ID. */
+  restoreRecipe: (recipe: CaloraRecipe) => void;
   updateRecipe: (recipeId: string, patch: Partial<Omit<CaloraRecipe, 'id'>>) => void;
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
@@ -715,6 +718,9 @@ export function CaloraProvider({
   const profileSyncEpochRef = useRef(0);
   const profileSyncAbortRef = useRef<AbortController | null>(null);
   const pendingProfileSyncRef = useRef<{ accountId: string; profile: LocalProfile; epoch: number } | null>(null);
+  // Monotonic within the mounted account scope. An older background PUT cannot
+  // clear the pending/error state for a newer local profile edit.
+  const profileEditSyncRevisionRef = useRef(0);
   const invalidateProfileSync = useCallback(() => {
     profileSyncEpochRef.current += 1;
     profileSyncAbortRef.current?.abort();
@@ -1009,6 +1015,28 @@ export function CaloraProvider({
     }
   }, []);
 
+  const persistProfileEdit = useCallback(async (nextProfile: LocalProfile, scope: string, epoch: number) => {
+    if (!scope || epoch !== profileSyncEpochRef.current) return;
+    const revision = profileEditSyncRevisionRef.current + 1;
+    profileEditSyncRevisionRef.current = revision;
+    profileSyncAbortRef.current?.abort();
+    const controller = new AbortController();
+    profileSyncAbortRef.current = controller;
+    pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
+    try {
+      await saveRemoteProfile(nextProfile, { accountId: scope, signal: controller.signal });
+      if (epoch !== profileSyncEpochRef.current || revision !== profileEditSyncRevisionRef.current) return;
+      pendingProfileSyncRef.current = null;
+      setProfileSyncError(null);
+    } catch (error) {
+      if (epoch !== profileSyncEpochRef.current || revision !== profileEditSyncRevisionRef.current) return;
+      pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
+      // The local snapshot remains available offline, but the UI must not imply
+      // that the account-level edit has reached another device.
+      setProfileSyncError(error instanceof Error ? error.message : 'Profile changes could not be synchronized.');
+    }
+  }, []);
+
   const retryProfileSync = useCallback(() => {
     if (hydrationError) {
       retryHydration();
@@ -1016,16 +1044,21 @@ export function CaloraProvider({
     }
     const pending = pendingProfileSyncRef.current;
     if (pending && pending.accountId === accountId) {
+      const wasReady = profileSyncReady;
       invalidateProfileSync();
       const epoch = profileSyncEpochRef.current;
-      const controller = new AbortController();
-      profileSyncAbortRef.current = controller;
       pendingProfileSyncRef.current = { ...pending, epoch };
-      void persistCompletedProfile(pending.profile, pending.accountId, epoch, controller.signal);
+      if (wasReady) {
+        void persistProfileEdit(pending.profile, pending.accountId, epoch);
+      } else {
+        const controller = new AbortController();
+        profileSyncAbortRef.current = controller;
+        void persistCompletedProfile(pending.profile, pending.accountId, epoch, controller.signal);
+      }
       return;
     }
     setProfileSyncAttempt((attempt) => attempt + 1);
-  }, [accountId, hydrationError, invalidateProfileSync, persistCompletedProfile, retryHydration]);
+  }, [accountId, hydrationError, invalidateProfileSync, persistCompletedProfile, persistProfileEdit, profileSyncReady, retryHydration]);
 
   useEffect(() => {
     invalidateProfileSync();
@@ -1172,6 +1205,12 @@ export function CaloraProvider({
   // values must be either memoized or added to this dep array.
   const syncHealth = useCallback(async (): Promise<HealthSyncOutcome> => {
     if (clearingRef.current) return { status: 'skipped', message: 'Health sync is temporarily unavailable while data is being cleared.' };
+    // Device-level authorization alone is not user consent for this Calora
+    // account. Keep a newly signed-in account disconnected until it explicitly
+    // invokes connectHealth, even if a different account already granted OS access.
+    if (!canSyncHealthConnection(healthConnectionRef.current)) {
+      return { status: 'skipped', message: 'Health access is not connected for this account.' };
+    }
     if (healthSyncPromiseRef.current) return healthSyncPromiseRef.current;
     const epoch = healthSyncEpochRef.current;
     const generationIsCurrent = () =>
@@ -1480,11 +1519,13 @@ export function CaloraProvider({
       const probeEpoch = healthSyncEpochRef.current;
       healthService.getConnection().then((conn) => {
         if (clearingRef.current || probeEpoch !== healthSyncEpochRef.current) return;
-        healthConnectionRef.current = conn;
-        patchExportSnapshot({ healthConnected: canSyncHealthConnection(conn), healthConnection: conn });
-        setHealthConnection(conn);
-        // If already authorized, trigger an initial sync to refresh data.
-        if (canSyncHealthConnection(conn)) {
+        const accountConnection = resolveAccountHealthProbe(healthConnectionRef.current, conn);
+        healthConnectionRef.current = accountConnection;
+        patchExportSnapshot({ healthConnected: canSyncHealthConnection(accountConnection), healthConnection: accountConnection });
+        setHealthConnection(accountConnection);
+        // Only a connection explicitly stored for this account may read native
+        // data. A device-wide provider grant from another account stays inert.
+        if (canSyncHealthConnection(accountConnection)) {
           void syncHealth();
         }
       }).catch((error) => {
@@ -1895,8 +1936,11 @@ export function CaloraProvider({
       queueMutation('diaryEntry', 'upsert');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
-    removeLog: (id) => {
-      recordDiaryDelete(id, new Date().toISOString());
+    removeLog: async (id) => {
+      // Preserve the visible item until the account-scoped tombstone is on
+      // disk. An interruption between hiding it and recording the intent
+      // would make a deliberate delete indistinguishable from lost state.
+      if (!(await recordDiaryDelete(id, new Date().toISOString()))) return false;
       logsRef.current = logsRef.current.filter((log) => log.id !== id);
       patchExportSnapshot({
         logs: logsRef.current,
@@ -1908,6 +1952,7 @@ export function CaloraProvider({
       setLivingMemory((current) => removeMealObservation(current, id));
       queueMutation('diaryEntry', 'delete');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
+      return true;
     },
     applySyncedDiaryLogs: (nextLogs) => {
       const normalizedNextLogs = nextLogs.map(normalizeFoodLogNutrition);
@@ -2144,6 +2189,15 @@ export function CaloraProvider({
       queueMutation('savedMeal', 'upsert');
       return saved;
     },
+    restoreRecipe: (recipe) => {
+      const restored = { ...recipe, isLocal: true };
+      updateExportField('localRecipes', (current) => {
+        const existing = current as CaloraRecipe[];
+        return existing.some((item) => item.id === restored.id) ? existing : [...existing, restored];
+      });
+      setLocalRecipes((current) => current.some((item) => item.id === restored.id) ? current : [...current, restored]);
+      queueMutation('savedMeal', 'upsert');
+    },
     updateRecipe: (recipeId, patch) => {
       const updatedAt = new Date().toISOString();
       updateExportField('localRecipes', (current) => (current as CaloraRecipe[]).map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt } : recipe));
@@ -2228,6 +2282,9 @@ export function CaloraProvider({
       // route change cannot make a newly visible name appear to disappear.
       if (exportSnapshotRef.current) enqueueAutosave(pm.current, exportSnapshotRef.current);
       queueMutation('profile', 'upsert');
+      if (accountId && nextProfile) {
+        void persistProfileEdit(nextProfile, accountId, profileSyncEpochRef.current);
+      }
     },
     hydrationReminders,
     coachConsentAccepted,
@@ -2601,7 +2658,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, dismissLiveStepMilestone, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, diarySyncState, dismissLiveStepMilestone, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

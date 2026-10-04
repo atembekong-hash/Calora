@@ -105,3 +105,26 @@ export function normalizeHealthConnection(value?: boolean | Partial<HealthConnec
     snapshot,
   };
 }
+
+/**
+ * Native Health permissions are device-wide, whereas Calora's decision to use
+ * them is account-scoped. A newly signed-in account must explicitly connect
+ * before a provider permission granted while another account was active can
+ * cause reads or populate an account-local snapshot.
+ */
+export function resolveAccountHealthProbe(
+  persisted: HealthConnection,
+  provider: HealthConnection,
+): HealthConnection {
+  const accountHasConnected = persisted.provider === provider.provider
+    && ['requested', 'authorized', 'partial'].includes(persisted.authorization);
+  if (accountHasConnected) return provider;
+  if (provider.provider === 'unsupported' || provider.authorization === 'unavailable') {
+    return { ...provider, granted: [], snapshot: undefined, lastSyncedAt: undefined };
+  }
+  return {
+    provider: provider.provider,
+    authorization: 'notConnected',
+    granted: [],
+  };
+}

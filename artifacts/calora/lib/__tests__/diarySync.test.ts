@@ -205,6 +205,21 @@ describe('diary sync encrypted persistence and lifecycle cleanup', () => {
 
     await expect(loadSyncedIds()).resolves.toEqual(new Set(['returning-history']));
   });
+
+  it('refuses a local deletion intent when its durable tombstone cannot be stored', async () => {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const { recordDiaryDelete } = await freshDiarySync();
+    vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('storage unavailable'));
+
+    await expect(recordDiaryDelete('must-remain-visible')).resolves.toBe(false);
+    vi.mocked(AsyncStorage.setItem).mockImplementation(async (key: string, value: string) => {
+      store[key] = value;
+    });
+    await expect(recordDiaryDelete('must-remain-visible')).resolves.toBe(true);
+    // The envelope is encrypted, so assert durable write behaviour rather than
+    // relying on plaintext marker content in the backing store.
+    expect(AsyncStorage.setItem).toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -266,6 +281,16 @@ describe('processSyncConflicts: permanent reasons persist to AsyncStorage', () =
       new Map([['mut-1', 'log-abc']]),
     );
     expect((await loadPermanentlyRejectedKeys()).has('log-abc')).toBe(true);
+  });
+
+  it('reports durable attention after a permanently rejected mutation', async () => {
+    const { processSyncConflicts, hasPermanentlyRejectedDiaryMutations } = await freshDiarySync();
+    expect(await hasPermanentlyRejectedDiaryMutations()).toBe(false);
+    await processSyncConflicts(
+      [{ mutationId: 'mut-attention', reason: 'validation_failed' }],
+      new Map([['mut-attention', 'log-attention']]),
+    );
+    expect(await hasPermanentlyRejectedDiaryMutations()).toBe(true);
   });
 
   it('writes unsupported_entity to the persistent store', async () => {

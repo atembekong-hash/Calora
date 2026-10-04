@@ -45,6 +45,7 @@ export type GeneratedRecipePhoto = {
   mediaId: string;
   clientRecipeId: string;
   contentHash: string;
+  recipePayload?: GeneratedRecipePhotoInput;
   imageId: string | null;
   imageUrl?: string;
   imageUrlExpiresAt?: string;

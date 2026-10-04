@@ -211,6 +211,57 @@ describe("AI recipe creation endpoints", () => {
     expect(payload).toMatchObject({ ingredients: ["lentils"], preferences: ["Vegan"] });
   });
 
+  it("acquires the account deletion read lock before claiming a recipe-photo retry", async () => {
+    const events: string[] = [];
+    photoLockQuery.mockImplementation(async () => {
+      events.push("lock");
+      return { rows: [] };
+    });
+    photoMediaQuery.mockImplementation(async () => {
+      events.push("media");
+      return { rows: [] };
+    });
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/retry")
+      .send({});
+
+    expect(response.status).toBe(409);
+    expect(events.slice(0, 2)).toEqual(["lock", "media"]);
+  });
+
+  it("does not claim retryable media when the deletion read lock cannot be acquired", async () => {
+    photoLockQuery.mockRejectedValueOnce(new Error("lock unavailable"));
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/retry")
+      .send({});
+
+    expect(response.status).toBe(502);
+    expect(photoMediaQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns a redacted 503 and does not claim media when deletion fencing rejects a retry", async () => {
+    assertAccountWritable.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+    });
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/retry")
+      .send({});
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      message: "Recipe photo retry is temporarily unavailable. Please try again shortly.",
+    });
+    expect(photoMediaQuery).not.toHaveBeenCalled();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/recipes/media/:mediaId/retry", count: 1 },
+      "Account deletion fence rejected recipe photo retry",
+    );
+  });
+
   it("rejects unknown, blank, or malformed documented inputs before model work", async () => {
     const [unknownField, blankIngredient, invalidNumber] = await Promise.all([
       request(app).post("/v1/recipes/guest-concepts").send({ request: "Dinner", profile: { email: "must-not-forward@example.com" } }),

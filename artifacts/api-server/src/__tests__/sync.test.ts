@@ -421,6 +421,17 @@ describe('POST /v1/sync', () => {
     expect(executeCalls).toHaveLength(2);
   });
 
+  it('accepts Restaurant verified provenance emitted by restaurant capture', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    const mutation = validUpsert({ provenance: 'Restaurant verified' }, randomUUID());
+
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toContain(mutation.mutationId);
+    expect(res.body.conflicts).toEqual([]);
+  });
+
   it('rolls back an upsert when recording its idempotency ledger entry fails', async () => {
     verifyBearerToken.mockResolvedValue(USER);
     failNextTransactionLedgerWrite.value = true;

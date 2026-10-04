@@ -5,7 +5,8 @@ import { ScalePressable } from '@/components/ScalePressable';
 
 export interface ConfirmedDeletionControlProps {
   itemName: string;
-  onConfirm: () => void;
+  /** Return false when the durable delete intent could not be saved. */
+  onConfirm: () => boolean | Promise<boolean>;
   destructiveColor: string;
   foregroundColor: string;
   mutedForegroundColor: string;
@@ -27,22 +28,39 @@ export function ConfirmedDeletionControl({
   borderColor,
 }: ConfirmedDeletionControlProps) {
   const [confirming, setConfirming] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const committedRef = useRef(false);
 
   const requestConfirmation = () => {
     committedRef.current = false;
+    setFailure(null);
     setConfirming(true);
   };
 
   const cancelConfirmation = () => {
     committedRef.current = false;
+    setFailure(null);
     setConfirming(false);
   };
 
-  const commitDeletion = () => {
+  const commitDeletion = async () => {
     if (committedRef.current) return;
     committedRef.current = true;
-    onConfirm();
+    setIsCommitting(true);
+    setFailure(null);
+    try {
+      const removed = await onConfirm();
+      if (removed === false) {
+        committedRef.current = false;
+        setFailure("Couldn't save this deletion safely. Please try again.");
+      }
+    } catch {
+      committedRef.current = false;
+      setFailure("Couldn't save this deletion safely. Please try again.");
+    } finally {
+      setIsCommitting(false);
+    }
   };
 
   if (!confirming) {
@@ -71,11 +89,13 @@ export function ConfirmedDeletionControl({
     >
       <Text style={[styles.confirmationTitle, { color: foregroundColor }]}>Delete this entry?</Text>
       <Text style={[styles.confirmationBody, { color: mutedForegroundColor }]}>This removes {itemName} from your diary. This action cannot be undone.</Text>
+      {failure ? <Text accessibilityRole="alert" style={[styles.confirmationFailure, { color: destructiveColor }]}>{failure}</Text> : null}
       <View style={styles.confirmationActions}>
         <ScalePressable
           accessibilityLabel="Cancel entry deletion"
           testID="cancel-delete-entry"
           onPress={cancelConfirmation}
+          disabled={isCommitting}
           scale={0.98}
           haptic="none"
           style={[styles.confirmationButton, { borderColor }]}
@@ -86,12 +106,13 @@ export function ConfirmedDeletionControl({
           accessibilityLabel="Confirm entry deletion"
           accessibilityHint="Permanently removes this diary entry"
           testID="confirm-delete-entry"
-          onPress={commitDeletion}
+          onPress={() => void commitDeletion()}
+          disabled={isCommitting}
           scale={0.96}
           haptic="medium"
           style={[styles.confirmationButton, { backgroundColor: destructiveColor, borderColor: destructiveColor }]}
         >
-          <Text style={[styles.confirmationButtonText, styles.confirmationButtonTextOnDestructive]}>Delete entry</Text>
+          <Text style={[styles.confirmationButtonText, styles.confirmationButtonTextOnDestructive]}>{isCommitting ? 'Saving…' : 'Delete entry'}</Text>
         </ScalePressable>
       </View>
     </View>
@@ -125,6 +146,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 5,
+  },
+  confirmationFailure: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
   },
   confirmationActions: {
     flexDirection: 'row',

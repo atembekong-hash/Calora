@@ -12,6 +12,7 @@ import {
   type GeneratedRecipePhotoInput,
   type RecipeMediaReviewState,
 } from '@/lib/recipeGeneration';
+import type { CaloraRecipe } from '@/context/CaloraContext';
 
 export const GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS = 60 * 60 * 1000;
 export const GENERATED_RECIPE_IMAGE_MAX_SCHEDULE_MS = 15 * 60 * 1000;
@@ -128,6 +129,33 @@ export function patchForRecipeMedia(photo: GeneratedRecipePhoto): GeneratedRecip
     imageErrorCode: photo.lastErrorCode ?? null,
     imageAttempts: photo.attempts,
     imageProvenance: 'generated',
+  };
+}
+
+/** Rebuild a minimal AI-estimated recipe only from an authenticated owner's persisted media payload. */
+export function restoredRecipeFromMedia(photo: GeneratedRecipePhoto): CaloraRecipe | null {
+  const payload = photo.recipePayload;
+  if (!payload?.clientRecipeId || payload.clientRecipeId !== photo.clientRecipeId || !payload.title) return null;
+  return {
+    id: photo.clientRecipeId,
+    name: payload.title,
+    description: payload.description,
+    ingredients: payload.ingredients,
+    instructions: payload.instructions.join('\n'),
+    tags: ['Calora AI', ...payload.dietaryContext],
+    area: payload.cuisine ?? null,
+    category: payload.category ?? null,
+    source: 'Calora AI',
+    sourceUrl: '',
+    sourceType: 'calora_ai',
+    sourceProvider: 'Calora AI',
+    nutritionConfidence: 'estimated',
+    nutritionSource: 'AI estimate',
+    nutritionNote: 'Restored recipe content. Review nutrition before logging.',
+    imageProvenance: 'generated',
+    ...patchForRecipeMedia(photo),
+    createdAt: photo.createdAt,
+    updatedAt: photo.updatedAt,
   };
 }
 
@@ -273,11 +301,12 @@ export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRe
   return delay;
 }
 
-export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecipe, renewalWindowMs }: {
-  accountId?: string | null; recipes: readonly GeneratedRecipeImageCandidate[]; updateRecipe: UpdateGeneratedRecipe; renewalWindowMs?: number;
+export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecipe, restoreRecipe, renewalWindowMs }: {
+  accountId?: string | null; recipes: readonly GeneratedRecipeImageCandidate[]; updateRecipe: UpdateGeneratedRecipe; restoreRecipe?: (recipe: CaloraRecipe) => void; renewalWindowMs?: number;
 }): void {
   const recipesRef = useRef(recipes); recipesRef.current = recipes;
   const updateRef = useRef(updateRecipe); updateRef.current = updateRecipe;
+  const restoreRef = useRef(restoreRecipe); restoreRef.current = restoreRecipe;
   const accountRef = useRef(accountId ?? null); accountRef.current = accountId ?? null;
   useEffect(() => {
     if (!accountId) return;
@@ -288,6 +317,11 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
         const recovered = await listGeneratedRecipeMedia();
         if (cancelled || accountRef.current !== currentAccount) return;
         const byRecipe = new Map(recovered.media.map((media) => [media.clientRecipeId, media]));
+        recovered.media.forEach((media) => {
+          if (recipesRef.current.some((recipe) => recipe.id === media.clientRecipeId)) return;
+          const restored = restoredRecipeFromMedia(media);
+          if (restored) restoreRef.current?.(restored);
+        });
         recipesRef.current.forEach((recipe) => {
           const media = byRecipe.get(recipe.id);
           if (!media) return;
