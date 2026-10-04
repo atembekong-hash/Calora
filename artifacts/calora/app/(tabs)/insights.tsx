@@ -26,6 +26,7 @@ import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/wee
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
+import { deriveWeeklyHealthTrend, deriveWeeklyWaterTrend } from '@/lib/progressTrends';
 import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -1122,6 +1123,7 @@ function ProgressLineGraph({
   color,
   valueFormatter,
   target,
+  emptyMessage = 'No data yet.',
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   title: string;
@@ -1130,6 +1132,7 @@ function ProgressLineGraph({
   color: string;
   valueFormatter: (value: number) => string;
   target?: { value: number; label: string };
+  emptyMessage?: string;
 }) {
   const [chartWidth, setChartWidth] = useState(320);
   const progress = useSharedValue(0);
@@ -1249,7 +1252,7 @@ function ProgressLineGraph({
         </Svg>
         {!hasData && (
           <View pointerEvents="none" style={styles.lineGraphEmpty}>
-            <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log a day to start your graph.</Text>
+            <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>{emptyMessage}</Text>
           </View>
         )}
       </View>
@@ -1275,7 +1278,7 @@ function ProgressLineGraph({
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
   const insightsHeaderImage = useHourlyHeaderImage('insights');
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
@@ -1285,6 +1288,11 @@ export default function InsightsScreen() {
   const healthActiveEnergyAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('activeEnergy')
     || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.activeEnergyKcal !== null)
+  );
+  const healthHistoryAvailable = Boolean(healthConnection.snapshot?.dailyMetrics?.length) && (
+    healthConnection.authorization === 'authorized'
+    || healthConnection.authorization === 'partial'
+    || healthConnection.authorization === 'requested'
   );
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -1607,6 +1615,18 @@ export default function InsightsScreen() {
     [remembered, target, todayKey, activityMinutesLogs],
   );
   const weekDays = weeklySignals.days;
+  const healthStepWeekPoints = useMemo(
+    () => deriveWeeklyHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'steps', todayKey),
+    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, todayKey],
+  );
+  const healthEnergyWeekPoints = useMemo(
+    () => deriveWeeklyHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'activeEnergyKcal', todayKey),
+    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, todayKey],
+  );
+  const waterWeekPoints = useMemo(
+    () => deriveWeeklyWaterTrend(remembered.waterLogs, todayKey),
+    [remembered.waterLogs, todayKey],
+  );
   const signalDays = weeklySignals.trackedDays;
   const averageWeekCalories = weeklySignals.averageCalories;
   const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
@@ -1841,7 +1861,54 @@ export default function InsightsScreen() {
           />
         </AnimatedReveal>
 
-        <AnimatedReveal delay={360}>
+        <View style={styles.healthTrendHeader}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement & hydration</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Daily totals across the last seven days.</Text>
+          </View>
+          <View accessibilityLabel="Seven-day range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
+          </View>
+        </View>
+
+        <AnimatedReveal delay={365}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Steps trend"
+            subtitle={healthConnection.provider === 'health-connect' ? 'Daily totals from Health Connect.' : healthConnection.provider === 'healthkit' ? 'Daily totals from Apple Health.' : 'Connect Health to show measured steps.'}
+            points={healthStepWeekPoints.map((day) => ({ label: day.label, value: day.value }))}
+            color={colors.primary}
+            valueFormatter={(value) => `${formatWhole(value)} steps`}
+            target={{ value: dailyStepGoal, label: 'Goal' }}
+            emptyMessage="Sync Health to show measured steps."
+          />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={380}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Calories burned"
+            subtitle={healthConnection.provider === 'health-connect' ? 'Active calories from Health Connect.' : healthConnection.provider === 'healthkit' ? 'Active calories from Apple Health.' : 'Connect Health to show active calories.'}
+            points={healthEnergyWeekPoints.map((day) => ({ label: day.label, value: day.value }))}
+            color={colors.warning}
+            valueFormatter={(value) => `${formatWhole(value)} kcal`}
+            emptyMessage="Sync Health to show active calories."
+          />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={395}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Water intake"
+            subtitle="Water you logged in Calora each day."
+            points={waterWeekPoints}
+            color="#5d8edb"
+            valueFormatter={(value) => `${formatWhole(value)} fl oz`}
+            emptyMessage="Log water to start your hydration graph."
+          />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={410}>
           <WeeklyPatternsCard colors={colors} days={weekDays} averageActivityMinutes={weeklySignals.averageActivityMinutes} />
         </AnimatedReveal>
 
@@ -2449,6 +2516,7 @@ function makeStyles(f: number) {
   lineGraphLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textAlign: 'center' },
   lineGraphLegend: { borderTopWidth: 1, marginTop: 12, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
   lineGraphTargetDot: { width: 7, height: 2, borderRadius: 1 },
+  healthTrendHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 2, marginBottom: 11 },
   nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
   nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
   nutrientDot: { width: 8, height: 8, borderRadius: 4 },

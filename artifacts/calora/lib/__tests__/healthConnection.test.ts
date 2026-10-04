@@ -47,6 +47,32 @@ describe('normalizeHealthConnection', () => {
     expect(invalid.syncError).toContain('invalid');
   });
 
+  it('preserves valid provider daily history while dropping malformed persisted points', () => {
+    const connection = normalizeHealthConnection({
+      provider: 'health-connect',
+      authorization: 'authorized',
+      granted: ['steps', 'activeEnergy'],
+      snapshot: {
+        syncedAt: '2026-08-30T12:00:00.000Z',
+        steps: 4200,
+        activeEnergyKcal: 310,
+        workouts: [],
+        weights: [],
+        dailyMetrics: [
+          { date: '2026-08-29', steps: 2100, activeEnergyKcal: 160 },
+          { date: 'invalid', steps: 999, activeEnergyKcal: 20 },
+          { date: '2026-08-30', steps: 4200, activeEnergyKcal: 310 },
+          { date: '2026-08-28', steps: -1, activeEnergyKcal: 150 },
+        ],
+      },
+    });
+
+    expect(connection.snapshot?.dailyMetrics).toEqual([
+      { date: '2026-08-29', steps: 2100, activeEnergyKcal: 160 },
+      { date: '2026-08-30', steps: 4200, activeEnergyKcal: 310 },
+    ]);
+  });
+
   it('identifies only missing Android partial-grant categories as updateable access', () => {
     expect(needsActiveEnergyAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['steps'] })).toBe(true);
     expect(needsActiveEnergyAuthorization({ provider: 'health-connect', authorization: 'partial', granted: ['activeEnergy'] })).toBe(false);
