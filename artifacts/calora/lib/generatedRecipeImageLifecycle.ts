@@ -71,7 +71,12 @@ function clientState(state: GeneratedRecipeImageCandidate['imageStatus']): Gener
  */
 export function isGeneratedRecipeImageCandidate(recipe: GeneratedRecipeImageCandidate): boolean {
   if (recipe.imageProvenance === 'provider') return false;
-  return recipe.isLocal === true && (recipe.imageProvenance === 'generated' || recipe.sourceType === 'calora_ai' || recipe.sourceType === 'user_created' || Boolean(recipe.imageId));
+  if (recipe.isLocal !== true) return false;
+  if (recipe.imageProvenance === 'generated' || recipe.sourceType === 'calora_ai' || Boolean(recipe.imageId)) return true;
+  // Personal recipes can be created without instructions. Those records cannot
+  // produce the server-owned photo payload and must use the ordinary fallback,
+  // rather than remaining indefinitely in a generated-media pending state.
+  return recipe.sourceType === 'user_created' && Boolean(recipePhotoPayload(recipe));
 }
 
 function generated(recipe: GeneratedRecipeImageCandidate): boolean {

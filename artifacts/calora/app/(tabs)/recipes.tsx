@@ -1593,7 +1593,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
         category: 'Personal',
         area: null,
         image: null,
-        imageStatus: 'pending',
+        imageStatus: 'not_requested',
         sourceType: 'user_created',
         sourceProvider: BRAND.name,
         nutritionConfidence: 'user_entered',

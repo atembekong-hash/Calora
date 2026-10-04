@@ -45,7 +45,22 @@ describe('generated recipe image renewal decision', () => {
       image: null,
       imageStatus: 'pending',
       sourceType: 'user_created',
+      name: 'Generated oat bowl',
+      ingredients: ['Oats'],
+      instructions: 'Stir and serve.',
     }))).toBe(true);
+  });
+
+  it('keeps a manual personal recipe without a generation payload out of the generated-media lifecycle', () => {
+    expect(isGeneratedRecipeImageCandidate(generatedRecipe({
+      imageProvenance: undefined,
+      imageId: undefined,
+      image: null,
+      imageStatus: 'not_requested',
+      sourceType: 'user_created',
+      ingredients: ['Oats'],
+      instructions: null,
+    }))).toBe(false);
   });
 
   it('never classifies provider images as lifecycle-managed generated media', () => {
