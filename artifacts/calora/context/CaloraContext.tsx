@@ -2766,29 +2766,29 @@ export function CaloraProvider({
       queueMutation('settings', 'upsert');
     },
     addIngredientsToShopping: (ingredients, sourceId) => {
-      updateExportField('shoppingItems', (current) => {
-        const next = [...current as ShoppingItem[]];
-        ingredients.forEach((ingredient) => {
-          const name = ingredient.trim().replace(/\s+/g, ' ');
-          const key = name.toLocaleLowerCase();
-          if (!next.some((item) => item.name.toLocaleLowerCase() === key)) {
-            next.push({ id: `recipe-shop-${sourceId}-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)}`, name, quantity: 1, checked: false, recipeSource: true, sourceMealIds: [sourceId] });
-          }
-        });
-        return next;
+      // A Planner rebuild can share this React batch. Derive one next
+      // collection from the authoritative ref so that rebuild cannot discard a
+      // just-confirmed recipe selection before React commits the new state.
+      const nextShopping = [...shoppingItemsRef.current];
+      ingredients.forEach((ingredient) => {
+        const name = ingredient.trim().replace(/\s+/g, ' ');
+        if (!name) return;
+        const key = shoppingNameKey(name);
+        if (!nextShopping.some((item) => shoppingNameKey(item.name) === key)) {
+          nextShopping.push({
+            id: `recipe-shop-${sourceId}-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)}`,
+            name,
+            quantity: 1,
+            checked: false,
+            recipeSource: true,
+            sourceMealIds: [sourceId],
+          });
+        }
       });
-      setShoppingItems((prev) => {
-        const next = [...prev];
-        ingredients.forEach((ingredient) => {
-          const name = ingredient.trim().replace(/\s+/g, ' ');
-          const key = name.toLocaleLowerCase();
-          if (!next.some((i) => i.name.toLocaleLowerCase() === key)) {
-            next.push({ id: `recipe-shop-${sourceId}-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)}`, name, quantity: 1, checked: false, recipeSource: true, sourceMealIds: [sourceId] });
-          }
-        });
-        return next;
-      });
-       setPlannerRevision((revision) => revision + 1);
+      shoppingItemsRef.current = nextShopping;
+      patchExportSnapshot({ shoppingItems: nextShopping });
+      setShoppingItems(nextShopping);
+      setPlannerRevision((revision) => revision + 1);
       queueMutation('settings', 'upsert');
     },
      setCoachConsentAccepted: (accepted) => {
