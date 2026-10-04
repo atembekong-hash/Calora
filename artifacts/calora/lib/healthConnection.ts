@@ -8,6 +8,7 @@ import {
   type HealthWeight,
   type HealthWorkout,
 } from './health/types';
+import { normalizeHealthDailyMetrics } from './health/weekHistory';
 
 export const HEALTH_INTEGRATION_AVAILABLE = true;
 
@@ -53,10 +54,14 @@ function healthSnapshot(value: unknown): HealthSnapshot | undefined {
   const workouts = snapshot.workouts.map(healthWorkout);
   const weights = snapshot.weights.map(healthWeight);
   if (workouts.some((workout) => !workout) || weights.some((weight) => !weight)) return undefined;
+  const dailyMetrics = snapshot.dailyMetrics === undefined
+    ? undefined
+    : normalizeHealthDailyMetrics(snapshot.dailyMetrics);
   return {
     syncedAt,
     steps,
     activeEnergyKcal,
+    ...(dailyMetrics === undefined ? {} : { dailyMetrics }),
     workouts: workouts as HealthWorkout[],
     weights: weights as HealthWeight[],
   };

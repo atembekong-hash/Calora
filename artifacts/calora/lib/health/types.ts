@@ -1,3 +1,5 @@
+import type { HealthDailyMetric } from './weekHistory';
+
 export type HealthProvider = 'health-connect' | 'healthkit' | 'unsupported';
 export type HealthMetric = 'steps' | 'activeEnergy' | 'workouts' | 'bodyWeight';
 export type HealthAuthorization = 'notConnected' | 'requested' | 'authorized' | 'partial' | 'denied' | 'unavailable' | 'error';
@@ -8,6 +10,8 @@ export type HealthSnapshot = {
   syncedAt: string;
   steps: number | null;
   activeEnergyKcal: number | null;
+  /** Last seven provider-measured local-day aggregates; absent on legacy snapshots. */
+  dailyMetrics?: HealthDailyMetric[];
   workouts: HealthWorkout[];
   weights: HealthWeight[];
 };
