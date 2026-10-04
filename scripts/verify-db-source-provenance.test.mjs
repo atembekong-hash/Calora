@@ -19,7 +19,7 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   );
   assert.deepEqual(
     manifest.apiDatabase.journal.map((entry) => entry.idx),
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   );
   assert.equal(
     manifest.apiDatabase.files.some((file) =>
@@ -66,6 +66,12 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   assert.equal(
     manifest.apiDatabase.files.some((file) =>
       file.path.endsWith("/0012_profile_cross_device_preferences.sql"),
+    ),
+    true,
+  );
+  assert.equal(
+    manifest.apiDatabase.files.some((file) =>
+      file.path.endsWith("/0013_recipe_nutrition_decimal_macros.sql"),
     ),
     true,
   );
