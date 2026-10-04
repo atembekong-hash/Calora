@@ -727,6 +727,27 @@ describe('real CaloraProvider — transactional notifications and live export', 
     expect(parsed.moodLogs['2026-08-07']).toBe('good');
   });
 
+  it('persists a weight-only mutation without requiring a later unrelated change', async () => {
+    const { result, unmount } = await renderAndAwaitHydration();
+
+    await act(async () => {
+      result.current.addWeight(74);
+    });
+
+    await waitFor(async () => {
+      const persisted = await readPersistedSnapshot(STORAGE_KEY);
+      expect(persisted?.weights).toEqual([
+        expect.objectContaining({ kg: 74, source: 'manual' }),
+      ]);
+    });
+
+    unmount();
+    const rehydrated = await renderAndAwaitHydration();
+    expect(rehydrated.result.current.weights).toEqual([
+      expect.objectContaining({ kg: 74, source: 'manual' }),
+    ]);
+  });
+
   it('exports planner and shopping changes from the same call stack', async () => {
     const { result } = await renderAndAwaitHydration();
     const planned = {
