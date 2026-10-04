@@ -248,6 +248,36 @@ describe("POST /v1/recipes/nutrition-estimate", () => {
     );
   });
 
+  it("persists normalized fractional core macros without discarding the cache write", async () => {
+    mockOpenAiCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({ calories: 202.5, proteinG: 4.1, carbsG: 25.9, fatG: 9.3 }),
+        },
+      }],
+    });
+
+    const result = await request(buildApp())
+      .post("/v1/recipes/nutrition-estimate")
+      .send({
+        recipeId: "fractional-cache-meal",
+        title: "Fractional nutrition recipe",
+        ingredients: ["1 cup ingredient"],
+      });
+
+    expect(result.status).toBe(200);
+    await vi.waitFor(() => {
+      expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+        mealId: expect.stringMatching(/^ai-nutrition:[0-9a-f]{64}$/),
+        calories: 202.5,
+        proteinG: 4.1,
+        carbsG: 25.9,
+        fatG: 9.3,
+      }));
+    });
+    expect(mockOnConflictDoUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects unbounded or malformed request data before AI work", async () => {
     const result = await request(buildApp())
       .post("/v1/recipes/nutrition-estimate")

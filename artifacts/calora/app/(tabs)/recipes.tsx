@@ -799,7 +799,12 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             </SwipeGestureExclusion>
           </>
         )}
-        {displayRecipes.length === 0 ? (
+        {displayRecipes.length === 0 && query.isFetching ? (
+          <View testID="plus-recipe-search-loading" style={styles.loadingState}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding Plus recipes…</Text>
+          </View>
+        ) : displayRecipes.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>

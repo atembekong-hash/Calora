@@ -469,10 +469,12 @@ export const coachFactContextConsentsTable = pgTable("calora_coach_fact_context_
 
 export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {
   mealId: text("meal_id").primaryKey(),
-  calories: integer("calories").notNull(),
-  proteinG: integer("protein_g").notNull(),
-  carbsG: integer("carbs_g").notNull(),
-  fatG: integer("fat_g").notNull(),
+  // AI and provider nutrition estimates may contain fractional macros. Preserve
+  // those normalized values in the cache instead of rejecting the whole row.
+  calories: doublePrecision("calories").notNull(),
+  proteinG: doublePrecision("protein_g").notNull(),
+  carbsG: doublePrecision("carbs_g").notNull(),
+  fatG: doublePrecision("fat_g").notNull(),
   saturatedFatG: doublePrecision("saturated_fat_g"),
   transFatG: doublePrecision("trans_fat_g"),
   monounsaturatedFatG: doublePrecision("monounsaturated_fat_g"),
