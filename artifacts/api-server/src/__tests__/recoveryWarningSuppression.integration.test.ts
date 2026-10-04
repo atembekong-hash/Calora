@@ -23,6 +23,7 @@ vi.mock("../lib/revenuecat.js", () => ({
 
 vi.mock("../lib/recipe-photo-storage.js", () => ({
   eraseRecipePhotoObjects: vi.fn().mockResolvedValue(undefined),
+  isRecipePhotoStorageConfigured: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock("../lib/logger.js", () => ({
