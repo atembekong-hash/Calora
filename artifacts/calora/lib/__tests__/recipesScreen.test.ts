@@ -244,6 +244,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('isGeneratedRecipeImageCandidate(detail)');
   });
 
+  it('does not create an unattached generated-photo request for a manual personal recipe', () => {
+    const manualRecipeForm = source.slice(source.indexOf('function CreateRecipeModal'));
+    expect(manualRecipeForm).toContain("imageStatus: 'not_requested'");
+    expect(manualRecipeForm).not.toContain("imageStatus: 'pending'");
+  });
+
   it('keeps routed and saved Plus failures explicit, scoped, and actionable', () => {
     expect(source).toContain("enabled: recipeSource === 'plus' && Boolean(recipeId && user?.id)");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
