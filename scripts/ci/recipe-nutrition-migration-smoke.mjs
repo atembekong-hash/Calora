@@ -17,7 +17,7 @@ if (!databaseUrl) {
   );
 }
 
-// Migrations 0001–0012 are forward-only additions to Calora's existing base
+// Migrations 0001–0013 are forward-only additions to Calora's existing base
 // application schema. This is the smallest representative base required by
 // those immutable migrations; it deliberately omits the nutrition cache. A
 // blank public schema is not a supported migration input because the historic
@@ -136,7 +136,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 12) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 13) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -161,6 +161,13 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 12) {
       "text",
       `${scenario} migration must retain the canonical meal identifier`,
     );
+    for (const column of ["calories", "protein_g", "carbs_g", "fat_g"]) {
+      assert.equal(
+        actual.get(column),
+        "double precision",
+        `${scenario} migration must preserve fractional ${column} values`,
+      );
+    }
 
     const preferenceColumns = await client.query(
       `SELECT column_name, data_type, is_nullable
@@ -409,7 +416,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  5,
+  6,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -433,8 +440,8 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    5,
-    "historical upgrade must append only 0009 through 0012",
+    6,
+    "historical upgrade must append only 0009 through 0013",
   );
 } finally {
   await historicalUpgrade.end();

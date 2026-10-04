@@ -229,6 +229,13 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
   });
 
+  it('shows a loading state rather than a false empty result while a new Plus search is resolving', () => {
+    expect(source).toContain('displayRecipes.length === 0 && query.isFetching');
+    expect(source).toContain('testID="plus-recipe-search-loading"');
+    expect(source).toContain('Finding Plus recipes…');
+    expect(source).toContain('No Plus recipes found');
+  });
+
   it('does not disguise a pending or failed generated recipe image as a food-photo fallback', () => {
     expect(source).toContain('isGeneratedRecipeImageCandidate(localRecipe)');
     expect(source).toContain('Creating recipe photo…');
