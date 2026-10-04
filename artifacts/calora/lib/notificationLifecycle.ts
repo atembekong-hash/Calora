@@ -1,5 +1,6 @@
 import type { LocalNotificationPreferences } from './notificationPreferences';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import {
   CALORA_NOTIFICATION_TAGS,
   cancelCaloraLocalNotifications,
@@ -19,6 +20,19 @@ import {
  * head of this serialized lifecycle.
  */
 let nativeLifecycle: Promise<void> = Promise.resolve();
+
+/**
+ * Calora reminders are scheduled locally by the native Expo module. Web has no
+ * native scheduler, so lifecycle calls must be an explicit no-op there rather
+ * than surfacing a false cancellation or scheduling failure to the user.
+ */
+export function supportsLocalNotificationScheduling(platform = Platform.OS): boolean {
+  return platform !== 'web';
+}
+
+function unavailableResult(): NotificationReconciliationResult {
+  return { status: 'unavailable', scheduledCount: 0 };
+}
 
 async function dismissPresentedCaloraNotifications(activeScopeToken: string): Promise<void> {
   const presented = await Notifications.getPresentedNotificationsAsync();
@@ -44,7 +58,9 @@ function enqueue<T>(operation: () => Promise<T>): Promise<T> {
 export function reconcileUserNotificationPlan(
   preferences: LocalNotificationPreferences,
   adapter?: NotificationReconciliationAdapter,
+  platform = Platform.OS,
 ): Promise<NotificationReconciliationResult> {
+  if (!supportsLocalNotificationScheduling(platform)) return Promise.resolve(unavailableResult());
   return enqueue(() => reconcileLocalNotifications(preferences, adapter));
 }
 
@@ -55,7 +71,9 @@ export function reconcileUserNotificationPlan(
 export function reconcileHydratedNotificationPlan(
   preferences: LocalNotificationPreferences,
   adapter?: NotificationReconciliationAdapter,
+  platform = Platform.OS,
 ): Promise<NotificationReconciliationResult> {
+  if (!supportsLocalNotificationScheduling(platform)) return Promise.resolve(unavailableResult());
   return enqueue(async () => {
     // Cancellation and presented cleanup share this queue, closing the window
     // in which an old scope could deliver or be captured by the next scope.
@@ -69,6 +87,8 @@ export function reconcileHydratedNotificationPlan(
 /** Put destructive clear work behind any in-flight account reconciliation. */
 export function cancelNotificationPlanForClear(
   adapter?: Pick<NotificationReconciliationAdapter, 'getScheduled' | 'cancel'>,
+  platform = Platform.OS,
 ): Promise<void> {
+  if (!supportsLocalNotificationScheduling(platform)) return Promise.resolve();
   return enqueue(() => cancelCaloraLocalNotifications(adapter));
 }

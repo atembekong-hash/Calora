@@ -40,7 +40,7 @@ export type NotificationReconciliationAdapter = {
 
 export type NotificationReconciliationResult = {
   /** `scheduled` means every request in the desired plan was installed. */
-  status: 'disabled' | 'denied' | 'scheduled' | 'failed';
+  status: 'disabled' | 'denied' | 'scheduled' | 'unavailable' | 'failed';
   scheduledCount: number;
   failure?: 'cancel' | 'presented' | 'channels' | 'schedule';
 };
