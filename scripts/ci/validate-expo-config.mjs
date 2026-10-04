@@ -18,14 +18,14 @@ if (expo?.version !== "1.0.1") failures.push("expo.version must be 1.0.1");
 if (expo?.ios?.bundleIdentifier !== "com.etiendem.caloraapp") {
   failures.push("expo.ios.bundleIdentifier is incorrect");
 }
-if (expo?.ios?.buildNumber !== "12") {
-  failures.push("iOS buildNumber must be 12");
+if (expo?.ios?.buildNumber !== "13") {
+  failures.push("iOS buildNumber must be 13");
 }
 if (expo?.android?.package !== "com.etiendem.caloraapp") {
   failures.push("expo.android.package is incorrect");
 }
-if (expo?.android?.versionCode !== 25) {
-  failures.push("Android versionCode must be 25");
+if (expo?.android?.versionCode !== 26) {
+  failures.push("Android versionCode must be 26");
 }
 if (!expo?.ios?.associatedDomains?.includes("applinks:mycaloraapp.com")) {
   failures.push("iOS branded associated domain is missing");
@@ -75,6 +75,7 @@ console.log(
       name: expo.name,
       version: expo.version,
       iosBuildNumber: expo.ios.buildNumber,
+      androidVersionCode: expo.android.versionCode,
       scheme: expo.scheme,
       iosBundleIdentifier: expo.ios.bundleIdentifier,
       androidPackage: expo.android.package,
