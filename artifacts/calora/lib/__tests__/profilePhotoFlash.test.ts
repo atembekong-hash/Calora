@@ -1268,6 +1268,89 @@ describe('real CaloraProvider — account switch during hydration', () => {
     expect(handle.result.current.profileSyncError).toBeNull();
   });
 
+  it('retries an interrupted profile edit after process restart without restoring stale remote data', async () => {
+    const remoteProfile = {
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1' as const,
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
+      updatedAt: new Date().toISOString(),
+    };
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile')
+      .mockResolvedValueOnce(remoteProfile)
+      .mockRejectedValueOnce(new Error('profile edit sync unavailable'))
+      .mockResolvedValueOnce({ ...remoteProfile, units: 'imperial' as const });
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+
+    const first = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => { await first.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await first.result.current.updateProfile({ units: 'imperial' }); });
+    await waitFor(() => expect(first.result.current.profileSyncError).toBe('profile edit sync unavailable'));
+    const failedSnapshot = await readPersistedSnapshot(storageKeyForAccount('user-a'));
+    expect(failedSnapshot?.pendingProfileSync).toEqual(expect.objectContaining({
+      profile: expect.objectContaining({ units: 'imperial' }),
+      queuedAt: expect.any(String),
+    }));
+
+    // Simulate a process kill before a user can tap Retry. The second provider
+    // must replay the encrypted account-scoped intent before any stale GET can
+    // restore the prior metric profile over the latest local edit.
+    first.unmount();
+    const second = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(3));
+    expect(second.result.current.profile?.units).toBe('imperial');
+    await waitFor(() => expect(second.result.current.profileSyncError).toBeNull());
+    const recoveredSnapshot = await readPersistedSnapshot(storageKeyForAccount('user-a'));
+    expect(recoveredSnapshot?.pendingProfileSync ?? null).toBeNull();
+  });
+
+  it('drops a pending profile retry during device-local clear so it cannot replay after restart', async () => {
+    const remoteProfile = {
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1' as const,
+      targetMode: 'custom' as const,
+      proteinTargetGrams: null,
+      carbsTargetGrams: null,
+      fatTargetGrams: null,
+      units: 'metric' as const,
+      updatedAt: new Date().toISOString(),
+    };
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile')
+      .mockResolvedValueOnce(remoteProfile)
+      .mockRejectedValueOnce(new Error('profile edit sync unavailable'));
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+
+    const first = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => { await first.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await first.result.current.updateProfile({ units: 'imperial' }); });
+    await waitFor(() => expect(first.result.current.profileSyncError).toBe('profile edit sync unavailable'));
+    expect((await readPersistedSnapshot(storageKeyForAccount('user-a')))?.pendingProfileSync).toEqual(
+      expect.objectContaining({ profile: expect.objectContaining({ units: 'imperial' }) }),
+    );
+
+    await act(async () => { await first.result.current.clearAllData(); });
+    expect((await readPersistedSnapshot(storageKeyForAccount('user-a')))?.pendingProfileSync ?? null).toBeNull();
+
+    // Simulate a process restart. The previously failed profile PUT must not
+    // be retried after the user deliberately removed this device's local data.
+    first.unmount();
+    const second = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    expect(second.result.current.profile).toBeNull();
+    expect(saveRemoteProfile).toHaveBeenCalledTimes(2);
+  });
+
   it('does not persist a guest onboarding profile remotely', async () => {
     const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue({
       ...ACCOUNT_PROFILE,

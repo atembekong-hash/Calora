@@ -1,8 +1,8 @@
 /**
  * Invisible worker that settles referral state for the signed-in user:
  *
- *  1. Auto-redeems a pending invite code captured from a deep link
- *     (only when the account hasn't redeemed one already).
+ *  1. Auto-redeems only an invite code that was captured while this same
+ *     signed-in account was active. Guest links require an explicit Apply.
  *  2. Once the user has a capture-backed saved meal, calls the activate
  *     endpoint so the server can independently verify qualification and grant
  *     both rewards. Retries on the next app session until the server reports a
@@ -18,7 +18,7 @@ import { useCalora } from '@/context/CaloraContext';
 import { useSubscription } from '@/lib/revenuecat';
 import {
   clearPendingInviteCode,
-  getPendingInviteCode,
+  getAccountBoundPendingInviteCode,
   isReferralActivationComplete,
   isReferralActivationSettled,
   markReferralActivationSettled,
@@ -35,22 +35,22 @@ export function ReferralActivator() {
   const redeemAttemptedRef = useRef<string | null>(null);
   const activateInFlightRef = useRef(false);
 
-  // Auto-redeem a deep-linked invite code once per signed-in user.
+  // Auto-redeem only a deep link captured while this same account was active.
   useEffect(() => {
     if (!user || redeemAttemptedRef.current === user.id) return;
     redeemAttemptedRef.current = user.id;
 
     (async () => {
-      const pending = await getPendingInviteCode();
+      const pending = await getAccountBoundPendingInviteCode(user.id);
       if (!pending) return;
       try {
         await redeemReferral({ code: pending });
-        await clearPendingInviteCode();
+        await clearPendingInviteCode(user.id);
       } catch (err: unknown) {
         // 409 = already redeemed on this account; the stored code is useless.
         const status = (err as { status?: number } | null)?.status;
         if (status === 409 || status === 404 || status === 400) {
-          await clearPendingInviteCode();
+          await clearPendingInviteCode(user.id);
         }
         // Network failures keep the code for the referral card to retry.
       }

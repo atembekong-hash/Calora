@@ -85,6 +85,29 @@ beforeEach(() => {
   pm = new PersistenceManager(storage, STORAGE_KEY);
 });
 
+describe('PersistenceManager write failure visibility and recovery', () => {
+  it('rejects the exact failed snapshot while allowing a later retry to persist', async () => {
+    let attempts = 0;
+    const durable: Record<string, string> = {};
+    const failingStorage: StorageAdapter = {
+      getItem: async (key) => durable[key] ?? null,
+      setItem: async (key, value) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error('device storage unavailable');
+        durable[key] = value;
+      },
+      removeItem: async (key) => { delete durable[key]; },
+    };
+    const manager = new PersistenceManager(failingStorage, STORAGE_KEY);
+
+    await expect(manager.enqueueWrite({ revision: 1 })).rejects.toThrow('device storage unavailable');
+    await expect(manager.enqueueWrite({ revision: 2 })).resolves.toBeUndefined();
+    await manager.flush();
+
+    expect(JSON.parse(durable[STORAGE_KEY])).toEqual({ revision: 2 });
+  });
+});
+
 describe('runAuxiliaryCleanupTasks: exact failure attribution', () => {
   const taskNames = ['native schedules', 'notification inbox', 'coach cache', 'diary sync', 'capture approval', 'profile photo'];
 

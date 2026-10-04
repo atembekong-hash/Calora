@@ -1715,13 +1715,13 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const saveMacroGoals = (values: MacroTargets) => {
-    updateProfile({
+    void updateProfile({
       calorieTarget: values.calories,
       proteinTargetGrams: values.protein,
       carbsTargetGrams: values.carbs,
       fatTargetGrams: values.fat,
       targetMode: 'custom',
-    });
+    }).catch(() => undefined);
     setMacroGoalsVisible(false);
     setMacroGoalDraft(null);
     setSaveNotice('Nutrition goals saved locally.');

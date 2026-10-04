@@ -32,7 +32,7 @@ export function ProfileYouSettings({
 }: {
   profile: Profile | null;
   colors: typeof colors.light;
-  updateProfile: (patch: Partial<Profile>) => void;
+  updateProfile: (patch: Partial<Profile>) => Promise<void>;
 }) {
   const [personalOpen, setPersonalOpen] = useState(false);
   const [nutritionOpen, setNutritionOpen] = useState(false);
@@ -64,7 +64,7 @@ export function ProfileYouSettings({
     setPersonalOpen(false);
     setChoiceOpen(true);
   };
-  const finishPersonal = (applyRecommendation: boolean) => {
+  const finishPersonal = async (applyRecommendation: boolean) => {
     if (!pendingPersonal) return;
     // Keeping targets freezes them as custom values; otherwise a later
     // recommendation refresh could change a target the person chose to keep.
@@ -76,24 +76,39 @@ export function ProfileYouSettings({
       patch.carbsTargetGrams = undefined;
       patch.fatTargetGrams = undefined;
     }
-    updateProfile(patch);
+    try {
+      await updateProfile(patch);
+    } catch {
+      setError('Your changes are waiting to be saved. Check device storage and retry.');
+      return;
+    }
     setPendingPersonal(null); setChoiceOpen(false);
   };
-  const saveCustomTargets = () => {
+  const saveCustomTargets = async () => {
     const result = validateMacroGoalInput(macro);
     if (!result.ok) { setError(result.message); return; }
-    updateProfile({
-      calorieTarget: result.values.calories, proteinTargetGrams: result.values.protein,
-      carbsTargetGrams: result.values.carbs, fatTargetGrams: result.values.fat, targetMode: 'custom',
-    });
+    try {
+      await updateProfile({
+        calorieTarget: result.values.calories, proteinTargetGrams: result.values.protein,
+        carbsTargetGrams: result.values.carbs, fatTargetGrams: result.values.fat, targetMode: 'custom',
+      });
+    } catch {
+      setError('Your changes are waiting to be saved. Check device storage and retry.');
+      return;
+    }
     setNutritionOpen(false);
   };
-  const resetRecommendations = () => {
+  const resetRecommendations = async () => {
     if (!profile) return;
-    updateProfile({
-      calorieTarget: recommendationForProfile(profile), targetMode: 'automatic',
-      proteinTargetGrams: undefined, carbsTargetGrams: undefined, fatTargetGrams: undefined,
-    });
+    try {
+      await updateProfile({
+        calorieTarget: recommendationForProfile(profile), targetMode: 'automatic',
+        proteinTargetGrams: undefined, carbsTargetGrams: undefined, fatTargetGrams: undefined,
+      });
+    } catch {
+      setError('Your changes are waiting to be saved. Check device storage and retry.');
+      return;
+    }
     setNutritionOpen(false);
   };
 
@@ -136,8 +151,8 @@ export function ProfileYouSettings({
         <View style={styles.sheet}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Update nutrition targets?</Text>
           <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>Your details changed. Keep your existing targets, or apply a new starting estimate of {pendingPersonal ? `${formatWhole(recommendationForProfile(pendingPersonal))} kcal/day` : ''}.</Text>
-          <Pressable testID="apply-updated-recommendations" onPress={() => finishPersonal(true)} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Apply updated recommendations</Text></Pressable>
-          <Pressable testID="keep-current-targets" onPress={() => finishPersonal(false)} style={styles.secondary}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>Keep current targets</Text></Pressable>
+          <Pressable testID="apply-updated-recommendations" onPress={() => { void finishPersonal(true); }} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Apply updated recommendations</Text></Pressable>
+          <Pressable testID="keep-current-targets" onPress={() => { void finishPersonal(false); }} style={styles.secondary}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>Keep current targets</Text></Pressable>
         </View>
       </BottomSheet>
 
@@ -145,7 +160,7 @@ export function ProfileYouSettings({
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheet} bottomOffset={72}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Nutrition goals</Text>
           <View style={[styles.mode, { backgroundColor: themeColors.muted }]}>
-            {(['automatic', 'custom'] as const).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => mode === 'automatic' ? resetRecommendations() : updateProfile({ targetMode: 'custom' })} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
+            {(['automatic', 'custom'] as const).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => { if (mode === 'automatic') void resetRecommendations(); else void updateProfile({ targetMode: 'custom' }).catch(() => setError('Your changes are waiting to be saved. Check device storage and retry.')); }} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
           </View>
           <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? `Based on your details: ${profile ? formatWhole(recommendationForProfile(profile)) : 2000} kcal/day.` : 'Set each target independently; grams do not need to match calories.'}</Text>
           {targetMode === 'custom' && <><View style={styles.fields}>

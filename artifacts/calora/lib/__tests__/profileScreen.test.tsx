@@ -40,7 +40,8 @@ const harness = vi.hoisted(() => {
   };
   const updateNotificationPreferences = vi.fn((updater: any) => updater(notificationPreferences));
   const calora = {
-     colors, themePreference: 'system', setThemePreference: vi.fn(), setOnboardingStep: vi.fn(), profile, onboardingComplete: true, onboardingStep: 0, updateProfile: vi.fn(),
+     colors, themePreference: 'system', setThemePreference: vi.fn(), setOnboardingStep: vi.fn(), profile, onboardingComplete: true, onboardingStep: 0, updateProfile: vi.fn(async () => undefined),
+    profileSyncError: null, retryProfileSync: vi.fn(), persistenceError: null as string | null, retryPersistence: vi.fn(async () => undefined),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
     connectHealth: vi.fn(async () => undefined),
     openHealthSettings: vi.fn(async () => undefined),
@@ -151,11 +152,22 @@ beforeEach(() => {
   harness.calora.dailyStepGoal = 10000;
   harness.calora.onboardingComplete = true;
   harness.calora.onboardingStep = 0;
+  harness.calora.persistenceError = null;
+  harness.calora.retryPersistence = vi.fn(async () => undefined);
   harness.useSubscription.mockReturnValue(makeSubscription());
   vi.clearAllMocks();
 });
 
 describe('Profile rendered interactions', () => {
+  it('surfaces a local storage write failure with a non-destructive retry', async () => {
+    harness.calora.persistenceError = 'Changes are waiting to be saved on this device. Check storage and retry.';
+    render(<ProfileScreen />);
+
+    expect(screen.getByText('Changes are waiting to be saved')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry saving changes on this device' }));
+    await waitFor(() => expect(harness.calora.retryPersistence).toHaveBeenCalledOnce());
+  });
+
   it('offers a review path for completed onboarding without changing data first', () => {
     render(<ProfileScreen />);
     fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));

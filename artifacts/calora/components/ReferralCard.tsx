@@ -15,7 +15,7 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
-import { getPendingInviteCode, clearPendingInviteCode } from '@/lib/referral';
+import { claimPendingInviteCode, getPendingInviteCode, clearPendingInviteCode } from '@/lib/referral';
 
 type Props = { fontScale: number };
 
@@ -36,7 +36,7 @@ export function ReferralCard({ fontScale }: Props) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const pending = await getPendingInviteCode();
+      const pending = await getPendingInviteCode(user.id);
       if (pending) setCodeInput(pending);
     })();
   }, [user]);
@@ -76,9 +76,13 @@ export function ReferralCard({ fontScale }: Props) {
     }
     setFeedback(null);
     try {
+      // Claiming occurs only because this signed-in person pressed Apply.
+      // It prevents a guest link captured on a shared device from silently
+      // following whichever account next signs in.
+      await claimPendingInviteCode(user.id, code);
       const result = await redeemMutation.mutateAsync({ data: { code } });
       setFeedback({ kind: 'success', text: result.message ?? 'Invite accepted!' });
-      await clearPendingInviteCode();
+      await clearPendingInviteCode(user.id);
       referralQuery.refetch();
     } catch (err: unknown) {
       const message =
