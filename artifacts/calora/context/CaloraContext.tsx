@@ -1747,7 +1747,7 @@ export function CaloraProvider({
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      void enqueueAutosave(pm.current, state).catch(() => reportPersistenceError());
-  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
+  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
