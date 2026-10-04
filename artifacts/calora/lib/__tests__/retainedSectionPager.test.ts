@@ -17,6 +17,12 @@ describe('retained section pager contracts', () => {
     expect(pagerSource).toContain('onScrollEndDrag={commitNativePagerPosition}');
   });
 
+  it('uses the translated retained track for web tab changes', () => {
+    expect(pagerSource).toContain("const useNativePaging = nativePaging && Platform.OS !== 'web';");
+    expect(pagerSource).toContain('if (useNativePaging && hasAdjacentPages && renderItem)');
+    expect(pagerSource).toContain('if (!useNativePaging || surfaceWidth <= 0) return;');
+  });
+
   it.each([
     ['Profile', profileSource, 'profile-section-content', 'renderItem={(tab) => ('],
     ['Progress', insightsSource, 'progress-section-content', 'renderItem={(view) => ('],

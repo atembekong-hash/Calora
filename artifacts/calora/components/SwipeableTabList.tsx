@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   ScrollView,
   PanResponder,
   StyleSheet,
@@ -173,6 +174,12 @@ export function SwipeableSectionPager<T extends string>({
   const [surfaceWidth, setSurfaceWidth] = useState(windowWidth);
   const activeIndex = getActiveIndex(items, activeItem);
   const hasAdjacentPages = Boolean(renderItem);
+  // React Native Web exposes a ScrollView ref, but its imperative horizontal
+  // scroll does not reliably move an already rendered paging viewport after a
+  // tab press. Keep web on the translated direct-manipulation track so the
+  // visible pane always follows activeItem; native retains platform paging for
+  // its vertical-scroll arbitration.
+  const useNativePaging = nativePaging && Platform.OS !== 'web';
   const pageWidth = useSharedValue(windowWidth);
   const translateX = useSharedValue(getWorkspacePagerRestingOffset(activeIndex, windowWidth, hasAdjacentPages));
   const activeIndexValue = useSharedValue(activeIndex);
@@ -208,18 +215,18 @@ export function SwipeableSectionPager<T extends string>({
   }, [activeIndexValue, hasAdjacentPages, pageWidth, translateX]);
 
   const commitNativePagerPosition = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!nativePaging || surfaceWidth <= 0) return;
+    if (!useNativePaging || surfaceWidth <= 0) return;
     const targetIndex = Math.round(event.nativeEvent.contentOffset.x / surfaceWidth);
     const nextItem = itemsRef.current[targetIndex];
     if (nextItem && targetIndex !== getActiveIndex(itemsRef.current, activeItem)) {
       onChangeRef.current(nextItem);
     }
-  }, [activeItem, nativePaging, surfaceWidth]);
+  }, [activeItem, surfaceWidth, useNativePaging]);
 
   useEffect(() => {
-    if (!nativePaging || surfaceWidth <= 0) return;
+    if (!useNativePaging || surfaceWidth <= 0) return;
     nativePagerRef.current?.scrollTo({ x: activeIndex * surfaceWidth, animated: false });
-  }, [activeIndex, nativePaging, surfaceWidth]);
+  }, [activeIndex, surfaceWidth, useNativePaging]);
 
   const pagerSwipe = useMemo(
     () => Gesture.Pan()
@@ -275,7 +282,7 @@ export function SwipeableSectionPager<T extends string>({
   const exclusionValue = useMemo<SwipeGestureExclusionContextValue>(() => ({ setExcluded }), [setExcluded]);
   const safeWindow = Math.max(1, Math.floor(renderWindow));
 
-  if (nativePaging && hasAdjacentPages && renderItem) {
+  if (useNativePaging && hasAdjacentPages && renderItem) {
     return (
       <View
         accessibilityLabel={accessibilityLabel}
