@@ -16,7 +16,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
+import { applySlotReplace, plannerMealTypes, plannerWeekDaysForDate } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -987,6 +987,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   // or else the day currently viewed in the Planner.
   const [planDay, setPlanDay] = useState(() => recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
   const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>(() => recipeSlotTarget?.mealType ?? 'Dinner');
+  // The picker must expose the same week as the selected target. Using the
+  // current calendar week here made future-week Planner → Browse recipes
+  // targets invisible and redirected confirmation to the wrong week.
+  const planPickerDays = useMemo(() => plannerWeekDaysForDate(planDay), [planDay]);
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
   if (premium && (!session?.user.id || premiumDetailQuery.isError)) {
@@ -1444,7 +1448,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
             <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>Choose a day and meal. Replacing a slot leaves the rest of your week unchanged.</Text>
             <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>DAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.planDayRow}>
-              {Array.from({ length: 7 }, (_, index) => plannerDate(getPlannerWeekStart(), index)).map((day) => {
+              {planPickerDays.map((day) => {
                 const selectedDay = day === planDay;
                 const date = new Date(`${day}T12:00:00`);
                 return <Pressable key={day} accessibilityLabel={`Plan for ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.getDate()}`} onPress={() => setPlanDay(day)} style={[styles.planDayChip, { backgroundColor: selectedDay ? colors.primary : colors.card, borderColor: selectedDay ? colors.primary : colors.border }]}><Text style={[styles.planDayName, { color: selectedDay ? colors.primaryForeground : colors.mutedForeground }]}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</Text><Text style={[styles.planDayNumber, { color: selectedDay ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text></Pressable>;

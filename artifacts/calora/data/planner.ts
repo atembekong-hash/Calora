@@ -67,6 +67,16 @@ export function plannerDate(weekStart: string, offset: number) {
   return addDays(weekStart, offset);
 }
 
+/**
+ * Returns the Monday-through-Sunday week containing a selected planner date.
+ * Recipe plan pickers use this rather than the current calendar week so a
+ * slot selected from a future or prior Planner week remains selectable.
+ */
+export function plannerWeekDaysForDate(day: string): string[] {
+  const weekStart = normalizePlannerWeekStart(day);
+  return Array.from({ length: 7 }, (_, index) => plannerDate(weekStart, index));
+}
+
 export function plannerCatalogForProgram(programId?: PlanTypeId, diet: PlannerDiet = 'Everything'): PlannerMeal[] {
   const compatible = plannerCatalog.filter((meal) => diet === 'Everything' || meal.diets.includes(diet));
   return orderProgramMeals(programId as PlannerProgramId | undefined, compatible);
