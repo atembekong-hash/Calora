@@ -78,6 +78,13 @@
       "when": 1790539676157,
       "tag": "0011_coach_v2_conversations",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791086048006,
+      "tag": "0012_profile_cross_device_preferences",
+      "breakpoints": true
     }
   ]
 }

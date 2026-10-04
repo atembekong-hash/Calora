@@ -58,11 +58,11 @@ export const GetProfileResponse = zod.object({
   "weightKg": zod.number().min(getProfileResponseWeightKgMin).max(getProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(getProfileResponseTargetWeightKgMin).max(getProfileResponseTargetWeightKgMax),
   "calorieTarget": zod.number().int().min(getProfileResponseCalorieTargetMin).max(getProfileResponseCalorieTargetMax),
-  "targetMode": zod.enum(['automatic', 'custom']),
+  "targetMode": zod.enum(['automatic', 'custom']).nullable(),
   "proteinTargetGrams": zod.number().int().min(getProfileResponseProteinTargetGramsMin).max(getProfileResponseProteinTargetGramsMax).nullish(),
   "carbsTargetGrams": zod.number().int().min(getProfileResponseCarbsTargetGramsMin).max(getProfileResponseCarbsTargetGramsMax).nullish(),
   "fatTargetGrams": zod.number().int().min(getProfileResponseFatTargetGramsMin).max(getProfileResponseFatTargetGramsMax).nullish(),
-  "units": zod.enum(['metric', 'imperial']),
+  "units": zod.enum(['metric', 'imperial']).nullable(),
   "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
 })
@@ -155,11 +155,11 @@ export const UpdateProfileResponse = zod.object({
   "weightKg": zod.number().min(updateProfileResponseWeightKgMin).max(updateProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(updateProfileResponseTargetWeightKgMin).max(updateProfileResponseTargetWeightKgMax),
   "calorieTarget": zod.number().int().min(updateProfileResponseCalorieTargetMin).max(updateProfileResponseCalorieTargetMax),
-  "targetMode": zod.enum(['automatic', 'custom']),
+  "targetMode": zod.enum(['automatic', 'custom']).nullable(),
   "proteinTargetGrams": zod.number().int().min(updateProfileResponseProteinTargetGramsMin).max(updateProfileResponseProteinTargetGramsMax).nullish(),
   "carbsTargetGrams": zod.number().int().min(updateProfileResponseCarbsTargetGramsMin).max(updateProfileResponseCarbsTargetGramsMax).nullish(),
   "fatTargetGrams": zod.number().int().min(updateProfileResponseFatTargetGramsMin).max(updateProfileResponseFatTargetGramsMax).nullish(),
-  "units": zod.enum(['metric', 'imperial']),
+  "units": zod.enum(['metric', 'imperial']).nullable(),
   "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
 })
