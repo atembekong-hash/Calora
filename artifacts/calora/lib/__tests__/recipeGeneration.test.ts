@@ -108,6 +108,22 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
     expect(JSON.parse(init.body).request).toBe('high-protein lemon herb chicken bowl');
   });
 
+  it('accepts an ingredient-led pantry payload without an empty optional request', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, conceptResponse('Lemon herb chicken bowl')));
+
+    await expect(requestRecipeConcepts({
+      ingredients: ['chicken', 'kale', 'lemon'],
+      mealType: 'Dinner',
+      servings: 2,
+      maxMinutes: 30,
+      preferences: [],
+    })).resolves.toMatchObject({ concepts: [{ title: 'Lemon herb chicken bowl' }] });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('request');
+  });
+
   it('never hits the network when signed out and surfaces the sign-in prompt', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
 

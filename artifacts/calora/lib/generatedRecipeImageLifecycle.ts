@@ -62,9 +62,19 @@ function clientState(state: GeneratedRecipeImageCandidate['imageStatus']): Gener
   if (state === 'failed') return 'retryable_error';
   return state ?? 'not_requested';
 }
-function generated(recipe: GeneratedRecipeImageCandidate): boolean {
+/**
+ * Classifies a local candidate whose photo must come from Calora's
+ * owner-scoped generated-media lifecycle. Keep this broader than the persisted
+ * provenance flag: a freshly created recipe is a generated candidate before
+ * its first media response has been written back to local state.
+ */
+export function isGeneratedRecipeImageCandidate(recipe: GeneratedRecipeImageCandidate): boolean {
   if (recipe.imageProvenance === 'provider') return false;
   return recipe.isLocal === true && (recipe.imageProvenance === 'generated' || recipe.sourceType === 'calora_ai' || recipe.sourceType === 'user_created' || Boolean(recipe.imageId));
+}
+
+function generated(recipe: GeneratedRecipeImageCandidate): boolean {
+  return isGeneratedRecipeImageCandidate(recipe);
 }
 function isNearExpiry(expiresAt: string | null | undefined, now: number, renewalWindowMs: number) {
   if (!expiresAt) return true;
