@@ -2730,6 +2730,7 @@ export function CaloraProvider({
       // explicit flow, so never silently remove an occupied destination slot.
       const next = copy
         ? [
+            ...plannerMeals,
             { ...existing, id: makeId('planned'), day },
           ]
         : [
