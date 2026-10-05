@@ -12,6 +12,12 @@ async function rootLayoutSource() {
   return readFile(resolve(__dirname, '../../app/_layout.tsx'), 'utf8');
 }
 
+async function tabLayoutSource() {
+  const { readFile } = await import('node:fs/promises');
+  const { resolve } = await import('node:path');
+  return readFile(resolve(__dirname, '../../app/(tabs)/_layout.tsx'), 'utf8');
+}
+
 describe('onboarding keyboard-aware and agreement contracts', () => {
   it('uses the existing keyboard-aware compatibility wrapper with safe-area spacing', async () => {
     const source = await onboardingSource();
@@ -88,5 +94,18 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     expect(rootSource).toContain('<CaloraProvider key={scopeKey} accountId={accountId}>');
     expect(rootSource).toContain('<Stack.Protected guard={allowOnboarding}>');
     expect(rootSource).toContain('<Stack.Protected guard={allowApplication}>');
+  });
+
+  it('keeps a valid cold-load tab URL registered without exposing application content before the secure gate admits it', async () => {
+    const rootSource = await rootLayoutSource();
+    const tabsSource = await tabLayoutSource();
+
+    expect(rootSource).toContain('const allowTabRouteShell = allowApplication ||');
+    expect(rootSource).toContain('<Stack.Protected guard={allowTabRouteShell}>');
+    expect(rootSource).toContain('<Stack.Screen name="(tabs)" options={{ headerShown: false }} />');
+    expect(tabsSource).toContain("import { getRootAccessGateState } from '@/lib/rootAccessGate';");
+    expect(tabsSource).toContain('if (!applicationReady) {');
+    expect(tabsSource).toContain('testID="tab-route-bootstrap"');
+    expect(tabsSource).toContain('return <ClassicTabLayout />;');
   });
 });
