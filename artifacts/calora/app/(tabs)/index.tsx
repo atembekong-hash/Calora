@@ -40,7 +40,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { formatLogTime } from '@/lib/dates';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
-import { normalizeWholeNumberInput } from '@/lib/formatters';
+import { normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
 
 function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
   const [failed, setFailed] = useState(false);
@@ -1156,13 +1156,13 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
 
   const save = () => {
     if (!log) return;
-    const nextCalories = Number(calories);
+    const nextCalories = parseWholeNumberInput(calories);
     if (!name.trim()) {
       setError('Add a food name before saving.');
       return;
     }
-    if (!Number.isFinite(nextCalories) || nextCalories < 0) {
-      setError('Enter calories as zero or a positive number.');
+    if (nextCalories === null) {
+      setError('Enter calories as zero or a positive whole number.');
       return;
     }
     updateLog(log.id, { name: name.trim(), calories: nextCalories, meal, serving });
@@ -1263,13 +1263,13 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   };
 
   const addManual = () => {
-    const kcal = Number(customCalories);
+    const kcal = parseWholeNumberInput(customCalories);
     if (!customName.trim()) {
       setManualError('Add a food name before saving.');
       return;
     }
-    if (!Number.isFinite(kcal) || kcal <= 0) {
-      setManualError('Enter calories greater than zero.');
+    if (kcal === null || kcal <= 0) {
+      setManualError('Enter whole-number calories greater than zero.');
       return;
     }
     addLog({

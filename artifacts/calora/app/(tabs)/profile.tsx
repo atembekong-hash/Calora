@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, SUBSCRIPTION, URLS } from '@/lib/brand';
-import { formatGrams, formatQuantity, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
+import { formatGrams, formatQuantity, formatWhole, normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
 import { needsActiveEnergyAuthorization, needsStepsAuthorization } from '@/lib/healthConnection';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -651,8 +651,8 @@ export default function ProfileScreen() {
     }
   };
   const handleSaveDailyStepGoal = () => {
-    const parsed = Number(dailyStepGoalDraft.replace(/,/g, '').trim());
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    const parsed = parseWholeNumberInput(dailyStepGoalDraft);
+    if (parsed === null || parsed <= 0) {
       Alert.alert('Choose a step goal', 'Enter a daily goal between 100 and 100,000 steps.');
       return;
     }
@@ -765,12 +765,14 @@ export default function ProfileScreen() {
 
   /** Saved meal creation */
   const createSavedMeal = () => {
-    const calories = Number(savedMealCalories);
-    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) {
-      setSavedMealError('Add a meal name and a positive calorie value.');
+    const calories = parseWholeNumberInput(savedMealCalories);
+    const macros = [savedMealProtein, savedMealCarbs, savedMealFat].map((value) => value.trim() ? parseWholeNumberInput(value) : 0);
+    if (!savedMealName.trim() || calories === null || calories <= 0 || macros.some((value) => value === null)) {
+      setSavedMealError('Add a meal name and whole-number nutrition values. Calories must be above zero.');
       return;
     }
-    saveMeal({ name: savedMealName.trim(), kind: savedMealKind, foodIds: [], calories, protein: Number(savedMealProtein) || 0, carbs: Number(savedMealCarbs) || 0, fat: Number(savedMealFat) || 0 });
+    const [protein, carbs, fat] = macros as [number, number, number];
+    saveMeal({ name: savedMealName.trim(), kind: savedMealKind, foodIds: [], calories, protein, carbs, fat });
     setSavedMealName(''); setSavedMealCalories(''); setSavedMealProtein(''); setSavedMealCarbs(''); setSavedMealFat('');
     setSavedMealError('');
     setSavedMealModal(false);
