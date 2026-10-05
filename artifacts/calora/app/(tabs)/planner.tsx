@@ -584,7 +584,7 @@ export default function PlannerScreen() {
     ].map(([label, value]) => [label, parseNutritionValue(value, label)] as const);
     const invalid = nutrition.find(([, value]) => value === null);
     if (invalid) {
-      setFormError(`${invalid[0][0][0].toUpperCase() + invalid[0][0].slice(1)} must be a finite number from 0 to 100,000.`);
+      setFormError(`${invalid[0].charAt(0).toUpperCase() + invalid[0].slice(1)} must be a finite number from 0 to 100,000.`);
       return;
     }
     const [calories, proteinG, carbsG, fatG] = nutrition.map(([, value]) => value as number);
