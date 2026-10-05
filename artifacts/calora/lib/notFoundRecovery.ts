@@ -1,5 +1,7 @@
 export type NotFoundRouteRouter = {
-  replace: (path: string) => void;
+  // This helper only recovers to the root. Keeping the argument literal lets
+  // Expo Router's generated typed-route API satisfy the adapter safely.
+  replace: (path: '/') => void;
 };
 
 export type WebLocationReplacement = {
