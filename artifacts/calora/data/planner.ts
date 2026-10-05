@@ -201,6 +201,11 @@ export function plannerMealMoveAvailability(
     : 'available';
 }
 
+/** The stable identity assigned when a catalog item replaces a planned meal. */
+export function plannerReplacementMealId(targetId: string, nextMealId: string): string {
+  return `planned-replacement-${targetId}-${nextMealId}`;
+}
+
 /**
  * Identity-based replace — used by the catalog "Replace meal" sheet in the planner.
  *
@@ -217,7 +222,7 @@ export function applyIdentityReplace(
   if (nextMeal.meal !== target.meal) return plannerMeals;
   return plannerMeals.map((meal) =>
     meal.id === target.id
-      ? { ...nextMeal, id: `planned-replacement-${target.id}-${nextMeal.id}`, day: target.day, meal: target.meal }
+      ? { ...nextMeal, id: plannerReplacementMealId(target.id, nextMeal.id), day: target.day, meal: target.meal }
       : meal,
   );
 }

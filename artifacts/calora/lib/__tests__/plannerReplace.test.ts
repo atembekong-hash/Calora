@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { applySlotReplace, applyIdentityReplace } from '@/data/planner';
+import { applySlotReplace, applyIdentityReplace, plannerReplacementMealId } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 // ---------------------------------------------------------------------------
@@ -154,6 +154,22 @@ describe('applyIdentityReplace – catalog Replace sheet', () => {
     expect(result.find((m) => m.id === 'old-dinner')).toBeUndefined();
     expect(result.find((m) => m.id === 'catalog-dinner')).toBeUndefined();
     assertNoDuplicateSlots(result);
+  });
+
+  it('exposes the replacement identity needed by the Planner Undo payload', () => {
+    const target = makeMeal({ id: 'old-breakfast', day: '2026-08-10', meal: 'Breakfast' });
+    const next = makeMeal({ id: 'catalog-breakfast', day: '', meal: 'Breakfast', name: 'Eggs on sourdough' });
+
+    const result = applyIdentityReplace([target], next, target);
+    const replacementId = plannerReplacementMealId(target.id, next.id);
+
+    expect(replacementId).toBe('planned-replacement-old-breakfast-catalog-breakfast');
+    expect(result.find((meal) => meal.id === replacementId)).toMatchObject({
+      day: target.day,
+      meal: target.meal,
+      name: next.name,
+    });
+    expect(result.find((meal) => meal.id === target.id)).toBeUndefined();
   });
 
   it('preserves the target day even when the incoming meal carries a different day', () => {
