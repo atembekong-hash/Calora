@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { getGetPremiumRecipeQueryKey, getPremiumRecipe, getRecipe, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { AppHeader } from '@/components/AppChrome';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
-import { RecipeCard, RecipeDetailModal } from '@/app/(tabs)/recipes';
+import { PersonalRecipeFormModal, RecipeCard, RecipeDetailModal } from '@/app/(tabs)/recipes';
 import { ScalePressable } from '@/components/ScalePressable';
 import { useCalora, type CaloraRecipe } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
@@ -163,6 +163,7 @@ export default function SavedRecipesScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<SavedFilter>('all');
   const [selected, setSelected] = useState<SavedRecipe | null>(null);
+  const [editingPersonalRecipe, setEditingPersonalRecipe] = useState<CaloraRecipe | null>(null);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
@@ -351,7 +352,17 @@ export default function SavedRecipesScreen() {
         onRetryPhoto={async (recipe) => {
           await retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive });
         }}
+        onEditPersonalRecipe={(recipe) => {
+          setSelected(null);
+          setEditingPersonalRecipe(recipe);
+        }}
         onPlanned={acknowledgePlan}
+      />
+      <PersonalRecipeFormModal
+        visible={Boolean(editingPersonalRecipe)}
+        recipe={editingPersonalRecipe}
+        onClose={() => setEditingPersonalRecipe(null)}
+        onSaved={() => setEditingPersonalRecipe(null)}
       />
       <LocalSaveNotice
         visible={Boolean(planNotice)}

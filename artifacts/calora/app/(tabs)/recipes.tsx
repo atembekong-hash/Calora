@@ -25,7 +25,7 @@ import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
 import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
 import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
-import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
+import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
@@ -942,8 +942,8 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   );
 }
 
-export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const local = recipe ? isLocalRecipe(recipe) : false;
@@ -994,6 +994,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const [diaryMealType, setDiaryMealType] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'>('Dinner');
   const [diaryServings, setDiaryServings] = useState(1);
   const [diaryLogged, setDiaryLogged] = useState(false);
+  const [confirmingPersonalDelete, setConfirmingPersonalDelete] = useState(false);
+  const [personalRecipeActionError, setPersonalRecipeActionError] = useState<string | null>(null);
 
   // Default to the slot the user came from (if browsing from an empty planner slot),
   // or else the day currently viewed in the Planner.
@@ -1077,6 +1079,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       ? detail.nutritionNote.trim()
       : RECIPE_GENERATION_NUTRITION_NOTE)
     : null;
+  const editablePersonalRecipe = isEditablePersonalRecipe(detail);
   const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
   const sourceName = detail.source.trim() || provenance.sourceProvider;
   const sourceUrl = normalizeExternalHttpsUrl(detail.sourceUrl);
@@ -1136,6 +1139,19 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const handleClose = () => {
     if (reviewDraft) rejectFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
+    setConfirmingPersonalDelete(false);
+    setPersonalRecipeActionError(null);
+    onClose();
+  };
+  const deletePersonalRecipeFromDetail = async () => {
+    if (!editablePersonalRecipe) return;
+    setPersonalRecipeActionError(null);
+    const deleted = await deletePersonalRecipe(detail.id);
+    if (!deleted) {
+      setPersonalRecipeActionError('Recipe could not be deleted on this device. Check storage and try again.');
+      return;
+    }
+    setConfirmingPersonalDelete(false);
     onClose();
   };
 
@@ -1404,6 +1420,47 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                   <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
                   <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
                 </Pressable>
+                {editablePersonalRecipe ? (
+                  <View style={[styles.personalRecipeActions, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.personalRecipeActionsLabel, { color: colors.mutedForeground }]}>PERSONAL RECIPE</Text>
+                    <Pressable
+                      accessibilityLabel="Edit personal recipe"
+                      onPress={() => {
+                        setConfirmingPersonalDelete(false);
+                        setPersonalRecipeActionError(null);
+                        onEditPersonalRecipe(detail);
+                      }}
+                      style={[styles.secondaryAction, { borderColor: colors.border }]}
+                    >
+                      <Feather name="edit-2" size={16} color={colors.foreground} />
+                      <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Edit recipe</Text>
+                    </Pressable>
+                    {!confirmingPersonalDelete ? (
+                      <Pressable
+                        accessibilityLabel="Delete personal recipe"
+                        onPress={() => { setPersonalRecipeActionError(null); setConfirmingPersonalDelete(true); }}
+                        style={styles.sourceAction}
+                      >
+                        <Feather name="trash-2" size={14} color={colors.destructive} />
+                        <Text style={[styles.sourceActionText, { color: colors.destructive }]}>Delete recipe</Text>
+                      </Pressable>
+                    ) : (
+                      <View accessibilityRole="alert" accessibilityLabel="Confirm recipe deletion" style={[styles.personalRecipeDeleteConfirm, { backgroundColor: colors.destructive + '12', borderColor: colors.destructive + '40' }]}>
+                        <Text style={[styles.personalRecipeDeleteTitle, { color: colors.foreground }]}>Delete this recipe?</Text>
+                        <Text style={[styles.personalRecipeDeleteBody, { color: colors.mutedForeground }]}>This removes this personal recipe from this device. This cannot be undone.</Text>
+                        {personalRecipeActionError ? <Text accessibilityRole="alert" style={[styles.personalRecipeDeleteError, { color: colors.destructive }]}>{personalRecipeActionError}</Text> : null}
+                        <View style={styles.personalRecipeDeleteButtons}>
+                          <Pressable accessibilityLabel="Cancel recipe deletion" onPress={() => { setConfirmingPersonalDelete(false); setPersonalRecipeActionError(null); }} style={[styles.personalRecipeDeleteCancel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                            <Text style={[styles.personalRecipeDeleteCancelText, { color: colors.foreground }]}>Keep recipe</Text>
+                          </Pressable>
+                          <Pressable accessibilityLabel="Confirm recipe deletion" onPress={() => { void deletePersonalRecipeFromDetail(); }} style={[styles.personalRecipeDeleteButton, { backgroundColor: colors.destructive }]}>
+                            <Text style={styles.personalRecipeDeleteButtonText}>Delete</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ) : null}
               </View>
               {suggestionRows.length > 0 && onSelectSuggestion ? (
                 <View style={styles.suggestionsSection}>
@@ -1558,8 +1615,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   );
 }
 
-function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: (recipe: CaloraRecipe) => void }) {
-  const { colors, saveRecipe } = useCalora();
+export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: { visible: boolean; recipe: CaloraRecipe | null; onClose: () => void; onSaved: (recipe: CaloraRecipe) => void }) {
+  const { colors, saveRecipe, updatePersonalRecipe } = useCalora();
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -1568,14 +1625,29 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
   const [ingredients, setIngredients] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const create = async () => {
+  const editing = recipe !== null;
+  useEffect(() => {
+    if (!visible) return;
+    setName(recipe?.name ?? '');
+    setCalories(recipe?.calories == null ? '' : String(Math.round(recipe.calories)));
+    setProtein(recipe?.proteinG == null ? '' : String(Math.round(recipe.proteinG)));
+    setCarbs(recipe?.carbsG == null ? '' : String(Math.round(recipe.carbsG)));
+    setFat(recipe?.fatG == null ? '' : String(Math.round(recipe.fatG)));
+    setIngredients(recipe?.ingredients.join('\n') ?? '');
+    setError('');
+  }, [recipe, visible]);
+  const save = async () => {
     if (saving) return;
     if (!name.trim()) {
       setError('Enter a recipe name.');
       return;
     }
-    const parsedCalories = parseNutritionInput(calories);
-    if (parsedCalories === null || parsedCalories <= 0) {
+    const parsedCalories = parseWholeNumberInput(calories);
+    if (parsedCalories === null) {
+      setError('Calories must be a whole number from 1 to 100,000.');
+      return;
+    }
+    if (parsedCalories <= 0) {
       setError('Enter calories above zero to log this recipe.');
       return;
     }
@@ -1584,40 +1656,51 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       ['Carbs', carbs],
       ['Fat', fat],
     ] as const;
-    const invalidMacro = optionalMacros.find(([label, value]) => value.trim() && parseNutritionInput(value) === null);
+    const invalidMacro = optionalMacros.find(([label, value]) => value.trim() && parseWholeNumberInput(value) === null);
     if (invalidMacro) {
-      setError(`${invalidMacro[0]} must be a finite number from 0 to 100,000.`);
+      setError(`${invalidMacro[0]} must be a whole number from 0 to 100,000.`);
       return;
     }
     Keyboard.dismiss();
     setSaving(true);
     try {
-      const saved = await saveRecipe({
+      const patch = {
         name: name.trim(),
         ingredients: ingredients.split('\n').map((item) => item.trim()).filter(Boolean),
-        tags: ['My recipes'],
-        source: `Created in ${BRAND.name}`,
-        sourceUrl: URLS.main,
         calories: parsedCalories,
-        proteinG: parseNutritionInput(protein),
-        carbsG: parseNutritionInput(carbs),
-        fatG: parseNutritionInput(fat),
-        category: 'Personal',
-        area: null,
-        image: null,
-        imageStatus: 'not_requested',
-        sourceType: 'user_created',
-        sourceProvider: BRAND.name,
-        nutritionConfidence: 'user_entered',
-        nutritionSource: 'User entered',
-        instructions: null,
-        description: null,
-        prepMinutes: null,
-      });
+        proteinG: parseWholeNumberInput(protein),
+        carbsG: parseWholeNumberInput(carbs),
+        fatG: parseWholeNumberInput(fat),
+      };
+      const saved = editing && recipe
+        ? await updatePersonalRecipe(recipe.id, patch)
+          ? { ...recipe, ...patch }
+          : null
+        : await saveRecipe({
+          ...patch,
+          tags: ['My recipes'],
+          source: `Created in ${BRAND.name}`,
+          sourceUrl: URLS.main,
+          category: 'Personal',
+          area: null,
+          image: null,
+          imageStatus: 'not_requested',
+          sourceType: 'user_created',
+          sourceProvider: BRAND.name,
+          nutritionConfidence: 'user_entered',
+          nutritionSource: 'User entered',
+          instructions: null,
+          description: null,
+          prepMinutes: null,
+        });
+      if (!saved) {
+        setError('Recipe could not be saved on this device. Check storage and try again.');
+        return;
+      }
       setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); setIngredients('');
       setError('');
       onClose();
-      onCreated(saved);
+      onSaved(saved);
     } catch {
       setError('Recipe could not be saved on this device. Check storage and try again.');
     } finally {
@@ -1633,14 +1716,14 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.detailTitle, { color: colors.foreground }]}>Create your recipe</Text>
-          <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>Personal recipes stay separate from source recipes and can be edited later.</Text>
+          <Text style={[styles.detailTitle, { color: colors.foreground }]}>{editing ? 'Edit your recipe' : 'Create your recipe'}</Text>
+          <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{editing ? 'Update your personal recipe. Changes stay on this device.' : 'Personal recipes stay separate from source recipes and can be edited later.'}</Text>
           <TextInput accessibilityLabel="Recipe name" returnKeyType="next" value={name} onChangeText={(value) => { setName(value); setError(''); }} placeholder="Recipe name" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
           <View style={styles.numberGrid}>{[['Calories', calories, setCalories], ['Protein g', protein, setProtein], ['Carbs g', carbs, setCarbs], ['Fat g', fat, setFat]].map(([label, value, setter]) => <View key={label as string} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput accessibilityLabel={label as string} value={value as string} onChangeText={(text) => { (setter as (next: string) => void)(normalizeWholeNumberInput(text)); setError(''); }} keyboardType="number-pad" returnKeyType="next" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}</View>
           <TextInput accessibilityLabel="Recipe ingredients" value={ingredients} onChangeText={(value) => { setIngredients(value); setError(''); }} multiline placeholder="Ingredients, one per line" placeholderTextColor={colors.mutedForeground} style={[styles.ingredientsInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
           {error ? <View style={[styles.formError, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={15} color={colors.destructive} /><Text style={[styles.formErrorText, { color: colors.destructive }]}>{error}</Text></View> : null}
-          <Pressable accessibilityLabel="Save your recipe" disabled={saving} onPress={() => { void create(); }} style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{saving ? 'Saving recipe…' : 'Save recipe'}</Text></Pressable>
-          <Pressable accessibilityLabel="Cancel recipe creation" onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+          <Pressable accessibilityLabel={editing ? 'Save personal recipe changes' : 'Save your recipe'} disabled={saving} onPress={() => { void save(); }} style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{saving ? 'Saving recipe…' : editing ? 'Save changes' : 'Save recipe'}</Text></Pressable>
+          <Pressable accessibilityLabel={editing ? 'Cancel personal recipe editing' : 'Cancel recipe creation'} onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
     </BottomSheet>
   );
@@ -1671,6 +1754,7 @@ export default function RecipesScreen() {
   const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingPersonalRecipe, setEditingPersonalRecipe] = useState<CaloraRecipe | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [planNoticeVisible, setPlanNoticeVisible] = useState(false);
   const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2056,6 +2140,10 @@ export default function RecipesScreen() {
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
         onRetryPhoto={(recipe) => retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive }).then(() => undefined)}
+        onEditPersonalRecipe={(recipe) => {
+          setSelected(null);
+          setEditingPersonalRecipe(recipe);
+        }}
         suggestedRecipes={recipeSuggestions}
         onSelectSuggestion={handleCardPress}
         onPlanned={(message) => {
@@ -2081,10 +2169,14 @@ export default function RecipesScreen() {
           router.push('/(tabs)/planner');
         }}
       />
-      <CreateRecipeModal
-        visible={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => {
+      <PersonalRecipeFormModal
+        visible={showCreate || Boolean(editingPersonalRecipe)}
+        recipe={editingPersonalRecipe}
+        onClose={() => {
+          setShowCreate(false);
+          setEditingPersonalRecipe(null);
+        }}
+        onSaved={() => {
           setSearch('');
           setCategory('My recipes');
         }}
@@ -2247,6 +2339,17 @@ function makeStyles(f: number) {
   primaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   sourceAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 13 },
   sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  personalRecipeActions: { borderTopWidth: 1, marginTop: 22, paddingTop: 16 },
+  personalRecipeActionsLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 1 },
+  personalRecipeDeleteConfirm: { borderWidth: 1, borderRadius: 14, marginTop: 8, padding: 14 },
+  personalRecipeDeleteTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+  personalRecipeDeleteBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 4 },
+  personalRecipeDeleteError: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 8 },
+  personalRecipeDeleteButtons: { flexDirection: 'row', gap: 8, marginTop: 13 },
+  personalRecipeDeleteCancel: { flex: 1, minHeight: 40, borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  personalRecipeDeleteCancelText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  personalRecipeDeleteButton: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  personalRecipeDeleteButtonText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   createSheet: { borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20, paddingBottom: 28 },
   bottomSheetContent: { padding: 20 },
   sheetScroll: { flexShrink: 1, minHeight: 0 },

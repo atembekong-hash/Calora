@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
+import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
 import type { CaloraRecipe } from '@/context/CaloraContext';
 import type { Recipe } from '@workspace/api-client-react';
 
@@ -74,5 +74,17 @@ describe('recipe provenance normalization', () => {
   it('labels unavailable and partial nutrition without fabricating a complete panel', () => {
     expect(recipeNutritionLabel(localRecipe())).toBe('Nutrition unavailable');
     expect(recipeNutritionLabel(remoteRecipe({ calories: 420, nutritionConfidence: 'unavailable', nutritionSource: 'Provider nutrition data (partial)' }))).toBe('Partial nutrition available');
+  });
+
+  it('admits only media-free personal recipes to the local edit and delete lifecycle', () => {
+    expect(isEditablePersonalRecipe(localRecipe())).toBe(true);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created' }))).toBe(true);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created', image: 'https://example.test/private-image.jpg' }))).toBe(false);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created', imageId: 'private-image-1' }))).toBe(false);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created', imageMediaId: 'media-1' }))).toBe(false);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created', imageStatus: 'pending' }))).toBe(false);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'user_created', imageProvenance: 'generated' }))).toBe(false);
+    expect(isEditablePersonalRecipe(localRecipe({ sourceType: 'calora_ai' }))).toBe(false);
+    expect(isEditablePersonalRecipe(remoteRecipe({ sourceType: 'user_created' }))).toBe(false);
   });
 });
