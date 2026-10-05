@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { BRAND } from '@/lib/brand';
-import { formatGrams, formatWhole, normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
+import { formatGrams, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
+import { resolveActivityMinutesInput } from '@/lib/activityMinutesInput';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -1302,6 +1303,7 @@ export default function InsightsScreen() {
   const [weightInput, setWeightInput] = useState('');
   const [weightError, setWeightError] = useState('');
   const [minutesInput, setMinutesInput] = useState('');
+  const [minutesError, setMinutesError] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const [goalError, setGoalError] = useState('');
@@ -1419,6 +1421,29 @@ export default function InsightsScreen() {
     }, 60_000);
     return () => clearInterval(id);
   }, []);
+
+  const commitActivityMinutes = () => {
+    // React Native sends onEndEditing while React Native Web reliably sends
+    // onBlur. Commit exactly once for either event in the active edit session.
+    if (!isEditingMinutes.current) return;
+    isEditingMinutes.current = false;
+
+    const decision = resolveActivityMinutesInput(
+      minutesInput,
+      activityMinutesLogs[todayKey] !== undefined,
+    );
+    if (decision.kind === 'save') {
+      setActivityMinutes(todayKey, decision.minutes);
+      setMinutesError('');
+      setSaveNotice(`${decision.minutes} active minutes saved.`);
+    } else if (decision.kind === 'clear') {
+      setActivityMinutes(todayKey, 0);
+      setMinutesError('');
+    } else if (decision.kind === 'invalid') {
+      setMinutesError(decision.message);
+    }
+  };
+
   const remembered = useMemo(
     () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
     [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs],
@@ -1587,6 +1612,7 @@ export default function InsightsScreen() {
     if (isEditingMinutes.current) return;
     const stored = activityMinutesLogs[todayKey];
     setMinutesInput(stored ? String(stored) : '');
+    setMinutesError('');
   }, [todayKey, activityMinutesLogs]);
   // Sync weight input from the latest stored weight when the modal opens or weights update.
   // When the modal closes, reset the editing ref so a re-open always pre-populates cleanly.
@@ -2024,32 +2050,29 @@ export default function InsightsScreen() {
                 <Feather name="clock" size={14} color={colors.mutedForeground} />
                 <Text style={[styles.minutesLabel, { color: colors.mutedForeground }]}>ACTIVE MINUTES</Text>
               </View>
-              <View style={[styles.minutesInputWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <View style={[styles.minutesInputWrap, { backgroundColor: colors.muted, borderColor: minutesError ? colors.destructive : colors.border }]}>
                 <TextInput
                   value={minutesInput}
-                  onChangeText={(value) => setMinutesInput(normalizeWholeNumberInput(value))}
+                  onChangeText={(value) => {
+                    setMinutesInput(normalizeWholeNumberInput(value));
+                    if (minutesError) setMinutesError('');
+                  }}
                   keyboardType="number-pad"
                   placeholder="—"
                   placeholderTextColor={colors.mutedForeground}
                   returnKeyType="done"
                   onFocus={() => { isEditingMinutes.current = true; }}
-                  onEndEditing={() => {
-                    isEditingMinutes.current = false;
-                    const val = parseWholeNumberInput(minutesInput);
-                    if (val !== null) {
-                      setActivityMinutes(todayKey, val);
-                      setSaveNotice(`${val} active minutes saved.`);
-                    } else if (minutesInput === '' && activityMinutesLogs[todayKey] !== undefined) {
-                      setActivityMinutes(todayKey, 0);
-                    }
-                  }}
+                  onEndEditing={commitActivityMinutes}
+                  onBlur={commitActivityMinutes}
                   style={[styles.minutesInput, { color: colors.foreground }]}
                   accessibilityLabel="Enter active minutes for today"
+                  accessibilityHint="Enter a whole number of active minutes. Invalid values are not saved."
                   testID="activity-minutes-input"
                 />
                 <Text style={[styles.minutesUnit, { color: colors.mutedForeground }]}>min</Text>
               </View>
             </View>
+            {!!minutesError && <Text accessibilityRole="alert" style={[styles.minutesError, { color: colors.destructive }]}>{minutesError}</Text>}
             {/* Mood check-in */}
             <Text style={[styles.checkinLabel, { color: colors.mutedForeground, marginTop: 16 }]}>HOW YOU FEEL</Text>
             <View style={styles.moodOptions}>
@@ -2618,6 +2641,7 @@ function makeStyles(f: number) {
   minutesInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, gap: 4, minWidth: 80 },
   minutesInput: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, minWidth: 40, textAlign: 'right' },
   minutesUnit: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+  minutesError: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 6, textAlign: 'right' },
   healthSyncNote: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7, marginTop: 11 },
   healthSyncText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13, flex: 1 },
   weightTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
