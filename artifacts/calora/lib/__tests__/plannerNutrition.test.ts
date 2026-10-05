@@ -23,4 +23,14 @@ describe('Planner nutrition entry contract', () => {
     expect(source).not.toContain('nutrition[2][1] ?? 0');
     expect(source).not.toContain('nutrition[3][1] ?? 0');
   });
+
+  it('keeps the complete field label in custom-meal nutrition validation feedback', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/planner.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('invalid[0].charAt(0).toUpperCase() + invalid[0].slice(1)');
+    expect(source).not.toContain('invalid[0][0][0]');
+  });
 });
