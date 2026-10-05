@@ -228,6 +228,20 @@ export function applyIdentityReplace(
 }
 
 /**
+ * Resolves the active meal in a target's slot after identity-based replacement.
+ * Undo state must follow the rendered slot occupant rather than reconstructing
+ * the replacement's internal identifier at a second call site.
+ */
+export function findIdentityReplacement(
+  plannerMeals: readonly PlannerMeal[],
+  target: PlannerMeal,
+): PlannerMeal | undefined {
+  return plannerMeals.find(
+    (meal) => meal.id !== target.id && meal.day === target.day && meal.meal === target.meal,
+  );
+}
+
+/**
  * True when a meal was produced by a Program generation or the starter seed —
  * i.e. NOT something the user authored or edited themselves.
  * Generated meals carry a `planner-` id (API) and starter meals `starter-`;
