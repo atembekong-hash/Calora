@@ -19,6 +19,22 @@ function isLocalRecipe(recipe: RecipeLike): recipe is CaloraRecipe {
 }
 
 /**
+ * Only media-free recipes created directly by the user can be changed from the
+ * personal-recipe editor. Calora AI recipes and recipes with a durable media
+ * reference intentionally stay outside this local-only lifecycle so a UI
+ * action cannot orphan server-owned private media.
+ */
+export function isEditablePersonalRecipe(recipe: RecipeLike): recipe is CaloraRecipe {
+  if (!isLocalRecipe(recipe)) return false;
+  return recipeProvenance(recipe).sourceType === 'user_created'
+    && !recipe.image
+    && !recipe.imageId
+    && !recipe.imageMediaId
+    && (!recipe.imageStatus || recipe.imageStatus === 'not_requested')
+    && recipe.imageProvenance !== 'generated';
+}
+
+/**
  * Provides one provenance contract for existing open-source and local recipes.
  * Legacy records receive conservative defaults so stored recipes remain readable
  * while later source types can supply their own explicit metadata.

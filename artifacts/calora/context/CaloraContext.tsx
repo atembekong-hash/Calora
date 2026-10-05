@@ -116,6 +116,7 @@ import {
 import { coordinateCaptureAcceptance, createCaptureAcceptanceCoordinator } from '@/lib/captureAcceptanceCoordinator';
 import { reconcileRemoteProfile, saveRemoteProfile, type LocalProfile } from '@/lib/profileSync';
 import { removeExactLegacyStarterFixtures } from '@/lib/legacyStarterFixtures';
+import { isEditablePersonalRecipe } from '@/lib/recipeModel';
 
 export type HealthSyncOutcome =
   | { status: 'synced'; syncedAt: string }
@@ -270,8 +271,11 @@ export type OutboxMutation = {
   id: string;
   entity: 'profile' | 'diaryEntry' | 'weight' | 'savedMeal' | 'settings';
   operation: 'upsert' | 'delete';
-  createdAt: string;
+  generatedAt?: string;
 };
+
+export type PersonalRecipePatch = Pick<CaloraRecipe,
+  'name' | 'ingredients' | 'calories' | 'proteinG' | 'carbsG' | 'fatG'>;
 
 /**
  * Durable, account-scoped intent to retry a local profile mutation remotely.
@@ -534,6 +538,10 @@ type CaloraContextValue = {
   /** Restores a server-owned generated recipe using its stable client recipe ID. */
   restoreRecipe: (recipe: CaloraRecipe) => void;
   updateRecipe: (recipeId: string, patch: Partial<Omit<CaloraRecipe, 'id'>>) => void;
+  /** Updates only a media-free, user-created local recipe after durable persistence. */
+  updatePersonalRecipe: (recipeId: string, patch: Partial<PersonalRecipePatch>) => Promise<boolean>;
+  /** Deletes only a media-free, user-created local recipe after durable persistence. */
+  deletePersonalRecipe: (recipeId: string) => Promise<boolean>;
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   setOnboardingStep: (step: number) => void;
@@ -2361,6 +2369,59 @@ export function CaloraProvider({
       updateExportField('localRecipes', (current) => (current as CaloraRecipe[]).map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt } : recipe));
       setLocalRecipes((current) => current.map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt } : recipe));
       queueMutation('savedMeal', 'upsert');
+    },
+    updatePersonalRecipe: async (recipeId, patch) => {
+      const currentSnapshot = exportSnapshotRef.current;
+      if (!currentSnapshot) return false;
+      const currentRecipes = currentSnapshot.localRecipes as CaloraRecipe[];
+      const target = currentRecipes.find((recipe) => recipe.id === recipeId);
+      if (!target || !isEditablePersonalRecipe(target)) return false;
+
+      const updatedAt = new Date().toISOString();
+      const nextRecipes = currentRecipes.map((recipe) => recipe.id === recipeId
+        ? { ...recipe, ...patch, updatedAt }
+        : recipe);
+      const persistedSnapshot = { ...currentSnapshot, localRecipes: nextRecipes };
+      try {
+        await commitSnapshot(persistedSnapshot);
+      } catch {
+        return false;
+      }
+      exportSnapshotRef.current = persistedSnapshot;
+      setLocalRecipes(nextRecipes);
+      return true;
+    },
+    deletePersonalRecipe: async (recipeId) => {
+      const currentSnapshot = exportSnapshotRef.current;
+      if (!currentSnapshot) return false;
+      const currentRecipes = currentSnapshot.localRecipes as CaloraRecipe[];
+      const target = currentRecipes.find((recipe) => recipe.id === recipeId);
+      // Server-owned generated media follows a separate, storage-first deletion
+      // path. This local lifecycle deliberately admits only media-free recipes
+      // the person created directly in Calora.
+      if (!target || !isEditablePersonalRecipe(target)) return false;
+
+      const nextRecipes = currentRecipes.filter((recipe) => recipe.id !== recipeId);
+      const nextSavedRecipeIds = (currentSnapshot.savedRecipeIds as string[])
+        .filter((savedRecipeId) => savedRecipeId !== recipeId);
+      const persistedSnapshot = {
+        ...currentSnapshot,
+        localRecipes: nextRecipes,
+        savedRecipeIds: nextSavedRecipeIds,
+      };
+      // Do not remove the visible recipe until the complete local snapshot,
+      // including its saved-state reference, is durable. A storage failure must
+      // leave the person with a retryable, unchanged recipe rather than a
+      // disappearance that can return after a reload.
+      try {
+        await commitSnapshot(persistedSnapshot);
+      } catch {
+        return false;
+      }
+      exportSnapshotRef.current = persistedSnapshot;
+      setLocalRecipes(nextRecipes);
+      setSavedRecipeIds(nextSavedRecipeIds);
+      return true;
     },
     toggleSavedRecipe: (recipeId) => {
       updateExportField('savedRecipeIds', (current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);

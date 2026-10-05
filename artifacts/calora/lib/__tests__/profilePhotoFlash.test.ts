@@ -243,6 +243,69 @@ describe('real CaloraProvider — local recipe durable commit boundary', () => {
       expect.objectContaining({ name: 'Durable test recipe' }),
     ]);
   });
+
+  it('updates and deletes only a media-free user-created recipe after its snapshot commits', async () => {
+    const { result } = await renderAndAwaitHydration();
+    let personalRecipeId = '';
+    await act(async () => {
+      const saved = await result.current.saveRecipe({
+        name: 'Personal oat bowl', ingredients: ['Oats'], tags: ['My recipes'],
+        source: 'Created in Calora', sourceUrl: '', calories: 240,
+        sourceType: 'user_created', nutritionConfidence: 'user_entered', nutritionSource: 'User entered',
+      });
+      personalRecipeId = saved.id;
+      result.current.toggleSavedRecipe(saved.id);
+    });
+
+    await act(async () => {
+      await expect(result.current.updatePersonalRecipe(personalRecipeId, { name: 'Updated oat bowl', calories: 260 })).resolves.toBe(true);
+    });
+    expect(result.current.localRecipes).toEqual([expect.objectContaining({ id: personalRecipeId, name: 'Updated oat bowl', calories: 260 })]);
+    expect((await readPersistedSnapshot(STORAGE_KEY))?.localRecipes).toEqual([expect.objectContaining({ id: personalRecipeId, name: 'Updated oat bowl', calories: 260 })]);
+
+    await act(async () => {
+      await expect(result.current.deletePersonalRecipe(personalRecipeId)).resolves.toBe(true);
+    });
+    expect(result.current.localRecipes).toEqual([]);
+    expect(result.current.savedRecipeIds).not.toContain(personalRecipeId);
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    expect(persisted?.localRecipes).toEqual([]);
+    expect(persisted?.savedRecipeIds).not.toContain(personalRecipeId);
+  });
+
+  it('does not mutate a generated or storage-failed personal recipe through the local lifecycle', async () => {
+    const { result } = await renderAndAwaitHydration();
+    let generatedRecipeId = '';
+    await act(async () => {
+      const saved = await result.current.saveRecipe({
+        name: 'Generated recipe', ingredients: ['Lentils'], tags: ['My recipes'], source: 'Calora', sourceUrl: '', calories: 300,
+        sourceType: 'calora_ai', imageId: 'private-image-1', imageMediaId: 'media-1', imageProvenance: 'generated',
+      });
+      generatedRecipeId = saved.id;
+    });
+    await act(async () => {
+      await expect(result.current.updatePersonalRecipe(generatedRecipeId, { name: 'Should not update' })).resolves.toBe(false);
+      await expect(result.current.deletePersonalRecipe(generatedRecipeId)).resolves.toBe(false);
+    });
+    expect(result.current.localRecipes).toEqual([expect.objectContaining({ id: generatedRecipeId, name: 'Generated recipe' })]);
+
+    let personalRecipeId = '';
+    await act(async () => {
+      const saved = await result.current.saveRecipe({
+        name: 'Retryable personal recipe', ingredients: [], tags: ['My recipes'], source: 'Created in Calora', sourceUrl: '', calories: 180,
+        sourceType: 'user_created', nutritionConfidence: 'user_entered', nutritionSource: 'User entered',
+      });
+      personalRecipeId = saved.id;
+    });
+    _asyncSetItemError.current = new Error('storage-full');
+    await act(async () => {
+      await expect(result.current.updatePersonalRecipe(personalRecipeId, { name: 'Must stay unchanged' })).resolves.toBe(false);
+      await expect(result.current.deletePersonalRecipe(personalRecipeId)).resolves.toBe(false);
+    });
+    expect(result.current.localRecipes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: personalRecipeId, name: 'Retryable personal recipe' }),
+    ]));
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -245,9 +245,21 @@ describe('Recipes Discover layout contracts', () => {
   });
 
   it('does not create an unattached generated-photo request for a manual personal recipe', () => {
-    const manualRecipeForm = source.slice(source.indexOf('function CreateRecipeModal'));
+    const manualRecipeForm = source.slice(source.indexOf('function PersonalRecipeFormModal'));
     expect(manualRecipeForm).toContain("imageStatus: 'not_requested'");
     expect(manualRecipeForm).not.toContain("imageStatus: 'pending'");
+  });
+
+  it('gives only media-free personal recipes a confirmed local edit and deletion lifecycle', () => {
+    expect(source).toContain("import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel'");
+    expect(source).toContain('const editablePersonalRecipe = isEditablePersonalRecipe(detail);');
+    expect(source).toContain('accessibilityLabel="Edit personal recipe"');
+    expect(source).toContain('accessibilityLabel="Delete personal recipe"');
+    expect(source).toContain('accessibilityLabel="Confirm recipe deletion"');
+    expect(source).toContain('This removes this personal recipe from this device. This cannot be undone.');
+    expect(source).toContain('updatePersonalRecipe(recipe.id, patch)');
+    expect(source).toContain('deletePersonalRecipe(detail.id)');
+    expect(source).toContain('Recipe could not be deleted on this device. Check storage and try again.');
   });
 
   it('keeps routed and saved Plus failures explicit, scoped, and actionable', () => {
@@ -268,9 +280,11 @@ describe('Recipes Discover layout contracts', () => {
       'utf8',
     );
 
-    expect(source).toContain('proteinG: parseNutritionInput(protein)');
-    expect(source).toContain('carbsG: parseNutritionInput(carbs)');
-    expect(source).toContain('fatG: parseNutritionInput(fat)');
+    expect(source).toContain('proteinG: parseWholeNumberInput(protein)');
+    expect(source).toContain('carbsG: parseWholeNumberInput(carbs)');
+    expect(source).toContain('fatG: parseWholeNumberInput(fat)');
+    expect(source).toContain('Calories must be a whole number from 1 to 100,000.');
+    expect(source).toContain('must be a whole number from 0 to 100,000.');
     expect(source).toContain('const nutritionIncomplete = nutritionState === \'available\' && !hasCompleteNutrition(detail)');
     expect(source).toContain('Some nutrition values are unavailable from this recipe source.');
     expect(source).toContain('formatRecipeNutrition(scaledProtein');
@@ -284,10 +298,10 @@ describe('Recipes Discover layout contracts', () => {
 
   it('awaits durable local recipe creation before opening a recipe or reporting success', () => {
     expect(source).toContain('const saved = await saveRecipe(recipe);');
-    expect(source).toContain('const saved = await saveRecipe({');
+    expect(source).toContain(': await saveRecipe({');
     expect(source).toContain('Recipe could not be saved on this device. Check storage and try again.');
     expect(source).toContain('disabled={saving}');
-    expect(source).toContain("{saving ? 'Saving recipe…' : 'Save recipe'}");
+    expect(source).toContain("editing ? 'Save changes' : 'Save recipe'");
   });
 
   it('keeps nutrition portions explicit without guessing ingredient quantities', () => {
