@@ -7,6 +7,7 @@ import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { motion } from '@/constants/tokens';
+import { getRootAccessGateState } from '@/lib/rootAccessGate';
 
 function AnimatedTabIcon({ focused, children }: { focused: boolean; children: React.ReactNode }) {
   const scale = useSharedValue(1);
@@ -134,6 +135,9 @@ function ClassicTabLayout() {
 }
 
 const styles = StyleSheet.create({
+  bootstrap: {
+    flex: 1,
+  },
   scanTabButton: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -162,5 +166,27 @@ const styles = StyleSheet.create({
 });
 
 export default function TabLayout() {
+  const {
+    colors,
+    hydrated,
+    hydrationError,
+    profileSyncReady,
+    onboardingComplete,
+  } = useCalora();
+  const { applicationReady } = getRootAccessGateState({
+    hydrated,
+    hydrationError,
+    profileSyncReady,
+    onboardingComplete,
+    reviewRequested: false,
+  });
+
+  // Root registration keeps a valid cold-load tab URL out of generic not-found
+  // recovery. Keep that registration non-sensitive until the same secure gate
+  // admits the application.
+  if (!applicationReady) {
+    return <View testID="tab-route-bootstrap" style={[styles.bootstrap, { backgroundColor: colors.background }]} />;
+  }
+
   return <ClassicTabLayout />;
 }

@@ -330,6 +330,11 @@ function RootLayoutNav() {
     onboardingComplete,
     reviewRequested,
   });
+  // Register the tab route shell during a cold bootstrap so a valid direct
+  // web URL is not first classified as unmatched. The tab layout itself renders
+  // only a neutral bootstrap surface until the existing gate admits content.
+  // Secondary application routes remain unavailable until then.
+  const allowTabRouteShell = allowApplication || (!hydrationError && (!hydrated || !profileSyncReady));
   const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
   const effectivePostAuthIntent = resolvePostAuthIntent({
     callbackRouteIsActive,
@@ -360,16 +365,19 @@ function RootLayoutNav() {
       <NotificationHandler />
       <Stack screenOptions={{ headerBackTitle: 'Back', contentStyle: { backgroundColor: 'transparent' } }}>
         {/*
-          This is the single route/access boundary for onboarding. During
-          hydration (including recoverable errors), only the root onboarding
-          route is registered. Completed scopes gain application routes only
-          after local hydration and account-profile reconciliation both pass.
+          The tab route shell is registered during secure bootstrap only so
+          direct web URLs can resolve. It renders no application content until
+          the same access gate admits it; secondary application routes remain
+          unregistered until local hydration and account-profile reconciliation
+          both pass.
         */}
         <Stack.Protected guard={allowOnboarding}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={allowApplication}>
+        <Stack.Protected guard={allowTabRouteShell}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={allowApplication}>
           <Stack.Screen name="saved-recipes" options={{ headerShown: false }} />
           <Stack.Screen name="coach" options={{ headerShown: false }} />
           <Stack.Screen name="memory" options={{ headerShown: false }} />
