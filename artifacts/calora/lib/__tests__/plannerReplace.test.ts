@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { applySlotReplace, applyIdentityReplace, plannerReplacementMealId } from '@/data/planner';
+import { applySlotReplace, applyIdentityReplace, findIdentityReplacement, plannerReplacementMealId } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 // ---------------------------------------------------------------------------
@@ -156,15 +156,17 @@ describe('applyIdentityReplace – catalog Replace sheet', () => {
     assertNoDuplicateSlots(result);
   });
 
-  it('exposes the replacement identity needed by the Planner Undo payload', () => {
+  it('resolves the live replacement needed by the Planner Undo payload', () => {
     const target = makeMeal({ id: 'old-breakfast', day: '2026-08-10', meal: 'Breakfast' });
     const next = makeMeal({ id: 'catalog-breakfast', day: '', meal: 'Breakfast', name: 'Eggs on sourdough' });
 
     const result = applyIdentityReplace([target], next, target);
     const replacementId = plannerReplacementMealId(target.id, next.id);
+    const replacement = findIdentityReplacement(result, target);
 
     expect(replacementId).toBe('planned-replacement-old-breakfast-catalog-breakfast');
-    expect(result.find((meal) => meal.id === replacementId)).toMatchObject({
+    expect(replacement).toMatchObject({
+      id: replacementId,
       day: target.day,
       meal: target.meal,
       name: next.name,

@@ -24,7 +24,7 @@ import { dateKey } from '@/lib/dates';
 import { parseNutritionInput } from '@/lib/recipeNutrition';
 import { plannerImageProvenanceForMeal } from '@/lib/plannerImageRendering';
 import { useAuth } from '@/context/AuthContext';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, plannerReplacementMealId, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, findIdentityReplacement, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { ProgramAppliedCelebration } from '@/components/ProgramAppliedCelebration';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -475,9 +475,9 @@ export default function PlannerScreen() {
     updatePlannerMeals(next);
     setReplaceMeal(null);
     setActionMeal(null);
-    // applyIdentityReplace deliberately retires target.id. Use its shared
-    // replacement identity so the Undo payload always addresses the live meal.
-    const replacement = next.find((meal) => meal.id === plannerReplacementMealId(target.id, nextMeal.id));
+    // The identity mutation deliberately retires target.id. Resolve the live
+    // slot occupant itself so the Undo affordance follows the rendered meal.
+    const replacement = findIdentityReplacement(next, target);
     if (replacement) {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
