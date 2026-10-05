@@ -468,6 +468,19 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).not.toContain('burned?.toLocaleString()');
   });
 
+  it('rejects fractional manual-food calories instead of silently changing their value', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const kcal = parseWholeNumberInput(customCalories);');
+    expect(source).toContain("setManualError('Enter whole-number calories greater than zero.');");
+    expect(source).toContain('const nextCalories = parseWholeNumberInput(calories);');
+  });
+
   it('opens a direct independent macro-goal editor from Macro balance', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

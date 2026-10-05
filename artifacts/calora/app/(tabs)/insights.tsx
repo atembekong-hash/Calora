@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { BRAND } from '@/lib/brand';
-import { formatGrams, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
+import { formatGrams, formatWhole, normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -2035,8 +2035,8 @@ export default function InsightsScreen() {
                   onFocus={() => { isEditingMinutes.current = true; }}
                   onEndEditing={() => {
                     isEditingMinutes.current = false;
-                    const val = parseInt(minutesInput, 10);
-                    if (Number.isFinite(val) && val >= 0) {
+                    const val = parseWholeNumberInput(minutesInput);
+                    if (val !== null) {
                       setActivityMinutes(todayKey, val);
                       setSaveNotice(`${val} active minutes saved.`);
                     } else if (minutesInput === '' && activityMinutesLogs[todayKey] !== undefined) {

@@ -11,7 +11,7 @@ import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumR
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
-import { formatCalories, formatGrams, formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
+import { formatCalories, formatGrams, formatWhole, normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
 import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -347,6 +347,13 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   const activePreferences = mode === 'goals' ? [styleChoice] : mode === 'surprise' ? [surpriseChoice] : [];
   const generate = async () => {
     if (finishingRef.current) return;
+    const servingCount = parseWholeNumberInput(servings);
+    const maximumMinutes = parseWholeNumberInput(minutes);
+    if (servingCount === null || servingCount <= 0 || maximumMinutes === null || maximumMinutes <= 0) {
+      setStatus('idle');
+      setError('Enter whole-number servings and minutes above zero.');
+      return;
+    }
     abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
     setStatus('loading'); setError(''); setConcepts([]);
     try {
@@ -368,8 +375,8 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       const payload = {
         ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean),
         mealType,
-        servings: Number(servings),
-        maxMinutes: Number(minutes),
+        servings: servingCount,
+        maxMinutes: maximumMinutes,
         preferences: [...activePreferences, ...(session && profile ? [profile.diet, `${profile.goal} goal`] : [])],
         ...(optionalRequest ? { request: optionalRequest } : {}),
       };
@@ -389,7 +396,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
           .split(',')
           .map((item) => item.trim())
           .filter(Boolean);
-        setConcepts(createOfflineRecipeConcepts(fallbackIngredients, mealType, generatedRequest, Number(minutes)));
+        setConcepts(createOfflineRecipeConcepts(fallbackIngredients, mealType, generatedRequest, maximumMinutes));
         setStatus('idle');
         setError('Recipe suggestions are temporarily unavailable. Showing local, editable starter ideas instead.');
       }
@@ -402,12 +409,17 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       setError('Sign in to make and save the full recipe.');
       return;
     }
+    const servingCount = parseWholeNumberInput(servings);
+    if (servingCount === null || servingCount <= 0) {
+      setError('Enter a whole-number serving count above zero.');
+      return;
+    }
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
     let recipe: Omit<CaloraRecipe, 'id'>;
     let usedLocalFallback = false;
     try {
-      const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: Number(servings) });
+      const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: servingCount });
       recipe = { name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', nutritionNote: generated.nutritionNote, createdAt: new Date().toISOString() };
     } catch {
       // Creating a local draft preserves the user's chosen concept without
@@ -420,7 +432,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         instructions: `Prepare ${concept.keyIngredients.join(', ')}. Cook until done and season to taste. Review quantities before logging.`,
         tags: ['Calora local draft'],
         prepMinutes: concept.estimatedMinutes,
-        servings: Number(servings),
+        servings: servingCount,
         source: 'Calora local draft',
         sourceUrl: '',
         isLocal: true,
