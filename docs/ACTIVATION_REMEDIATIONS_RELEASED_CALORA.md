@@ -4,6 +4,8 @@
 **Deployed revision:** `1ed2a3f67ddede61409b32f7b7ca372dc232e993`  
 **Scope:** Release and verification only. Coach Fact Context remained dark.
 
+> **Historical-policy note (superseded):** This 2026-08 report records the entitlement-gated Plus behavior that existed at that time. The current approved product policy is different: a verified signed-in Calora account may access Plus recipes without a paid RevenueCat entitlement. RevenueCat remains relevant to optional Membership purchase and restore only. This report is retained as historical evidence and must not be used as the current Plus authorization contract.
+
 ## 1. Release contents
 
 The published runtime source contains the two code remediations reviewed for the
