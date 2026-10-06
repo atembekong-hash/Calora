@@ -5,9 +5,11 @@
  * one module makes native SecureStore failures observable by AuthProvider
  * instead of allowing them to be mistaken for a signed-out session.  This
  * module deliberately has no AsyncStorage or browser-localStorage fallback for
- * access tokens, refresh tokens, or session payloads. Web PKCE code verifiers
- * are a narrower exception: they must survive the full-page email/OAuth
- * redirect, so the web adapter persists only Supabase's verifier keys.
+ * access tokens, refresh tokens, or session payloads. Browser sessions use
+ * per-tab sessionStorage: this supports ordinary reloads without making a
+ * session survive a closed browser tab. Web PKCE code verifiers are a narrower
+ * exception: they must survive the full-page email/OAuth redirect, so the web
+ * adapter keeps those verifier keys in the supplied PKCE store.
  */
 
 export type SessionStorageOperation = 'read' | 'write' | 'remove';
@@ -98,47 +100,51 @@ function isPkceVerifierKey(key: string): boolean {
 }
 
 /**
- * Keep browser sessions process-local while allowing PKCE to complete after a
- * full-page redirect or in another tab of the same origin. The only values
- * written to the supplied browser store are random, short-lived code verifier
- * material managed and removed by Supabase after exchange; auth sessions remain
- * in the private in-memory map and disappear on reload.
+ * Keep browser auth material out of durable localStorage while allowing a
+ * current tab to survive ordinary document reloads. Sessions use the supplied
+ * sessionStorage adapter, which the browser clears when the tab closes. PKCE
+ * verifiers use the supplied PKCE store because their short-lived, random
+ * material must survive the full-page callback exchange. If browser storage is
+ * unavailable, a session remains process-local and PKCE setup fails explicitly.
  */
 export function createWebSessionStorage(
   pkceStore: BrowserKeyValueStore | null,
+  sessionStore: BrowserKeyValueStore | null = null,
 ): SupabaseSessionStorage {
   const sessionValues = new Map<string, string>();
 
   return {
     async getItem(key) {
-      if (!isPkceVerifierKey(key)) return sessionValues.get(key) ?? null;
-      if (!pkceStore) return null;
+      const store = isPkceVerifierKey(key) ? pkceStore : sessionStore;
+      if (!store) return isPkceVerifierKey(key) ? null : sessionValues.get(key) ?? null;
       try {
-        return pkceStore.getItem(key);
+        return store.getItem(key);
       } catch {
         throw new SupabaseSessionStorageError('read');
       }
     },
     async setItem(key, value) {
-      if (!isPkceVerifierKey(key)) {
+      const store = isPkceVerifierKey(key) ? pkceStore : sessionStore;
+      if (!store) {
+        if (isPkceVerifierKey(key)) throw new SupabaseSessionStorageError('write');
         sessionValues.set(key, value);
         return;
       }
-      if (!pkceStore) throw new SupabaseSessionStorageError('write');
       try {
-        pkceStore.setItem(key, value);
+        store.setItem(key, value);
       } catch {
         throw new SupabaseSessionStorageError('write');
       }
     },
     async removeItem(key) {
-      if (!isPkceVerifierKey(key)) {
+      const store = isPkceVerifierKey(key) ? pkceStore : sessionStore;
+      if (!store) {
+        if (isPkceVerifierKey(key)) return;
         sessionValues.delete(key);
         return;
       }
-      if (!pkceStore) return;
       try {
-        pkceStore.removeItem(key);
+        store.removeItem(key);
       } catch {
         throw new SupabaseSessionStorageError('remove');
       }
