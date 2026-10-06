@@ -17,33 +17,34 @@ vi.mock("pg", () => ({
 }));
 
 vi.mock("../connection", () => ({
-  buildDatabasePoolConfig: vi.fn(() => ({ connectionString: "postgresql://fixture" })),
+  buildDatabasePoolConfig: vi.fn(() => ({
+    connectionString: "postgresql://fixture",
+  })),
   getMigrationDatabaseUrl: vi.fn(() => "postgresql://fixture"),
 }));
 
-const { provisionDatabaseSupportObjects } = await import(
-  "../provision-support-objects"
-);
+const { provisionDatabaseSupportObjects } =
+  await import("../provision-support-objects");
 
 describe("provisionDatabaseSupportObjects", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("uses the dedicated extensions schema for pgcrypto deletion fencing", async () => {
+  it("uses the canonical pgcrypto schema without database-wide extension DDL", async () => {
     const client = { query, release: vi.fn() };
     query.mockResolvedValue(undefined);
 
     await provisionDatabaseSupportObjects(client);
 
-    expect(query.mock.calls.map(([statement]) => String(statement))).toEqual(
-      expect.arrayContaining([
-        "CREATE SCHEMA IF NOT EXISTS extensions",
-        "CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions",
-      ]),
+    const statements = query.mock.calls
+      .map(([statement]) => String(statement))
+      .join("\n");
+    expect(statements).toContain(
+      "extensions.digest(external_user_id, 'sha256')",
     );
-    expect(query.mock.calls.map(([statement]) => String(statement)).join("\n"))
-      .toContain("extensions.digest(external_user_id, 'sha256')");
+    expect(statements).not.toContain("CREATE SCHEMA IF NOT EXISTS extensions");
+    expect(statements).not.toContain("CREATE EXTENSION IF NOT EXISTS pgcrypto");
   });
 
   it("releases the owned connection as broken when rollback fails", async () => {
@@ -54,8 +55,6 @@ describe("provisionDatabaseSupportObjects", () => {
     connect.mockResolvedValue(client);
     query
       .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(provisionError)
       .mockRejectedValueOnce(rollbackError);
 
@@ -65,9 +64,8 @@ describe("provisionDatabaseSupportObjects", () => {
 
     expect(connect).toHaveBeenCalledOnce();
     expect(query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(query).toHaveBeenNthCalledWith(2, "CREATE SCHEMA IF NOT EXISTS extensions");
-    expect(query.mock.calls[2][0]).toContain("CREATE EXTENSION");
-    expect(query).toHaveBeenNthCalledWith(5, "ROLLBACK");
+    expect(query.mock.calls[1][0]).toContain("CREATE OR REPLACE FUNCTION");
+    expect(query).toHaveBeenNthCalledWith(3, "ROLLBACK");
     expect(query).not.toHaveBeenCalledWith("COMMIT");
     expect(release).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledWith(rollbackError);
@@ -81,8 +79,6 @@ describe("provisionDatabaseSupportObjects", () => {
 
     query
       .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(provisionError)
       .mockRejectedValueOnce(rollbackError);
 
@@ -92,9 +88,8 @@ describe("provisionDatabaseSupportObjects", () => {
 
     expect(connect).not.toHaveBeenCalled();
     expect(query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(query).toHaveBeenNthCalledWith(2, "CREATE SCHEMA IF NOT EXISTS extensions");
-    expect(query.mock.calls[2][0]).toContain("CREATE EXTENSION");
-    expect(query).toHaveBeenNthCalledWith(5, "ROLLBACK");
+    expect(query.mock.calls[1][0]).toContain("CREATE OR REPLACE FUNCTION");
+    expect(query).toHaveBeenNthCalledWith(3, "ROLLBACK");
     expect(query).not.toHaveBeenCalledWith("COMMIT");
     expect(injectedRelease).not.toHaveBeenCalled();
   });
