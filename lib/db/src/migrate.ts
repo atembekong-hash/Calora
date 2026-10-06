@@ -10,7 +10,8 @@
  *   pnpm --filter @workspace/db run migrate
  *
  * Safety rules enforced here:
- *  - DATABASE_URL must be set; the runner never starts without it.
+ *  - Production requires MIGRATION_DATABASE_URL; the runtime DATABASE_URL
+ *    never receives schema-mutation privileges.
  *  - Migrations are run inside a transaction per-file when drizzle supports it.
  *  - The migrations/ folder is resolved relative to this file; the runner
  *    refuses to start if the folder is missing.
@@ -22,23 +23,23 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildDatabasePoolConfig } from "./connection";
+import { buildDatabasePoolConfig, getMigrationDatabaseUrl } from "./connection";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set before running migrations.");
-}
+const migrationDatabaseUrl = getMigrationDatabaseUrl();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(__dirname, "../migrations");
+const migrationsSchema = "public";
+const migrationsTable = "calora_migration_journal";
 
-const pool = new Pool(buildDatabasePoolConfig(process.env.DATABASE_URL));
+const pool = new Pool(buildDatabasePoolConfig(migrationDatabaseUrl));
 const db = drizzle(pool);
 
 async function runMigrations(): Promise<void> {
   console.info("[migrate] Applying pending migrations from", migrationsFolder);
-  await migrate(db, { migrationsFolder });
+  await migrate(db, { migrationsFolder, migrationsSchema, migrationsTable });
   console.info("[migrate] All migrations applied successfully.");
 }
 

@@ -1,5 +1,7 @@
-import { pool } from "./index";
-import type { PoolClient } from "pg";
+import pg, { type PoolClient } from "pg";
+import { buildDatabasePoolConfig, getMigrationDatabaseUrl } from "./connection";
+
+const { Pool } = pg;
 
 type SupportObjectClient = Pick<PoolClient, "query">;
 
@@ -77,7 +79,14 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
 export async function provisionDatabaseSupportObjects(
   providedClient?: SupportObjectClient,
 ): Promise<void> {
-  const client = providedClient ?? (await pool.connect());
+  let migrationPool: pg.Pool | undefined;
+  let client: SupportObjectClient;
+  if (providedClient) {
+    client = providedClient;
+  } else {
+    migrationPool = new Pool(buildDatabasePoolConfig(getMigrationDatabaseUrl()));
+    client = await migrationPool.connect();
+  }
   const ownedClient = providedClient ? undefined : (client as PoolClient);
   let transactionStarted = false;
   let releaseError: Error | undefined;
@@ -103,6 +112,7 @@ export async function provisionDatabaseSupportObjects(
   } finally {
     if (ownedClient) {
       ownedClient.release(releaseError);
+      await migrationPool?.end();
     }
   }
 }
@@ -110,11 +120,9 @@ export async function provisionDatabaseSupportObjects(
 if (import.meta.url === `file://${process.argv[1]}`) {
   provisionDatabaseSupportObjects()
     .then(async () => {
-      await pool.end();
       console.info("Calora database support objects provisioned");
     })
     .catch(async (error: unknown) => {
-      await pool.end();
       console.error(error);
       process.exitCode = 1;
     });

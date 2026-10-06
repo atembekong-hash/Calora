@@ -15,4 +15,8 @@ export const pool = new Pool(buildDatabasePoolConfig(process.env.DATABASE_URL));
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
-export { buildDatabasePoolConfig, preserveStrictTlsVerification } from "./connection";
+export {
+  buildDatabasePoolConfig,
+  getMigrationDatabaseUrl,
+  preserveStrictTlsVerification,
+} from "./connection";

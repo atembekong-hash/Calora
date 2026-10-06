@@ -1,9 +1,8 @@
 /**
  * Builds a brand-new Calora application schema only after proving that the
- * target contains no Calora application data.  This is deliberately separate
- * from the immutable forward-only Drizzle migration journal: that journal was
- * written for an already-existing Calora base schema and must never be used as
- * a blank-target bootstrap.
+ * target contains no Calora application data. The reviewed baseline replaces
+ * historical forward DDL, then records the immutable migration cutoff so
+ * deployment-time migration tooling never replays that history.
  *
  * Invocation (one-shot, deployment tooling only):
  *   pnpm --filter @workspace/db run bootstrap-empty-target -- --approve-empty-calora-target
@@ -22,6 +21,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readMigrationFiles } from "drizzle-orm/migrator";
 import pg from "pg";
 import { buildDatabasePoolConfig } from "./connection";
 
@@ -29,6 +29,8 @@ const { Pool } = pg;
 const APPROVAL_FLAG = "--approve-empty-calora-target";
 const LEGACY_EMPTY_CACHE = "calora_recipe_nutrition";
 const EXPECTED_TABLE_COUNT = 29;
+const MIGRATIONS_SCHEMA = "public";
+const MIGRATIONS_TABLE = "calora_migration_journal";
 
 type ExistingTableRow = { table_name: string };
 type EmptyTableRow = { is_empty: boolean };
@@ -42,6 +44,11 @@ function fail(message: string): never {
 function baselinePath(): string {
   const dirname = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(dirname, "../bootstrap/0000_calora_empty_target_baseline.sql");
+}
+
+function migrationsPath(): string {
+  const dirname = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(dirname, "../migrations");
 }
 
 async function listCaloraTables(pool: QueryClient): Promise<string[]> {
@@ -74,6 +81,25 @@ async function loadBaseline(): Promise<{ sql: string; sha256: string }> {
     sql,
     sha256: createHash("sha256").update(sql).digest("hex"),
   };
+}
+
+async function recordBootstrapMigrationBoundary(client: QueryClient): Promise<void> {
+  const boundary = readMigrationFiles({ migrationsFolder: migrationsPath() }).at(-1);
+  if (!boundary) {
+    fail("migration journal is empty; refusing to create an unsafe bootstrap boundary");
+  }
+
+  await client.query(`
+    CREATE TABLE ${MIGRATIONS_SCHEMA}.${MIGRATIONS_TABLE} (
+      id SERIAL PRIMARY KEY,
+      hash text NOT NULL,
+      created_at bigint
+    )
+  `);
+  await client.query(
+    `INSERT INTO ${MIGRATIONS_SCHEMA}.${MIGRATIONS_TABLE} (hash, created_at) VALUES ($1, $2)`,
+    [boundary.hash, boundary.folderMillis],
+  );
 }
 
 /**
@@ -125,6 +151,7 @@ export async function bootstrapEmptyCaloraTarget({
 
     await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
     await client.query(baseline.sql);
+    await recordBootstrapMigrationBoundary(client);
 
     const count = await client.query<CountRow>(`
       SELECT count(*)::text AS count
@@ -133,6 +160,7 @@ export async function bootstrapEmptyCaloraTarget({
        WHERE n.nspname = 'public'
          AND c.relkind = 'r'
          AND c.relname LIKE 'calora_%'
+         AND c.relname <> '${MIGRATIONS_TABLE}'
     `);
     const tableCount = Number(count.rows[0]?.count ?? "0");
     if (tableCount !== EXPECTED_TABLE_COUNT) {
