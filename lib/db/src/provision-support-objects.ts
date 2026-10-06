@@ -6,10 +6,6 @@ const { Pool } = pg;
 type SupportObjectClient = Pick<PoolClient, "query">;
 
 async function applySupportObjects(client: SupportObjectClient): Promise<void> {
-  await client.query(`CREATE SCHEMA IF NOT EXISTS extensions`);
-  await client.query(
-    `CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions`,
-  );
   await client.query(`
     CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
     RETURNS VOID AS $$
