@@ -62,8 +62,11 @@ export function createDatabaseSourceProvenance({ root = process.cwd(), gitRead =
     journalPath,
     ...entries.map((entry) => entry.path),
     "lib/db/src/bootstrap-empty-target.ts",
+    "lib/db/src/connection.ts",
+    "lib/db/src/index.ts",
     "lib/db/src/migrate.ts",
     "lib/db/src/provision-support-objects.ts",
+    "lib/db/src/supabase-pooler-ca.ts",
     "scripts/post-merge.sh",
     ...sortedFiles(root, "lib/db/src/schema"),
   ].sort();
