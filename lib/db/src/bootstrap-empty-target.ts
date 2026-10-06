@@ -100,6 +100,18 @@ async function recordBootstrapMigrationBoundary(client: QueryClient): Promise<vo
     `INSERT INTO ${MIGRATIONS_SCHEMA}.${MIGRATIONS_TABLE} (hash, created_at) VALUES ($1, $2)`,
     [boundary.hash, boundary.folderMillis],
   );
+  await client.query(
+    `REVOKE ALL PRIVILEGES ON TABLE ${MIGRATIONS_SCHEMA}.${MIGRATIONS_TABLE} FROM PUBLIC`,
+  );
+  await client.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'calora_api_runtime') THEN
+        REVOKE ALL PRIVILEGES ON TABLE public.calora_migration_journal FROM calora_api_runtime;
+      END IF;
+    END
+    $$
+  `);
 }
 
 /**
