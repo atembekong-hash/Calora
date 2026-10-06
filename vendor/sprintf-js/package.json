@@ -1,0 +1,25 @@
+{
+    "name": "sprintf-js",
+    "version": "1.0.3-calora.1",
+    "description": "Calora-local security patch: bounded numeric precision for sprintf format strings.",
+    "author": "Alexandru Marasteanu <hello@alexei.ro> (http://alexei.ro/)",
+    "main": "src/sprintf.js",
+    "files": [
+        "LICENSE",
+        "README.md",
+        "SECURITY-PATCH.md",
+        "src/sprintf.js"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/alexei/sprintf.js.git"
+    },
+    "license": "BSD-3-Clause",
+    "readmeFilename": "README.md",
+    "devDependencies": {
+        "mocha": "*",
+        "grunt": "*",
+        "grunt-contrib-watch": "*",
+        "grunt-contrib-uglify": "*"
+    }
+}

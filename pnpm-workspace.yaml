@@ -75,6 +75,9 @@ overrides:
   # with upstream releases as soon as the release audit recognizes one.
   node-forge: "file:vendor/node-forge"
   braces: "file:vendor/braces"
+  # sprintf-js has no maintained patched release for CVE-2026-97058.
+  # Keep its numeric precision parser bounded until upstream publishes one.
+  sprintf-js: "file:vendor/sprintf-js"
   # React Native's devtools dependency accepts the upstream 1.11.0 command-injection fix.
   shell-quote: "1.11.0"
   # Pin each supported minimatch major to its compatible brace-expansion DoS fix.
