@@ -65,6 +65,7 @@ overrides:
   image-size: file:vendor/image-size
   node-forge: file:vendor/node-forge
   braces: file:vendor/braces
+  sprintf-js: file:vendor/sprintf-js
   shell-quote: 1.11.0
   minimatch@3.1.5>brace-expansion: 1.1.21
   minimatch@9.0.9>brace-expansion: 2.1.7
@@ -5720,8 +5721,8 @@ packages:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
 
-  sprintf-js@1.0.3:
-    resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
+  sprintf-js@file:vendor/sprintf-js:
+    resolution: {directory: vendor/sprintf-js, type: directory}
 
   stack-utils@2.0.6:
     resolution: {integrity: sha512-XlkWvfIm6RmsWtNJx+uqtKLS8eqFbxUg0ZzLXqY0caEy9l7hruX8IpiDnjsLavoBgqCCR71TqWO8MaXYheJ3RQ==}
@@ -9296,7 +9297,7 @@ snapshots:
 
   argparse@1.0.10:
     dependencies:
-      sprintf-js: 1.0.3
+      sprintf-js: file:vendor/sprintf-js
 
   argparse@2.0.1: {}
 
@@ -12421,7 +12422,7 @@ snapshots:
 
   split2@4.2.0: {}
 
-  sprintf-js@1.0.3: {}
+  sprintf-js@file:vendor/sprintf-js: {}
 
   stack-utils@2.0.6:
     dependencies:
