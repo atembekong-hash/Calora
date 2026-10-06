@@ -79,6 +79,11 @@ jobs:
           DATABASE_URL: postgresql://calora_test:calora_test@127.0.0.1:5432/calora_recipe_migration
         run: node scripts/ci/recipe-nutrition-migration-smoke.mjs
 
+      - name: Verify fail-closed empty-target bootstrap
+        env:
+          DATABASE_URL: postgresql://calora_test:calora_test@127.0.0.1:5432/calora_recipe_migration
+        run: node scripts/ci/calora-empty-target-bootstrap.test.mjs
+
       - name: Validate authoritative Expo configuration
         run: node scripts/ci/validate-expo-config.mjs artifacts/calora/app.json
 

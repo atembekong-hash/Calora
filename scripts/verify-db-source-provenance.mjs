@@ -57,9 +57,11 @@ export function createDatabaseSourceProvenance({ root = process.cwd(), gitRead =
   });
 
   const apiPaths = [
+    "lib/db/bootstrap/0000_calora_empty_target_baseline.sql",
     "lib/db/drizzle.config.ts",
     journalPath,
     ...entries.map((entry) => entry.path),
+    "lib/db/src/bootstrap-empty-target.ts",
     "lib/db/src/migrate.ts",
     "lib/db/src/provision-support-objects.ts",
     "scripts/post-merge.sh",
