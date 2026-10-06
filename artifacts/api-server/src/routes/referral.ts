@@ -36,6 +36,11 @@ const INVITE_BASE_URL =
 /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 8;
+const DELETED_ACCOUNT_REFERENCE_PREFIX = "deleted:";
+
+function isDeletedAccountReference(value: unknown): boolean {
+  return typeof value === "string" && value.startsWith(DELETED_ACCOUNT_REFERENCE_PREFIX);
+}
 
 function generateCode(): string {
   const bytes = randomBytes(CODE_LENGTH);
@@ -327,7 +332,8 @@ router.post("/v1/referral/activate", async (req, res) => {
 
     // ── Referrer's reward — claim-first idempotency ──────────────────────
     let referrerRewarded = redemption.referrerRewardedAt !== null;
-    if (!referrerRewarded) {
+    const referrerWasDeleted = isDeletedAccountReference(redemption.referrerUserId);
+    if (!referrerRewarded && !referrerWasDeleted) {
       let claimedReferrerReward = false;
       try {
         const rowsClaimed = await db
@@ -359,6 +365,12 @@ router.post("/v1/referral/activate", async (req, res) => {
             .where(eq(referralRedemptionsTable.id, redemption.id));
         }
       }
+    } else if (referrerWasDeleted) {
+      // Account deletion replaces the referrer id with a non-user marker. Never
+      // send that marker to RevenueCat or create a provider customer for it.
+      // The referred user's already-earned reward remains valid, while the
+      // deleted account's reward is intentionally not recreated.
+      referrerRewarded = false;
     }
 
     res.json({

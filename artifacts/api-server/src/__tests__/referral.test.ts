@@ -177,6 +177,32 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     expect(hasSavedDiaryEntry).not.toHaveBeenCalled();
   });
 
+  it('does not grant RevenueCat for a referrer anonymized by account deletion', async () => {
+    queueResult([
+      redemptionRow({
+        qualifiedAt: new Date(),
+        qualifiedSignal: 'server_capture',
+        referrerUserId: 'deleted:anonymized-referrer',
+      }),
+    ]);
+    queueResult([{ id: 'redemption-1' }]); // referred claim UPDATE ... RETURNING wins
+
+    const res = await request(buildApp()).post('/v1/referral/activate');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'rewarded',
+      referredRewarded: true,
+      referrerRewarded: false,
+    });
+    expect(grantPromoDays).toHaveBeenCalledTimes(1);
+    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
+    expect(grantPromoDays).not.toHaveBeenCalledWith(
+      'deleted:anonymized-referrer',
+      30,
+    );
+  });
+
   it('qualifies via any saved diary entry when no qualification stamp exists', async () => {
     hasSavedDiaryEntry.mockResolvedValue(true);
     queueResult([redemptionRow()]);        // redemption lookup (unqualified)
