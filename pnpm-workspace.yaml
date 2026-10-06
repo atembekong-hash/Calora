@@ -75,6 +75,8 @@ overrides:
   # with upstream releases as soon as the release audit recognizes one.
   node-forge: "file:vendor/node-forge"
   braces: "file:vendor/braces"
+  # React Native's devtools dependency accepts the upstream 1.11.0 command-injection fix.
+  shell-quote: "1.11.0"
   # Pin each supported minimatch major to its compatible brace-expansion DoS fix.
   "minimatch@3.1.5>brace-expansion": "1.1.21"
   "minimatch@9.0.9>brace-expansion": "2.1.7"
