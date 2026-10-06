@@ -14,6 +14,8 @@ type ActivationResult = {
   status: 'none' | 'pending' | 'rewarded';
   referredRewarded: boolean;
   referrerRewarded: boolean;
+  /** The referrer was deleted, so no provider grant can or should occur. */
+  referrerRewardSkipped: boolean;
 };
 
 function normalizeCode(value: unknown): string | null {
@@ -149,6 +151,8 @@ export async function clearReferralActivationSettled(accountId: string): Promise
 /** A partial provider failure stays retryable until both grants are confirmed. */
 export function isReferralActivationComplete(result: ActivationResult): boolean {
   return result.status === 'none' || (
-    result.status === 'rewarded' && result.referredRewarded && result.referrerRewarded
+    result.status === 'rewarded'
+      && result.referredRewarded
+      && (result.referrerRewarded || result.referrerRewardSkipped)
   );
 }

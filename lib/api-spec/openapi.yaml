@@ -2336,9 +2336,12 @@ components:
         alreadyExisted: { type: boolean }
     ReferralActivateResult:
       type: object
-      required: [status, referredRewarded, referrerRewarded]
+      required: [status, referredRewarded, referrerRewarded, referrerRewardSkipped]
       properties:
         status: { type: string, enum: [none, pending, rewarded] }
         referredRewarded: { type: boolean }
         referrerRewarded: { type: boolean }
+        referrerRewardSkipped:
+          type: boolean
+          description: True only when the referrer was deleted and its provider grant is intentionally terminally skipped.
         message: { type: string }

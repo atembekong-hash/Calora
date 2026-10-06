@@ -27,8 +27,7 @@ import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/Swipe
 import { dateKey } from '@/lib/dates';
 import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
-import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
-import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
+import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
@@ -300,6 +299,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   const [concepts, setConcepts] = useState<RecipeConcept[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState('');
+  const [needsRecipeSignIn, setNeedsRecipeSignIn] = useState(false);
   const [finishingTitle, setFinishingTitle] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const finishingRef = useRef(false);
@@ -355,7 +355,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       return;
     }
     abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
-    setStatus('loading'); setError(''); setConcepts([]);
+    setStatus('loading'); setError(''); setConcepts([]); setNeedsRecipeSignIn(false);
     try {
       // A draft ingredient is visible input, so include it directly in this
       // request even if the user did not tap the adjacent add button first.
@@ -390,6 +390,10 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       if ((cause as Error).name === 'AbortError') {
         setStatus('idle');
         abortRef.current = null;
+      } else if (cause instanceof RecipeAuthError) {
+        setStatus('idle');
+        setError(cause.message);
+        setNeedsRecipeSignIn(true);
       } else {
         const fallbackIngredients = [ingredients, ingredientDraft]
           .join(',')
@@ -501,7 +505,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       {!session && <Text style={[styles.guestBoundary, { color: colors.mutedForeground }]}>Guest ideas are generic. Sign in to use your pantry and turn an idea into a saved recipe.</Text>}
       <Pressable accessibilityLabel="Generate five recipe ideas" onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="star" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating ideas…' : 'Generate 5 ideas'}</Text></Pressable>
       {status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
-      {error && status !== 'loading' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
+      {error && status !== 'loading' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable accessibilityLabel={needsRecipeSignIn ? 'Sign in to generate recipe ideas' : 'Retry recipe idea generation'} onPress={() => needsRecipeSignIn ? router.push('/auth/sign-in') : generate()}><Text style={[styles.shopActionText, { color: colors.primary }]}>{needsRecipeSignIn ? 'Sign in' : 'Retry'}</Text></Pressable></View>}
     </View>
      {concepts.length > 0 && <View style={styles.conceptsSection}>
        <View style={styles.conceptsHeader}>
@@ -1753,6 +1757,7 @@ export default function RecipesScreen() {
   const [category, setCategory] = useState('For you');
   const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
+  const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editingPersonalRecipe, setEditingPersonalRecipe] = useState<CaloraRecipe | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -1902,7 +1907,12 @@ export default function RecipesScreen() {
         router.setParams({ recipeId: undefined, recipeSource: undefined });
         return;
       }
+      if (linkedDiscoverRecipeQuery.isError) {
+        setLinkedDiscoverRouteError(true);
+        return;
+      }
       if (!linkedDiscoverRecipeQuery.data) return;
+      setLinkedDiscoverRouteError(false);
       setSelected(linkedDiscoverRecipeQuery.data);
       router.setParams({ recipeId: undefined, recipeSource: undefined });
       return;
@@ -1911,7 +1921,10 @@ export default function RecipesScreen() {
     if (!matchingRecipe) return;
     setSelected(matchingRecipe);
     router.setParams({ recipeId: undefined });
-  }, [linkedDiscoverRecipeQuery.data, linkedPremiumRecipeQuery.data, localRecipes, recipeId, recipeSource, remoteRecipes]);
+  }, [linkedDiscoverRecipeQuery.data, linkedDiscoverRecipeQuery.isError, linkedPremiumRecipeQuery.data, localRecipes, recipeId, recipeSource, remoteRecipes]);
+  useEffect(() => {
+    if (recipeSource !== 'discover') setLinkedDiscoverRouteError(false);
+  }, [recipeSource]);
   useEffect(() => {
     if (!recipeName || recipeId) return;
     setActiveSection('discover');
@@ -2130,6 +2143,23 @@ export default function RecipesScreen() {
                 </Pressable>
               )}
               <Pressable accessibilityLabel="Close Plus recipe route" onPress={() => router.setParams({ recipeId: undefined, recipeSource: undefined })} style={[styles.secondaryAction, { borderColor: colors.border }]}>
+                <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+      {linkedDiscoverRouteError && (
+        <Modal visible transparent animationType="none" onRequestClose={() => { setLinkedDiscoverRouteError(false); router.setParams({ recipeId: undefined, recipeSource: undefined }); }}>
+          <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
+            <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+              <Feather name="wifi-off" size={20} color={colors.primary} />
+              <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>Recipe unavailable</Text>
+              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground, textAlign: 'center' }]}>We could not open that recipe. Check your connection and try again.</Text>
+              <Pressable accessibilityLabel="Retry opening Discover recipe" onPress={() => { setLinkedDiscoverRouteError(false); void linkedDiscoverRecipeQuery.refetch(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Retry</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Close Discover recipe route" onPress={() => { setLinkedDiscoverRouteError(false); router.setParams({ recipeId: undefined, recipeSource: undefined }); }} style={[styles.secondaryAction, { borderColor: colors.border }]}>
                 <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
               </Pressable>
             </View>

@@ -430,6 +430,42 @@ describe('syncDiaryLogs: skips permanently-rejected logs', () => {
   });
 });
 
+describe('single and first-log sync result contracts', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockSyncOutbox.mockReset();
+  });
+
+  it('does not report a rejected current log as synced because an earlier ID was accepted', async () => {
+    const { syncDiaryLog, syncDiaryLogs } = await freshDiarySync();
+    mockSyncOutbox
+      .mockImplementationOnce(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+        accepted: request.mutations.map((mutation) => mutation.mutationId), conflicts: [], nextCursor: '',
+      }))
+      .mockResolvedValueOnce({ accepted: [], conflicts: [], nextCursor: '' });
+
+    await syncDiaryLogs([makeLog({ id: 'accepted-history' })]);
+
+    await expect(syncDiaryLog(makeLog({ id: 'rejected-current' }))).resolves.toBe(false);
+  });
+
+  it('requires every current first-log entry to be accepted', async () => {
+    const { syncDiaryLogs, syncFirstDiaryLog } = await freshDiarySync();
+    mockSyncOutbox
+      .mockImplementationOnce(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+        accepted: request.mutations.map((mutation) => mutation.mutationId), conflicts: [], nextCursor: '',
+      }))
+      .mockResolvedValueOnce({ accepted: [], conflicts: [], nextCursor: '' });
+
+    await syncDiaryLogs([makeLog({ id: 'accepted-history' })]);
+
+    await expect(syncFirstDiaryLog([
+      makeLog({ id: 'first-current' }),
+      makeLog({ id: 'second-current', name: 'Oats' }),
+    ])).resolves.toBe(false);
+  });
+});
+
 describe('syncDiaryLogs: image metadata', () => {
   beforeEach(() => {
     for (const k of Object.keys(store)) delete store[k];

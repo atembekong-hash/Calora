@@ -2955,6 +2955,7 @@ export const ActivateReferralResponse = zod.object({
   "status": zod.enum(['none', 'pending', 'rewarded']),
   "referredRewarded": zod.boolean(),
   "referrerRewarded": zod.boolean(),
+  "referrerRewardSkipped": zod.boolean().describe('True only when the referrer was deleted and its provider grant is intentionally terminally skipped.'),
   "message": zod.string().optional()
 })
 

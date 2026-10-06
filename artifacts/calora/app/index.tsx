@@ -23,8 +23,10 @@ import { BRAND } from '@/lib/brand';
 import { formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
+import { completeDeviceLocalReset } from '@/lib/deviceLocalReset';
 import { recommendCalories } from '@/lib/calorieRecommendation';
 import { validatePersonalDetails } from '@/lib/profileTargets';
+import { useAuth } from '@/context/AuthContext';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -113,6 +115,7 @@ function OnboardingPhotoHero({
 
 export default function OnboardingScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const { signOut } = useAuth();
   const {
     colors,
     onboardingComplete,
@@ -340,12 +343,25 @@ export default function OnboardingScreen() {
                     style: 'destructive',
                     onPress: async () => {
                       try {
-                        await clearAllData();
+                        const outcome = await completeDeviceLocalReset(clearAllData, signOut);
+                        if (outcome.signOutError) {
+                          Alert.alert(
+                            'Data cleared, sign-out needs attention',
+                            'Your core local data was deleted, but this device could not finish signing out. Please try again before continuing so an empty local profile cannot overwrite your account.',
+                          );
+                          return;
+                        }
+                        if (outcome.cleanupFailures.length > 0) {
+                          Alert.alert(
+                            'Core data cleared',
+                            `Your profile, logs, meals, and settings were deleted. Some device cleanup still needs attention: ${outcome.cleanupFailures.join(', ')}.`,
+                          );
+                        }
                         retryHydration();
                       } catch {
                         Alert.alert(
                           'Clear failed',
-                          'Your local data was not fully deleted. Nothing else was changed. Please try again.',
+                          'Your core local data could not be deleted. Nothing was cleared. Please try again.',
                         );
                       }
                     },

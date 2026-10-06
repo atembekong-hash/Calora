@@ -233,7 +233,12 @@ router.post("/v1/referral/activate", async (req, res) => {
       .limit(1);
 
     if (rows.length === 0) {
-      res.json({ status: "none", referredRewarded: false, referrerRewarded: false });
+      res.json({
+        status: "none",
+        referredRewarded: false,
+        referrerRewarded: false,
+        referrerRewardSkipped: false,
+      });
       return;
     }
 
@@ -253,6 +258,7 @@ router.post("/v1/referral/activate", async (req, res) => {
           status: "pending",
           referredRewarded: false,
           referrerRewarded: false,
+          referrerRewardSkipped: false,
           message: "Capture and confirm a meal to unlock your invite reward.",
         });
         return;
@@ -281,6 +287,7 @@ router.post("/v1/referral/activate", async (req, res) => {
             status: "pending",
             referredRewarded: false,
             referrerRewarded: false,
+            referrerRewardSkipped: false,
             message: "Capture and confirm a meal to unlock your invite reward.",
           });
           return;
@@ -320,6 +327,7 @@ router.post("/v1/referral/activate", async (req, res) => {
             status: "pending",
             referredRewarded: false,
             referrerRewarded: false,
+            referrerRewardSkipped: false,
             message: "We couldn't unlock your reward just now — we'll retry automatically.",
           });
           return;
@@ -377,6 +385,7 @@ router.post("/v1/referral/activate", async (req, res) => {
       status: "rewarded",
       referredRewarded,
       referrerRewarded,
+      referrerRewardSkipped: referrerWasDeleted,
       message: `You've unlocked ${REFERRAL_REWARD_DAYS} days of Calora Pro. Enjoy!`,
     });
   } catch (err) {
