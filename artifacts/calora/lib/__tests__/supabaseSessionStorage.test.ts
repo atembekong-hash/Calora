@@ -68,27 +68,29 @@ describe('Supabase web session storage adapter', () => {
     };
   }
 
-  it('survives a reload with every Supabase PKCE verifier key but no session token', async () => {
-    const browser = createBrowserStore();
-    const beforeRedirect = createWebSessionStorage(browser.store);
+  it('survives a reload with tab-scoped session data while PKCE verifier material stays separate', async () => {
+    const pkceBrowser = createBrowserStore();
+    const sessionBrowser = createBrowserStore();
+    const beforeRedirect = createWebSessionStorage(pkceBrowser.store, sessionBrowser.store);
 
-    await beforeRedirect.setItem('calora-auth-storage', '{"access_token":"must-stay-memory-only"}');
+    await beforeRedirect.setItem('calora-auth-storage', '{"access_token":"tab-scoped-only"}');
     await beforeRedirect.setItem('calora-auth-storage-code-verifier', 'legacy-verifier');
     await beforeRedirect.setItem('calora-auth-storage-flow-flow-id-code-verifier', 'flow-verifier');
     await beforeRedirect.setItem('calora-auth-storage-flows-code-verifier', '["flow-id"]');
 
-    const afterRedirect = createWebSessionStorage(browser.store);
-    await expect(afterRedirect.getItem('calora-auth-storage')).resolves.toBeNull();
-    await expect(afterRedirect.getItem('calora-auth-storage-code-verifier')).resolves.toBe('legacy-verifier');
-    await expect(afterRedirect.getItem('calora-auth-storage-flow-flow-id-code-verifier')).resolves.toBe('flow-verifier');
-    await expect(afterRedirect.getItem('calora-auth-storage-flows-code-verifier')).resolves.toBe('["flow-id"]');
+    const afterReload = createWebSessionStorage(pkceBrowser.store, sessionBrowser.store);
+    await expect(afterReload.getItem('calora-auth-storage')).resolves.toBe('{"access_token":"tab-scoped-only"}');
+    await expect(afterReload.getItem('calora-auth-storage-code-verifier')).resolves.toBe('legacy-verifier');
+    await expect(afterReload.getItem('calora-auth-storage-flow-flow-id-code-verifier')).resolves.toBe('flow-verifier');
+    await expect(afterReload.getItem('calora-auth-storage-flows-code-verifier')).resolves.toBe('["flow-id"]');
 
-    expect([...browser.values.keys()].sort()).toEqual([
+    expect([...pkceBrowser.values.keys()].sort()).toEqual([
       'calora-auth-storage-code-verifier',
       'calora-auth-storage-flow-flow-id-code-verifier',
       'calora-auth-storage-flows-code-verifier',
     ]);
-    expect([...browser.values.values()].join(' ')).not.toContain('access_token');
+    expect([...pkceBrowser.values.values()].join(' ')).not.toContain('access_token');
+    expect([...sessionBrowser.values.keys()]).toEqual(['calora-auth-storage']);
   });
 
   it('removes verifier material from the browser store after exchange', async () => {
@@ -101,6 +103,21 @@ describe('Supabase web session storage adapter', () => {
 
     expect(browser.values.has(key)).toBe(false);
     expect(browser.store.removeItem).toHaveBeenCalledWith(key);
+  });
+
+  it('clears an active tab session without touching PKCE storage', async () => {
+    const pkceBrowser = createBrowserStore();
+    const sessionBrowser = createBrowserStore();
+    const storage = createWebSessionStorage(pkceBrowser.store, sessionBrowser.store);
+
+    await storage.setItem('calora-auth-storage', 'tab-session');
+    await storage.setItem('calora-auth-storage-code-verifier', 'verifier');
+    await storage.removeItem('calora-auth-storage');
+
+    await expect(storage.getItem('calora-auth-storage')).resolves.toBeNull();
+    await expect(storage.getItem('calora-auth-storage-code-verifier')).resolves.toBe('verifier');
+    expect(sessionBrowser.store.removeItem).toHaveBeenCalledWith('calora-auth-storage');
+    expect(pkceBrowser.store.removeItem).not.toHaveBeenCalled();
   });
 
   it('fails PKCE setup explicitly when browser storage is unavailable while keeping sessions memory-only', async () => {

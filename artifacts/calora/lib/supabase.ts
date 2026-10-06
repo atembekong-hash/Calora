@@ -48,13 +48,23 @@ function getBrowserPkceStore() {
   }
 }
 
+function getBrowserSessionStore() {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 const secureSessionStorage =
   Platform.OS !== 'web'
     ? createSupabaseSessionStorage(SecureStore)
-    // Do not allow Supabase to fall back to plaintext localStorage for auth
-    // sessions. Only random PKCE verifier keys cross a browser redirect; access
-    // and refresh tokens remain process-local and non-durable.
-    : createWebSessionStorage(getBrowserPkceStore());
+    // Do not allow Supabase to fall back to durable plaintext localStorage for
+    // auth sessions. sessionStorage keeps the session scoped to the active tab
+    // while still permitting an ordinary page reload to restore it. PKCE
+    // verifier keys remain in localStorage only for the short callback flow.
+    : createWebSessionStorage(getBrowserPkceStore(), getBrowserSessionStore());
 
 // ---------------------------------------------------------------------------
 // Client
