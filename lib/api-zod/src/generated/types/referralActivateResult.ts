@@ -11,5 +11,7 @@ export interface ReferralActivateResult {
   status: ReferralActivateResultStatus;
   referredRewarded: boolean;
   referrerRewarded: boolean;
+  /** True only when the referrer was deleted and its provider grant is intentionally terminally skipped. */
+  referrerRewardSkipped: boolean;
   message?: string;
 }

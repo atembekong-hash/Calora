@@ -96,6 +96,17 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     expect(rootSource).toContain('<Stack.Protected guard={allowApplication}>');
   });
 
+  it('completes a supported local-data reset before retrying hydration', async () => {
+    const source = await onboardingSource();
+
+    expect(source).toContain("import { completeDeviceLocalReset } from '@/lib/deviceLocalReset';");
+    expect(source).toContain("import { useAuth } from '@/context/AuthContext';");
+    expect(source).toContain('const { signOut } = useAuth();');
+    expect(source).toContain('await completeDeviceLocalReset(clearAllData, signOut);');
+    expect(source).toContain('if (outcome.signOutError) {');
+    expect(source).toContain('retryHydration();');
+  });
+
   it('keeps a valid cold-load tab URL registered without exposing application content before the secure gate admits it', async () => {
     const rootSource = await rootLayoutSource();
     const tabsSource = await tabLayoutSource();

@@ -104,9 +104,10 @@ describe('referral activation settled state', () => {
 
 describe('isReferralActivationComplete', () => {
   it('settles only complete referral outcomes', () => {
-    expect(isReferralActivationComplete({ status: 'none', referredRewarded: false, referrerRewarded: false })).toBe(true);
-    expect(isReferralActivationComplete({ status: 'rewarded', referredRewarded: true, referrerRewarded: true })).toBe(true);
-    expect(isReferralActivationComplete({ status: 'rewarded', referredRewarded: true, referrerRewarded: false })).toBe(false);
-    expect(isReferralActivationComplete({ status: 'pending', referredRewarded: false, referrerRewarded: false })).toBe(false);
+    expect(isReferralActivationComplete({ status: 'none', referredRewarded: false, referrerRewarded: false, referrerRewardSkipped: false })).toBe(true);
+    expect(isReferralActivationComplete({ status: 'rewarded', referredRewarded: true, referrerRewarded: true, referrerRewardSkipped: false })).toBe(true);
+    expect(isReferralActivationComplete({ status: 'rewarded', referredRewarded: true, referrerRewarded: false, referrerRewardSkipped: true })).toBe(true);
+    expect(isReferralActivationComplete({ status: 'rewarded', referredRewarded: true, referrerRewarded: false, referrerRewardSkipped: false })).toBe(false);
+    expect(isReferralActivationComplete({ status: 'pending', referredRewarded: false, referrerRewarded: false, referrerRewardSkipped: false })).toBe(false);
   });
 });

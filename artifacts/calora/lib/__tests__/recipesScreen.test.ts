@@ -274,6 +274,23 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("if (state === 'active' && premium && session?.user.id)");
   });
 
+  it('keeps routed Discover failures actionable instead of silently retaining a failed route', () => {
+    expect(source).toContain('const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false)');
+    expect(source).toContain('if (linkedDiscoverRecipeQuery.isError) {');
+    expect(source).toContain('Retry opening Discover recipe');
+    expect(source).toContain('Close Discover recipe route');
+    expect(source).toContain('void linkedDiscoverRecipeQuery.refetch();');
+    expect(source).toContain("if (recipeSource !== 'discover') setLinkedDiscoverRouteError(false);");
+  });
+
+  it('does not disguise an authenticated recipe-creation failure as offline starter ideas', () => {
+    expect(source).toContain("import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, requestRecipeConcepts } from '@/lib/recipeGeneration'");
+    expect(source).toContain('const [needsRecipeSignIn, setNeedsRecipeSignIn] = useState(false)');
+    expect(source).toContain('} else if (cause instanceof RecipeAuthError) {');
+    expect(source).toContain("accessibilityLabel={needsRecipeSignIn ? 'Sign in to generate recipe ideas' : 'Retry recipe idea generation'}");
+    expect(source).toContain("needsRecipeSignIn ? 'Sign in' : 'Retry'");
+  });
+
   it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),

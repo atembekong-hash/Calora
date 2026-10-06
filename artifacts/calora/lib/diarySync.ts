@@ -875,11 +875,18 @@ export async function reconcileDiaryState(
 /** Delegates to the batch path for a single log. */
 export async function syncDiaryLog(log: FoodLog, accessToken = ''): Promise<boolean> {
   const ids = await syncDiaryLogs([log], accessToken);
-  return ids.size > 0;
+  return ids.has(log.id);
 }
 
-/** Tries to persist current logs. Convenience wrapper used by the first-log flow. */
+/**
+ * Tries to persist every non-starter log in the supplied first-log batch.
+ *
+ * `syncDiaryLogs` returns the account's historical accepted-ID set, so a
+ * pre-existing accepted entry must never make a newly rejected first-log batch
+ * appear successful.
+ */
 export async function syncFirstDiaryLog(logs: FoodLog[], accessToken = ''): Promise<boolean> {
   const ids = await syncDiaryLogs(logs, accessToken);
-  return ids.size > 0;
+  const realLogs = logs.filter((log) => !isStarterLog(log));
+  return realLogs.length > 0 && realLogs.every((log) => ids.has(log.id));
 }

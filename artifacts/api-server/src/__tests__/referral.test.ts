@@ -194,6 +194,7 @@ describe('POST /v1/referral/activate — qualification gate', () => {
       status: 'rewarded',
       referredRewarded: true,
       referrerRewarded: false,
+      referrerRewardSkipped: true,
     });
     expect(grantPromoDays).toHaveBeenCalledTimes(1);
     expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
