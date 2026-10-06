@@ -99,6 +99,14 @@ assert.deepEqual(fresh.rows, [{
   rls_table_count: 29,
   migration_boundary_count: 1,
 }]);
+const deletionFenceDefinition = await query(`
+  SELECT pg_get_functiondef('public.calora_assert_deletion_writable(text)'::regprocedure) AS definition
+`);
+assert.match(
+  deletionFenceDefinition.rows[0]?.definition ?? "",
+  /extensions\.digest\(external_user_id, 'sha256'\)/,
+  "bootstrap must bind deletion fencing to the canonical pgcrypto schema",
+);
 
 // The deployment migrator owns its table journal and may create application
 // objects only in public. It must not need database-wide CREATE merely because

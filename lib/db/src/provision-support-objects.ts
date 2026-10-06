@@ -6,14 +6,17 @@ const { Pool } = pg;
 type SupportObjectClient = Pick<PoolClient, "query">;
 
 async function applySupportObjects(client: SupportObjectClient): Promise<void> {
-  await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+  await client.query(`CREATE SCHEMA IF NOT EXISTS extensions`);
+  await client.query(
+    `CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions`,
+  );
   await client.query(`
     CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
     RETURNS VOID AS $$
     BEGIN
       IF EXISTS (
         SELECT 1 FROM calora_account_deletion_states
-        WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+        WHERE identity_fingerprint = encode(extensions.digest(external_user_id, 'sha256'), 'hex')
           AND state <> 'active'
       ) THEN
         RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';
@@ -84,7 +87,9 @@ export async function provisionDatabaseSupportObjects(
   if (providedClient) {
     client = providedClient;
   } else {
-    migrationPool = new Pool(buildDatabasePoolConfig(getMigrationDatabaseUrl()));
+    migrationPool = new Pool(
+      buildDatabasePoolConfig(getMigrationDatabaseUrl()),
+    );
     client = await migrationPool.connect();
   }
   const ownedClient = providedClient ? undefined : (client as PoolClient);

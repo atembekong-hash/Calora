@@ -250,7 +250,7 @@ async function listTerminalDeletionMediaOrphans(): Promise<TerminalDeletionMedia
       BOOL_OR(media.object_key IS NOT NULL) AS has_object_backed_media
     FROM calora_recipe_media AS media
     INNER JOIN calora_account_deletion_states AS deletion
-      ON deletion.identity_fingerprint = encode(digest(media.owner_external_id, 'sha256'), 'hex')
+      ON deletion.identity_fingerprint = encode(extensions.digest(media.owner_external_id, 'sha256'), 'hex')
     WHERE deletion.state = 'deleted'
     GROUP BY media.owner_external_id
     ORDER BY media.owner_external_id
