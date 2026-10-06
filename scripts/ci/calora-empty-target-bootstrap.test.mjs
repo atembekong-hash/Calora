@@ -47,11 +47,11 @@ function bootstrap(expectedStatus = 0) {
   return `${result.stdout}\n${result.stderr}`;
 }
 
-function migrate() {
+function migrate(env = process.env) {
   const result = spawnSync(
     "pnpm",
     ["--filter", "@workspace/db", "run", "migrate"],
-    { cwd: root, env: process.env, encoding: "utf8" },
+    { cwd: root, env, encoding: "utf8" },
   );
   assert.equal(
     result.status,
@@ -99,6 +99,35 @@ assert.deepEqual(fresh.rows, [{
   rls_table_count: 29,
   migration_boundary_count: 1,
 }]);
+
+// The deployment migrator owns its table journal and may create application
+// objects only in public. It must not need database-wide CREATE merely because
+// the immutable journal already exists.
+const fixtureMigrator = "calora_migrator_fixture";
+const fixtureMigratorPassword = "calora-bootstrap-fixture-only";
+await query(`
+  CREATE ROLE ${fixtureMigrator} LOGIN PASSWORD '${fixtureMigratorPassword}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+  GRANT USAGE, CREATE ON SCHEMA public TO ${fixtureMigrator};
+  GRANT SELECT, INSERT ON public.calora_migration_journal TO ${fixtureMigrator};
+`);
+try {
+  const fixtureUrl = new URL(databaseUrl);
+  fixtureUrl.username = fixtureMigrator;
+  fixtureUrl.password = fixtureMigratorPassword;
+  const restrictedOutput = migrate({
+    ...process.env,
+    NODE_ENV: "test",
+    DATABASE_URL: fixtureUrl.toString(),
+    MIGRATION_DATABASE_URL: "",
+  });
+  assert.match(restrictedOutput, /All migrations applied successfully/);
+} finally {
+  await query(`
+    REVOKE SELECT, INSERT ON public.calora_migration_journal FROM ${fixtureMigrator};
+    REVOKE USAGE, CREATE ON SCHEMA public FROM ${fixtureMigrator};
+    DROP ROLE ${fixtureMigrator};
+  `);
+}
 
 // The only admitted legacy shape is the known empty nutrition cache. The
 // bootstrap reconciles it atomically before creating the canonical baseline.
