@@ -110,7 +110,7 @@ async function resetDatabase(schemaSql = null) {
   await client.connect();
   try {
     // This executable is intentionally admitted only against a disposable test
-    // database. Reset both application and Drizzle state so each scenario
+    // database. Reset both application and Calora migration-journal state so each scenario
     // proves the source-controlled migration sequence independently.
     await client.query(`
       DROP SCHEMA IF EXISTS drizzle CASCADE;
@@ -209,7 +209,7 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 13) {
 
     const history = await client.query(
       `SELECT count(*)::int AS count
-         FROM drizzle.__drizzle_migrations`,
+         FROM public.calora_migration_journal`,
     );
     assert.equal(
       history.rows[0]?.count,
@@ -393,13 +393,12 @@ const historical = new Client({ connectionString: databaseUrl });
 await historical.connect();
 try {
   await historical.query(`
-    CREATE SCHEMA drizzle;
-    CREATE TABLE drizzle.__drizzle_migrations (
+    CREATE TABLE public.calora_migration_journal (
       id serial PRIMARY KEY,
       hash text NOT NULL,
       created_at bigint
     );
-    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    INSERT INTO public.calora_migration_journal (hash, created_at)
     VALUES ('historical-0008-recorded-without-cache', 1790483200000);
     -- The abbreviated historical fixture records the immutable 0006 fence
     -- migration without replaying every managed base migration. Recreate its
@@ -436,7 +435,7 @@ try {
     "historical repair must not fabricate rows",
   );
   const history = await historicalUpgrade.query(
-    "SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations",
+    "SELECT count(*)::int AS count FROM public.calora_migration_journal",
   );
   assert.equal(
     history.rows[0]?.count,

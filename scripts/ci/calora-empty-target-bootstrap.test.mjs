@@ -47,6 +47,20 @@ function bootstrap(expectedStatus = 0) {
   return `${result.stdout}\n${result.stderr}`;
 }
 
+function migrate() {
+  const result = spawnSync(
+    "pnpm",
+    ["--filter", "@workspace/db", "run", "migrate"],
+    { cwd: root, env: process.env, encoding: "utf8" },
+  );
+  assert.equal(
+    result.status,
+    0,
+    `migrate exit=${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  return `${result.stdout}\n${result.stderr}`;
+}
+
 async function query(sql) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
@@ -62,22 +76,28 @@ async function query(sql) {
 await resetDatabase();
 const emptyOutput = bootstrap();
 assert.match(emptyOutput, /installed 29 Calora tables/);
+const migrationOutput = migrate();
+assert.match(migrationOutput, /All migrations applied successfully/);
 const fresh = await query(`
   SELECT
     (SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'calora_%') AS table_count,
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'calora_%'
+        AND c.relname <> 'calora_migration_journal') AS table_count,
     (SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'calora_%' AND c.reltuples > 0) AS nonempty_table_count,
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'calora_%'
+        AND c.relname <> 'calora_migration_journal' AND c.reltuples > 0) AS nonempty_table_count,
     (SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND NOT t.tgisinternal AND t.tgname = 'calora_account_deletion_write_fence_trigger') AS fence_count,
     (SELECT count(*)::int FROM pg_tables
-      WHERE schemaname = 'public' AND tablename LIKE 'calora_%' AND rowsecurity) AS rls_table_count
+      WHERE schemaname = 'public' AND tablename LIKE 'calora_%' AND rowsecurity) AS rls_table_count,
+    (SELECT count(*)::int FROM public.calora_migration_journal) AS migration_boundary_count
 `);
 assert.deepEqual(fresh.rows, [{
   table_count: 29,
   nonempty_table_count: 0,
   fence_count: 9,
   rls_table_count: 29,
+  migration_boundary_count: 1,
 }]);
 
 // The only admitted legacy shape is the known empty nutrition cache. The
