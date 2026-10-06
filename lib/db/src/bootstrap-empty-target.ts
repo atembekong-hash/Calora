@@ -161,7 +161,8 @@ export async function bootstrapEmptyCaloraTarget({
       reconciledEmptyCache = true;
     }
 
-    await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+    await client.query("CREATE SCHEMA IF NOT EXISTS extensions");
+    await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions");
     await client.query(baseline.sql);
     await recordBootstrapMigrationBoundary(client);
 

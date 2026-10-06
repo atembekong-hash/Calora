@@ -261,6 +261,8 @@ describe("account deletion recovery signals", () => {
 
     await recoverPendingAccountDeletions();
 
+    const terminalRecoveryQuery = execute.mock.calls[0]?.[0] as { queryChunks?: unknown[] };
+    expect(JSON.stringify(terminalRecoveryQuery.queryChunks)).toContain("extensions.digest");
     expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("terminal-orphan-owner");
     expect(deleteWhere).toHaveBeenCalled();
     expect(deleteUser).not.toHaveBeenCalled();

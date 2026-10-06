@@ -111,7 +111,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
       try {
         await pool.query(
           `INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
-           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+           VALUES (encode(extensions.digest($1, 'sha256'), 'hex'), 'deleting')`,
           [externalUserId],
         );
 
@@ -182,7 +182,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         );
         await pool.query(
           `DELETE FROM calora_account_deletion_states
-            WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+            WHERE identity_fingerprint = encode(extensions.digest($1, 'sha256'), 'hex')`,
           [externalUserId],
         );
         vi.unstubAllGlobals();
@@ -216,7 +216,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
       pool = (await import("@workspace/db")).pool;
       await pool.query(
         `INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
-       VALUES (encode(digest($1, 'sha256'), 'hex'), 'active')`,
+       VALUES (encode(extensions.digest($1, 'sha256'), 'hex'), 'active')`,
         [externalUserId],
       );
 
@@ -255,7 +255,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
       await pool.query(
         `UPDATE calora_account_deletion_states
        SET state = 'deleting'
-       WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+       WHERE identity_fingerprint = encode(extensions.digest($1, 'sha256'), 'hex')`,
         [externalUserId],
       );
 
@@ -383,7 +383,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         );
         await cleanupClient.query(
           `DELETE FROM calora_account_deletion_states
-         WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+         WHERE identity_fingerprint = encode(extensions.digest($1, 'sha256'), 'hex')`,
           [externalUserId],
         );
         await cleanupClient.query("COMMIT");
@@ -593,7 +593,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         await client.query(
           `INSERT INTO calora_account_deletion_states
              (identity_fingerprint, state)
-           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+           VALUES (encode(extensions.digest($1, 'sha256'), 'hex'), 'deleting')`,
           [externalUserId],
         );
         await expect(
@@ -655,7 +655,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             RAISE NOTICE 'rollback sentinel';
             IF EXISTS (
               SELECT 1 FROM calora_account_deletion_states
-              WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+              WHERE identity_fingerprint = encode(extensions.digest(external_user_id, 'sha256'), 'hex')
                 AND state <> 'active'
             ) THEN
               RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';

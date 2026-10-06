@@ -92,6 +92,13 @@
       "when": 1791118600000,
       "tag": "0013_recipe_nutrition_decimal_macros",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791268500000,
+      "tag": "0014_pgcrypto_extension_schema",
+      "breakpoints": true
     }
   ]
 }

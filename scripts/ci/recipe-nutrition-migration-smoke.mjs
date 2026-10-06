@@ -23,7 +23,8 @@ if (!databaseUrl) {
 // blank public schema is not a supported migration input because the historic
 // chain references the existing managed Calora application tables.
 const prerequisiteSchema = `
-  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+  CREATE SCHEMA IF NOT EXISTS extensions;
+  CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
   CREATE TABLE calora_users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), external_id text NOT NULL);
   CREATE TABLE calora_diary_entries (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
   CREATE TABLE calora_referral_codes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id text NOT NULL);
@@ -136,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 13) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 14) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -215,6 +216,15 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 13) {
       history.rows[0]?.count,
       expectedMigrationCount,
       `${scenario} must record the expected immutable migration history`,
+    );
+
+    const deletionFenceDefinition = await client.query(
+      `SELECT pg_get_functiondef('public.calora_assert_deletion_writable(text)'::regprocedure) AS definition`,
+    );
+    assert.match(
+      deletionFenceDefinition.rows[0]?.definition ?? "",
+      /extensions\.digest\(external_user_id, 'sha256'\)/,
+      `${scenario} must bind deletion fencing to the canonical pgcrypto schema`,
     );
 
     return client;
@@ -415,7 +425,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  6,
+  7,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -439,8 +449,8 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    6,
-    "historical upgrade must append only 0009 through 0013",
+    7,
+    "historical upgrade must append only 0009 through 0014",
   );
 } finally {
   await historicalUpgrade.end();

@@ -54,7 +54,7 @@ CREATE FUNCTION public.calora_assert_deletion_writable(external_user_id text) RE
     BEGIN
       IF EXISTS (
         SELECT 1 FROM calora_account_deletion_states
-        WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+        WHERE identity_fingerprint = encode(extensions.digest(external_user_id, 'sha256'), 'hex')
           AND state <> 'active'
       ) THEN
         RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';
