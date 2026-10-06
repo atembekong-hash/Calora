@@ -1781,7 +1781,7 @@ export const GetRecipeResponse = zod.object({
 
 
 /**
- * @summary Browse a configured Premium recipe provider
+ * @summary Browse a configured Plus recipe provider
  */
 export const listPremiumRecipesQueryQueryMax = 120;
 
@@ -1878,7 +1878,7 @@ export const ListPremiumRecipesResponse = zod.object({
 
 
 /**
- * @summary Get a Premium recipe detail
+ * @summary Get a Plus recipe detail
  */
 
 

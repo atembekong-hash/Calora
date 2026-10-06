@@ -1826,7 +1826,7 @@ export const getListPremiumRecipesUrl = (params?: ListPremiumRecipesParams,) => 
 }
 
 /**
- * @summary Browse a configured Premium recipe provider
+ * @summary Browse a configured Plus recipe provider
  */
 export const listPremiumRecipes = async (params?: ListPremiumRecipesParams, options?: Parameters<typeof customFetch>[1]): Promise<PremiumRecipeList> => {
 
@@ -1873,7 +1873,7 @@ export type ListPremiumRecipesQueryError = ErrorType<void | ApiMessage>
 
 
 /**
- * @summary Browse a configured Premium recipe provider
+ * @summary Browse a configured Plus recipe provider
  */
 
 export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<void | ApiMessage>>(
@@ -1903,7 +1903,7 @@ export const getGetPremiumRecipeUrl = (sourceId: string,) => {
 }
 
 /**
- * @summary Get a Premium recipe detail
+ * @summary Get a Plus recipe detail
  */
 export const getPremiumRecipe = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<PremiumRecipe> => {
 
@@ -1950,7 +1950,7 @@ export type GetPremiumRecipeQueryError = ErrorType<void | ApiMessage>
 
 
 /**
- * @summary Get a Premium recipe detail
+ * @summary Get a Plus recipe detail
  */
 
 export function useGetPremiumRecipe<TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<void | ApiMessage>>(

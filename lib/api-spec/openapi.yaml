@@ -467,7 +467,7 @@ paths:
     get:
       operationId: listPremiumRecipes
       tags: [recipes]
-      summary: Browse a configured Premium recipe provider
+      summary: Browse a configured Plus recipe provider
       security: [{ bearerAuth: [] }]
       parameters:
         - name: query
@@ -484,16 +484,16 @@ paths:
         - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
       responses:
         "200":
-          description: Premium provider catalogue or its truthful availability state
+          description: Plus provider catalogue or its truthful availability state for a signed-in account
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PremiumRecipeList" }
         "401":
           description: A signed-in Calora account is required
         "429":
-          description: Premium recipe quota exceeded
+          description: Plus recipe quota exceeded
         "503":
-          description: Entitlement verification or abuse protection is temporarily unavailable
+          description: Provider or abuse protection is temporarily unavailable
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiMessage" }
@@ -501,22 +501,22 @@ paths:
     get:
       operationId: getPremiumRecipe
       tags: [recipes]
-      summary: Get a Premium recipe detail
+      summary: Get a Plus recipe detail
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
       responses:
         "200":
-          description: Premium recipe detail
+          description: Plus recipe detail
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PremiumRecipe" }
         "401":
           description: A signed-in Calora account is required
         "429":
-          description: Premium recipe quota exceeded
+          description: Plus recipe quota exceeded
         "503":
-          description: Entitlement verification or abuse protection is temporarily unavailable
+          description: Provider or abuse protection is temporarily unavailable
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiMessage" }
