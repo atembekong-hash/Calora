@@ -23,6 +23,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { buildDatabasePoolConfig } from "./connection";
 
 const { Pool } = pg;
 const APPROVAL_FLAG = "--approve-empty-calora-target";
@@ -33,15 +34,6 @@ type ExistingTableRow = { table_name: string };
 type EmptyTableRow = { is_empty: boolean };
 type CountRow = { count: string };
 type QueryClient = Pick<pg.Pool | pg.PoolClient, "query">;
-
-function strictConnectionString(connectionString: string): string {
-  const url = new URL(connectionString);
-  const sslMode = url.searchParams.get("sslmode");
-  if (sslMode === "prefer" || sslMode === "require" || sslMode === "verify-ca") {
-    url.searchParams.set("sslmode", "verify-full");
-  }
-  return url.toString();
-}
 
 function fail(message: string): never {
   throw new Error(`[bootstrap-empty-target] ${message}`);
@@ -103,12 +95,7 @@ export async function bootstrapEmptyCaloraTarget({
     fail("DATABASE_URL must be set before an empty-target bootstrap.");
   }
 
-  const pool = new Pool({
-    connectionString: strictConnectionString(connectionString),
-    connectionTimeoutMillis: 5_000,
-    idleTimeoutMillis: 30_000,
-    query_timeout: 10_000,
-  });
+  const pool = new Pool(buildDatabasePoolConfig(connectionString));
   const baseline = await loadBaseline();
   const client = await pool.connect();
   let committed = false;

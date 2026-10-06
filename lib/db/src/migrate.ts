@@ -22,6 +22,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
+import { buildDatabasePoolConfig } from "./connection";
 
 const { Pool } = pg;
 
@@ -32,7 +33,7 @@ if (!process.env.DATABASE_URL) {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(__dirname, "../migrations");
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool(buildDatabasePoolConfig(process.env.DATABASE_URL));
 const db = drizzle(pool);
 
 async function runMigrations(): Promise<void> {
