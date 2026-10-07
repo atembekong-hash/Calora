@@ -289,7 +289,7 @@ describe('resolveLivingActionEffect — full dispatch matrix', () => {
 // ---------------------------------------------------------------------------
 
 describe('Today dashboard — date context and display contracts', () => {
-  it('keeps exactly one selected-day navigator and places the diary before plan and recipes', async () => {
+  it('keeps exactly one selected-day navigator and removes the planned-for-today widget', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -298,8 +298,8 @@ describe('Today dashboard — date context and display contracts', () => {
     );
 
     expect(source.split('accessibilityLabel="Previous diary day"').length - 1).toBe(1);
-    expect(source.indexOf("Today’s log")).toBeLessThan(source.indexOf('<PlannerPeek'));
-    expect(source.indexOf('<PlannerPeek')).toBeLessThan(source.indexOf('<RecipeSwipeWidget'));
+    expect(source).not.toContain('PlannerPeek');
+    expect(source).not.toContain('planned for today');
   });
 
   it('opens a calendar picker from the date selector and restores today from past dates', async () => {
@@ -438,7 +438,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('gaugeStyles.remainingNumber, { color: colors.strongForeground }');
   });
 
-  it('mounts a single secondary Today insight between the diary footer and planner', async () => {
+  it('mounts a single secondary Today insight between the diary footer and living picture card', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -448,7 +448,7 @@ describe('Today dashboard — date context and display contracts', () => {
 
     expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
     expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
-    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('<PlannerPeek'));
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('<LivingRhythmCard'));
     expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
     expect(source).toContain('selectVisibleTodayInsight');
   });
@@ -575,7 +575,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('followsTodayRef.current = true;');
   });
 
-  it('adds the Meals logged add-meal flow to only the Building your picture dashboard card', async () => {
+  it('keeps the add-meal flow on the Building your picture dashboard card after removing Meals logged', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -593,6 +593,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(livingCard).toContain('onPress={onAddMeal}');
     expect(source).toContain('<LivingRhythmCard');
     expect(source).toContain('onAddMeal={openAdd}');
-    expect(source).toContain('testID="wellness-add-meal-button"');
+    expect(source).not.toContain('Meals logged');
+    expect(source).not.toContain('wellness-add-meal-button');
   });
 });
