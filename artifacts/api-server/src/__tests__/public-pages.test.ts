@@ -31,7 +31,14 @@ describe("public Calora pages", () => {
   });
 
   it("also serves the API-prefixed production paths", async () => {
-    for (const path of ["/api/legal/", "/api/legal/privacy", "/api/legal/terms", "/api/legal/support", "/api/legal/subscriptions", "/api/legal/delete-account"]) {
+    for (const path of [
+      "/api/legal/",
+      "/api/legal/privacy",
+      "/api/legal/terms",
+      "/api/legal/support",
+      "/api/legal/subscriptions",
+      "/api/legal/delete-account",
+    ]) {
       const response = await request(app).get(path);
       expect(response.status).toBe(200);
       expect(response.headers["content-type"]).toMatch(/text\/html/);
@@ -56,28 +63,57 @@ describe("public Calora pages", () => {
     expect(response.text).toContain("7-day free trial when eligible");
     expect(response.text).toContain("$4.99/month");
     expect(response.text).toContain("$34.99/year");
-    expect(response.text).toContain("approximately $2.92/month billed annually");
+    expect(response.text).toContain(
+      "approximately $2.92/month billed annually",
+    );
     expect(response.text).not.toContain("$35.99/year");
     expect(response.text).not.toContain("$3.00/month");
   });
 
   it("publishes branded SEO and social assets", async () => {
     const privacy = await request(app).get("/privacy");
-    expect(privacy.text).toContain('rel="canonical" href="https://mycaloraapp.com/privacy"');
+    expect(privacy.text).toContain(
+      'rel="canonical" href="https://mycaloraapp.com/privacy"',
+    );
     expect(privacy.text).toContain('property="og:site_name" content="Calora"');
-    expect(privacy.text).toContain('name="twitter:card" content="summary_large_image"');
+    expect(privacy.text).toContain(
+      'name="twitter:card" content="summary_large_image"',
+    );
     expect(privacy.text).toContain('"@type":"MobileApplication"');
-    expect((await request(app).get("/robots.txt")).text).toContain("Sitemap: https://mycaloraapp.com/sitemap.xml");
-    expect((await request(app).get("/sitemap.xml")).text).toContain("<loc>https://mycaloraapp.com/privacy</loc>");
-    expect((await request(app).get("/site.webmanifest")).body.name).toBe("Calora");
+    expect((await request(app).get("/robots.txt")).text).toContain(
+      "Sitemap: https://mycaloraapp.com/sitemap.xml",
+    );
+    expect((await request(app).get("/sitemap.xml")).text).toContain(
+      "<loc>https://mycaloraapp.com/privacy</loc>",
+    );
+    expect((await request(app).get("/site.webmanifest")).body.name).toBe(
+      "Calora",
+    );
     const icon = await request(app).get("/assets/icon/calora-icon-512.png");
     expect(icon.status).toBe(200);
     expect(icon.headers["content-type"]).toMatch(/image\/png/);
     expect(icon.body.length).toBeGreaterThan(1000);
-    const socialCard = await request(app).get("/assets/social/calora-social-card.png");
+    const socialCard = await request(app).get(
+      "/assets/social/calora-social-card.png",
+    );
     expect(socialCard.status).toBe(200);
     expect(socialCard.headers["content-type"]).toMatch(/image\/png/);
     expect(socialCard.body.length).toBeGreaterThan(1000);
+  });
+
+  it("keeps the public site and authenticated app origins separated", async () => {
+    const response = await request(app).get("/");
+    expect(response.text).toContain(
+      'href="https://app.mycaloraapp.com/auth/sign-in"',
+    );
+    expect(response.text).toContain(
+      'href="https://app.mycaloraapp.com/auth/sign-up"',
+    );
+    expect(response.text).toContain('id="main-nav"');
+    expect(response.text).toContain('aria-label="Main navigation"');
+    expect(response.text).not.toContain(
+      'href="https://mycaloraapp.com/auth/sign-in"',
+    );
   });
 
   it("explains the authenticated, irreversible deletion path", async () => {
