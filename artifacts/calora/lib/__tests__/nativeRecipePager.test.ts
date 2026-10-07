@@ -25,7 +25,9 @@ describe('native recipe pager contract', () => {
     const nativePager = source.slice(nativePagerStart, source.indexOf('\n  return (', nativePagerStart));
 
     expect(nativePagerStart).toBeGreaterThan(-1);
+    expect(nativePager).toContain('SwipeGestureExclusionContext.Provider');
     expect(nativePager).toContain('<ScrollView');
+    expect(nativePager).toContain('scrollEnabled={!excluded}');
     expect(nativePager).not.toContain('<GestureDetector');
   });
 });
