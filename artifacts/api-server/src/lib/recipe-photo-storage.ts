@@ -43,9 +43,13 @@ export function isRecipePhotoStorageConfigured(): boolean {
 
 function storageConfig(): StorageConfig {
   const endpoint = requiredEnv("RECIPE_PHOTO_STORAGE_ENDPOINT", "S3_ENDPOINT", "AWS_ENDPOINT_URL_S3", "ENDPOINT");
+  const endpointUrl = new URL(endpoint);
+  if (endpointUrl.protocol !== "https:") {
+    throw new Error("Object storage endpoint must use HTTPS");
+  }
   return {
     bucket: requiredEnv("RECIPE_PHOTO_BUCKET", "DEFAULT_OBJECT_STORAGE_BUCKET_ID", "S3_BUCKET", "BUCKET"),
-    endpoint: new URL(endpoint),
+    endpoint: endpointUrl,
     accessKeyId: requiredEnv("RECIPE_PHOTO_ACCESS_KEY_ID", "S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID", "ACCESS_KEY_ID"),
     secretAccessKey: requiredEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "SECRET_ACCESS_KEY"),
     region: process.env.RECIPE_PHOTO_STORAGE_REGION?.trim()

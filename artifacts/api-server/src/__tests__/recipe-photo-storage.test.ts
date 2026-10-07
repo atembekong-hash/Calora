@@ -43,6 +43,11 @@ describe("recipe photo object erasure", () => {
     expect(isRecipePhotoStorageConfigured()).toBe(true);
   });
 
+  it("rejects non-HTTPS storage endpoints before signing a request", () => {
+    vi.stubEnv("RECIPE_PHOTO_STORAGE_ENDPOINT", "http://storage.example");
+    expect(() => recipePhotoStorageForTests.signedStorageUrl("GET", "", 60)).toThrow(/must use HTTPS/i);
+  });
+
   it("uses bytewise RFC 3986 query ordering for signed ListObjectsV2 requests", () => {
     const url = recipePhotoStorageForTests.signedStorageUrl("GET", "", 60, {
       "list-type": "2",
