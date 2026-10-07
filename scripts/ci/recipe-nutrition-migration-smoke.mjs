@@ -425,7 +425,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  7,
+  8,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -449,7 +449,7 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    7,
+    8,
     "historical upgrade must append only 0009 through 0015",
   );
 } finally {
