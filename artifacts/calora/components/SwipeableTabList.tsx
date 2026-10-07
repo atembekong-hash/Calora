@@ -284,6 +284,7 @@ export function SwipeableSectionPager<T extends string>({
 
   if (useNativePaging && hasAdjacentPages && renderItem) {
     return (
+      <SwipeGestureExclusionContext.Provider value={exclusionValue}>
       <View
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
@@ -297,6 +298,7 @@ export function SwipeableSectionPager<T extends string>({
           pagingEnabled
           directionalLockEnabled
           nestedScrollEnabled
+          scrollEnabled={!excluded}
           // Let the native scroll views negotiate the initial vertical drag.
           // This avoids the outer horizontal JS responder retaining touches
           // intended for Plus/Create/Profile/Progress vertical panes on Android.
@@ -323,6 +325,7 @@ export function SwipeableSectionPager<T extends string>({
           })}
         </ScrollView>
       </View>
+      </SwipeGestureExclusionContext.Provider>
     );
   }
 
