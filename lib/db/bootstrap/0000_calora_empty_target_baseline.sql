@@ -1295,3 +1295,152 @@ BEGIN
   END LOOP;
 END
 $calora_server_only_access$;
+
+-- Coach report records and the internal admin control plane are present in a
+-- freshly bootstrapped target because the bootstrap records the latest
+-- migration boundary rather than replaying historical migrations.
+CREATE TABLE public.calora_coach_reports (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid,
+    scope text NOT NULL,
+    message_ref_digest text NOT NULL,
+    reason text NOT NULL,
+    status text DEFAULT 'received'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone DEFAULT (now() + '90 days'::interval) NOT NULL,
+    CONSTRAINT calora_coach_reports_pkey PRIMARY KEY (id),
+    CONSTRAINT calora_coach_reports_scope_check CHECK ((scope = ANY (ARRAY['guest'::text, 'account'::text]))),
+    CONSTRAINT calora_coach_reports_reason_check CHECK ((reason = ANY (ARRAY['unsafe'::text, 'inaccurate'::text, 'privacy'::text, 'other'::text]))),
+    CONSTRAINT calora_coach_reports_status_check CHECK ((status = ANY (ARRAY['received'::text, 'under_review'::text, 'resolved'::text, 'dismissed'::text, 'escalated'::text])))
+);
+ALTER TABLE ONLY public.calora_coach_reports
+    ADD CONSTRAINT calora_coach_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.calora_users(id) ON DELETE CASCADE;
+CREATE INDEX calora_coach_reports_digest_idx ON public.calora_coach_reports USING btree (message_ref_digest);
+CREATE INDEX calora_coach_reports_expiry_idx ON public.calora_coach_reports USING btree (expires_at);
+CREATE INDEX calora_coach_reports_status_created_idx ON public.calora_coach_reports USING btree (status, created_at DESC);
+
+CREATE TABLE public.calora_admin_principals (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    external_user_id text NOT NULL,
+    display_name text NOT NULL,
+    role text NOT NULL,
+    granted_by_principal_id uuid,
+    grant_reason text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    revoked_at timestamp with time zone,
+    revoked_by_principal_id uuid,
+    revocation_reason text,
+    CONSTRAINT calora_admin_principals_pkey PRIMARY KEY (id),
+    CONSTRAINT calora_admin_principals_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'operations'::text, 'support'::text, 'content'::text, 'moderation'::text, 'analyst'::text]))),
+    CONSTRAINT calora_admin_principals_display_name_check CHECK ((char_length(display_name) >= 1 AND char_length(display_name) <= 80)),
+    CONSTRAINT calora_admin_principals_grant_reason_check CHECK ((char_length(grant_reason) >= 3 AND char_length(grant_reason) <= 500)),
+    CONSTRAINT calora_admin_principals_bootstrap_audit_check CHECK ((granted_by_principal_id IS NOT NULL OR grant_reason = 'bootstrap'))
+);
+ALTER TABLE ONLY public.calora_admin_principals
+    ADD CONSTRAINT calora_admin_principals_granted_by_fkey FOREIGN KEY (granted_by_principal_id) REFERENCES public.calora_admin_principals(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.calora_admin_principals
+    ADD CONSTRAINT calora_admin_principals_revoked_by_fkey FOREIGN KEY (revoked_by_principal_id) REFERENCES public.calora_admin_principals(id) ON DELETE RESTRICT;
+CREATE UNIQUE INDEX calora_admin_principals_external_user_idx ON public.calora_admin_principals USING btree (external_user_id);
+CREATE INDEX calora_admin_principals_active_role_idx ON public.calora_admin_principals USING btree (role) WHERE (revoked_at IS NULL);
+
+CREATE TABLE public.calora_admin_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    principal_id uuid NOT NULL,
+    token_digest text NOT NULL,
+    csrf_digest text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    reauth_until timestamp with time zone,
+    revoked_at timestamp with time zone,
+    CONSTRAINT calora_admin_sessions_pkey PRIMARY KEY (id),
+    CONSTRAINT calora_admin_sessions_token_digest_check CHECK ((char_length(token_digest) = 64)),
+    CONSTRAINT calora_admin_sessions_csrf_digest_check CHECK ((char_length(csrf_digest) = 64)),
+    CONSTRAINT calora_admin_sessions_expiry_check CHECK ((expires_at > created_at))
+);
+ALTER TABLE ONLY public.calora_admin_sessions
+    ADD CONSTRAINT calora_admin_sessions_principal_id_fkey FOREIGN KEY (principal_id) REFERENCES public.calora_admin_principals(id) ON DELETE RESTRICT;
+CREATE INDEX calora_admin_sessions_active_principal_idx ON public.calora_admin_sessions USING btree (principal_id, expires_at) WHERE (revoked_at IS NULL);
+
+CREATE TABLE public.calora_admin_audit_events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    actor_principal_id uuid,
+    action text NOT NULL,
+    target_type text,
+    target_reference text,
+    result text NOT NULL,
+    request_id text,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT calora_admin_audit_events_pkey PRIMARY KEY (id),
+    CONSTRAINT calora_admin_audit_events_action_check CHECK ((char_length(action) >= 3 AND char_length(action) <= 100)),
+    CONSTRAINT calora_admin_audit_events_result_check CHECK ((result = ANY (ARRAY['success'::text, 'denied'::text, 'failed'::text])))
+);
+ALTER TABLE ONLY public.calora_admin_audit_events
+    ADD CONSTRAINT calora_admin_audit_events_actor_fkey FOREIGN KEY (actor_principal_id) REFERENCES public.calora_admin_principals(id) ON DELETE RESTRICT;
+CREATE INDEX calora_admin_audit_events_created_idx ON public.calora_admin_audit_events USING btree (created_at DESC);
+CREATE INDEX calora_admin_audit_events_action_created_idx ON public.calora_admin_audit_events USING btree (action, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.calora_admin_audit_events_immutable()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'administrative audit events are immutable' USING ERRCODE = '55000';
+END;
+$$;
+CREATE TRIGGER calora_admin_audit_events_immutable_trigger
+  BEFORE UPDATE OR DELETE ON public.calora_admin_audit_events
+  FOR EACH ROW EXECUTE FUNCTION public.calora_admin_audit_events_immutable();
+
+CREATE OR REPLACE FUNCTION public.calora_coach_v2_write_fence()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  external_user_id text;
+BEGIN
+  IF current_setting('calora.deletion_worker', true) = 'on' THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+  IF TG_TABLE_NAME = 'calora_coach_v2_settings' THEN
+    SELECT external_id INTO external_user_id FROM calora_users WHERE id = NEW.user_id;
+  ELSIF TG_TABLE_NAME = 'calora_coach_v2_conversations' THEN
+    SELECT external_id INTO external_user_id FROM calora_users WHERE id = NEW.user_id;
+  ELSIF TG_TABLE_NAME = 'calora_coach_v2_turns' THEN
+    SELECT users.external_id INTO external_user_id FROM calora_coach_v2_conversations conversations INNER JOIN calora_users users ON users.id = conversations.user_id WHERE conversations.id = NEW.conversation_id;
+  ELSIF TG_TABLE_NAME = 'calora_coach_reports' AND NEW.user_id IS NOT NULL THEN
+    SELECT external_id INTO external_user_id FROM calora_users WHERE id = NEW.user_id;
+  END IF;
+  IF external_user_id IS NOT NULL THEN
+    PERFORM calora_assert_deletion_writable(external_user_id);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER calora_account_deletion_write_fence_trigger
+  BEFORE INSERT OR UPDATE ON public.calora_coach_reports
+  FOR EACH ROW EXECUTE FUNCTION public.calora_coach_v2_write_fence();
+
+DO $calora_latest_server_only_access$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'calora_coach_reports',
+    'calora_admin_principals',
+    'calora_admin_sessions',
+    'calora_admin_audit_events'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON TABLE public.%I FROM anon', table_name);
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+      EXECUTE format('REVOKE ALL ON TABLE public.%I FROM authenticated', table_name);
+    END IF;
+  END LOOP;
+END
+$calora_latest_server_only_access$;

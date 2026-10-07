@@ -21,6 +21,7 @@ const {
   startCoachV2Turn,
   completeCoachV2Turn,
   buildCoachV2Snapshot,
+  isCoachReportIntakeEnabled,
 } = vi.hoisted(() => ({
   openAiCreate: vi.fn(),
   verifyBearerToken: vi.fn(),
@@ -40,6 +41,7 @@ const {
   startCoachV2Turn: vi.fn(),
   completeCoachV2Turn: vi.fn(),
   buildCoachV2Snapshot: vi.fn(),
+  isCoachReportIntakeEnabled: vi.fn(),
 }));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
@@ -90,6 +92,10 @@ vi.mock("../lib/account-deletion-state.js", () => ({
 vi.mock("../lib/logger.js", () => ({
   logger: { error: vi.fn(), warn: vi.fn() },
 }));
+vi.mock("../lib/admin-feature-flags.js", () => ({
+  isCoachReportIntakeEnabled: (...args: unknown[]) =>
+    isCoachReportIntakeEnabled(...args),
+}));
 
 import coachV2Router, {
   buildCoachV2Messages,
@@ -109,6 +115,7 @@ describe("clean-room Coach V2", () => {
     poolConnect.mockResolvedValue({ query: clientQuery, release: vi.fn() });
     verifyBearerToken.mockResolvedValue(null);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    isCoachReportIntakeEnabled.mockResolvedValue(true);
     clientQuery.mockResolvedValue({ rows: [], rowCount: 1 });
     resolveCoachV2User.mockResolvedValue("internal-user-id");
     getCoachV2Settings.mockResolvedValue({ personalizationEnabled: true });
@@ -151,7 +158,8 @@ describe("clean-room Coach V2", () => {
     expect(response.body).toEqual({ accepted: true });
     const [query, values] = poolQuery.mock.calls.at(-1) as [string, unknown[]];
     expect(query).toContain("calora_coach_reports");
-    expect(values?.[1]).toMatch(/^[0-9a-f]{64}$/);
+    expect(values?.[1]).toBe("guest");
+    expect(values?.[2]).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(values)).not.toContain("local-assistant-turn-1");
   });
 
@@ -161,6 +169,17 @@ describe("clean-room Coach V2", () => {
       .send({ messageRef: "turn", reason: "medical" });
 
     expect(response.status).toBe(400);
+    expect(poolQuery).not.toHaveBeenCalled();
+  });
+
+  it("honors the reviewed report-intake switch after validation and rate limiting", async () => {
+    isCoachReportIntakeEnabled.mockResolvedValueOnce(false);
+    const response = await request(app())
+      .post("/v1/coach/v2/report")
+      .send({ messageRef: "local-assistant-turn-1", reason: "privacy" });
+
+    expect(response.status).toBe(503);
+    expect(response.body.message).toMatch(/temporarily unavailable/i);
     expect(poolQuery).not.toHaveBeenCalled();
   });
 
@@ -332,9 +351,12 @@ describe("clean-room Coach V2", () => {
     ["I have chest pain after fasting.", "immediate"],
     ["Can I replace my doctor with Coach?", "medical"],
     ["Can you guarantee I will lose weight?", "medical"],
-  ])("classifies high-risk Coach input without relying on the model: %s", (message, expectedKind) => {
-    expect(coachSafetyKind(message)).toBe(expectedKind);
-  });
+  ])(
+    "classifies high-risk Coach input without relying on the model: %s",
+    (message, expectedKind) => {
+      expect(coachSafetyKind(message)).toBe(expectedKind);
+    },
+  );
 
   it("returns a deterministic safety redirect for every required high-risk category without provider egress", async () => {
     const messages = [
