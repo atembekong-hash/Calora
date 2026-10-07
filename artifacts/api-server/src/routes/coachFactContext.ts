@@ -132,13 +132,17 @@ const FACT_LIMITATIONS: Record<string, ReadonlyArray<string>> = {
 };
 
 const riskPatterns: RegExp[] = [
-  /\b(self[- ]?harm|self[- ]?injur|suicid)/i,
+  /\b(self[- ]?harm|self[- ]?injur|suicid|(?:hurt|harm) myself|kill myself|end my life)/i,
   /\b(anorex|bulimi|purge|purging|vomit|laxative|binge|eating[- ]?disorder|disordered[- ]?eating)/i,
   /\b(starv|severe(?:ly)? restrict|dangerously low|under ?\d{3}\s*(calories|kcal))/i,
+  /\b(water|extended|multi[- ]?day|\d{2,3}[- ]?hour|\d+[- ]?day)\s+fast(?:ing)?\b/i,
+  /\b(fast(?:ing)?\s+(?:for|more than)\s+\d{2,3}\s*(hours|days))\b/i,
   /\b(compensat(?:e|ory).{0,30}exercise|exercise.{0,30}compensat)/i,
   /\b(pregnan|postpartum)/i,
-  /\b(medication|dose|diagnos|lab result)/i,
-  /\b(chest pain|fainting|fainted|acute symptom)/i,
+  /\b(medication|medicine|prescription|dose|dosage|drug interaction|diagnos|lab result|treat(?:ment|ing)?|cure|prevent)/i,
+  /\b(chest pain|trouble breathing|shortness of breath|fainting|fainted|seizure|stroke symptoms?|severe allergic reaction|acute symptom)/i,
+  /\b(replace|instead of|avoid|skip|without)\b.{0,40}\b(doctor|clinician|physician|medical care|professional care|healthcare)\b/i,
+  /\b(be|am) i (definitely|certainly)\b|\b(guarantee|promise|certain|certainty|100% sure)\b/i,
   /\b(minor|under ?18|child|pediatric)/i,
 ];
 
@@ -305,7 +309,9 @@ function safeResponse(requestNonce: string, reason: "risk" | "limited" | "unavai
   return {
     message,
     observations: [],
-    actions: [{ id: "coach-open-progress", label: "Review Progress", kind: "navigate" as const, destination: "progress" as const, confirmationRequired: false }],
+    actions: reason === "risk"
+      ? []
+      : [{ id: "coach-open-progress", label: "Review Progress", kind: "navigate" as const, destination: "progress" as const, confirmationRequired: false }],
     safetyState: reason === "risk" ? "support_redirect" as const : "caution" as const,
     limitations: [reason === "risk" ? "Coach is not medical care." : "A verified factual response was unavailable."],
     contextCoverage: { usedSections: [], missingSections: ["fact context"] },

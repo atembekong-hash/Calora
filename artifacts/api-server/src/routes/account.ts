@@ -132,6 +132,14 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
          OR key LIKE ${`%:user:${externalUserId}`}
     `);
     await tx.execute(sql`
+      DELETE FROM calora_coach_fact_context_idempotency
+      WHERE external_user_id = ${externalUserId}
+    `);
+    await tx.execute(sql`
+      DELETE FROM calora_cohort_memberships
+      WHERE external_user_id = ${externalUserId}
+    `);
+    await tx.execute(sql`
       DELETE FROM calora_recipe_media
       WHERE owner_external_id = ${externalUserId}
     `);

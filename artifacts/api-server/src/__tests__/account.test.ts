@@ -118,6 +118,16 @@ describe("DELETE /v1/account", () => {
         JSON.stringify(query).includes("calora_recipe_media"),
       ),
     ).toBe(true);
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_coach_fact_context_idempotency"),
+      ),
+    ).toBe(true);
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_cohort_memberships"),
+      ),
+    ).toBe(true);
     expect(deleteUser).toHaveBeenCalledOnce();
   });
 

@@ -46,6 +46,10 @@ export function profileTargetMode(profile: Profile | null): 'automatic' | 'custo
   return profile?.targetMode ?? 'custom';
 }
 
+export function canUseAutomaticTargets(profile: Pick<Profile, 'age'> | null | undefined): boolean {
+  return Boolean(profile && profile.age >= 18);
+}
+
 export function validatePersonalDetails(
   input: PersonalDetailsInput,
   units: 'metric' | 'imperial',

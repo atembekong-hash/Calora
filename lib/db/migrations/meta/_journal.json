@@ -99,6 +99,13 @@
       "when": 1791268500000,
       "tag": "0014_pgcrypto_extension_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791270000000,
+      "tag": "0015_compliance_deletion_fences",
+      "breakpoints": true
     }
   ]
 }

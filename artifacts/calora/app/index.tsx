@@ -214,7 +214,7 @@ export default function OnboardingScreen() {
     age, height, weight, targetWeight, activity, diet, goal,
   }, 'metric'), [activity, age, diet, goal, height, targetWeight, weight]);
   const calorieTarget = useMemo(
-    () => validatedPersonalDetails.ok
+    () => validatedPersonalDetails.ok && validatedPersonalDetails.values.age >= 18
       ? recommendCalories({
           weightKg: validatedPersonalDetails.values.weightKg,
           activity,
@@ -236,12 +236,12 @@ export default function OnboardingScreen() {
     const profile: Profile = {
       name: name.trim() || 'Alex Morgan',
       ...validation.values,
-      calorieTarget: recommendCalories({
+      calorieTarget: validation.values.age >= 18 ? recommendCalories({
         weightKg: validation.values.weightKg,
         activity: validation.values.activity,
         goal: validation.values.goal,
-      }),
-      targetMode: 'automatic',
+      }) : 2000,
+      targetMode: validation.values.age >= 18 ? 'automatic' : 'custom',
     };
     try {
       await completeOnboarding(profile, consent);
@@ -521,8 +521,8 @@ export default function OnboardingScreen() {
                <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>Required agreement</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>{consent ? 'Agreed. ' : 'Tap to agree. '}I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
             </Pressable>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
-              <Text style={[styles.summaryBody, { color: colors.mutedForeground }]}>{goal === 'lose' ? 'A gentle deficit' : goal === 'gain' ? 'A supportive surplus' : 'A steady maintenance target'} · {diet}</Text>
+              <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{calorieTarget === null ? 'Custom' : formatWhole(calorieTarget)} {calorieTarget !== null && <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text>}</Text>
+              <Text style={[styles.summaryBody, { color: colors.mutedForeground }]}>{calorieTarget === null ? 'Set targets with a parent, guardian, or qualified professional' : `${goal === 'lose' ? 'A gentle deficit' : goal === 'gain' ? 'A supportive surplus' : 'A steady maintenance target'} · ${diet}`}</Text>
             </View>
           </View>
         )}

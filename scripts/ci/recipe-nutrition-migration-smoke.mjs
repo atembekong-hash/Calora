@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 14) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 15) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -425,7 +425,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  7,
+  8,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -449,8 +449,8 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    7,
-    "historical upgrade must append only 0009 through 0014",
+    8,
+    "historical upgrade must append only 0009 through 0015",
   );
 } finally {
   await historicalUpgrade.end();

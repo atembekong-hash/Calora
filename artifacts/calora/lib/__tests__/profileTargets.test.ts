@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { recommendCalories } from '../calorieRecommendation';
-import { profileTargetMode, recommendationForProfile, validatePersonalDetails } from '../profileTargets';
+import { canUseAutomaticTargets, profileTargetMode, recommendationForProfile, validatePersonalDetails } from '../profileTargets';
 
 describe('profile target migration helpers', () => {
   it('treats profiles saved before target modes as custom', () => {
@@ -12,6 +12,11 @@ describe('profile target migration helpers', () => {
     const inputs = { weightKg: 76, activity: 'moderate' as const, goal: 'lose' as const };
     expect(recommendationForProfile(inputs)).toBe(recommendCalories(inputs));
     expect(recommendCalories(inputs)).toBe(2050);
+  });
+
+  it('does not allow automatic calorie targets for minors', () => {
+    expect(canUseAutomaticTargets({ age: 17 })).toBe(false);
+    expect(canUseAutomaticTargets({ age: 18 })).toBe(true);
   });
 
   it('validates metric and imperial personal values in their displayed units', () => {

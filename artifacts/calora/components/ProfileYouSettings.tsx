@@ -5,7 +5,7 @@ import type { ActivityLevel, DietPreference, Goal, Profile } from '@/context/Cal
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { getMacroTargets, type MacroGoalInput, validateMacroGoalInput } from '@/lib/nutritionGoals';
-import { profileTargetMode, recommendationForProfile, validatePersonalDetails } from '@/lib/profileTargets';
+import { canUseAutomaticTargets, profileTargetMode, recommendationForProfile, validatePersonalDetails } from '@/lib/profileTargets';
 import { formatWhole, normalizeWholeNumberInput } from '@/lib/formatters';
 import colors from '@/constants/colors';
 
@@ -42,7 +42,8 @@ export function ProfileYouSettings({
   const [personal, setPersonal] = useState<PersonalForm>({ age: '', height: '', weight: '', targetWeight: '', activity: 'moderate', diet: 'Everything', goal: 'maintain' });
   const [macro, setMacro] = useState<MacroGoalInput>({ calories: '', protein: '', carbs: '', fat: '' });
   const units = profile?.units ?? 'metric';
-  const targetMode = profileTargetMode(profile);
+  const automaticTargetsAllowed = canUseAutomaticTargets(profile);
+  const targetMode = automaticTargetsAllowed ? profileTargetMode(profile) : 'custom';
 
   const openPersonal = () => {
     if (!profile) return;
@@ -69,7 +70,7 @@ export function ProfileYouSettings({
     // Keeping targets freezes them as custom values; otherwise a later
     // recommendation refresh could change a target the person chose to keep.
     const patch: Partial<Profile> = { ...pendingPersonal, targetMode: 'custom' };
-    if (applyRecommendation) {
+    if (applyRecommendation && canUseAutomaticTargets(pendingPersonal)) {
       patch.calorieTarget = recommendationForProfile(pendingPersonal);
       patch.targetMode = 'automatic';
       patch.proteinTargetGrams = undefined;
@@ -101,6 +102,11 @@ export function ProfileYouSettings({
   const resetRecommendations = async () => {
     if (!profile) return;
     try {
+      if (!canUseAutomaticTargets(profile)) {
+        await updateProfile({ targetMode: 'custom' });
+        setNutritionOpen(false);
+        return;
+      }
       await updateProfile({
         calorieTarget: recommendationForProfile(profile), targetMode: 'automatic',
         proteinTargetGrams: undefined, carbsTargetGrams: undefined, fatTargetGrams: undefined,
@@ -150,8 +156,8 @@ export function ProfileYouSettings({
       <BottomSheet visible={choiceOpen} onRequestClose={() => setChoiceOpen(false)} sheetStyle={{ backgroundColor: themeColors.background }}>
         <View style={styles.sheet}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Update nutrition targets?</Text>
-          <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>Your details changed. Keep your existing targets, or apply a new starting estimate of {pendingPersonal ? `${formatWhole(recommendationForProfile(pendingPersonal))} kcal/day` : ''}.</Text>
-          <Pressable testID="apply-updated-recommendations" onPress={() => { void finishPersonal(true); }} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Apply updated recommendations</Text></Pressable>
+          <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{pendingPersonal && !canUseAutomaticTargets(pendingPersonal) ? 'For users under 18, Calora does not calculate automatic calorie targets. Keep the current targets or set custom targets in Nutrition goals.' : `Your details changed. Keep your existing targets, or apply a new starting estimate of ${pendingPersonal ? `${formatWhole(recommendationForProfile(pendingPersonal))} kcal/day` : ''}.`}</Text>
+          {pendingPersonal && canUseAutomaticTargets(pendingPersonal) && <Pressable testID="apply-updated-recommendations" onPress={() => { void finishPersonal(true); }} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Apply updated recommendations</Text></Pressable>}
           <Pressable testID="keep-current-targets" onPress={() => { void finishPersonal(false); }} style={styles.secondary}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>Keep current targets</Text></Pressable>
         </View>
       </BottomSheet>
@@ -160,9 +166,9 @@ export function ProfileYouSettings({
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheet} bottomOffset={72}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Nutrition goals</Text>
           <View style={[styles.mode, { backgroundColor: themeColors.muted }]}>
-            {(['automatic', 'custom'] as const).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => { if (mode === 'automatic') void resetRecommendations(); else void updateProfile({ targetMode: 'custom' }).catch(() => setError('Your changes are waiting to be saved. Check device storage and retry.')); }} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
+            {(['automatic', 'custom'] as const).filter((mode) => mode === 'custom' || automaticTargetsAllowed).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => { if (mode === 'automatic') void resetRecommendations(); else void updateProfile({ targetMode: 'custom' }).catch(() => setError('Your changes are waiting to be saved. Check device storage and retry.')); }} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
           </View>
-          <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? `Based on your details: ${profile ? formatWhole(recommendationForProfile(profile)) : 2000} kcal/day.` : 'Set each target independently; grams do not need to match calories.'}</Text>
+          <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? `Based on your details: ${profile ? formatWhole(recommendationForProfile(profile)) : 2000} kcal/day.` : automaticTargetsAllowed ? 'Set each target independently; grams do not need to match calories.' : 'Automatic calorie recommendations are unavailable for users under 18. Set targets with a parent, guardian, or qualified professional.'}</Text>
           {targetMode === 'custom' && <><View style={styles.fields}>
             <Field label="Calories" value={macro.calories} setValue={(calories) => setMacro({ ...macro, calories })} colors={themeColors} />
             <Field label="Protein (g)" value={macro.protein} setValue={(protein) => setMacro({ ...macro, protein })} colors={themeColors} />
