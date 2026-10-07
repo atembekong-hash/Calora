@@ -108,6 +108,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('Create personalized recipe ideas');
   });
 
+  it('keeps the Discover saved-recipe rail independently swipeable inside the vertical pane on native', () => {
+    const savedStart = source.indexOf('Saved recipes');
+    const savedRailEnd = source.indexOf('</SwipeGestureExclusion>', savedStart);
+    const savedRail = source.slice(savedStart, savedRailEnd);
+    expect(savedStart).toBeGreaterThan(-1);
+    expect(savedRail).toContain('<ScrollView horizontal nestedScrollEnabled directionalLockEnabled');
+  });
+
   it('recovers failed remote recipe photos without allowing recycled rows to keep stale imagery', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
