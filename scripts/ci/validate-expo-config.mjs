@@ -27,6 +27,9 @@ if (expo?.android?.package !== "com.etiendem.caloraapp") {
 if (expo?.android?.versionCode !== 26) {
   failures.push("Android versionCode must be 26");
 }
+if (!expo?.android?.permissions?.includes("android.permission.HIGH_SAMPLING_RATE_SENSORS")) {
+  failures.push("Android high-rate sensor permission is required for responsive live steps");
+}
 if (!expo?.ios?.associatedDomains?.includes("applinks:mycaloraapp.com")) {
   failures.push("iOS branded associated domain is missing");
 }
