@@ -132,6 +132,14 @@ describe("clean-room Coach screen", () => {
     expect(source).not.toContain("Clipboard.setStringAsync(turn.content)");
   });
 
+  it("offers a bounded report action without sending raw Coach response text", () => {
+    expect(source).toContain("reportCoachV2Content");
+    expect(source).toContain('accessibilityLabel="Report Coach response"');
+    expect(source).toContain("messageRef: reportTurnId");
+    expect(source).toContain("response text is not stored in the");
+    expect(source).not.toContain("messageRef: displayContent");
+  });
+
   it("uses the requested three-line main-menu affordance", () => {
     expect(source).toContain('accessibilityLabel="Open Coach main menu"');
     expect(source).toContain('testID="coach-main-menu"');

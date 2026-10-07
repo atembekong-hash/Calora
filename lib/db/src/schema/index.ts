@@ -570,6 +570,20 @@ export const recoveryWarningSummariesTable = pgTable("calora_recovery_warning_su
   updatedAtIndex: index("calora_recovery_warning_summaries_updated_at_idx").on(table.updatedAt),
 }));
 
+export const coachReportsTable = pgTable("calora_coach_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  scope: text("scope").notNull(),
+  messageRefDigest: text("message_ref_digest").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").default("received").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => ({
+  digestIndex: index("calora_coach_reports_digest_idx").on(table.messageRefDigest),
+  expiryIndex: index("calora_coach_reports_expiry_idx").on(table.expiresAt),
+}));
+
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
 export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;
 
@@ -591,6 +605,7 @@ export const insertCoachFactContextConsentSchema = createInsertSchema(coachFactC
 export const insertServerConfigSchema = createInsertSchema(serverConfigTable);
 export const insertCohortMembershipSchema = createInsertSchema(cohortMembershipsTable);
 export const insertCoachFactContextIdempotencySchema = createInsertSchema(coachFactContextIdempotencyTable);
+export const insertCoachReportSchema = createInsertSchema(coachReportsTable);
 
 export type User = typeof usersTable.$inferSelect;
 export type Profile = typeof profilesTable.$inferSelect;
@@ -610,5 +625,6 @@ export type ServerConfig = typeof serverConfigTable.$inferSelect;
 export type CohortMembership = typeof cohortMembershipsTable.$inferSelect;
 export type CoachFactContextIdempotency = typeof coachFactContextIdempotencyTable.$inferSelect;
 export type CoachFactContextConsent = typeof coachFactContextConsentsTable.$inferSelect;
+export type CoachReport = typeof coachReportsTable.$inferSelect;
 
 export const userIdSchema = z.string().uuid();

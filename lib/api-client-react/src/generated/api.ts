@@ -32,6 +32,8 @@ import type {
   CoachV2ChatResponse,
   CoachV2Conversation,
   CoachV2ConversationList,
+  CoachV2ReportInput,
+  CoachV2ReportResponse,
   CoachV2Settings,
   CoachV2SettingsInput,
   DiaryEntry,
@@ -3092,6 +3094,77 @@ export const useDeleteCoachV2Conversation = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteCoachV2ConversationMutationOptions(options));
+    }
+
+export const getReportCoachV2ContentUrl = () => {
+
+
+
+
+  return `/api/v1/coach/v2/report`
+}
+
+/**
+ * @summary Report a Coach response without storing its content
+ */
+export const reportCoachV2Content = async (coachV2ReportInput: CoachV2ReportInput, options?: Parameters<typeof customFetch>[1]): Promise<CoachV2ReportResponse> => {
+
+  return customFetch<CoachV2ReportResponse>(getReportCoachV2ContentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(coachV2ReportInput)
+  }
+);}
+
+
+
+
+
+export const getReportCoachV2ContentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext> => {
+
+const mutationKey = ['reportCoachV2Content'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportCoachV2Content>>, {data: BodyType<CoachV2ReportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportCoachV2Content(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportCoachV2ContentMutationResult = NonNullable<Awaited<ReturnType<typeof reportCoachV2Content>>>
+    export type ReportCoachV2ContentMutationBody = BodyType<CoachV2ReportInput>
+    export type ReportCoachV2ContentMutationError = ErrorType<void>
+
+    /**
+ * @summary Report a Coach response without storing its content
+ */
+export const useReportCoachV2Content = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportCoachV2Content>>,
+        TError,
+        {data: BodyType<CoachV2ReportInput>},
+        TContext
+      > => {
+      return useMutation(getReportCoachV2ContentMutationOptions(options));
     }
 
 export const getOpenCoachV2ConversationUrl = (conversationId: string,) => {

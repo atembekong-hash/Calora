@@ -2753,6 +2753,23 @@ export const DeleteCoachV2ConversationResponse = zod.void()
 
 
 /**
+ * @summary Report a Coach response without storing its content
+ */
+export const reportCoachV2ContentBodyMessageRefMax = 160;
+
+
+
+export const ReportCoachV2ContentBody = zod.object({
+  "messageRef": zod.string().min(1).max(reportCoachV2ContentBodyMessageRefMax),
+  "reason": zod.enum(['unsafe', 'inaccurate', 'privacy', 'other'])
+})
+
+export const ReportCoachV2ContentResponse = zod.object({
+  "accepted": zod.boolean()
+})
+
+
+/**
  * @summary Reopen one of the signed-in account's saved Coach chats
  */
 export const OpenCoachV2ConversationParams = zod.object({

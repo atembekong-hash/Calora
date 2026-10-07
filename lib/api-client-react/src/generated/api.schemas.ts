@@ -1789,6 +1789,29 @@ export interface CoachV2ConversationList {
   conversations: CoachV2ConversationSummary[];
 }
 
+export type CoachV2ReportInputReason = typeof CoachV2ReportInputReason[keyof typeof CoachV2ReportInputReason];
+
+
+export const CoachV2ReportInputReason = {
+  unsafe: 'unsafe',
+  inaccurate: 'inaccurate',
+  privacy: 'privacy',
+  other: 'other',
+} as const;
+
+export interface CoachV2ReportInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  messageRef: string;
+  reason: CoachV2ReportInputReason;
+}
+
+export interface CoachV2ReportResponse {
+  accepted: boolean;
+}
+
 export interface CoachV2SettingsInput {
   personalizationEnabled: boolean;
 }

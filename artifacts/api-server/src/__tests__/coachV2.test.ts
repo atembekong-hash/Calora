@@ -142,6 +142,28 @@ describe("clean-room Coach V2", () => {
     });
   });
 
+  it("accepts a guest Coach report while storing only a message-reference digest", async () => {
+    const response = await request(app())
+      .post("/v1/coach/v2/report")
+      .send({ messageRef: "local-assistant-turn-1", reason: "inaccurate" });
+
+    expect(response.status).toBe(202);
+    expect(response.body).toEqual({ accepted: true });
+    const [query, values] = poolQuery.mock.calls.at(-1) as [string, unknown[]];
+    expect(query).toContain("calora_coach_reports");
+    expect(values?.[1]).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(values)).not.toContain("local-assistant-turn-1");
+  });
+
+  it("rejects malformed Coach report reasons before storage", async () => {
+    const response = await request(app())
+      .post("/v1/coach/v2/report")
+      .send({ messageRef: "turn", reason: "medical" });
+
+    expect(response.status).toBe(400);
+    expect(poolQuery).not.toHaveBeenCalled();
+  });
+
   it("serves an ephemeral general Coach reply to a guest without data persistence", async () => {
     const response = await request(app())
       .post("/v1/coach/v2/chat")

@@ -6,6 +6,7 @@ import {
 import { normalizeCoachAssistantReply } from "@workspace/api-zod/coach-text-presentation";
 import { pool } from "@workspace/db";
 import { Router, type IRouter, type Request, type Response } from "express";
+import { createHash } from "node:crypto";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   buildCoachV2Snapshot,
@@ -42,6 +43,12 @@ const COACH_V2_PROVIDER_TIMEOUT_MS = process.env.OPENAI_TIMEOUT_MS_OVERRIDE
 const COACH_V2_PROVIDER_FAILURE =
   "Coach is temporarily unavailable. Please try again shortly.";
 const COACH_V2_WELLNESS_NOTICE = "wellness_not_medical_care" as const;
+const COACH_REPORT_REASONS = new Set([
+  "unsafe",
+  "inaccurate",
+  "privacy",
+  "other",
+]);
 
 type ProviderMessage = { role: "user" | "assistant"; content: string };
 type CoachSafetyKind = "immediate" | "medical" | "restriction";
@@ -98,7 +105,10 @@ function coachSafetyReply(kind: CoachSafetyKind): string {
   return "I can't diagnose, treat, give medication or pregnancy-specific guidance, replace professional care, or provide certainty about a health outcome. Please contact a qualified clinician or pharmacist for advice tailored to your situation.";
 }
 
-function coachSafetyResponse(kind: CoachSafetyKind, conversationMode: "guest" | "account") {
+function coachSafetyResponse(
+  kind: CoachSafetyKind,
+  conversationMode: "guest" | "account",
+) {
   return {
     message: coachSafetyReply(kind),
     conversationMode,
@@ -305,10 +315,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
   const requestedSafetyKind = coachSafetyKind(input.message);
   if (requestedSafetyKind) {
     res.json(
-      coachSafetyResponse(
-        requestedSafetyKind,
-        verified ? "account" : "guest",
-      ),
+      coachSafetyResponse(requestedSafetyKind, verified ? "account" : "guest"),
     );
     return;
   }
@@ -392,6 +399,53 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
     }
     logger.error({ err: error }, "Coach V2 request failed");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
+  }
+});
+
+router.post("/v1/coach/v2/report", async (req, res) => {
+  const messageRef =
+    typeof req.body?.messageRef === "string" ? req.body.messageRef.trim() : "";
+  const reason = typeof req.body?.reason === "string" ? req.body.reason : "";
+  if (
+    messageRef.length < 1 ||
+    messageRef.length > 160 ||
+    !COACH_REPORT_REASONS.has(reason)
+  ) {
+    res.status(400).json({ message: "A valid Coach report is required." });
+    return;
+  }
+  const rate = await checkRateLimit(
+    `coach-report:ip:${canonicalizeIp(req)}`,
+    20,
+    24 * 60 * 60,
+    { failClosed: true },
+  );
+  if (!rate.allowed) {
+    res
+      .status(429)
+      .json({ message: "Too many reports. Please try again later." });
+    return;
+  }
+  try {
+    const verified = await optionalVerifiedUser(req);
+    const userId = verified
+      ? await resolveCoachV2User(verified.id, verified.email)
+      : null;
+    const digest = createHash("sha256")
+      .update(messageRef, "utf8")
+      .digest("hex");
+    await pool.query(
+      "INSERT INTO calora_coach_reports (user_id, message_ref_digest, reason) VALUES ($1::uuid, $2, $3)",
+      [userId, digest, reason],
+    );
+    res.status(202).json({ accepted: true });
+  } catch (error) {
+    logger.error({ err: error }, "Unable to record Coach report");
+    res
+      .status(503)
+      .json({
+        message: "Coach report could not be submitted. Please try again.",
+      });
   }
 });
 

@@ -19,7 +19,7 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   );
   assert.deepEqual(
     manifest.apiDatabase.journal.map((entry) => entry.idx),
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
   );
   assert.equal(
     manifest.apiDatabase.files.some((file) =>

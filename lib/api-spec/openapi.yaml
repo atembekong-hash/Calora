@@ -851,6 +851,26 @@ paths:
           description: Saved chat does not exist for the signed-in account
         "409":
           description: The chat is active or has a pending assistant reply
+  /v1/coach/v2/report:
+    post:
+      operationId: reportCoachV2Content
+      tags: [coach]
+      summary: Report a Coach response without storing its content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CoachV2ReportInput" }
+      responses:
+        "202":
+          description: Report accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachV2ReportResponse" }
+        "400":
+          description: Invalid report
+        "429":
+          description: Too many reports
   /v1/coach/v2/conversation/{conversationId}/open:
     post:
       operationId: openCoachV2Conversation
@@ -1956,6 +1976,18 @@ components:
           type: array
           maxItems: 50
           items: { $ref: "#/components/schemas/CoachV2ConversationSummary" }
+    CoachV2ReportInput:
+      type: object
+      additionalProperties: false
+      required: [messageRef, reason]
+      properties:
+        messageRef: { type: string, minLength: 1, maxLength: 160 }
+        reason: { type: string, enum: [unsafe, inaccurate, privacy, other] }
+    CoachV2ReportResponse:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: boolean }
     CoachV2SettingsInput:
       type: object
       additionalProperties: false
