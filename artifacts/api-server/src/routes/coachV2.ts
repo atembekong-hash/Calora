@@ -11,6 +11,7 @@ import {
   buildCoachV2Snapshot,
   clearCoachV2Conversation,
   completeCoachV2Turn,
+  deleteCoachV2Conversation,
   getCoachV2Conversation,
   getCoachV2Settings,
   listCoachV2Conversations,
@@ -397,6 +398,45 @@ router.post("/v1/coach/v2/conversation/new", async (req, res) => {
     res.status(204).send();
   } catch (error) {
     logger.error({ err: error }, "Unable to start a new Coach V2 conversation");
+    res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
+  }
+});
+
+router.delete("/v1/coach/v2/conversation/:conversationId", async (req, res) => {
+  const conversationId = req.params.conversationId;
+  if (!isUuid(conversationId)) {
+    res
+      .status(400)
+      .json({ message: "A valid Coach conversation is required." });
+    return;
+  }
+  const verified = await optionalVerifiedUser(req).catch(() => null);
+  if (!verified) {
+    res
+      .status(401)
+      .json({ message: "Please sign in to delete a saved Coach chat." });
+    return;
+  }
+  try {
+    const result = await withAccountDeletionReadLock(verified.id, async () => {
+      const userId = await resolveCoachV2User(verified.id, verified.email);
+      return deleteCoachV2Conversation(userId, conversationId);
+    });
+    if (result === "deleted") {
+      res.status(204).send();
+      return;
+    }
+    if (result === "active_or_pending") {
+      res.status(409).json({
+        message: "Only completed saved Coach chats can be deleted.",
+      });
+      return;
+    }
+    // A foreign identifier is intentionally indistinguishable from an
+    // unknown identifier so this route never confirms another account's data.
+    res.status(404).json({ message: "Saved Coach chat not found." });
+  } catch (error) {
+    logger.error({ err: error }, "Unable to delete saved Coach V2 chat");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });

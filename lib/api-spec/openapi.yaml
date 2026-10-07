@@ -825,6 +825,32 @@ paths:
           description: Not signed in
         "409":
           description: Coach is still replying
+  /v1/coach/v2/conversation/{conversationId}:
+    delete:
+      operationId: deleteCoachV2Conversation
+      tags: [coach]
+      summary: Permanently delete one completed saved Coach chat
+      description: >
+        Deletes only an archived conversation owned by the signed-in account.
+        Its turns are removed by the database cascade. Active or pending chats
+        cannot be deleted through this saved-chat control.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Saved Coach chat deleted
+        "400":
+          description: Invalid conversation identifier
+        "401":
+          description: Not signed in
+        "404":
+          description: Saved chat does not exist for the signed-in account
+        "409":
+          description: The chat is active or has a pending assistant reply
   /v1/coach/v2/conversation/{conversationId}/open:
     post:
       operationId: openCoachV2Conversation
