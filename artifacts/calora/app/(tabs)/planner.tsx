@@ -1016,6 +1016,7 @@ export default function PlannerScreen() {
           onChange={setSelectedDay}
           renderItem={renderPlannerDay}
           renderWindow={1}
+          nativePaging
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
           testID="planner-day-pager"
