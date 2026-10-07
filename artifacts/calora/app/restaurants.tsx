@@ -302,10 +302,6 @@ export default function RestaurantsScreen() {
           </View>
         )}
 
-        <View style={styles.attribution}>
-          <Feather name="shield" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.attributionText, { color: colors.mutedForeground }]}>Nutrition data supplied by FatSecret. Results may not include a restaurant’s complete official menu.</Text>
-        </View>
       </KeyboardAwareScrollViewCompat>
 
       <BottomSheet visible={selectedFood !== null} onRequestClose={() => setSelectedFood(null)} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>

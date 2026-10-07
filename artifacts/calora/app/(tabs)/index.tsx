@@ -37,7 +37,6 @@ import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { PlannerPeek } from '@/components/PlannerPeek';
 import { formatLogTime } from '@/lib/dates';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import { normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
@@ -892,36 +891,6 @@ function StepsTodayCard({
   );
 }
 
-function WellnessCards({
-  colors,
-  mealsLogged,
-  mealNames,
-  onAddMeal,
-}: {
-  colors: ReturnType<typeof useCalora>['colors'];
-  mealsLogged: number;
-  mealNames: string[];
-  onAddMeal: () => void;
-}) {
-  return (
-    <View style={styles.wellnessSection}>
-      <View style={styles.wellnessRow}>
-        <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.wellnessCardHeader}>
-            <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="food" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
-            <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Meals logged</Text>
-          </View>
-          <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{mealsLogged} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ 4 today</Text></Text>
-          <Text numberOfLines={1} style={[styles.mealsLoggedNames, { color: colors.mutedForeground }]}>{mealNames.length ? mealNames.join(' · ') : 'No meals logged yet'}</Text>
-          <ScalePressable accessibilityLabel="Add a meal from the meals logged card" testID="wellness-add-meal-button" onPress={onAddMeal} haptic="none" scale={0.96} style={[styles.wellnessAction, { backgroundColor: colors.accent }]}>
-            <Feather name="plus" size={13} color={colors.accentForeground} /><Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
-          </ScalePressable>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function MoodCard({
   colors,
   mood,
@@ -1614,7 +1583,6 @@ export default function HomeScreen() {
     fat: sum.fat + log.fat,
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
-  const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
   const now = new Date();
   const todayKey = dateKey(now);
   const isViewingToday = selectedDate === todayKey;
@@ -2056,21 +2024,12 @@ export default function HomeScreen() {
           </Surface>
         ) : null}
 
-        <PlannerPeek selectedDate={selectedDate} />
-
         <LivingRhythmCard
           colors={colors}
           livingState={livingState}
           waterOunces={selectedWater}
           mealsLogged={mealsLogged}
           selectedDate={selectedDate}
-          onAddMeal={openAdd}
-        />
-
-        <WellnessCards
-          colors={colors}
-          mealsLogged={mealsLogged}
-          mealNames={mealNames}
           onAddMeal={openAdd}
         />
 

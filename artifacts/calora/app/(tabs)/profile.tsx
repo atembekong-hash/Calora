@@ -823,29 +823,6 @@ export default function ProfileScreen() {
       />
       <View style={styles.profileViewport}>
         <View style={styles.profileHeaderContent}>
-        {/* ── Profile card ── */}
-        <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
-          <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
-            <ProfilePhoto
-              uri={profilePhotoUri}
-              size={47}
-              accessibilityLabel="Profile photo"
-              fallback={<Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
-            <Text style={[styles.profileSub, { color: colors.heroMuted }]}>
-              {profile
-                ? `${formatWhole(profile.calorieTarget)} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
-                : `Finish onboarding to personalize ${BRAND.name}`}
-            </Text>
-          </View>
-          <Pressable accessibilityLabel="Edit profile" onPress={openProfileEdit} hitSlop={10}>
-            <Feather name="edit-2" size={17} color={colors.heroMuted} />
-          </Pressable>
-        </Animated.View>
-
         <SwipeableTabList
           items={PROFILE_TABS}
           activeItem={profileTab}
@@ -882,6 +859,29 @@ export default function ProfileScreen() {
               keyboardShouldPersistTaps="handled"
             >
         <View style={tab === 'you' ? undefined : styles.hiddenSection}>
+        {/* ── Profile card ── */}
+        <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
+          <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
+            <ProfilePhoto
+              uri={profilePhotoUri}
+              size={47}
+              accessibilityLabel="Profile photo"
+              fallback={<Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
+            <Text style={[styles.profileSub, { color: colors.heroMuted }]}>
+              {profile
+                ? `${formatWhole(profile.calorieTarget)} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
+                : `Finish onboarding to personalize ${BRAND.name}`}
+            </Text>
+          </View>
+          <Pressable accessibilityLabel="Edit profile" onPress={openProfileEdit} hitSlop={10}>
+            <Feather name="edit-2" size={17} color={colors.heroMuted} />
+          </Pressable>
+        </Animated.View>
+
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
         {profileSyncError && (
           <Pressable
