@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 16) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 17) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -181,15 +181,23 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 16) {
       preferenceColumns.rows.map((row) => [row.column_name, row]),
     );
     for (const [column, type] of [
-      ['target_mode', 'text'],
-      ['protein_target_grams', 'integer'],
-      ['carbs_target_grams', 'integer'],
-      ['fat_target_grams', 'integer'],
-      ['units', 'text'],
+      ["target_mode", "text"],
+      ["protein_target_grams", "integer"],
+      ["carbs_target_grams", "integer"],
+      ["fat_target_grams", "integer"],
+      ["units", "text"],
     ]) {
       const columnInfo = preferenceMap.get(column);
-      assert.equal(columnInfo?.data_type, type, `${scenario} must add ${column} with its intended type`);
-      assert.equal(columnInfo?.is_nullable, 'YES', `${scenario} must keep legacy ${column} unknown until an explicit save`);
+      assert.equal(
+        columnInfo?.data_type,
+        type,
+        `${scenario} must add ${column} with its intended type`,
+      );
+      assert.equal(
+        columnInfo?.is_nullable,
+        "YES",
+        `${scenario} must keep legacy ${column} unknown until an explicit save`,
+      );
     }
     const legacyProfile = await client.query(
       `SELECT target_mode, protein_target_grams, carbs_target_grams, fat_target_grams, units
@@ -198,13 +206,15 @@ async function verifyExpectedColumns(scenario, expectedMigrationCount = 16) {
     );
     assert.deepEqual(
       legacyProfile.rows,
-      [{
-        target_mode: null,
-        protein_target_grams: null,
-        carbs_target_grams: null,
-        fat_target_grams: null,
-        units: null,
-      }],
+      [
+        {
+          target_mode: null,
+          protein_target_grams: null,
+          carbs_target_grams: null,
+          fat_target_grams: null,
+          units: null,
+        },
+      ],
       `${scenario} migration must not backfill inferred profile preferences`,
     );
 
@@ -334,6 +344,58 @@ async function verifyCoachV2Storage(client, scenario) {
   );
 }
 
+async function verifyAdminControlPlaneStorage(client, scenario) {
+  const tables = await client.query(
+    `SELECT tablename, rowsecurity
+       FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename IN (
+          'calora_coach_reports',
+          'calora_admin_principals',
+          'calora_admin_sessions',
+          'calora_admin_audit_events'
+        )`,
+  );
+  assert.deepEqual(
+    tables.rows.sort((left, right) =>
+      left.tablename.localeCompare(right.tablename),
+    ),
+    [
+      { tablename: "calora_admin_audit_events", rowsecurity: true },
+      { tablename: "calora_admin_principals", rowsecurity: true },
+      { tablename: "calora_admin_sessions", rowsecurity: true },
+      { tablename: "calora_coach_reports", rowsecurity: true },
+    ],
+    `${scenario} must create the private Coach reporting and admin control-plane tables`,
+  );
+  const immutableAuditTrigger = await client.query(
+    `SELECT 1
+       FROM pg_trigger trigger
+       JOIN pg_class table_ref ON table_ref.oid = trigger.tgrelid
+      WHERE table_ref.relname = 'calora_admin_audit_events'
+        AND trigger.tgname = 'calora_admin_audit_events_immutable_trigger'
+        AND NOT trigger.tgisinternal`,
+  );
+  assert.equal(
+    immutableAuditTrigger.rowCount,
+    1,
+    `${scenario} must make administrative audit records immutable`,
+  );
+  const reportFence = await client.query(
+    `SELECT 1
+       FROM pg_trigger trigger
+       JOIN pg_class table_ref ON table_ref.oid = trigger.tgrelid
+      WHERE table_ref.relname = 'calora_coach_reports'
+        AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+        AND NOT trigger.tgisinternal`,
+  );
+  assert.equal(
+    reportFence.rowCount,
+    1,
+    `${scenario} must fence account-scoped Coach reports during erasure`,
+  );
+}
+
 // A fresh nutrition-cache deployment must receive the canonical table from
 // forward migration 0009 after the existing Calora base schema is present.
 await resetDatabase(prerequisiteSchema);
@@ -342,6 +404,7 @@ const fresh = await verifyExpectedColumns("fresh cache schema");
 try {
   await verifyCaptureRateLimiter(fresh, "fresh cache schema");
   await verifyCoachV2Storage(fresh, "fresh cache schema");
+  await verifyAdminControlPlaneStorage(fresh, "fresh cache schema");
   const rows = await fresh.query(
     "SELECT count(*)::int AS count FROM calora_recipe_nutrition",
   );
@@ -358,6 +421,7 @@ const legacy = await verifyExpectedColumns("legacy schema");
 try {
   await verifyCaptureRateLimiter(legacy, "legacy schema");
   await verifyCoachV2Storage(legacy, "legacy schema");
+  await verifyAdminControlPlaneStorage(legacy, "legacy schema");
   const rows = await legacy.query(
     `SELECT calories, protein_g, carbs_g, fat_g, fiber_g, iron_mg
        FROM calora_recipe_nutrition
@@ -425,7 +489,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
 const historicalUpgrade = await verifyExpectedColumns(
   "historical 0008 no-cache upgrade",
-  9,
+  10,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -433,6 +497,10 @@ try {
     "historical 0008 no-cache upgrade",
   );
   await verifyCoachV2Storage(
+    historicalUpgrade,
+    "historical 0008 no-cache upgrade",
+  );
+  await verifyAdminControlPlaneStorage(
     historicalUpgrade,
     "historical 0008 no-cache upgrade",
   );
@@ -449,7 +517,7 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    9,
+    10,
     "historical upgrade must record the expected migration suffix",
   );
 } finally {

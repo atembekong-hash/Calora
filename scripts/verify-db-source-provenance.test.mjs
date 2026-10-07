@@ -19,7 +19,7 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   );
   assert.deepEqual(
     manifest.apiDatabase.journal.map((entry) => entry.idx),
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
   );
   assert.equal(
     manifest.apiDatabase.files.some((file) =>
@@ -84,6 +84,18 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   assert.equal(
     manifest.apiDatabase.files.some((file) =>
       file.path.endsWith("/0015_compliance_deletion_fences.sql"),
+    ),
+    true,
+  );
+  assert.equal(
+    manifest.apiDatabase.files.some((file) =>
+      file.path.endsWith("/0016_coach_reports.sql"),
+    ),
+    true,
+  );
+  assert.equal(
+    manifest.apiDatabase.files.some((file) =>
+      file.path.endsWith("/0017_admin_control_plane.sql"),
     ),
     true,
   );

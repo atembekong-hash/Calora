@@ -1,6 +1,9 @@
-const DEFAULT_PRODUCTION_ORIGINS = [
-  "https://mycaloraapp.com",
-] as const;
+const DEFAULT_PRODUCTION_ORIGINS = ["https://mycaloraapp.com"] as const;
+
+function configuredAdminOrigin(): string | null {
+  const host = process.env.ADMIN_CONSOLE_HOST?.trim().toLowerCase();
+  return host && /^[a-z0-9.-]+$/.test(host) ? `https://${host}` : null;
+}
 
 function parseConfiguredOrigins(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
@@ -28,6 +31,7 @@ export function getAllowedCorsOrigins(
 ): ReadonlySet<string> {
   return new Set([
     ...DEFAULT_PRODUCTION_ORIGINS,
+    ...(configuredAdminOrigin() ? [configuredAdminOrigin()!] : []),
     ...parseConfiguredOrigins(configuredOrigins),
   ]);
 }

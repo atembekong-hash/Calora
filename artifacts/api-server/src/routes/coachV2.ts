@@ -29,6 +29,7 @@ import {
   assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+import { isCoachReportIntakeEnabled } from "../lib/admin-feature-flags.js";
 import { logger } from "../lib/logger.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
@@ -426,26 +427,31 @@ router.post("/v1/coach/v2/report", async (req, res) => {
       .json({ message: "Too many reports. Please try again later." });
     return;
   }
+  if (!(await isCoachReportIntakeEnabled())) {
+    res
+      .status(503)
+      .json({ message: "Coach reporting is temporarily unavailable." });
+    return;
+  }
   try {
     const verified = await optionalVerifiedUser(req);
     const userId = verified
       ? await resolveCoachV2User(verified.id, verified.email)
       : null;
+    const scope = userId ? "account" : "guest";
     const digest = createHash("sha256")
       .update(messageRef, "utf8")
       .digest("hex");
     await pool.query(
-      "INSERT INTO calora_coach_reports (user_id, message_ref_digest, reason) VALUES ($1::uuid, $2, $3)",
-      [userId, digest, reason],
+      "INSERT INTO calora_coach_reports (user_id, scope, message_ref_digest, reason) VALUES ($1::uuid, $2, $3, $4)",
+      [userId, scope, digest, reason],
     );
     res.status(202).json({ accepted: true });
   } catch (error) {
     logger.error({ err: error }, "Unable to record Coach report");
-    res
-      .status(503)
-      .json({
-        message: "Coach report could not be submitted. Please try again.",
-      });
+    res.status(503).json({
+      message: "Coach report could not be submitted. Please try again.",
+    });
   }
 });
 

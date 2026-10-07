@@ -28,7 +28,7 @@ import { buildDatabasePoolConfig } from "./connection";
 const { Pool } = pg;
 const APPROVAL_FLAG = "--approve-empty-calora-target";
 const LEGACY_EMPTY_CACHE = "calora_recipe_nutrition";
-const EXPECTED_TABLE_COUNT = 29;
+const EXPECTED_TABLE_COUNT = 33;
 const MIGRATIONS_SCHEMA = "public";
 const MIGRATIONS_TABLE = "calora_migration_journal";
 

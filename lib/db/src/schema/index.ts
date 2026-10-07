@@ -5,6 +5,7 @@ import {
   check,
   date,
   doublePrecision,
+  foreignKey,
   integer,
   index,
   jsonb,
@@ -604,7 +605,59 @@ export const insertConsentEventSchema = createInsertSchema(consentEventsTable);
 export const insertCoachFactContextConsentSchema = createInsertSchema(coachFactContextConsentsTable);
 export const insertServerConfigSchema = createInsertSchema(serverConfigTable);
 export const insertCohortMembershipSchema = createInsertSchema(cohortMembershipsTable);
+
+export const adminPrincipalsTable = pgTable("calora_admin_principals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  externalUserId: text("external_user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  role: text("role").notNull(),
+  grantedByPrincipalId: uuid("granted_by_principal_id"),
+  grantReason: text("grant_reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  revokedByPrincipalId: uuid("revoked_by_principal_id"),
+  revocationReason: text("revocation_reason"),
+}, (table) => ({
+  externalUserIndex: uniqueIndex("calora_admin_principals_external_user_idx").on(table.externalUserId),
+  activeRoleIndex: index("calora_admin_principals_active_role_idx").on(table.role),
+  grantedByReference: foreignKey({ columns: [table.grantedByPrincipalId], foreignColumns: [table.id], name: "calora_admin_principals_granted_by_fkey" }).onDelete("restrict"),
+  revokedByReference: foreignKey({ columns: [table.revokedByPrincipalId], foreignColumns: [table.id], name: "calora_admin_principals_revoked_by_fkey" }).onDelete("restrict"),
+}));
+
+export const adminSessionsTable = pgTable("calora_admin_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  principalId: uuid("principal_id").notNull().references(() => adminPrincipalsTable.id, { onDelete: "restrict" }),
+  tokenDigest: text("token_digest").notNull(),
+  csrfDigest: text("csrf_digest").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  reauthUntil: timestamp("reauth_until", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, (table) => ({
+  activePrincipalIndex: index("calora_admin_sessions_active_principal_idx").on(table.principalId, table.expiresAt),
+}));
+
+export const adminAuditEventsTable = pgTable("calora_admin_audit_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  actorPrincipalId: uuid("actor_principal_id").references(() => adminPrincipalsTable.id, { onDelete: "restrict" }),
+  action: text("action").notNull(),
+  targetType: text("target_type"),
+  targetReference: text("target_reference"),
+  result: text("result").notNull(),
+  requestId: text("request_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  createdIndex: index("calora_admin_audit_events_created_idx").on(table.createdAt),
+  actionCreatedIndex: index("calora_admin_audit_events_action_created_idx").on(table.action, table.createdAt),
+}));
+
 export const insertCoachFactContextIdempotencySchema = createInsertSchema(coachFactContextIdempotencyTable);
+export const insertAdminPrincipalSchema = createInsertSchema(adminPrincipalsTable);
+export const insertAdminSessionSchema = createInsertSchema(adminSessionsTable);
+export const insertAdminAuditEventSchema = createInsertSchema(adminAuditEventsTable);
 export const insertCoachReportSchema = createInsertSchema(coachReportsTable);
 
 export type User = typeof usersTable.$inferSelect;
@@ -624,6 +677,9 @@ export type ConsentEvent = typeof consentEventsTable.$inferSelect;
 export type ServerConfig = typeof serverConfigTable.$inferSelect;
 export type CohortMembership = typeof cohortMembershipsTable.$inferSelect;
 export type CoachFactContextIdempotency = typeof coachFactContextIdempotencyTable.$inferSelect;
+export type AdminPrincipal = typeof adminPrincipalsTable.$inferSelect;
+export type AdminSession = typeof adminSessionsTable.$inferSelect;
+export type AdminAuditEvent = typeof adminAuditEventsTable.$inferSelect;
 export type CoachFactContextConsent = typeof coachFactContextConsentsTable.$inferSelect;
 export type CoachReport = typeof coachReportsTable.$inferSelect;
 
