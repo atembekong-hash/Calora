@@ -1151,6 +1151,50 @@ describe('POST /v1/capture/analyze', () => {
       // openai should NOT have been called — barcode path was taken
       expect(openai.chat.completions.create).not.toHaveBeenCalled();
     });
+
+    it('returns a recoverable unavailable result when a camera-detected barcode has no match and no photo fallback', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new Error('OFF unavailable'))
+        .mockRejectedValueOnce(new Error('USDA unavailable'));
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'auto', barcode: BARCODE })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        mode: 'barcode',
+        status: 'unavailable',
+        title: 'Barcode not found',
+        candidates: [],
+      });
+      expect(res.body.reviewMessage).toMatch(/search|manually/i);
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+    });
+
+    it('falls back to managed vision when Auto includes an unmatched barcode and a captured food photo', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 0 }) } as any)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ foods: [] }) } as any);
+      vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse() } }],
+      } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({
+          mode: 'auto',
+          barcode: BARCODE,
+          imageBase64: validJpegBase64,
+          imageMimeType: 'image/jpeg',
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ mode: 'food', status: 'review', provider: 'Managed vision' });
+      expect(openai.chat.completions.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   // -------------------------------------------------------------------------
