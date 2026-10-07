@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 14) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 15) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -450,7 +450,7 @@ try {
   assert.equal(
     history.rows[0]?.count,
     7,
-    "historical upgrade must append only 0009 through 0014",
+    "historical upgrade must append only 0009 through 0015",
   );
 } finally {
   await historicalUpgrade.end();
