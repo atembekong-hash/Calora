@@ -3,23 +3,13 @@ import { useEffect, useState } from 'react';
 
 const HOUR_IN_MS = 60 * 60 * 1000;
 
-export type HeaderImageSurface = 'home' | 'recipes' | 'insights';
+export type HeaderImageSurface = 'home';
 
 export const HOURLY_HEADER_IMAGE_POOLS: Record<HeaderImageSurface, readonly ImageSourcePropType[]> = {
   home: [
     require('../assets/images/calora-profile-header.jpg'),
     require('../assets/images/calora-insights-header.jpg'),
     require('../assets/images/calora-home-header.jpg'),
-  ],
-  recipes: [
-    require('../assets/images/calora-recipes-header.jpg'),
-    require('../assets/images/calora-plan-header.jpg'),
-    require('../assets/images/calora-home-header.jpg'),
-  ],
-  insights: [
-    require('../assets/images/calora-insights-header.jpg'),
-    require('../assets/images/calora-profile-header.jpg'),
-    require('../assets/images/calora-recipes-header.jpg'),
   ],
 };
 

@@ -574,4 +574,25 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('followsTodayRef.current = date === dateKey(new Date());');
     expect(source).toContain('followsTodayRef.current = true;');
   });
+
+  it('adds the Meals logged add-meal flow to only the Building your picture dashboard card', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const livingCard = source.slice(
+      source.indexOf('function LivingRhythmCard'),
+      source.indexOf('function RecipeSwipeWidget'),
+    );
+
+    expect(livingCard).toContain("livingState.routineStage === 'building'");
+    expect(livingCard).toContain('testID="building-picture-add-meal-button"');
+    expect(livingCard).toContain('accessibilityLabel="Add a meal from the building your picture card"');
+    expect(livingCard).toContain('onPress={onAddMeal}');
+    expect(source).toContain('<LivingRhythmCard');
+    expect(source).toContain('onAddMeal={openAdd}');
+    expect(source).toContain('testID="wellness-add-meal-button"');
+  });
 });
