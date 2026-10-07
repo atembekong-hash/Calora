@@ -41,8 +41,72 @@ const COACH_V2_PROVIDER_TIMEOUT_MS = process.env.OPENAI_TIMEOUT_MS_OVERRIDE
   : 15_000;
 const COACH_V2_PROVIDER_FAILURE =
   "Coach is temporarily unavailable. Please try again shortly.";
+const COACH_V2_WELLNESS_NOTICE = "wellness_not_medical_care" as const;
 
 type ProviderMessage = { role: "user" | "assistant"; content: string };
+type CoachSafetyKind = "immediate" | "medical" | "restriction";
+
+const immediateSafetyPatterns: RegExp[] = [
+  /\b(?:self[- ]?(?:harm|injur)|suicid(?:e|al)?|(?:hurt|harm) myself|kill myself|end my life)\b/i,
+  /\b(?:chest pain|trouble breathing|shortness of breath|faint(?:ing|ed)?|seizure|stroke symptoms?|severe allergic reaction)\b/i,
+];
+
+const restrictionSafetyPatterns: RegExp[] = [
+  /\b(?:anorex|bulimi|purge|purging|vomit(?:ing)?|laxative|binge(?:ing)?|eating[- ]?disorder|disordered[- ]?eating)\b/i,
+  /\b(?:starv(?:e|ing|ation)|dangerous(?:ly)? low|severe(?:ly)? restrict|compensat(?:e|ory).{0,30}exercise|exercise.{0,30}compensat)\b/i,
+  /\b(?:under|below|less than|only)\s*\d{2,3}\s*(?:kcal|calories)\b/i,
+  /\b(?:water|extended|multi[- ]?day|\d{2,3}[- ]?hour|\d+[- ]?day)\s+fast(?:ing)?\b/i,
+  /\b(?:fast(?:ing)?\s+(?:for|more than)\s+\d{2,3}\s*(?:hours|days))\b/i,
+];
+
+const medicalSafetyPatterns: RegExp[] = [
+  /\b(?:diagnos(?:e|is|ed|ing)|what (?:disease|condition) do i have|treat(?:ment|ing)?|cure|prevent)\b/i,
+  /\b(?:medication|medicine|prescription|dose|dosage|drug interaction|should i stop (?:my )?(?:medication|medicine))\b/i,
+  /\b(?:pregnan(?:t|cy)|postpartum|breastfeed(?:ing)?)\b/i,
+  /\b(?:replace|instead of|avoid|skip|without)\b.{0,40}\b(?:doctor|clinician|physician|medical care|professional care|healthcare)\b/i,
+  /\b(?:be|am) i (?:definitely|certainly)\b|\b(?:guarantee|promise|certain|certainty|100% sure)\b/i,
+];
+
+function normalizeCoachSafetyText(content: string): string {
+  return content
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export function coachSafetyKind(content: string): CoachSafetyKind | null {
+  const normalized = normalizeCoachSafetyText(content);
+  if (immediateSafetyPatterns.some((pattern) => pattern.test(normalized))) {
+    return "immediate";
+  }
+  if (restrictionSafetyPatterns.some((pattern) => pattern.test(normalized))) {
+    return "restriction";
+  }
+  if (medicalSafetyPatterns.some((pattern) => pattern.test(normalized))) {
+    return "medical";
+  }
+  return null;
+}
+
+function coachSafetyReply(kind: CoachSafetyKind): string {
+  if (kind === "immediate") {
+    return "I can't help with nutrition or weight instructions for this situation. If you may be in immediate danger or might hurt yourself, call local emergency services now. In the U.S. and its territories, call or text 988; elsewhere, contact local emergency services or a local crisis line. If you can, contact a trusted person right now.";
+  }
+  if (kind === "restriction") {
+    return "I can't help with restrictive, compensatory, or eating-disorder-related nutrition or weight instructions. Please contact a qualified clinician or eating-disorder support service, and reach out to a trusted person if you need support now.";
+  }
+  return "I can't diagnose, treat, give medication or pregnancy-specific guidance, replace professional care, or provide certainty about a health outcome. Please contact a qualified clinician or pharmacist for advice tailored to your situation.";
+}
+
+function coachSafetyResponse(kind: CoachSafetyKind, conversationMode: "guest" | "account") {
+  return {
+    message: coachSafetyReply(kind),
+    conversationMode,
+    // Safety redirects are intentionally not written as Coach conversation turns.
+    persisted: false,
+    safetyNotice: COACH_V2_WELLNESS_NOTICE,
+  };
+}
 
 function canonicalizeIp(req: Request): string {
   const value = req.ip || req.socket.remoteAddress || "unknown";
@@ -117,7 +181,7 @@ export function buildCoachV2Messages(input: {
       role: "user",
       content: [
         "You are Calora Coach, a supportive general wellness and app-navigation assistant.",
-        "Give concise, practical responses. You are not medical care: do not diagnose, prescribe, or provide emergency advice. Encourage qualified help for symptoms, eating-disorder concerns, pregnancy-specific questions, medication decisions, or emergencies.",
+        "Give concise, practical responses. You are not medical care: do not diagnose, provide treatment recommendations, prescribe, give medication or pregnancy-specific guidance, replace professional care, promise certainty, or provide emergency advice. Encourage qualified help for symptoms, eating-disorder concerns, pregnancy-specific questions, medication decisions, or emergencies.",
         "For signed-in users, use only the bounded server snapshot below. Never claim access to food names, notes, images, raw timelines, account identifiers, complete history, health-provider data, or any data that the snapshot does not contain.",
         "If the snapshot has no data, say so plainly. Do not invent meals, targets, nutrients, hydration, plans, or trends.",
         "You can explain Calora's local features generally, but do not imply an action was completed unless the user completed it in the app.",
@@ -194,6 +258,11 @@ async function requestCoachReply(
   history: ProviderMessage[],
   snapshot: CoachV2Snapshot | null,
 ): Promise<string> {
+  const safetyKind = history
+    .map((message) => coachSafetyKind(message.content))
+    .find((kind): kind is CoachSafetyKind => kind !== null);
+  if (safetyKind) return coachSafetyReply(safetyKind);
+
   const completion = await withAiProviderDeadline(
     (signal) =>
       openai.chat.completions.create(
@@ -233,6 +302,17 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
     return;
   }
 
+  const requestedSafetyKind = coachSafetyKind(input.message);
+  if (requestedSafetyKind) {
+    res.json(
+      coachSafetyResponse(
+        requestedSafetyKind,
+        verified ? "account" : "guest",
+      ),
+    );
+    return;
+  }
+
   try {
     if (!verified) {
       const allowed = await enforceCoachV2RateLimit(
@@ -250,7 +330,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
         message,
         conversationMode: "guest",
         persisted: false,
-        safetyNotice: "wellness_not_medical_care",
+        safetyNotice: COACH_V2_WELLNESS_NOTICE,
       });
       return;
     }
@@ -299,7 +379,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
       message: response.message,
       conversationMode: "account",
       persisted: true,
-      safetyNotice: "wellness_not_medical_care",
+      safetyNotice: COACH_V2_WELLNESS_NOTICE,
     });
   } catch (error) {
     if (classifyAccountDeletionError(error)) {

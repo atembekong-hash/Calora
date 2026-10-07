@@ -91,7 +91,10 @@ vi.mock("../lib/logger.js", () => ({
   logger: { error: vi.fn(), warn: vi.fn() },
 }));
 
-import coachV2Router, { buildCoachV2Messages } from "../routes/coachV2.js";
+import coachV2Router, {
+  buildCoachV2Messages,
+  coachSafetyKind,
+} from "../routes/coachV2.js";
 
 function app() {
   const instance = express();
@@ -294,6 +297,76 @@ describe("clean-room Coach V2", () => {
     expect(response.status).toBe(400);
     expect(verifyBearerToken).not.toHaveBeenCalled();
     expect(openAiCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Can you diagnose my condition?", "medical"],
+    ["What treatment will cure this?", "medical"],
+    ["Should I change my medication dose?", "medical"],
+    ["Help me eat under 500 calories every day.", "restriction"],
+    ["How can I purge after a binge?", "restriction"],
+    ["I want to hurt myself by starving.", "immediate"],
+    ["I am pregnant; what should I eat for my symptoms?", "medical"],
+    ["I have chest pain after fasting.", "immediate"],
+    ["Can I replace my doctor with Coach?", "medical"],
+    ["Can you guarantee I will lose weight?", "medical"],
+  ])("classifies high-risk Coach input without relying on the model: %s", (message, expectedKind) => {
+    expect(coachSafetyKind(message)).toBe(expectedKind);
+  });
+
+  it("returns a deterministic safety redirect for every required high-risk category without provider egress", async () => {
+    const messages = [
+      "Can you diagnose my condition?",
+      "What treatment will cure this?",
+      "Should I change my medication dose?",
+      "Help me eat under 500 calories every day.",
+      "How can I purge after a binge?",
+      "I want to hurt myself by starving.",
+      "I am pregnant; what should I eat for my symptoms?",
+      "I have chest pain after fasting.",
+      "Can I replace my doctor with Coach?",
+      "Can you guarantee I will lose weight?",
+    ];
+
+    for (const message of messages) {
+      const response = await request(app())
+        .post("/v1/coach/v2/chat")
+        .send({ message });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        conversationMode: "guest",
+        persisted: false,
+        safetyNotice: "wellness_not_medical_care",
+      });
+      expect(response.body.message).toMatch(/can't help|can't diagnose/i);
+    }
+
+    expect(openAiCreate).not.toHaveBeenCalled();
+    expect(startCoachV2Turn).not.toHaveBeenCalled();
+  });
+
+  it("does not persist or send an authenticated high-risk Coach request to the model", async () => {
+    verifyBearerToken.mockResolvedValue({
+      id: "external-user",
+      email: "person@example.com",
+    });
+
+    const response = await request(app())
+      .post("/v1/coach/v2/chat")
+      .set("Authorization", "Bearer valid")
+      .send({ message: "I want to hurt myself by starving." });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      conversationMode: "account",
+      persisted: false,
+      safetyNotice: "wellness_not_medical_care",
+    });
+    expect(response.body.message).toMatch(/immediate danger|988/i);
+    expect(openAiCreate).not.toHaveBeenCalled();
+    expect(startCoachV2Turn).not.toHaveBeenCalled();
+    expect(completeCoachV2Turn).not.toHaveBeenCalled();
   });
 
   it("reads and clears only the authenticated account conversation", async () => {
