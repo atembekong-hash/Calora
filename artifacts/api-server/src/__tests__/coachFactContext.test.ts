@@ -234,6 +234,7 @@ describe("Coach Fact Context access for registered users", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.safetyState).toBe("support_redirect");
+    expect(response.body.actions).toEqual([]);
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
@@ -255,6 +256,7 @@ describe("Coach Fact Context access for registered users", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.safetyState).toBe("support_redirect");
+    expect(response.body.actions).toEqual([]);
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 

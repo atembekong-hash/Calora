@@ -309,7 +309,9 @@ function safeResponse(requestNonce: string, reason: "risk" | "limited" | "unavai
   return {
     message,
     observations: [],
-    actions: [{ id: "coach-open-progress", label: "Review Progress", kind: "navigate" as const, destination: "progress" as const, confirmationRequired: false }],
+    actions: reason === "risk"
+      ? []
+      : [{ id: "coach-open-progress", label: "Review Progress", kind: "navigate" as const, destination: "progress" as const, confirmationRequired: false }],
     safetyState: reason === "risk" ? "support_redirect" as const : "caution" as const,
     limitations: [reason === "risk" ? "Coach is not medical care." : "A verified factual response was unavailable."],
     contextCoverage: { usedSections: [], missingSections: ["fact context"] },
