@@ -19,6 +19,8 @@ export type CoachV2ConversationSummary = {
   active: boolean;
 };
 export type CoachV2Snapshot = {
+  /** Calendar day used for the bounded nutrition totals in `today`. */
+  snapshotDate: string;
   profile: {
     goal: string;
     activityLevel: string;
@@ -398,7 +400,12 @@ export async function completeCoachV2Turn(
 
 export async function buildCoachV2Snapshot(
   userId: string,
+  snapshotDate?: string,
 ): Promise<CoachV2Snapshot> {
+  // The route bounds caller-supplied values to the current server day ± one
+  // day. Keep an explicit server-day fallback for internal callers and tests.
+  const effectiveSnapshotDate =
+    snapshotDate ?? new Date().toISOString().slice(0, 10);
   const [profileResult, todayResult, coverageResult, weightResult] =
     await Promise.all([
       pool.query<{
@@ -424,14 +431,16 @@ export async function buildCoachV2Snapshot(
               COALESCE(SUM(fat_g), 0) AS fat_g,
               COUNT(*) AS entries
          FROM calora_diary_entries
-        WHERE user_id = $1::uuid AND entry_date = CURRENT_DATE`,
-        [userId],
+        WHERE user_id = $1::uuid AND entry_date = $2::date`,
+        [userId, effectiveSnapshotDate],
       ),
       pool.query<{ days: unknown }>(
         `SELECT COUNT(DISTINCT entry_date) AS days
          FROM calora_diary_entries
-        WHERE user_id = $1::uuid AND entry_date >= CURRENT_DATE - INTERVAL '6 days'`,
-        [userId],
+        WHERE user_id = $1::uuid
+          AND entry_date >= $2::date - INTERVAL '6 days'
+          AND entry_date <= $2::date`,
+        [userId, effectiveSnapshotDate],
       ),
       pool.query<{ weight_kg: unknown }>(
         `SELECT weight_kg FROM calora_weight_entries
@@ -443,6 +452,7 @@ export async function buildCoachV2Snapshot(
   const profile = profileResult.rows[0];
   const today = todayResult.rows[0];
   return {
+    snapshotDate: effectiveSnapshotDate,
     profile: profile
       ? {
           goal: profile.goal,

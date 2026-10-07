@@ -12,4 +12,9 @@ export interface CoachV2ChatInput {
      * @maxLength 1200
      */
   message: string;
+  /**
+     * Optional device-local calendar day for signed-in nutrition totals. The server accepts only its current day or an adjacent day; omitted values use the server calendar day.
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  snapshotDate?: string;
 }

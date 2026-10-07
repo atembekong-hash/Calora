@@ -62,13 +62,35 @@ function isUuid(value: string): boolean {
     value,
   );
 }
+
+/**
+ * The device supplies its local calendar day because a UTC server can be a
+ * day ahead or behind the person using Calora. Bound that hint tightly so an
+ * account request cannot turn Coach into arbitrary-history browsing.
+ */
+function boundedCoachSnapshotDate(snapshotDate?: string): string | undefined {
+  if (!snapshotDate) return undefined;
+  const requested = Date.parse(`${snapshotDate}T00:00:00.000Z`);
+  const serverDay = Date.parse(
+    `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`,
+  );
+  return Number.isFinite(requested) &&
+    Math.abs(requested - serverDay) <= 86_400_000
+    ? snapshotDate
+    : undefined;
+}
+
 function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
   if (!snapshot) {
     return "No signed-in app snapshot is available. Do not claim to know the user's logs, profile, plans, or history.";
   }
   return JSON.stringify({
+    snapshotDate: snapshot.snapshotDate,
     profile: snapshot.profile
-      ? { ...snapshot.profile, calorieTarget: Math.round(snapshot.profile.calorieTarget) }
+      ? {
+          ...snapshot.profile,
+          calorieTarget: Math.round(snapshot.profile.calorieTarget),
+        }
       : null,
     today: {
       ...snapshot.today,
@@ -78,7 +100,10 @@ function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
       fatG: Math.round(snapshot.today.fatG),
     },
     recentDaysLogged: snapshot.recentDaysLogged,
-    latestWeightKg: snapshot.latestWeightKg === null ? null : Math.round(snapshot.latestWeightKg),
+    latestWeightKg:
+      snapshot.latestWeightKg === null
+        ? null
+        : Math.round(snapshot.latestWeightKg),
   });
 }
 
@@ -244,7 +269,10 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
         const settings = await getCoachV2Settings(userId);
         const turn = await startCoachV2Turn(userId, input.message);
         const snapshot = settings.personalizationEnabled
-          ? await buildCoachV2Snapshot(userId)
+          ? await buildCoachV2Snapshot(
+              userId,
+              boundedCoachSnapshotDate(input.snapshotDate),
+            )
           : null;
         try {
           const message = await requestCoachReply(turn.history, snapshot);

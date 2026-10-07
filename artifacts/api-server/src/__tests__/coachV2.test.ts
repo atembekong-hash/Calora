@@ -118,6 +118,7 @@ describe("clean-room Coach V2", () => {
     });
     completeCoachV2Turn.mockResolvedValue(true);
     buildCoachV2Snapshot.mockResolvedValue({
+      snapshotDate: "2026-10-06",
       profile: {
         goal: "maintain",
         activityLevel: "moderate",
@@ -163,7 +164,10 @@ describe("clean-room Coach V2", () => {
     const response = await request(app())
       .post("/v1/coach/v2/chat")
       .set("Authorization", "Bearer valid")
-      .send({ message: "How is my day?" });
+      .send({
+        message: "How is my day?",
+        snapshotDate: new Date().toISOString().slice(0, 10),
+      });
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -174,7 +178,10 @@ describe("clean-room Coach V2", () => {
       "external-user",
       "person@example.com",
     );
-    expect(buildCoachV2Snapshot).toHaveBeenCalledWith("internal-user-id");
+    expect(buildCoachV2Snapshot).toHaveBeenCalledWith(
+      "internal-user-id",
+      new Date().toISOString().slice(0, 10),
+    );
     expect(completeCoachV2Turn).toHaveBeenCalledWith(
       "conversation-id",
       "turn-id",
@@ -271,6 +278,16 @@ describe("clean-room Coach V2", () => {
     expect(response.status).toBe(400);
     expect(verifyBearerToken).not.toHaveBeenCalled();
     expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(openAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an impossible local-day hint before authentication or provider work", async () => {
+    const response = await request(app())
+      .post("/v1/coach/v2/chat")
+      .send({ message: "How is my day?", snapshotDate: "2026-02-30" });
+
+    expect(response.status).toBe(400);
+    expect(verifyBearerToken).not.toHaveBeenCalled();
     expect(openAiCreate).not.toHaveBeenCalled();
   });
 
@@ -379,6 +396,7 @@ describe("clean-room Coach V2", () => {
     const messages = buildCoachV2Messages({
       history: [{ role: "user", content: "hello" }],
       snapshot: {
+        snapshotDate: "2026-10-06",
         profile: {
           goal: "maintain",
           activityLevel: "moderate",
@@ -398,6 +416,7 @@ describe("clean-room Coach V2", () => {
     });
 
     const prompt = messages[0]?.content ?? "";
+    expect(prompt).toContain('"snapshotDate":"2026-10-06"');
     expect(prompt).toContain('"calorieTarget":2001');
     expect(prompt).toContain('"calories":641');
     expect(prompt).toContain('"proteinG":23');
