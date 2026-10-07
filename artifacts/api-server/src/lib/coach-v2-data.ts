@@ -318,6 +318,78 @@ export async function openCoachV2Conversation(
   }
 }
 
+export type DeleteCoachV2ConversationResult =
+  "deleted" | "not_found" | "active_or_pending";
+
+/**
+ * Deletes one archived conversation owned by `userId` and relies on the
+ * database foreign-key cascade to remove only that conversation's turns.
+ * Active conversations are intentionally not deletable through this saved-chat
+ * action, so an in-flight assistant turn cannot be removed underneath the
+ * completion worker.
+ */
+export async function deleteCoachV2Conversation(
+  userId: string,
+  conversationId: string,
+): Promise<DeleteCoachV2ConversationResult> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await lockCoachV2ConversationUser(client, userId);
+    const selected = await client.query<{
+      id: string;
+      archived_at: Date | null;
+    }>(
+      `SELECT id, archived_at
+         FROM calora_coach_v2_conversations
+        WHERE id = $1::uuid AND user_id = $2::uuid
+        FOR UPDATE`,
+      [conversationId, userId],
+    );
+    const conversation = selected.rows[0];
+    if (!conversation) {
+      await client.query("ROLLBACK");
+      return "not_found";
+    }
+    if (conversation.archived_at === null) {
+      await client.query("ROLLBACK");
+      return "active_or_pending";
+    }
+
+    const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM calora_coach_v2_turns
+          WHERE conversation_id = $1::uuid
+            AND assistant_message IS NULL
+       ) AS has_pending_turn`,
+      [conversationId],
+    );
+    if (pendingTurn.rows[0]?.has_pending_turn) {
+      await client.query("ROLLBACK");
+      return "active_or_pending";
+    }
+
+    const deleted = await client.query(
+      `DELETE FROM calora_coach_v2_conversations
+        WHERE id = $1::uuid
+          AND user_id = $2::uuid
+          AND archived_at IS NOT NULL`,
+      [conversationId, userId],
+    );
+    if (deleted.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      return "not_found";
+    }
+    await client.query("COMMIT");
+    return "deleted";
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function clearCoachV2Conversation(userId: string): Promise<void> {
   await pool.query(
     `DELETE FROM calora_coach_v2_conversations WHERE user_id = $1::uuid`,

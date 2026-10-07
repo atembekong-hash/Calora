@@ -16,6 +16,7 @@ const {
   listCoachV2Conversations,
   openCoachV2Conversation,
   clearCoachV2Conversation,
+  deleteCoachV2Conversation,
   startNewCoachV2Conversation,
   startCoachV2Turn,
   completeCoachV2Turn,
@@ -34,6 +35,7 @@ const {
   listCoachV2Conversations: vi.fn(),
   openCoachV2Conversation: vi.fn(),
   clearCoachV2Conversation: vi.fn(),
+  deleteCoachV2Conversation: vi.fn(),
   startNewCoachV2Conversation: vi.fn(),
   startCoachV2Turn: vi.fn(),
   completeCoachV2Turn: vi.fn(),
@@ -71,6 +73,8 @@ vi.mock("../lib/coach-v2-data.js", () => ({
     openCoachV2Conversation(...args),
   clearCoachV2Conversation: (...args: unknown[]) =>
     clearCoachV2Conversation(...args),
+  deleteCoachV2Conversation: (...args: unknown[]) =>
+    deleteCoachV2Conversation(...args),
   startNewCoachV2Conversation: (...args: unknown[]) =>
     startNewCoachV2Conversation(...args),
   startCoachV2Turn: (...args: unknown[]) => startCoachV2Turn(...args),
@@ -110,6 +114,7 @@ describe("clean-room Coach V2", () => {
     openCoachV2Conversation.mockResolvedValue(true);
     setCoachV2Settings.mockResolvedValue({ personalizationEnabled: false });
     clearCoachV2Conversation.mockResolvedValue(undefined);
+    deleteCoachV2Conversation.mockResolvedValue("deleted");
     startNewCoachV2Conversation.mockResolvedValue(true);
     startCoachV2Turn.mockResolvedValue({
       conversationId: "conversation-id",
@@ -362,6 +367,56 @@ describe("clean-room Coach V2", () => {
       "1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412",
     );
     expect(clearCoachV2Conversation).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the requested archived chat from the authenticated account", async () => {
+    const conversationId = "1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412";
+    verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
+
+    const deleted = await request(app())
+      .delete(`/v1/coach/v2/conversation/${conversationId}`)
+      .set("Authorization", "Bearer valid");
+
+    expect(deleted.status).toBe(204);
+    expect(resolveCoachV2User).toHaveBeenCalledWith("external-user", null);
+    expect(deleteCoachV2Conversation).toHaveBeenCalledWith(
+      "internal-user-id",
+      conversationId,
+    );
+    expect(clearCoachV2Conversation).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid, unauthenticated, foreign, active, and pending saved-chat deletion requests", async () => {
+    const conversationId = "1b5c5b61-1a69-4d77-9e0d-1f61ad3b0412";
+    const invalid = await request(app()).delete(
+      "/v1/coach/v2/conversation/not-a-uuid",
+    );
+    const unauthenticated = await request(app()).delete(
+      `/v1/coach/v2/conversation/${conversationId}`,
+    );
+
+    expect(invalid.status).toBe(400);
+    expect(unauthenticated.status).toBe(401);
+    expect(deleteCoachV2Conversation).not.toHaveBeenCalled();
+
+    verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
+    deleteCoachV2Conversation.mockResolvedValueOnce("not_found");
+    const foreign = await request(app())
+      .delete(`/v1/coach/v2/conversation/${conversationId}`)
+      .set("Authorization", "Bearer valid");
+    deleteCoachV2Conversation.mockResolvedValueOnce("active_or_pending");
+    const active = await request(app())
+      .delete(`/v1/coach/v2/conversation/${conversationId}`)
+      .set("Authorization", "Bearer valid");
+    deleteCoachV2Conversation.mockResolvedValueOnce("active_or_pending");
+    const pending = await request(app())
+      .delete(`/v1/coach/v2/conversation/${conversationId}`)
+      .set("Authorization", "Bearer valid");
+
+    expect(foreign.status).toBe(404);
+    expect(active.status).toBe(409);
+    expect(pending.status).toBe(409);
+    expect(deleteCoachV2Conversation).toHaveBeenCalledTimes(3);
   });
 
   it("does not expose saved-chat operations without a valid signed-in account", async () => {

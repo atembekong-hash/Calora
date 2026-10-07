@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import {
   clearCoachV2Conversation,
+  deleteCoachV2Conversation,
   getCoachV2Conversation,
   getCoachV2Settings,
   listCoachV2Conversations,
@@ -13,6 +14,7 @@ import {
   type CoachV2Turn,
 } from "@workspace/api-client-react";
 import { formatCoachPlainText } from "@workspace/api-zod/coach-text-presentation";
+import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -34,12 +36,15 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useAuth } from "@/context/AuthContext";
 import { useCalora } from "@/context/CaloraContext";
 import { BRAND } from "@/lib/brand";
+import { copyCoachResponseText } from "@/lib/coachClipboard";
 import { dateKey } from "@/lib/dates";
 import { reconcileDiaryState } from "@/lib/diarySync";
 
 type DisplayTurn = Pick<CoachV2Turn, "id" | "role" | "content"> & {
   announce?: boolean;
 };
+type ConfirmAction =
+  "new" | "clear" | { type: "delete"; conversationId: string } | null;
 
 const starterPrompts = [
   "How is my nutrition today?",
@@ -57,9 +62,11 @@ function errorMessage(error: unknown): string {
     if (error.status === 401)
       return "Your account session needs to be refreshed. Please sign in again.";
     if (error.status === 409)
-      return "Please wait for Coach to finish replying before switching chats.";
+      return "Only completed saved Coach chats can be deleted. Please wait for Coach to finish replying.";
     if (error.status === 429)
       return "Coach is busy right now. Please wait a moment and try again.";
+    if (error.status === 404)
+      return "That saved Coach chat is no longer available.";
   }
   return "Coach is temporarily unavailable. Please try again.";
 }
@@ -98,9 +105,7 @@ export default function CoachScreen() {
     [],
   );
   const [menuVisible, setMenuVisible] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<"new" | "clear" | null>(
-    null,
-  );
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [isManagingChat, setIsManagingChat] = useState(false);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
@@ -279,6 +284,26 @@ export default function CoachScreen() {
     }
   };
 
+  const deleteSavedChat = async (conversationId: string) => {
+    if (!signedIn || isManagingChat || isSending) return;
+    const requestId = ++requestIdRef.current;
+    setIsManagingChat(true);
+    setNotice(null);
+    try {
+      await deleteCoachV2Conversation(conversationId);
+      if (requestId !== requestIdRef.current) return;
+      setSavedChats((current) =>
+        current.filter((conversation) => conversation.id !== conversationId),
+      );
+      setConfirmAction(null);
+      setNotice("Saved Coach chat deleted.");
+    } catch (error) {
+      if (requestId === requestIdRef.current) setNotice(errorMessage(error));
+    } finally {
+      if (requestId === requestIdRef.current) setIsManagingChat(false);
+    }
+  };
+
   const openSavedChat = async (conversationId: string) => {
     if (!signedIn || isManagingChat || isSending) return;
     const requestId = ++requestIdRef.current;
@@ -324,6 +349,8 @@ export default function CoachScreen() {
   const archivedChats = savedChats.filter(
     (conversation) => !conversation.active,
   );
+  const isDeleteConfirmation =
+    typeof confirmAction === "object" && confirmAction !== null;
 
   return (
     <KeyboardAvoidingView
@@ -444,44 +471,80 @@ export default function CoachScreen() {
           </View>
         ) : null}
 
-        {turns.map((turn) => (
-          <View
-            key={turn.id}
-            style={
-              turn.role === "user" ? styles.userTurn : styles.assistantTurn
-            }
-          >
+        {turns.map((turn) => {
+          const displayContent =
+            turn.role === "assistant"
+              ? formatCoachPlainText(turn.content, {
+                  removeEmoji: true,
+                  roundMeasurements: true,
+                })
+              : turn.content;
+          return (
             <View
-              accessibilityLiveRegion={turn.announce ? "polite" : "none"}
-              style={[
-                styles.messageBubble,
-                turn.role === "user"
-                  ? { backgroundColor: colors.primary }
-                  : {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                      borderWidth: 1,
-                    },
-              ]}
+              key={turn.id}
+              style={
+                turn.role === "user" ? styles.userTurn : styles.assistantTurn
+              }
             >
-              <Text
+              <View
+                accessibilityLiveRegion={turn.announce ? "polite" : "none"}
                 style={[
-                  styles.messageText,
-                  {
-                    color:
-                      turn.role === "user"
-                        ? colors.primaryForeground
-                        : colors.foreground,
-                  },
+                  styles.messageBubble,
+                  turn.role === "user"
+                    ? { backgroundColor: colors.primary }
+                    : {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                      },
                 ]}
               >
-                {turn.role === "assistant"
-                  ? formatCoachPlainText(turn.content, { removeEmoji: true })
-                  : turn.content}
-              </Text>
+                <Text
+                  style={[
+                    styles.messageText,
+                    {
+                      color:
+                        turn.role === "user"
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                    },
+                  ]}
+                >
+                  {displayContent}
+                </Text>
+                {turn.role === "assistant" ? (
+                  <Pressable
+                    accessibilityLabel="Copy Coach response"
+                    testID={`coach-copy-response-${turn.id}`}
+                    onPress={() => {
+                      void copyCoachResponseText(displayContent, Clipboard)
+                        .then(() => setNotice("Coach response copied."))
+                        .catch(() =>
+                          setNotice(
+                            "Coach response could not be copied. Please try again.",
+                          ),
+                        );
+                    }}
+                    style={[
+                      styles.copyResponseButton,
+                      { backgroundColor: colors.muted },
+                    ]}
+                  >
+                    <Feather name="copy" size={13} color={colors.foreground} />
+                    <Text
+                      style={[
+                        styles.copyResponseText,
+                        { color: colors.foreground },
+                      ]}
+                    >
+                      Copy
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
 
         {isSending ? (
           <View
@@ -702,52 +765,84 @@ export default function CoachScreen() {
                     {archivedChats.length > 0 ? (
                       <View style={styles.savedChatsList}>
                         {archivedChats.map((conversation) => (
-                          <Pressable
+                          <View
                             key={conversation.id}
-                            accessibilityLabel={`Open saved Coach chat: ${savedChatPreview(conversation)}`}
-                            testID={`coach-saved-chat-${conversation.id}`}
-                            disabled={isManagingChat || isSending}
-                            onPress={() => void openSavedChat(conversation.id)}
-                            style={[
-                              styles.savedChatButton,
-                              {
-                                backgroundColor: colors.background,
-                                borderColor: colors.border,
-                                opacity: isManagingChat || isSending ? 0.6 : 1,
-                              },
-                            ]}
+                            style={styles.savedChatRow}
                           >
-                            <Feather
-                              name="message-circle"
-                              size={15}
-                              color={colors.primary}
-                            />
-                            <View style={styles.savedChatCopy}>
-                              <Text
-                                numberOfLines={1}
-                                style={[
-                                  styles.savedChatPreview,
-                                  { color: colors.foreground },
-                                ]}
-                              >
-                                {savedChatPreview(conversation)}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.savedChatMeta,
-                                  { color: colors.mutedForeground },
-                                ]}
-                              >
-                                {conversation.turnCount} message
-                                {conversation.turnCount === 1 ? "" : "s"}
-                              </Text>
-                            </View>
-                            <Feather
-                              name="chevron-right"
-                              size={16}
-                              color={colors.mutedForeground}
-                            />
-                          </Pressable>
+                            <Pressable
+                              accessibilityLabel={`Open saved Coach chat: ${savedChatPreview(conversation)}`}
+                              testID={`coach-saved-chat-${conversation.id}`}
+                              disabled={isManagingChat || isSending}
+                              onPress={() =>
+                                void openSavedChat(conversation.id)
+                              }
+                              style={[
+                                styles.savedChatButton,
+                                {
+                                  backgroundColor: colors.background,
+                                  borderColor: colors.border,
+                                  opacity:
+                                    isManagingChat || isSending ? 0.6 : 1,
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name="message-circle"
+                                size={15}
+                                color={colors.primary}
+                              />
+                              <View style={styles.savedChatCopy}>
+                                <Text
+                                  numberOfLines={1}
+                                  style={[
+                                    styles.savedChatPreview,
+                                    { color: colors.foreground },
+                                  ]}
+                                >
+                                  {savedChatPreview(conversation)}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.savedChatMeta,
+                                    { color: colors.mutedForeground },
+                                  ]}
+                                >
+                                  {conversation.turnCount} message
+                                  {conversation.turnCount === 1 ? "" : "s"}
+                                </Text>
+                              </View>
+                              <Feather
+                                name="chevron-right"
+                                size={16}
+                                color={colors.mutedForeground}
+                              />
+                            </Pressable>
+                            <Pressable
+                              accessibilityLabel="Delete saved Coach chat"
+                              testID={`coach-delete-saved-chat-${conversation.id}`}
+                              disabled={isManagingChat || isSending}
+                              onPress={() =>
+                                setConfirmAction({
+                                  type: "delete",
+                                  conversationId: conversation.id,
+                                })
+                              }
+                              style={[
+                                styles.deleteSavedChatButton,
+                                {
+                                  backgroundColor: colors.muted,
+                                  opacity:
+                                    isManagingChat || isSending ? 0.6 : 1,
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name="trash-2"
+                                size={15}
+                                color={colors.destructive}
+                              />
+                            </Pressable>
+                          </View>
                         ))}
                       </View>
                     ) : (
@@ -899,21 +994,27 @@ export default function CoachScreen() {
             <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
               {confirmAction === "new"
                 ? "Start a new Coach chat?"
-                : "Clear Coach chat history?"}
+                : isDeleteConfirmation
+                  ? "Delete saved Coach chat?"
+                  : "Clear Coach chat history?"}
             </Text>
             <Text
               style={[styles.confirmBody, { color: colors.mutedForeground }]}
             >
               {confirmAction === "new"
                 ? "Your current chat will be saved in Saved chats, where you can reopen it any time."
-                : "This permanently removes all saved Coach chats from your account."}
+                : isDeleteConfirmation
+                  ? "This permanently removes only this saved Coach chat from your account."
+                  : "This permanently removes all saved Coach chats from your account."}
             </Text>
             <View style={styles.confirmActions}>
               <Pressable
                 accessibilityLabel={
                   confirmAction === "new"
                     ? "Cancel starting a new Coach chat"
-                    : "Cancel clearing Coach history"
+                    : isDeleteConfirmation
+                      ? "Cancel deleting saved Coach chat"
+                      : "Cancel clearing Coach history"
                 }
                 onPress={() => setConfirmAction(null)}
                 style={[
@@ -934,11 +1035,15 @@ export default function CoachScreen() {
                 accessibilityLabel={
                   confirmAction === "new"
                     ? "Confirm starting a new Coach chat"
-                    : "Confirm clear Coach history"
+                    : isDeleteConfirmation
+                      ? "Confirm deleting saved Coach chat"
+                      : "Confirm clear Coach history"
                 }
                 onPress={() => {
                   if (confirmAction === "new") void createNewChat();
                   if (confirmAction === "clear") void clearHistory();
+                  if (isDeleteConfirmation)
+                    void deleteSavedChat(confirmAction.conversationId);
                 }}
                 disabled={isManagingChat}
                 style={[
@@ -972,7 +1077,11 @@ export default function CoachScreen() {
                       },
                     ]}
                   >
-                    {confirmAction === "new" ? "Start new" : "Clear history"}
+                    {confirmAction === "new"
+                      ? "Start new"
+                      : isDeleteConfirmation
+                        ? "Delete chat"
+                        : "Clear history"}
                   </Text>
                 )}
               </Pressable>
@@ -1033,6 +1142,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   messageText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
+  copyResponseButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 9,
+    marginTop: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  copyResponseText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
   loadingCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1145,7 +1265,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   savedChatsList: { gap: 8, marginTop: 12 },
+  savedChatRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   savedChatButton: {
+    flex: 1,
     minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
@@ -1154,6 +1276,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 11,
     paddingVertical: 9,
+  },
+  deleteSavedChatButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   savedChatCopy: { flex: 1, minWidth: 0 },
   savedChatPreview: { fontFamily: "Inter_600SemiBold", fontSize: 11 },

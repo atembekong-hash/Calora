@@ -20,6 +20,7 @@ describe("clean-room Coach screen", () => {
     expect(source).toContain("openCoachV2Conversation");
     expect(source).toContain("startNewCoachV2Conversation");
     expect(source).toContain("clearCoachV2Conversation");
+    expect(source).toContain("deleteCoachV2Conversation");
     expect(source).toContain("updateCoachV2Settings");
     expect(source).not.toContain("useCoachSendAdapter");
     expect(source).not.toContain("CoachFactContextConsentPanel");
@@ -98,6 +99,37 @@ describe("clean-room Coach screen", () => {
     expect(source).toContain("const openSavedChat = async");
     expect(source).toContain("await openCoachV2Conversation(conversationId)");
     expect(source).toContain("testID={`coach-saved-chat-${conversation.id}`}");
+  });
+
+  it("lets an account delete one archived saved chat without clearing others or the active chat", () => {
+    expect(source).toContain("const deleteSavedChat = async");
+    expect(source).toContain("await deleteCoachV2Conversation(conversationId)");
+    expect(source).toContain(
+      "testID={`coach-delete-saved-chat-${conversation.id}`}",
+    );
+    expect(source).toContain('accessibilityLabel="Delete saved Coach chat"');
+    expect(source).toContain('type: "delete"');
+    expect(source).toContain(
+      "current.filter((conversation) => conversation.id !== conversationId)",
+    );
+    expect(source).toContain(
+      "This permanently removes only this saved Coach chat",
+    );
+    expect(source).toContain("Only completed saved Coach chats can be deleted");
+  });
+
+  it("copies only rendered assistant text and reports clipboard success or failure", () => {
+    expect(source).toContain('import * as Clipboard from "expo-clipboard"');
+    expect(source).toContain(
+      "copyCoachResponseText(displayContent, Clipboard)",
+    );
+    expect(source).toContain("testID={`coach-copy-response-${turn.id}`}");
+    expect(source).toContain('accessibilityLabel="Copy Coach response"');
+    expect(source).toContain("Coach response copied.");
+    expect(source).toContain(
+      "Coach response could not be copied. Please try again.",
+    );
+    expect(source).not.toContain("Clipboard.setStringAsync(turn.content)");
   });
 
   it("uses the requested three-line main-menu affordance", () => {

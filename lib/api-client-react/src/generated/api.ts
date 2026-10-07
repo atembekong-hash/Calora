@@ -3022,6 +3022,78 @@ export const useStartNewCoachV2Conversation = <TError = ErrorType<void>,
       return useMutation(getStartNewCoachV2ConversationMutationOptions(options));
     }
 
+export const getDeleteCoachV2ConversationUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/v1/coach/v2/conversation/${conversationId}`
+}
+
+/**
+ * Deletes only an archived conversation owned by the signed-in account. Its turns are removed by the database cascade. Active or pending chats cannot be deleted through this saved-chat control.
+ * @summary Permanently delete one completed saved Coach chat
+ */
+export const deleteCoachV2Conversation = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCoachV2ConversationUrl(conversationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext> => {
+
+const mutationKey = ['deleteCoachV2Conversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, {conversationId: string}> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  deleteCoachV2Conversation(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCoachV2Conversation>>>
+
+    export type DeleteCoachV2ConversationMutationError = ErrorType<void>
+
+    /**
+ * @summary Permanently delete one completed saved Coach chat
+ */
+export const useDeleteCoachV2Conversation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCoachV2Conversation>>,
+        TError,
+        {conversationId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCoachV2ConversationMutationOptions(options));
+    }
+
 export const getOpenCoachV2ConversationUrl = (conversationId: string,) => {
 
 

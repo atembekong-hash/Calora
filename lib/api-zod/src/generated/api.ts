@@ -2742,6 +2742,17 @@ export const StartNewCoachV2ConversationResponse = zod.void()
 
 
 /**
+ * Deletes only an archived conversation owned by the signed-in account. Its turns are removed by the database cascade. Active or pending chats cannot be deleted through this saved-chat control.
+ * @summary Permanently delete one completed saved Coach chat
+ */
+export const DeleteCoachV2ConversationParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const DeleteCoachV2ConversationResponse = zod.void()
+
+
+/**
  * @summary Reopen one of the signed-in account's saved Coach chats
  */
 export const OpenCoachV2ConversationParams = zod.object({
