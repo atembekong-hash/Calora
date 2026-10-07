@@ -67,6 +67,18 @@ describe('workspace swipe target', () => {
     expect(getWorkspaceSwipeTargetIndex(1, 3, -8, 1, 0.9, 0)).toBeNull();
   });
 
+  it('cancels a slow partial drag without changing the active page', () => {
+    expect(getWorkspaceSwipeTargetIndex(1, 3, -WORKSPACE_SWIPE_COMMIT_DISTANCE + 1, 0, -0.1, 0)).toBeNull();
+    expect(getWorkspaceSwipeTargetIndex(1, 3, 12, 3, 0.1, 0)).toBeNull();
+  });
+
+  it('keeps repeated back-and-forth swipes adjacent and directional', () => {
+    expect(getWorkspaceSwipeTargetIndex(1, 3, -WORKSPACE_SWIPE_COMMIT_DISTANCE, 0)).toBe(2);
+    expect(getWorkspaceSwipeTargetIndex(2, 3, WORKSPACE_SWIPE_COMMIT_DISTANCE, 0)).toBe(1);
+    expect(getWorkspaceSwipeTargetIndex(1, 3, -WORKSPACE_SWIPE_COMMIT_DISTANCE, 0)).toBe(2);
+    expect(getWorkspaceSwipeTargetIndex(2, 3, WORKSPACE_SWIPE_COMMIT_DISTANCE, 0)).toBe(1);
+  });
+
   it('rejects invalid active indexes instead of selecting arbitrary content', () => {
     expect(getWorkspaceSwipeTargetIndex(-1, 3, -80, 0)).toBeNull();
     expect(getWorkspaceSwipeTargetIndex(3, 3, 80, 0)).toBeNull();
@@ -164,6 +176,7 @@ describe('planner day pager rendering', () => {
 
     expect(plannerSource).toContain('renderItem={renderPlannerDay}');
     expect(plannerSource).toContain('renderWindow={1}');
+    expect(plannerSource).toContain('nativePaging');
     expect(plannerSource).toContain('plannedMealsByDay');
     expect(plannerSource).not.toContain('disableAnimation');
     expect(pagerSource).toContain('styles.pagerTrack');
