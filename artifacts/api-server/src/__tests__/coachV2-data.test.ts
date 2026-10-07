@@ -1,18 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { clientQuery, poolConnect } = vi.hoisted(() => ({
+const { clientQuery, poolConnect, poolQuery } = vi.hoisted(() => ({
   clientQuery: vi.fn(),
   poolConnect: vi.fn(),
+  poolQuery: vi.fn(),
 }));
 
 vi.mock("@workspace/db", () => ({
   pool: {
     connect: () => poolConnect(),
-    query: vi.fn(),
+    query: (...args: unknown[]) => poolQuery(...args),
   },
 }));
 
-import { startNewCoachV2Conversation } from "../lib/coach-v2-data.js";
+import {
+  buildCoachV2Snapshot,
+  startNewCoachV2Conversation,
+} from "../lib/coach-v2-data.js";
 
 describe("Coach V2 saved-chat transitions", () => {
   afterEach(() => {
@@ -64,5 +68,37 @@ describe("Coach V2 saved-chat transitions", () => {
       statements.some((sql) => /SET archived_at = NOW\(\)/.test(sql)),
     ).toBe(false);
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("uses the bounded device-local day for today and recent-day coverage", async () => {
+    poolQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({
+        rows: [
+          { calories: 163, protein_g: 4, carbs_g: 38, fat_g: 1, entries: 2 },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [{ days: 1 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await expect(
+      buildCoachV2Snapshot("user-id", "2026-10-06"),
+    ).resolves.toMatchObject({
+      snapshotDate: "2026-10-06",
+      today: { calories: 163, proteinG: 4, carbsG: 38, fatG: 1, entries: 2 },
+      recentDaysLogged: 1,
+    });
+
+    expect(poolQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("entry_date = $2::date"),
+      ["user-id", "2026-10-06"],
+    );
+    expect(poolQuery).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("entry_date <= $2::date"),
+      ["user-id", "2026-10-06"],
+    );
   });
 });

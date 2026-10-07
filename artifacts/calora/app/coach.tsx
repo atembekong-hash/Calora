@@ -34,6 +34,8 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useAuth } from "@/context/AuthContext";
 import { useCalora } from "@/context/CaloraContext";
 import { BRAND } from "@/lib/brand";
+import { dateKey } from "@/lib/dates";
+import { reconcileDiaryState } from "@/lib/diarySync";
 
 type DisplayTurn = Pick<CoachV2Turn, "id" | "role" | "content"> & {
   announce?: boolean;
@@ -81,8 +83,8 @@ function savedChatPreview(conversation: CoachV2ConversationSummary): string {
 }
 
 export default function CoachScreen() {
-  const { colors } = useCalora();
-  const { user, isLoading: authLoading } = useAuth();
+  const { colors, logs, hydrated, applySyncedDiaryLogs } = useCalora();
+  const { user, session, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const transcriptRef = useRef<ScrollView>(null);
   const composerRef = useRef<TextInput>(null);
@@ -155,12 +157,44 @@ export default function CoachScreen() {
       role: "user",
       content: message.slice(0, 1200),
     };
-    setTurns((current) => [...current, userTurn]);
-    setComposer("");
     setNotice(null);
     setIsSending(true);
     try {
-      const response = await sendCoachV2Message({ message: userTurn.content });
+      // The dashboard is intentionally local-first. Before a personalized
+      // Coach question, complete the owner-scoped outbox reconciliation so the
+      // server-owned snapshot cannot lag behind the visible Today totals.
+      if (signedIn && personalizationEnabled) {
+        if (!hydrated || !session?.access_token) {
+          setNotice(
+            "Your logged nutrition is still loading. Please try Coach again in a moment.",
+          );
+          return;
+        }
+        try {
+          const mergedLogs = await reconcileDiaryState(
+            logs,
+            session.access_token,
+          );
+          if (requestId !== requestIdRef.current) return;
+          applySyncedDiaryLogs(mergedLogs);
+        } catch {
+          if (requestId === requestIdRef.current) {
+            setNotice(
+              "Your logged nutrition has not synced yet. Check your connection and try Coach again.",
+            );
+          }
+          return;
+        }
+      }
+      if (requestId !== requestIdRef.current) return;
+      setTurns((current) => [...current, userTurn]);
+      setComposer("");
+      const response = await sendCoachV2Message({
+        message: userTurn.content,
+        // `dateKey` intentionally uses the device's local calendar date rather
+        // than UTC so the server totals the same day displayed in Today.
+        snapshotDate: signedIn ? dateKey() : undefined,
+      });
       if (requestId !== requestIdRef.current) return;
       setTurns((current) => [
         ...current,

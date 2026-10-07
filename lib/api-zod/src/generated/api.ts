@@ -2664,10 +2664,12 @@ export const RevokeCoachFactContextConsentResponse = zod.object({
  */
 export const sendCoachV2MessageBodyMessageMax = 1200;
 
+export const sendCoachV2MessageBodySnapshotDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const SendCoachV2MessageBody = zod.object({
-  "message": zod.string().min(1).max(sendCoachV2MessageBodyMessageMax)
+  "message": zod.string().min(1).max(sendCoachV2MessageBodyMessageMax),
+  "snapshotDate": zod.string().regex(sendCoachV2MessageBodySnapshotDateRegExp).optional().describe('Optional device-local calendar day for signed-in nutrition totals. The server accepts only its current day or an adjacent day; omitted values use the server calendar day.')
 })
 
 export const sendCoachV2MessageResponseMessageMax = 4000;

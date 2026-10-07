@@ -30,6 +30,23 @@ describe("clean-room Coach screen", () => {
     expect(coachContractSource).not.toContain('from "./generated/api.js"');
   });
 
+  it("forwards the device-local calendar day so Coach totals match Today", () => {
+    expect(source).toContain('import { dateKey } from "@/lib/dates"');
+    expect(source).toContain("snapshotDate: signedIn ? dateKey() : undefined");
+    expect(coachContractSource).toContain("snapshotDate?: string");
+  });
+
+  it("reconciles the signed-in diary before requesting a personalized Coach snapshot", () => {
+    expect(source).toContain(
+      'import { reconcileDiaryState } from "@/lib/diarySync"',
+    );
+    expect(source).toMatch(
+      /const mergedLogs = await reconcileDiaryState\(\s*logs,\s*session\.access_token,\s*\)/,
+    );
+    expect(source).toContain("applySyncedDiaryLogs(mergedLogs)");
+    expect(source).toContain("Your logged nutrition has not synced yet");
+  });
+
   it("keeps guest chat ephemeral and presents account history controls only when signed in", () => {
     expect(source).toContain("if (!signedIn) {");
     expect(source).toContain(
