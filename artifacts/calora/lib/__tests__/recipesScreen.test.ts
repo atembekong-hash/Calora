@@ -59,15 +59,19 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('request: generatedRequest,');
   });
 
-  it('reduces the Discover hero widget by 40% while preserving its content layer', () => {
+  it('removes the Discover cookbook widget and ingredient-search guidance while preserving search and categories', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('recipeHeader: { height: 114');
-    expect(source).toContain('recipeHeaderContent: { height: 114');
-    expect(source).toContain('paddingBottom: 14, justifyContent: \'flex-end\'');
+    expect(source).not.toContain('THE {BRAND.name.toUpperCase()} COOKBOOK');
+    expect(source).not.toContain('RECIPES YOU CAN TRUST');
+    expect(source).not.toContain('Find a recipe for your next meal.');
+    expect(source).not.toContain('For ingredient matches, separate up to four ingredients with commas.');
+    expect(source).not.toContain('useHourlyHeaderImage');
+    expect(source).toContain('accessibilityLabel="Search recipes"');
+    expect(source).toContain('accessibilityLabel={`Recipe category ${item}`}');
   });
 
   it('labels the premium section as Plus and never presents a paid recipe gate', () => {

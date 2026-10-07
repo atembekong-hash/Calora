@@ -1,12 +1,11 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { AppHeader } from '@/components/AppChrome';
-import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
@@ -34,7 +33,6 @@ import {
   isIntelligenceFeatureEnabled,
   selectVisibleLocalInsight,
 } from '@/lib/intelligence';
-import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { displayTargetWeight, validateTargetWeight } from '@/lib/profileTargets';
 import { displayWeight, formatWeight, validateWeightInput, weightUnitLabel, type WeightUnit } from '@/lib/weightInput';
 
@@ -1280,7 +1278,6 @@ function ProgressLineGraph({
 
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
-  const insightsHeaderImage = useHourlyHeaderImage('insights');
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('steps')
@@ -1399,14 +1396,6 @@ export default function InsightsScreen() {
     }
   }, [weights.length, showExpandedChart]);
 
-  // Parallax scroll
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
-  const heroParallaxStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: Math.max(0, scrollY.value) * 0.38 }],
-  }));
   const isEditingMinutes = useRef(false);
   const isEditingWeight = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -1709,28 +1698,6 @@ export default function InsightsScreen() {
       />
       <View style={styles.progressViewport}>
         <View style={styles.progressHeaderContent}>
-        <View style={styles.heroHeader}>
-          <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
-            <Image key={insightsHeaderImage.hourSlot} source={insightsHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
-          </Animated.View>
-          <LinearGradient
-            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}
-            locations={[0, 0.58, 1]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.heroContent}>
-            <View style={styles.heroBadge}>
-              <Feather name="activity" size={12} color="#d4eadc" />
-              <Text style={styles.heroBadgeText}>WEEKLY SIGNAL</Text>
-            </View>
-            <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
-            <View style={styles.heroTitleRow}>
-              <Text style={styles.heroTitle}>Patterns, not pressure</Text>
-            </View>
-            <Text style={styles.heroSubtitle}>Make tomorrow easier.</Text>
-          </View>
-        </View>
-
         <SwipeableTabList
           items={PROGRESS_VIEWS}
           activeItem={progressView}
@@ -1768,7 +1735,6 @@ export default function InsightsScreen() {
             <Animated.ScrollView
               style={styles.progressPaneScroll}
               contentContainerStyle={[styles.progressPaneContent, { paddingBottom: insets.bottom + 104 }]}
-              onScroll={scrollHandler}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
@@ -2501,14 +2467,6 @@ function makeStyles(f: number) {
   progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
   progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   progressTabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
-  heroHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
-  heroContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
-  heroBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  heroBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
-  heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
-  heroTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 285 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 13 * f, lineHeight: 19, marginTop: 8, marginBottom: 22, maxWidth: 330 },

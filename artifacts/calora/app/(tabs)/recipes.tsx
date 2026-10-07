@@ -26,7 +26,6 @@ import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRec
 import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
-import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
@@ -1735,7 +1734,6 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
 
 export default function RecipesScreen() {
   const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe, fontScale } = useCalora();
-  const recipesHeaderImage = useHourlyHeaderImage('recipes');
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -2040,26 +2038,7 @@ export default function RecipesScreen() {
       >
          <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0} />
          {section === 'discover' ? <>
-        <View style={styles.recipeHeader}>
-           <Image key={recipesHeaderImage.hourSlot} source={recipesHeaderImage.source} contentFit="cover" transition={0} style={StyleSheet.absoluteFillObject} />
-          <LinearGradient
-            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']}
-            locations={[0, 0.58, 1]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.recipeHeaderContent}>
-            <View style={styles.recipeHeaderTop}>
-              <View style={styles.recipeHeaderBadge}>
-             <CaloraFeatureIcon name="recipes" size={20} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} />
-                <Text style={styles.recipeHeaderBadgeText}>THE {BRAND.name.toUpperCase()} COOKBOOK</Text>
-              </View>
-            </View>
-            <Text style={styles.recipeHeaderEyebrow}>RECIPES YOU CAN TRUST</Text>
-            <Text style={styles.recipeHeaderSubtitle}>Find a recipe for your next meal.</Text>
-          </View>
-        </View>
         <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search recipes" value={search} onChangeText={setSearch} placeholder="Search recipes, or 2–4 ingredients" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />{search ? <Pressable accessibilityLabel="Clear recipe search" onPress={() => setSearch('')}><Feather name="x-circle" size={16} color={colors.mutedForeground} /></Pressable> : null}</View>
-        <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginTop: 7 }]}>For ingredient matches, separate up to four ingredients with commas.</Text>
         <SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{categories.map((item) => <Pressable key={item} accessibilityLabel={`Recipe category ${item}`} onPress={() => setCategory(item)} style={[styles.categoryChip, { backgroundColor: category === item ? colors.primary : colors.card, borderColor: category === item ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}<Pressable accessibilityLabel="Recipe category My recipes" onPress={() => setCategory('My recipes')} style={[styles.categoryChip, { backgroundColor: category === 'My recipes' ? colors.primary : colors.card, borderColor: category === 'My recipes' ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === 'My recipes' ? colors.primaryForeground : colors.mutedForeground }]}>My recipes</Text></Pressable></ScrollView></SwipeGestureExclusion>
 
          {savedDiscoverRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedDiscoverRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></SwipeGestureExclusion></>}
@@ -2234,19 +2213,9 @@ function makeStyles(f: number) {
    upcomingActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
    premiumToolbar: { flexDirection: 'row', gap: 9, marginTop: 4, marginBottom: 10 },
    filterButton: { width: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-   recipeHeader: { height: 114, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
-    recipeHeaderContent: { height: 114, padding: 19, paddingBottom: 14, justifyContent: 'flex-end', alignItems: 'center' },
-    recipeHeaderTop: { position: 'absolute', top: 10, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  recipeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  recipeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  recipeHeaderCreate: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(20,26,21,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
-  recipeHeaderCreateText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-   recipeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.3, marginBottom: 6, textAlign: 'center' },
-  recipeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 29 * f, letterSpacing: -0.8 },
   recipeTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
   coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
-   recipeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 290, textAlign: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 29 * f, letterSpacing: -0.8 },

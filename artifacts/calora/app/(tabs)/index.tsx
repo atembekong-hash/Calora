@@ -350,12 +350,14 @@ function LivingRhythmCard({
   waterOunces,
   mealsLogged,
   selectedDate,
+  onAddMeal,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   livingState: ReturnType<typeof useCalora>['livingState'];
   waterOunces: number;
   mealsLogged: number;
   selectedDate: string;
+  onAddMeal: () => void;
 }) {
   const copy = routineStageCopy[livingState.routineStage];
   const waterProgress = Math.min(waterOunces / 64, 1);
@@ -409,6 +411,19 @@ function LivingRhythmCard({
           </View>
         </View>
       </View>
+      {livingState.routineStage === 'building' && (
+        <ScalePressable
+          accessibilityLabel="Add a meal from the building your picture card"
+          testID="building-picture-add-meal-button"
+          onPress={onAddMeal}
+          haptic="none"
+          scale={0.96}
+          style={[styles.livingRhythmAddMealAction, { backgroundColor: colors.accent }]}
+        >
+          <Feather name="plus" size={13} color={colors.accentForeground} />
+          <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
+        </ScalePressable>
+      )}
     </View>
   );
 }
@@ -2049,6 +2064,7 @@ export default function HomeScreen() {
           waterOunces={selectedWater}
           mealsLogged={mealsLogged}
           selectedDate={selectedDate}
+          onAddMeal={openAdd}
         />
 
         <WellnessCards
@@ -2142,6 +2158,7 @@ function makeStyles(f: number) {
   livingRhythmTrackLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, textTransform: 'uppercase', letterSpacing: 0.8 },
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
+  livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 16 },
   stepsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepsIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
