@@ -29,6 +29,12 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("manualPhotoCaptureRef.current = false");
   });
 
+  it('sends manual Auto photos through the Auto contract and never fails a valid analysis because haptics are unavailable', () => {
+    expect(source).toContain("mode === 'auto' ? 'auto' : 'food'");
+    expect(source).toContain('void Haptics.notificationAsync(');
+    expect(source).toContain('.catch(() => undefined)');
+  });
+
   it("offers explicit sign-in recovery after a persistent capture auth failure", () => {
     expect(source).toContain("captureFlow.failure.kind === 'authentication'");
     expect(source).toContain('accessibilityLabel="Sign in again for Scan"');

@@ -331,7 +331,11 @@ export default function ScanScreen() {
       setReviewDraftId(draft.id);
     }
     setHasScanned(true);
-    Haptics.notificationAsync(next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
+    // Haptics are optional feedback. A native haptic module failure must not
+    // turn an otherwise valid Capture response into a generic Scan failure.
+    void Haptics.notificationAsync(
+      next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
+    ).catch(() => undefined);
   };
 
   const submitAnalysis = async (
@@ -588,7 +592,7 @@ export default function ScanScreen() {
       if (!isCurrentOperation(operationId)) return;
       ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
-      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food';
+      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food';
       await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
@@ -633,7 +637,7 @@ export default function ScanScreen() {
       // belongs to the user and is deliberately never deleted.
       ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
-      const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food');
+      const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food');
       await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
@@ -813,7 +817,7 @@ export default function ScanScreen() {
                       <View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} />
                       <View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} />
                     </Animated.View>
-                    <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><CaloraFeatureIcon name={mode === 'barcode' ? 'barcode' : 'camera'} size={22} primaryColor={colors.heroMuted} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{receiptCapture ? 'Keep receipt lines flat and readable' : mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
+                    <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><CaloraFeatureIcon name={mode === 'barcode' ? 'barcode' : 'camera'} size={22} primaryColor={colors.heroMuted} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{receiptCapture ? 'Keep receipt lines flat and readable' : mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : mode === 'auto' ? 'Point at a barcode, or tap capture for food' : 'Point at a barcode or food'}</Text></View>
                   </View>
                 </>
               )}

@@ -877,7 +877,12 @@ router.post("/v1/capture/analyze", async (req, res) => {
         });
         return;
       }
-      if (body.mode === "barcode") {
+      // An Auto camera callback contains only the detected barcode. It has no
+      // captured photo to send through the vision path if public nutrition
+      // sources cannot match it. Return the same reviewable unavailable state
+      // as explicit Barcode mode instead of falling through to a 400 that the
+      // native client can only present as a generic analysis failure.
+      if (body.mode === "barcode" || !body.imageBase64) {
         res.json({
           ...captureResponseIds(body),
           mode: "barcode",
