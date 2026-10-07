@@ -116,6 +116,28 @@ describe("public Calora pages", () => {
     );
   });
 
+  it("labels homepage phone metrics as illustrative rather than live user data", async () => {
+    const response = await request(app).get("/");
+    expect(response.text).toContain("Illustrative app view · example data");
+    expect(response.text).toContain(
+      'aria-label="Illustrative preview of the Calora dashboard, not live user data"',
+    );
+  });
+
+  it("describes Coach conversation retention consistently with the product model", async () => {
+    const response = await request(app).get("/privacy");
+    expect(response.text).toContain(
+      "Signed-in Coach messages are stored in your account-scoped Coach conversation history",
+    );
+    expect(response.text).toContain("guest Coach chats remain ephemeral");
+    expect(response.text).toContain(
+      "Coach reports retain a short-lived digest and reason, not the reported message text",
+    );
+    expect(response.text).not.toContain(
+      "Coach messages are sent only when you request the corresponding feature. They are used to return the requested result and are not intentionally retained by Calora after processing",
+    );
+  });
+
   it("explains the authenticated, irreversible deletion path", async () => {
     const response = await request(app).get("/delete-account");
     expect(response.text).toContain("sign in");
