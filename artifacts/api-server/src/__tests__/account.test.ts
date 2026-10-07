@@ -128,6 +128,11 @@ describe("DELETE /v1/account", () => {
         JSON.stringify(query).includes("calora_cohort_memberships"),
       ),
     ).toBe(true);
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_coach_reports"),
+      ),
+    ).toBe(true);
     expect(deleteUser).toHaveBeenCalledOnce();
   });
 

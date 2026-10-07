@@ -6,6 +6,7 @@ import {
   getCoachV2Settings,
   listCoachV2Conversations,
   openCoachV2Conversation,
+  reportCoachV2Content,
   sendCoachV2Message,
   startNewCoachV2Conversation,
   updateCoachV2Settings,
@@ -45,6 +46,7 @@ type DisplayTurn = Pick<CoachV2Turn, "id" | "role" | "content"> & {
 };
 type ConfirmAction =
   "new" | "clear" | { type: "delete"; conversationId: string } | null;
+type CoachReportReason = "unsafe" | "inaccurate" | "privacy" | "other";
 
 const starterPrompts = [
   "How is my nutrition today?",
@@ -110,6 +112,7 @@ export default function CoachScreen() {
   const [personalizationEnabled, setPersonalizationEnabled] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reportTurnId, setReportTurnId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadId = ++requestIdRef.current;
@@ -513,33 +516,62 @@ export default function CoachScreen() {
                   {displayContent}
                 </Text>
                 {turn.role === "assistant" ? (
-                  <Pressable
-                    accessibilityLabel="Copy Coach response"
-                    testID={`coach-copy-response-${turn.id}`}
-                    onPress={() => {
-                      void copyCoachResponseText(displayContent, Clipboard)
-                        .then(() => setNotice("Coach response copied."))
-                        .catch(() =>
-                          setNotice(
-                            "Coach response could not be copied. Please try again.",
-                          ),
-                        );
-                    }}
-                    style={[
-                      styles.copyResponseButton,
-                      { backgroundColor: colors.muted },
-                    ]}
-                  >
-                    <Feather name="copy" size={13} color={colors.foreground} />
-                    <Text
+                  <View style={styles.responseActions}>
+                    <Pressable
+                      accessibilityLabel="Copy Coach response"
+                      testID={`coach-copy-response-${turn.id}`}
+                      onPress={() => {
+                        void copyCoachResponseText(displayContent, Clipboard)
+                          .then(() => setNotice("Coach response copied."))
+                          .catch(() =>
+                            setNotice(
+                              "Coach response could not be copied. Please try again.",
+                            ),
+                          );
+                      }}
                       style={[
-                        styles.copyResponseText,
-                        { color: colors.foreground },
+                        styles.copyResponseButton,
+                        { backgroundColor: colors.muted },
                       ]}
                     >
-                      Copy
-                    </Text>
-                  </Pressable>
+                      <Feather
+                        name="copy"
+                        size={13}
+                        color={colors.foreground}
+                      />
+                      <Text
+                        style={[
+                          styles.copyResponseText,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Copy
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel="Report Coach response"
+                      testID={`coach-report-response-${turn.id}`}
+                      onPress={() => setReportTurnId(turn.id)}
+                      style={[
+                        styles.copyResponseButton,
+                        { backgroundColor: colors.muted },
+                      ]}
+                    >
+                      <Feather
+                        name="flag"
+                        size={13}
+                        color={colors.foreground}
+                      />
+                      <Text
+                        style={[
+                          styles.copyResponseText,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Report
+                      </Text>
+                    </Pressable>
+                  </View>
                 ) : null}
               </View>
             </View>
@@ -1089,6 +1121,87 @@ export default function CoachScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={reportTurnId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportTurnId(null)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.confirmCard,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
+              Report Coach response
+            </Text>
+            <Text
+              style={[styles.confirmBody, { color: colors.mutedForeground }]}
+            >
+              Choose the closest reason. The response text is not stored in the
+              report.
+            </Text>
+            {(
+              [
+                ["unsafe", "Safety concern"],
+                ["inaccurate", "Inaccurate information"],
+                ["privacy", "Privacy concern"],
+                ["other", "Something else"],
+              ] as const
+            ).map(([reason, label]) => (
+              <Pressable
+                key={reason}
+                accessibilityLabel={`Report Coach response: ${label}`}
+                onPress={() => {
+                  if (!reportTurnId) return;
+                  void reportCoachV2Content({
+                    messageRef: reportTurnId,
+                    reason: reason as CoachReportReason,
+                  })
+                    .then(() => setNotice("Thanks. Your report was submitted."))
+                    .catch(() =>
+                      setNotice(
+                        "The report could not be submitted. Please try again.",
+                      ),
+                    )
+                    .finally(() => setReportTurnId(null));
+                }}
+                style={[
+                  styles.reportReasonButton,
+                  { backgroundColor: colors.muted },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.confirmButtonText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              accessibilityLabel="Cancel Coach report"
+              onPress={() => setReportTurnId(null)}
+              style={[styles.confirmButton, { backgroundColor: colors.muted }]}
+            >
+              <Text
+                style={[styles.confirmButtonText, { color: colors.foreground }]}
+              >
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1142,6 +1255,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   messageText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
+  responseActions: { flexDirection: "row", gap: 8 },
   copyResponseButton: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -1153,6 +1267,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   copyResponseText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
+  reportReasonButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 8,
+  },
   loadingCard: {
     flexDirection: "row",
     alignItems: "center",

@@ -140,6 +140,10 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
       WHERE external_user_id = ${externalUserId}
     `);
     await tx.execute(sql`
+      DELETE FROM calora_coach_reports
+      WHERE user_id = (SELECT id FROM calora_users WHERE external_id = ${externalUserId})
+    `);
+    await tx.execute(sql`
       DELETE FROM calora_recipe_media
       WHERE owner_external_id = ${externalUserId}
     `);
