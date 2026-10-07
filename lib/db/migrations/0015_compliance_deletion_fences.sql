@@ -37,12 +37,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON calora_coach_fact_context_idempotency;
-CREATE TRIGGER calora_account_deletion_write_fence_trigger
-BEFORE INSERT OR UPDATE ON calora_coach_fact_context_idempotency
-FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence();
-
-DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON calora_cohort_memberships;
-CREATE TRIGGER calora_account_deletion_write_fence_trigger
-BEFORE INSERT OR UPDATE ON calora_cohort_memberships
-FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence();
+DO $$
+BEGIN
+  IF to_regclass('public.calora_coach_fact_context_idempotency') IS NOT NULL THEN
+    EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.calora_coach_fact_context_idempotency';
+    EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
+      BEFORE INSERT OR UPDATE ON public.calora_coach_fact_context_idempotency
+      FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
+  END IF;
+  IF to_regclass('public.calora_cohort_memberships') IS NOT NULL THEN
+    EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.calora_cohort_memberships';
+    EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
+      BEFORE INSERT OR UPDATE ON public.calora_cohort_memberships
+      FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
+  END IF;
+END;
+$$;
