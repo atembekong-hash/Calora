@@ -449,8 +449,8 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    8,
-    "historical upgrade must append only 0009 through 0016",
+    9,
+    "historical upgrade must record the expected migration suffix",
   );
 } finally {
   await historicalUpgrade.end();
