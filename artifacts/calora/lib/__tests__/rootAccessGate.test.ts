@@ -93,7 +93,7 @@ describe('barcode duplicate-capture contract', () => {
     const { resolve } = await import('node:path');
     const source = await readFile(resolve(__dirname, '../../app/(tabs)/scan.tsx'), 'utf8');
 
-    expect(source).toContain('if (barcodeLockRef.current || hasScanned || captureBusy');
+    expect(source).toContain('if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy');
     expect(source).toContain('barcodeLockRef.current = { barcode, sequence };');
     expect(source).toContain('setHasScanned(true);\n    void submitAnalysis({ mode, barcode }, undefined, sequence);');
     expect(source).toContain("barcodeLockRef.current?.sequence !== barcodeSequence");

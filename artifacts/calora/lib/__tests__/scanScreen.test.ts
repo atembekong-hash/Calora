@@ -16,9 +16,17 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("() => controller.abort()");
   });
 
-  it("does not invalidate a native library selection on transient inactive state", () => {
-    expect(source).toContain("shouldInterruptCaptureForAppState(nextState)");
+  it("does not invalidate an Android native library selection while its picker Activity is active", () => {
+    expect(source).toContain("shouldInterruptCaptureForAppState(nextState, nativePickerActiveRef.current)");
+    expect(source).toContain("nativePickerActiveRef.current = true");
+    expect(source).toContain("nativePickerActiveRef.current = false");
     expect(source).not.toContain("nextState !== 'active'");
+  });
+
+  it("prevents Auto barcode callbacks from superseding an explicit manual photo capture", () => {
+    expect(source).toContain("manualPhotoCaptureRef.current || barcodeLockRef.current");
+    expect(source).toContain("manualPhotoCaptureRef.current = true");
+    expect(source).toContain("manualPhotoCaptureRef.current = false");
   });
 
   it("offers explicit sign-in recovery after a persistent capture auth failure", () => {

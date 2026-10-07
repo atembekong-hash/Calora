@@ -176,6 +176,10 @@ export default function ScanScreen() {
   const barcodeLaunchRequested = useRef(false);
   const barcodeSequenceRef = useRef(0);
   const barcodeLockRef = useRef<{ barcode: string; sequence: number } | null>(null);
+  // Set before native calls so synchronous Android lifecycle and barcode
+  // callbacks cannot race React state commits for a manual photo flow.
+  const manualPhotoCaptureRef = useRef(false);
+  const nativePickerActiveRef = useRef(false);
 
   const resetBarcodeCapture = () => {
     barcodeSequenceRef.current += 1;
@@ -247,6 +251,8 @@ export default function ScanScreen() {
       captureOperationIdRef.current += 1;
       captureAbortRef.current?.abort();
       captureAbortRef.current = null;
+      manualPhotoCaptureRef.current = false;
+      nativePickerActiveRef.current = false;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
       ownedCaptureArtifactsRef.current.clear();
     };
@@ -291,11 +297,10 @@ export default function ScanScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      // iOS can report a transient inactive state while its native library
-      // picker is visible. Only a durable background transition invalidates a
-      // capture operation; unmounts and new attempts remain cancellation
-      // boundaries as well.
-      if (shouldInterruptCaptureForAppState(nextState)) interruptCaptureOperation();
+      // Android opens the system image picker in another Activity and reports
+      // that owned handoff as background. Genuine background transitions still
+      // cancel in-flight work, but the active picker must be allowed to return.
+      if (shouldInterruptCaptureForAppState(nextState, nativePickerActiveRef.current)) interruptCaptureOperation();
       if (nextState === 'active') setCameraReady(false);
     });
     return () => subscription.remove();
@@ -532,7 +537,7 @@ export default function ScanScreen() {
   };
 
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (barcodeLockRef.current || hasScanned || captureBusy || mode === 'food' || mode === 'label') return;
+    if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy || mode === 'food' || mode === 'label') return;
     const barcode = result.data?.trim();
     if (!barcode) return;
     const sequence = ++barcodeSequenceRef.current;
@@ -545,14 +550,17 @@ export default function ScanScreen() {
 
   const takePhoto = async () => {
     if (captureBusy) return;
+    manualPhotoCaptureRef.current = true;
     if (!permission?.granted) {
       const operationId = beginCaptureOperation('preparing');
       failCaptureOperation(operationId, cameraError('Camera permission is required before taking a photo.'));
+      manualPhotoCaptureRef.current = false;
       return;
     }
     if (!cameraRef.current || !cameraReady) {
       const operationId = beginCaptureOperation('preparing');
       failCaptureOperation(operationId, cameraError('The camera is still starting. Wait for the preview, then try again.'));
+      manualPhotoCaptureRef.current = false;
       return;
     }
     const operationId = beginCaptureOperation('preparing');
@@ -585,6 +593,7 @@ export default function ScanScreen() {
     } catch (error) {
       failCaptureOperation(operationId, error);
     } finally {
+      manualPhotoCaptureRef.current = false;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
       ownedCaptureArtifactsRef.current.clear();
       if (isCurrentOperation(operationId)) setCapturedPhotoUri(null);
@@ -593,11 +602,19 @@ export default function ScanScreen() {
 
   const choosePhoto = async (requestedMode?: 'receipt' | 'food' | 'nutrition_label') => {
     if (captureBusy) return;
+    manualPhotoCaptureRef.current = true;
     const operationId = beginCaptureOperation('preparing');
     setHasScanned(true);
     setAltCaptureBanner(null);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+      const result = await (async () => {
+        nativePickerActiveRef.current = true;
+        try {
+          return await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+        } finally {
+          nativePickerActiveRef.current = false;
+        }
+      })();
       if (!isCurrentOperation(operationId)) return;
       if (result.canceled) {
         setHasScanned(false);
@@ -621,6 +638,8 @@ export default function ScanScreen() {
     } catch (error) {
       failCaptureOperation(operationId, error);
     } finally {
+      manualPhotoCaptureRef.current = false;
+      nativePickerActiveRef.current = false;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
       ownedCaptureArtifactsRef.current.clear();
       if (isCurrentOperation(operationId)) setCapturedPhotoUri(null);

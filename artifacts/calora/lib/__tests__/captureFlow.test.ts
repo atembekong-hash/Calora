@@ -68,8 +68,9 @@ describe('classifyCaptureError', () => {
 });
 
 describe('Scan AppState interruption policy', () => {
-  it('interrupts only durable background transitions, preserving native picker inactivity', () => {
+  it('interrupts only genuine background transitions, preserving an owned Android picker handoff', () => {
     expect(shouldInterruptCaptureForAppState('background')).toBe(true);
+    expect(shouldInterruptCaptureForAppState('background', true)).toBe(false);
     expect(shouldInterruptCaptureForAppState('inactive')).toBe(false);
     expect(shouldInterruptCaptureForAppState('active')).toBe(false);
   });

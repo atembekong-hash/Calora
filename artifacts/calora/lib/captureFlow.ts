@@ -72,9 +72,14 @@ export function isCaptureBusy(state: CaptureFlowState): boolean {
   return state.stage === 'preparing' || state.stage === 'uploading';
 }
 
-/** Native image pickers can transiently set AppState to inactive. */
-export function shouldInterruptCaptureForAppState(nextState: string): boolean {
-  return nextState === 'background';
+/**
+ * Android reports its system photo-picker Activity as `background`, even
+ * though the user is still completing the Scan flow. A genuine background
+ * transition must still cancel an in-flight capture, but the picker launch is
+ * an owned native handoff whose result is safe to continue processing.
+ */
+export function shouldInterruptCaptureForAppState(nextState: string, nativePickerActive = false): boolean {
+  return nextState === 'background' && !nativePickerActive;
 }
 
 type ApiErrorShape = {
