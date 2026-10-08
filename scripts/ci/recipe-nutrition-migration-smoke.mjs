@@ -355,7 +355,7 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
           'calora_admin_sessions',
           'calora_admin_audit_events',
           'calora_admin_operational_alerts',
-          'calora_admin_alert_deliveries',
+          'calora_admin_alert_deliveries'
         )`,
   );
   assert.deepEqual(
