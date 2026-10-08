@@ -17,7 +17,16 @@ CREATE INDEX IF NOT EXISTS calora_privacy_rights_requests_user_created_idx
   ON calora_privacy_rights_requests (user_id, created_at DESC);
 
 ALTER TABLE calora_privacy_rights_requests ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE calora_privacy_rights_requests FROM anon, authenticated;
+DO $privacy_rights_grants$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE calora_privacy_rights_requests FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE calora_privacy_rights_requests FROM authenticated;
+  END IF;
+END
+$privacy_rights_grants$;
 
 DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON calora_privacy_rights_requests;
 CREATE TRIGGER calora_account_deletion_write_fence_trigger
