@@ -71,6 +71,7 @@ vi.mock("../lib/admin-feature-flags.js", () => ({
   setManagedFeatureFlag: (...args: unknown[]) => setManagedFeatureFlag(...args),
 }));
 
+import caloraApp from "../app.js";
 import adminRouter from "../routes/admin.js";
 
 const SESSION = {
@@ -171,6 +172,15 @@ describe("restricted admin control plane", () => {
     expect(response.headers["x-robots-tag"]).toBe(
       "noindex, nofollow, noarchive, nosnippet",
     );
+  });
+
+  it("prioritizes the admin OAuth callback over the generic native fallback", async () => {
+    const response = await request(caloraApp)
+      .get("/auth/callback?code=one-time-code")
+      .set("Host", "admin.mycaloraapp.com");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("resumeGoogleLogin");
+    expect(response.text).not.toContain("Update Calora to finish signing in");
   });
 
   it("returns no operational data when the server-side role check denies access", async () => {
