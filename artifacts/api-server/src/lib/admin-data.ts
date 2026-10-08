@@ -10,6 +10,8 @@ const SAFE_AUDIT_ACTIONS = new Set([
   "admin.role_revoked",
   "feature_flag.updated",
   "moderation.status_changed",
+  "alert.acknowledged",
+  "alert.resolved",
 ]);
 
 export type AuditResult = "success" | "denied" | "failed";
