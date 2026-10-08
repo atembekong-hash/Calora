@@ -64,7 +64,22 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_coach_fact_context_idempotency",
     "calora_cohort_memberships",
   ];
-  for (const table of fencedTables) {
+  const existingTablesResult = await client.query<{ regclass: string | null }>(
+    `
+    SELECT table_name::text AS regclass
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = ANY($1::text[])
+  `,
+    [fencedTables],
+  );
+  const existingTables = new Set(
+    existingTablesResult?.rows?.map((row) => row.regclass).filter(Boolean) ??
+      fencedTables,
+  );
+  for (const table of fencedTables.filter((candidate) =>
+    existingTables.has(candidate),
+  )) {
     await client.query(
       `DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`,
     );

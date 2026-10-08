@@ -3190,8 +3190,9 @@ export default function ProfileScreen() {
                       },
                     ]}
                   >
+                    {/* prettier-ignore */}
                     <Image
-                      source={require("../../assets/images/calora-profile-header.jpg")}
+                      source={require('../../assets/images/calora-profile-header.jpg')}
                       contentFit="cover"
                       style={styles.emptySavedImage}
                     />
