@@ -12,6 +12,8 @@ const SAFE_AUDIT_ACTIONS = new Set([
   "moderation.status_changed",
   "alert.acknowledged",
   "alert.resolved",
+  "alert.email_sent",
+  "alert.email_failed",
 ]);
 
 export type AuditResult = "success" | "denied" | "failed";

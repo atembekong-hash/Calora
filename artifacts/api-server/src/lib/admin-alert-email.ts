@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
+import { writeAdminAudit } from "./admin-data.js";
 import type { AdminAlert } from "./admin-alerts.js";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
@@ -95,12 +96,17 @@ export async function notifyOperationalAlerts(
   if (!configured() || alerts.length === 0) return;
   for (const alert of alerts.filter((item) => item.status === "open")) {
     const key = fingerprint(alert);
-    const delivery = await pool.query<{ id: string; attempt_count: number }>(
+    const delivery = await pool.query<{
+      id: string;
+      attempt_count: number;
+      status: "pending" | "sent" | "failed";
+      last_attempt_at: Date | null;
+    }>(
       `INSERT INTO calora_admin_alert_deliveries (alert_id, fingerprint)
        VALUES ($1::uuid, $2)
        ON CONFLICT (alert_id, fingerprint) DO UPDATE
          SET last_error = NULL
-       RETURNING id, attempt_count`,
+       RETURNING id, attempt_count, status, last_attempt_at`,
       [alert.id, key],
     );
     const deliveryRow = delivery.rows[0];
@@ -108,11 +114,18 @@ export async function notifyOperationalAlerts(
 
     const recent = await pool.query<{ id: string }>(
       `SELECT id FROM calora_admin_alert_deliveries
-        WHERE status = 'sent' AND created_at >= now() - interval '15 minutes'
+        WHERE alert_id = $1::uuid
+          AND status = 'sent'
+          AND created_at >= now() - interval '15 minutes'
         ORDER BY created_at DESC LIMIT 1`,
+      [alert.id],
     );
-    const alreadySent = deliveryRow.attempt_count > 0;
-    if (alreadySent || recent.rows[0]) continue;
+    const retryBlocked =
+      deliveryRow.status === "failed" &&
+      deliveryRow.last_attempt_at !== null &&
+      Date.now() - deliveryRow.last_attempt_at.getTime() < DELIVERY_COOLDOWN_MS;
+    if (deliveryRow.status === "sent" || retryBlocked || recent.rows[0])
+      continue;
 
     try {
       const providerMessageId = await sendViaResend(alert);
@@ -127,6 +140,17 @@ export async function notifyOperationalAlerts(
         { alertKey: alert.alertKey, severity: alert.severity },
         "Operational alert email sent",
       );
+      await writeAdminAudit({
+        action: "alert.email_sent",
+        targetType: "operational_alert",
+        targetReference: alert.id,
+        result: "success",
+        metadata: {
+          alertKey: alert.alertKey,
+          severity: alert.severity,
+          attemptCount: deliveryRow.attempt_count + 1,
+        },
+      }).catch(() => undefined);
     } catch (error) {
       await pool
         .query(
@@ -146,6 +170,17 @@ export async function notifyOperationalAlerts(
         { alertKey: alert.alertKey, severity: alert.severity },
         "Operational alert email delivery failed",
       );
+      await writeAdminAudit({
+        action: "alert.email_failed",
+        targetType: "operational_alert",
+        targetReference: alert.id,
+        result: "failed",
+        metadata: {
+          alertKey: alert.alertKey,
+          severity: alert.severity,
+          attemptCount: deliveryRow.attempt_count + 1,
+        },
+      }).catch(() => undefined);
     }
   }
 }

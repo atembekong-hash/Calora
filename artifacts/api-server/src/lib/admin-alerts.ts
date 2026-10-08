@@ -21,6 +21,16 @@ export type AdminAlert = {
   resolvedAt: string | null;
 };
 
+export type AdminAlertDelivery = {
+  alertKey: string;
+  severity: AlertSeverity;
+  status: "pending" | "sent" | "failed";
+  attemptCount: number;
+  createdAt: string;
+  lastAttemptAt: string | null;
+  sentAt: string | null;
+};
+
 type AlertObservation = {
   alertKey: string;
   severity: AlertSeverity;
@@ -198,6 +208,38 @@ export async function listOperationalAlerts(): Promise<AdminAlert[]> {
       LIMIT 100`,
   );
   return result.rows.map(mapAlert);
+}
+
+export async function listOperationalAlertDeliveries(
+  limit = 30,
+): Promise<AdminAlertDelivery[]> {
+  const result = await pool.query<{
+    alert_key: string;
+    severity: AlertSeverity;
+    status: "pending" | "sent" | "failed";
+    attempt_count: number;
+    created_at: Date;
+    last_attempt_at: Date | null;
+    sent_at: Date | null;
+  }>(
+    `SELECT a.alert_key, a.severity, d.status, d.attempt_count,
+            d.created_at,
+            d.last_attempt_at, d.sent_at
+       FROM calora_admin_alert_deliveries d
+       JOIN calora_admin_operational_alerts a ON a.id = d.alert_id
+      ORDER BY d.created_at DESC
+      LIMIT $1`,
+    [Math.min(Math.max(limit, 1), 90)],
+  );
+  return result.rows.map((row) => ({
+    alertKey: row.alert_key,
+    severity: row.severity,
+    status: row.status,
+    attemptCount: row.attempt_count,
+    createdAt: row.created_at.toISOString(),
+    lastAttemptAt: row.last_attempt_at?.toISOString() ?? null,
+    sentAt: row.sent_at?.toISOString() ?? null,
+  }));
 }
 
 export async function changeOperationalAlertStatus(
