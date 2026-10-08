@@ -15,6 +15,7 @@ import syncRouter from "./sync";
 import premiumRecipesRouter from "./premiumRecipes";
 import restaurantFoodsRouter from "./restaurantFoods";
 import profileRouter from "./profile";
+import privacyRightsRouter from "./privacyRights";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(syncRouter);
 router.use(premiumRecipesRouter);
 router.use(restaurantFoodsRouter);
 router.use(profileRouter);
+router.use(privacyRightsRouter);
 
 export default router;

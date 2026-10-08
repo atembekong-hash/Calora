@@ -3667,6 +3667,12 @@ export default function ProfileScreen() {
                     url: URLS.privacy,
                   },
                   {
+                    icon: "book-open" as const,
+                    title: "Legal Center",
+                    body: "Documents and review status",
+                    url: URLS.legalCenter,
+                  },
+                  {
                     icon: "file-text" as const,
                     title: "Terms of Use",
                     body: "Terms of use",

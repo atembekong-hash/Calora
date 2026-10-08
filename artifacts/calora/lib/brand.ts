@@ -35,6 +35,7 @@ export const URLS = {
   contact: 'https://mycaloraapp.com/contact',
   deleteAccount: 'https://mycaloraapp.com/delete-account',
   subscriptions: 'https://mycaloraapp.com/subscriptions',
+  legalCenter: 'https://mycaloraapp.com/legal-center',
   help: 'https://mycaloraapp.com/help',
 } as const;
 
