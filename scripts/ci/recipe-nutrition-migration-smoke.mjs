@@ -521,7 +521,7 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    11,
+    12,
     "historical upgrade must record the expected migration suffix",
   );
 } finally {
