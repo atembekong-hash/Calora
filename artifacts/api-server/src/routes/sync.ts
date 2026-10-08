@@ -21,9 +21,16 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
+import {
+  db,
+  aiCaptureCandidatesTable,
+  aiCaptureSessionsTable,
+  diaryEntriesTable,
+  usersTable,
+} from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { assertAccountWritable } from "../lib/account-deletion-state.js";
 import {
   matchesCaptureImageEvidence,
   normalizeImageEvidence,
@@ -126,18 +133,25 @@ function parseSyncMetadata(
   for (const [key, limit] of Object.entries(SYNC_METADATA_STRING_LIMITS)) {
     const value = payload[key];
     if (typeof value === "string" && value.trim()) {
-      metadata[key as keyof typeof SYNC_METADATA_STRING_LIMITS] = value.trim().slice(0, limit);
+      metadata[key as keyof typeof SYNC_METADATA_STRING_LIMITS] = value
+        .trim()
+        .slice(0, limit);
     }
   }
   for (const key of ["fiber", "sugar", "sodium"] as const) {
     const value = nonNeg(payload[key]);
     if (value !== null) metadata[key] = value;
   }
-  const imageEvidence = normalizeImageEvidence(payload.imageEvidence, accountScope, {
-    imageUrl: payload.imageUrl,
-    imageSource: payload.imageSource,
-    imageAssetKey: metadata.imageAssetKey,
-  }, { allowExact: true });
+  const imageEvidence = normalizeImageEvidence(
+    payload.imageEvidence,
+    accountScope,
+    {
+      imageUrl: payload.imageUrl,
+      imageSource: payload.imageSource,
+      imageAssetKey: metadata.imageAssetKey,
+    },
+    { allowExact: true },
+  );
   if (imageEvidence) metadata.imageEvidence = imageEvidence;
   return metadata;
 }
@@ -161,7 +175,10 @@ function parseDiaryUpsert(
       typeof payload.captureSessionId !== "string" ||
       !UUID_RE.test(payload.captureSessionId)
     )
-      return { ok: false, message: "captureSessionId must be a UUID when provided" };
+      return {
+        ok: false,
+        message: "captureSessionId must be a UUID when provided",
+      };
     captureSessionId = payload.captureSessionId;
   }
 
@@ -254,7 +271,9 @@ type RawMutation = {
 
 function parseRequest(
   body: unknown,
-): { ok: true; deviceId: string; mutations: RawMutation[] } | { ok: false; message: string } {
+):
+  | { ok: true; deviceId: string; mutations: RawMutation[] }
+  | { ok: false; message: string } {
   if (!body || typeof body !== "object")
     return { ok: false, message: "Request body is required" };
   const b = body as Record<string, unknown>;
@@ -284,7 +303,10 @@ function parseRequest(
       typeof mut.clientUpdatedAt !== "string" ||
       Number.isNaN(Date.parse(mut.clientUpdatedAt))
     )
-      return { ok: false, message: "clientUpdatedAt must be a valid date-time" };
+      return {
+        ok: false,
+        message: "clientUpdatedAt must be a valid date-time",
+      };
     if (
       !mut.payload ||
       typeof mut.payload !== "object" ||
@@ -439,6 +461,7 @@ router.post("/v1/sync", async (req, res) => {
     }
 
     const { mutations } = parsed;
+    await assertAccountWritable(user.id);
     const userId = await ensureUserRow(user.id, user.email);
 
     const accepted: string[] = [];
@@ -489,9 +512,15 @@ router.post("/v1/sync", async (req, res) => {
           let verifiedCaptureSessionId: string | null = null;
           if (v.captureSessionId !== null) {
             const sessions = await db
-              .select({ id: aiCaptureSessionsTable.id, mode: aiCaptureSessionsTable.mode })
+              .select({
+                id: aiCaptureSessionsTable.id,
+                mode: aiCaptureSessionsTable.mode,
+              })
               .from(aiCaptureSessionsTable)
-              .innerJoin(usersTable, eq(aiCaptureSessionsTable.userId, usersTable.id))
+              .innerJoin(
+                usersTable,
+                eq(aiCaptureSessionsTable.userId, usersTable.id),
+              )
               .where(
                 and(
                   eq(aiCaptureSessionsTable.id, v.captureSessionId),
@@ -522,22 +551,39 @@ router.post("/v1/sync", async (req, res) => {
               const candidates = await db
                 .select({ evidence: aiCaptureCandidatesTable.evidence })
                 .from(aiCaptureCandidatesTable)
-                .where(eq(aiCaptureCandidatesTable.sessionId, verifiedCaptureSessionId));
+                .where(
+                  eq(
+                    aiCaptureCandidatesTable.sessionId,
+                    verifiedCaptureSessionId,
+                  ),
+                );
               for (const candidate of candidates) {
                 const candidateEvidence = candidate.evidence?.imageEvidence;
-                if (matchesCaptureImageEvidence(candidateEvidence, v.syncMetadata.imageEvidence, user.id)) {
-                  verifiedEvidence = normalizeImageEvidence(candidateEvidence, user.id, undefined, { allowExact: true });
+                if (
+                  matchesCaptureImageEvidence(
+                    candidateEvidence,
+                    v.syncMetadata.imageEvidence,
+                    user.id,
+                  )
+                ) {
+                  verifiedEvidence = normalizeImageEvidence(
+                    candidateEvidence,
+                    user.id,
+                    undefined,
+                    { allowExact: true },
+                  );
                   break;
                 }
               }
             }
-            v.syncMetadata.imageEvidence = verifiedEvidence
-              ?? normalizeImageEvidence(v.syncMetadata.imageEvidence, user.id, {
+            v.syncMetadata.imageEvidence =
+              verifiedEvidence ??
+              normalizeImageEvidence(v.syncMetadata.imageEvidence, user.id, {
                 imageUrl: v.imageUrl,
                 imageSource: v.imageSource,
                 imageAssetKey: v.syncMetadata.imageAssetKey,
-              })
-              ?? undefined;
+              }) ??
+              undefined;
           }
 
           // Upsert on (user_id, client_id): re-sending the same clientId
@@ -548,12 +594,18 @@ router.post("/v1/sync", async (req, res) => {
           // The diary write and its idempotency ledger entry must be durable
           // together. In particular, a ledger failure must not leave an entry
           // that a retry would treat as already processed (or vice versa).
-          await db.transaction(async (tx) => {
-            const claim = await claimDiaryMutation(tx, userId, mutation, v.clientId);
-            if (claim === "stale") return "stale";
-            if (claim === "accepted") return "accepted";
+          await db
+            .transaction(async (tx) => {
+              const claim = await claimDiaryMutation(
+                tx,
+                userId,
+                mutation,
+                v.clientId,
+              );
+              if (claim === "stale") return "stale";
+              if (claim === "accepted") return "accepted";
 
-            await tx.execute(sql`
+              await tx.execute(sql`
               INSERT INTO calora_diary_entries
                 (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
                  calories, protein_g, carbs_g, fat_g, provenance,
@@ -587,31 +639,41 @@ router.post("/v1/sync", async (req, res) => {
                 client_updated_at   = EXCLUDED.client_updated_at,
                 updated_at          = now()
             `);
-            // The diary outbox is the durable retry path for capture approval.
-            // Once this owner-scoped session and its diary row are committed,
-            // acknowledge review → approved in the same transaction. The
-            // conditional update is idempotent and cannot affect another user.
-            if (verifiedCaptureSessionId) {
-              await tx
-                .update(aiCaptureSessionsTable)
-                .set({ status: "approved" })
-                .where(and(
-                  eq(aiCaptureSessionsTable.id, verifiedCaptureSessionId),
-                  eq(aiCaptureSessionsTable.userId, userId),
-                  eq(aiCaptureSessionsTable.status, "review"),
-                ));
-            }
-            return "apply";
-          }).then((claim) => {
-            if (claim === "stale") {
-              conflicts.push({ mutationId: mutation.mutationId, reason: "stale_write" });
-            } else {
-              accepted.push(mutation.mutationId);
-            }
-          });
+              // The diary outbox is the durable retry path for capture approval.
+              // Once this owner-scoped session and its diary row are committed,
+              // acknowledge review → approved in the same transaction. The
+              // conditional update is idempotent and cannot affect another user.
+              if (verifiedCaptureSessionId) {
+                await tx
+                  .update(aiCaptureSessionsTable)
+                  .set({ status: "approved" })
+                  .where(
+                    and(
+                      eq(aiCaptureSessionsTable.id, verifiedCaptureSessionId),
+                      eq(aiCaptureSessionsTable.userId, userId),
+                      eq(aiCaptureSessionsTable.status, "review"),
+                    ),
+                  );
+              }
+              return "apply";
+            })
+            .then((claim) => {
+              if (claim === "stale") {
+                conflicts.push({
+                  mutationId: mutation.mutationId,
+                  reason: "stale_write",
+                });
+              } else {
+                accepted.push(mutation.mutationId);
+              }
+            });
         } else if (mutation.operation === "delete") {
           const clientId = mutation.payload.clientId;
-          if (typeof clientId !== "string" || clientId.length < 1 || clientId.length > 128) {
+          if (
+            typeof clientId !== "string" ||
+            clientId.length < 1 ||
+            clientId.length > 128
+          ) {
             conflicts.push({
               mutationId: mutation.mutationId,
               reason: "validation_failed",
@@ -621,24 +683,34 @@ router.post("/v1/sync", async (req, res) => {
 
           // Scoped delete: the WHERE clause ensures one user can never
           // remove another user's diary row even if they guess a client_id.
-          await db.transaction(async (tx) => {
-            const claim = await claimDiaryMutation(tx, userId, mutation, clientId);
-            if (claim === "stale") return "stale";
-            if (claim === "accepted") return "accepted";
+          await db
+            .transaction(async (tx) => {
+              const claim = await claimDiaryMutation(
+                tx,
+                userId,
+                mutation,
+                clientId,
+              );
+              if (claim === "stale") return "stale";
+              if (claim === "accepted") return "accepted";
 
-            await tx.execute(sql`
+              await tx.execute(sql`
               DELETE FROM calora_diary_entries
               WHERE user_id = ${userId}::uuid
                 AND client_id = ${clientId}
             `);
-            return "apply";
-          }).then((claim) => {
-            if (claim === "stale") {
-              conflicts.push({ mutationId: mutation.mutationId, reason: "stale_write" });
-            } else {
-              accepted.push(mutation.mutationId);
-            }
-          });
+              return "apply";
+            })
+            .then((claim) => {
+              if (claim === "stale") {
+                conflicts.push({
+                  mutationId: mutation.mutationId,
+                  reason: "stale_write",
+                });
+              } else {
+                accepted.push(mutation.mutationId);
+              }
+            });
         } else {
           // Unknown diary operation: report as conflict rather than silently
           // discarding the mutation.
@@ -648,15 +720,24 @@ router.post("/v1/sync", async (req, res) => {
           });
         }
       } catch (err) {
-        if (classifyAccountDeletionError(err) === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
+        if (
+          classifyAccountDeletionError(err) ===
+          ACCOUNT_DELETION_FENCE_ERROR_CLASS
+        ) {
           deletionFenceRejectionCount += 1;
           continue;
         }
-        logger.error({
+        logger.error(
+          {
+            mutationId: mutation.mutationId,
+            err,
+          },
+          "Sync mutation failed",
+        );
+        conflicts.push({
           mutationId: mutation.mutationId,
-          err,
-        }, "Sync mutation failed");
-        conflicts.push({ mutationId: mutation.mutationId, reason: "server_error" });
+          reason: "server_error",
+        });
       }
     }
 
@@ -665,9 +746,9 @@ router.post("/v1/sync", async (req, res) => {
         accountDeletionFenceSignal("/v1/sync", deletionFenceRejectionCount),
         "Account deletion fence rejected sync writes",
       );
-      res
-        .status(503)
-        .json({ message: "Sync is unavailable right now. Please try again later." });
+      res.status(503).json({
+        message: "Sync is unavailable right now. Please try again later.",
+      });
       return;
     }
 
@@ -686,19 +767,21 @@ router.post("/v1/sync", async (req, res) => {
   } catch (err) {
     const errorClass = classifyAccountDeletionError(err);
     if (errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
+      // prettier-ignore
+      const syncFenceSignal = accountDeletionFenceSignal("/v1/sync", Math.max(1, deletionFenceRejectionCount));
       logger.warn(
-        accountDeletionFenceSignal("/v1/sync", Math.max(1, deletionFenceRejectionCount)),
+        syncFenceSignal,
         "Account deletion fence rejected sync request",
       );
-      res
-        .status(503)
-        .json({ message: "Sync is unavailable right now. Please try again later." });
+      res.status(503).json({
+        message: "Sync is unavailable right now. Please try again later.",
+      });
       return;
     }
     logger.error({ err }, "Sync request failed");
-    res
-      .status(503)
-      .json({ message: "Sync is unavailable right now. Please try again later." });
+    res.status(503).json({
+      message: "Sync is unavailable right now. Please try again later.",
+    });
   }
 });
 

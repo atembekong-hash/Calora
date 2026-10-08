@@ -1,8 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { FatSecretProviderError, getPremiumRecipe, listPremiumRecipes, premiumProviderStatus } from "../lib/premiumRecipes";
+import {
+  FatSecretProviderError,
+  getPremiumRecipe,
+  listPremiumRecipes,
+  premiumProviderStatus,
+} from "../lib/premiumRecipes";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { checkRateLimit } from "../lib/rate-limit";
+import { hasActivePremiumEntitlement } from "../lib/revenuecat";
 import { parseRecipeListFilters } from "../lib/recipeQuery";
 import {
   accountDeletionFenceSignal,
@@ -25,13 +31,21 @@ router.use((req, res, next) => {
 
 type PremiumAccess =
   | { allowed: true; userId: string }
-  | { allowed: false; status: 401 | 429 | 503; message: string; retryAfterSecs?: number };
+  | {
+      allowed: false;
+      status: 401 | 403 | 429 | 503;
+      message: string;
+      retryAfterSecs?: number;
+    };
 
 function requestIp(req: Request): string {
   return req.ip ?? req.socket?.remoteAddress ?? "unknown";
 }
 
-async function authorizePremiumAccess(req: Request, route: string): Promise<PremiumAccess> {
+async function authorizePremiumAccess(
+  req: Request,
+  route: string,
+): Promise<PremiumAccess> {
   let user;
   try {
     user = await verifyBearerToken(req);
@@ -39,7 +53,11 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
     user = null;
   }
   if (!user) {
-    return { allowed: false, status: 401, message: "Sign in to access Plus recipes." };
+    return {
+      allowed: false,
+      status: 401,
+      message: "Sign in to access Plus recipes.",
+    };
   }
 
   const [accountRateResult, ipRateResult] = await Promise.allSettled([
@@ -56,14 +74,21 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
       { failClosed: true },
     ),
   ]);
-  if (accountRateResult.status === "rejected" || ipRateResult.status === "rejected") {
+  if (
+    accountRateResult.status === "rejected" ||
+    ipRateResult.status === "rejected"
+  ) {
     const failedRateLimitReasons = [
       ...(accountRateResult.status === "rejected"
         ? [accountRateResult.reason]
         : []),
       ...(ipRateResult.status === "rejected" ? [ipRateResult.reason] : []),
     ];
-    if (failedRateLimitReasons.some((reason) => classifyAccountDeletionError(reason))) {
+    if (
+      failedRateLimitReasons.some((reason) =>
+        classifyAccountDeletionError(reason),
+      )
+    ) {
       logger.warn(
         accountDeletionFenceSignal(route),
         "Account deletion fence rejected premium recipe request",
@@ -72,12 +97,17 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
     return {
       allowed: false,
       status: 503,
-      message: "Premium recipes are temporarily unavailable. Please try again shortly.",
+      message:
+        "Premium recipes are temporarily unavailable. Please try again shortly.",
     };
   }
   const accountRate = accountRateResult.value;
   const ipRate = ipRateResult.value;
-  const deniedRate = !accountRate.allowed ? accountRate : !ipRate.allowed ? ipRate : null;
+  const deniedRate = !accountRate.allowed
+    ? accountRate
+    : !ipRate.allowed
+      ? ipRate
+      : null;
   if (deniedRate) {
     return {
       allowed: false,
@@ -88,22 +118,48 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
       retryAfterSecs: deniedRate.retryAfterSecs,
     };
   }
+  try {
+    if (!(await hasActivePremiumEntitlement(user.id))) {
+      return {
+        allowed: false,
+        status: 403,
+        message: "An active Premium subscription is required for Plus recipes.",
+      };
+    }
+  } catch (error) {
+    logger.warn({ err: error }, "Premium entitlement verification unavailable");
+    return {
+      allowed: false,
+      status: 503,
+      message:
+        "Premium recipes are temporarily unavailable. Please try again shortly.",
+    };
+  }
   return { allowed: true, userId: user.id };
 }
 
-async function requirePremiumAccess(req: Request, res: Response): Promise<string | null> {
+async function requirePremiumAccess(
+  req: Request,
+  res: Response,
+): Promise<string | null> {
+  // prettier-ignore
   const route = req.params.sourceId ? "/v1/premium-recipes/:sourceId" : "/v1/premium-recipes";
   const access = await authorizePremiumAccess(req, route);
   if (access.allowed) return access.userId;
-  if (access.retryAfterSecs) res.setHeader("Retry-After", String(access.retryAfterSecs));
+  if (access.retryAfterSecs)
+    res.setHeader("Retry-After", String(access.retryAfterSecs));
   res.status(access.status).json({ message: access.message });
   return null;
 }
 
 function validatedFreshnessDay(value: unknown): string | undefined {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return undefined;
   const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? undefined : value;
+  return Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+    ? undefined
+    : value;
 }
 
 router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
@@ -115,12 +171,18 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
     return;
   }
   const parsedLimit = Number(req.query.limit ?? 18);
-  const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(Math.floor(parsedLimit), 1), 30) : 18;
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(Math.max(Math.floor(parsedLimit), 1), 30)
+    : 18;
   const parsedOffset = Number(req.query.offset ?? 0);
-  const offset = Number.isFinite(parsedOffset) ? Math.max(Math.floor(parsedOffset), 0) : 0;
+  const offset = Number.isFinite(parsedOffset)
+    ? Math.max(Math.floor(parsedOffset), 0)
+    : 0;
   const freshnessDay = validatedFreshnessDay(req.query.freshnessDay);
   if (req.query.freshnessDay !== undefined && freshnessDay === undefined) {
-    res.status(400).json({ message: "freshnessDay must be a valid UTC date in YYYY-MM-DD format." });
+    res.status(400).json({
+      message: "freshnessDay must be a valid UTC date in YYYY-MM-DD format.",
+    });
     return;
   }
   try {
@@ -137,16 +199,23 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
     const status = premiumProviderStatus();
     if (error instanceof FatSecretProviderError) {
       (req.log ?? logger).warn(
-        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus, providerMessage: error.providerMessage },
+        {
+          kind: error.kind,
+          providerCode: error.providerCode,
+          httpStatus: error.httpStatus,
+          providerMessage: error.providerMessage,
+        },
         "premium recipe provider unavailable",
       );
-      const restricted = error.kind === "restricted" || error.kind === "authentication";
+      const restricted =
+        error.kind === "restricted" || error.kind === "authentication";
       res.status(restricted ? 200 : 502).json({
         ...status,
         status: restricted ? "restricted" : "error",
         recipes: [],
         nextOffset: null,
-        terminalReason: "The provider is unavailable, so no additional pages can be loaded.",
+        terminalReason:
+          "The provider is unavailable, so no additional pages can be loaded.",
         message: restricted
           ? "Premium recipes are not enabled for this provider account."
           : error.kind === "rate_limited"
@@ -155,29 +224,51 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
       });
       return;
     }
-    (req.log ?? logger).warn({ err: error }, "premium recipe provider unavailable");
-    res.status(502).json({ ...status, status: "error", recipes: [], nextOffset: null, terminalReason: "The provider is unavailable, so no additional pages can be loaded.", message: "Premium recipes are unavailable right now. Try again shortly." });
+    (req.log ?? logger).warn(
+      { err: error },
+      "premium recipe provider unavailable",
+    );
+    res.status(502).json({
+      ...status,
+      status: "error",
+      recipes: [],
+      nextOffset: null,
+      terminalReason:
+        "The provider is unavailable, so no additional pages can be loaded.",
+      message: "Premium recipes are unavailable right now. Try again shortly.",
+    });
   }
 });
 
 router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
-  if (!await requirePremiumAccess(req, res)) return;
-  const sourceId = Array.isArray(req.params.sourceId) ? req.params.sourceId[0] : req.params.sourceId;
+  if (!(await requirePremiumAccess(req, res))) return;
+  const sourceId = Array.isArray(req.params.sourceId)
+    ? req.params.sourceId[0]
+    : req.params.sourceId;
   try {
     const recipe = await getPremiumRecipe(sourceId);
     if (!recipe) {
       const status = premiumProviderStatus();
-      res.status(404).json({ message: status.message ?? "Premium recipe is unavailable", status: status.status });
+      res.status(404).json({
+        message: status.message ?? "Premium recipe is unavailable",
+        status: status.status,
+      });
       return;
     }
     res.json(recipe);
   } catch (error) {
     if (error instanceof FatSecretProviderError) {
       (req.log ?? logger).warn(
-        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus, providerMessage: error.providerMessage },
+        {
+          kind: error.kind,
+          providerCode: error.providerCode,
+          httpStatus: error.httpStatus,
+          providerMessage: error.providerMessage,
+        },
         "premium recipe detail unavailable",
       );
-      const restricted = error.kind === "restricted" || error.kind === "authentication";
+      const restricted =
+        error.kind === "restricted" || error.kind === "authentication";
       res.status(restricted ? 503 : 502).json({
         message: restricted
           ? "Premium recipes are not enabled for this provider account."
@@ -185,7 +276,10 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
       });
       return;
     }
-    (req.log ?? logger).warn({ err: error }, "premium recipe detail unavailable");
+    (req.log ?? logger).warn(
+      { err: error },
+      "premium recipe detail unavailable",
+    );
     res.status(502).json({ message: "Premium recipe provider unavailable" });
   }
 });

@@ -1,18 +1,32 @@
-import express from 'express';
-import request from 'supertest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { queued, dbMock } = vi.hoisted(() => {
   const queued: unknown[][] = [];
 
   function chain() {
     const value: Record<string, unknown> = {};
-    for (const method of ['from', 'innerJoin', 'where', 'limit', 'values', 'set', 'returning', 'onConflictDoUpdate', 'execute']) {
+    for (const method of [
+      "from",
+      "innerJoin",
+      "where",
+      "limit",
+      "values",
+      "set",
+      "returning",
+      "onConflictDoUpdate",
+      "execute",
+    ]) {
       value[method] = () => value;
     }
-    value.then = (resolve: (rows: unknown[]) => void, reject: (error: unknown) => void) => {
+    value.then = (
+      resolve: (rows: unknown[]) => void,
+      reject: (error: unknown) => void,
+    ) => {
       const next = queued.shift();
-      if (!next) return reject(new Error('profile.test: no queued database result'));
+      if (!next)
+        return reject(new Error("profile.test: no queued database result"));
       return resolve(next);
     };
     return value;
@@ -24,54 +38,63 @@ const { queued, dbMock } = vi.hoisted(() => {
     update: () => chain(),
     delete: () => chain(),
     execute: () => chain(),
-    transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => callback(dbMock)),
+    transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) =>
+      callback(dbMock),
+    ),
   };
   return { queued, dbMock };
 });
 
-vi.mock('@workspace/db', () => ({
+vi.mock("@workspace/db", () => ({
   db: dbMock,
   profilesTable: {
-    userId: 'profile.user_id',
-    goal: 'profile.goal',
-    activityLevel: 'profile.activity_level',
-    dietPreference: 'profile.diet_preference',
-    age: 'profile.age',
-    heightCm: 'profile.height_cm',
-    weightKg: 'profile.weight_kg',
-    targetWeightKg: 'profile.target_weight_kg',
-    calorieTarget: 'profile.calorie_target',
-    targetMode: 'profile.target_mode',
-    proteinTargetGrams: 'profile.protein_target_grams',
-    carbsTargetGrams: 'profile.carbs_target_grams',
-    fatTargetGrams: 'profile.fat_target_grams',
-    units: 'profile.units',
-    consentVersion: 'profile.consent_version',
-    consentAcceptedAt: 'profile.consent_accepted_at',
-    updatedAt: 'profile.updated_at',
+    userId: "profile.user_id",
+    goal: "profile.goal",
+    activityLevel: "profile.activity_level",
+    dietPreference: "profile.diet_preference",
+    age: "profile.age",
+    heightCm: "profile.height_cm",
+    weightKg: "profile.weight_kg",
+    targetWeightKg: "profile.target_weight_kg",
+    calorieTarget: "profile.calorie_target",
+    targetMode: "profile.target_mode",
+    proteinTargetGrams: "profile.protein_target_grams",
+    carbsTargetGrams: "profile.carbs_target_grams",
+    fatTargetGrams: "profile.fat_target_grams",
+    units: "profile.units",
+    consentVersion: "profile.consent_version",
+    consentAcceptedAt: "profile.consent_accepted_at",
+    updatedAt: "profile.updated_at",
   },
   usersTable: {
-    id: 'user.id',
-    displayName: 'user.display_name',
+    id: "user.id",
+    displayName: "user.display_name",
   },
 }));
 
 const verifyBearerToken = vi.fn();
-vi.mock('../lib/supabase-auth.js', () => ({
+vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
 }));
 
 const ensureUserRow = vi.fn();
-vi.mock('../lib/user-rows.js', () => ({
+vi.mock("../lib/user-rows.js", () => ({
   ensureUserRow: (...args: unknown[]) => ensureUserRow(...args),
 }));
-
-vi.mock('drizzle-orm', () => ({
-  eq: (left: unknown, right: unknown) => ({ left, right }),
-  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
+vi.mock("../lib/account-deletion-state.js", () => ({
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  classifyAccountDeletionError: vi.fn().mockReturnValue(null),
 }));
 
-import profileRouter from '../routes/profile.js';
+vi.mock("drizzle-orm", () => ({
+  eq: (left: unknown, right: unknown) => ({ left, right }),
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+    strings,
+    values,
+  }),
+}));
+
+import profileRouter from "../routes/profile.js";
 
 function buildApp() {
   const app = express();
@@ -81,84 +104,89 @@ function buildApp() {
 }
 
 const input = {
-  name: 'Alex',
-  goal: 'lose',
-  activity: 'moderate',
-  diet: 'Everything',
+  name: "Alex",
+  goal: "lose",
+  activity: "moderate",
+  diet: "Everything",
   age: 32,
   heightCm: 170,
   weightKg: 76,
   targetWeightKg: 70,
   calorieTarget: 1800,
-  consentVersion: 'calora-onboarding-v1',
+  consentVersion: "calora-onboarding-v1",
 };
 
 const row = {
-  goal: 'lose',
-  activityLevel: 'moderate',
-  dietPreference: 'Everything',
+  goal: "lose",
+  activityLevel: "moderate",
+  dietPreference: "Everything",
   age: 32,
-  heightCm: '170.0',
-  weightKg: '76.0',
-  targetWeightKg: '70.0',
+  heightCm: "170.0",
+  weightKg: "76.0",
+  targetWeightKg: "70.0",
   calorieTarget: 1800,
-  consentVersion: 'calora-onboarding-v1',
-  updatedAt: new Date('2026-09-09T12:00:00.000Z'),
+  consentVersion: "calora-onboarding-v1",
+  updatedAt: new Date("2026-09-09T12:00:00.000Z"),
 };
 
-describe('profile persistence routes', () => {
+describe("profile persistence routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queued.length = 0;
-    verifyBearerToken.mockResolvedValue({ id: 'auth-user', email: 'alex@example.com' });
-    ensureUserRow.mockResolvedValue('internal-user');
+    verifyBearerToken.mockResolvedValue({
+      id: "auth-user",
+      email: "alex@example.com",
+    });
+    ensureUserRow.mockResolvedValue("internal-user");
   });
 
-  it('returns 404 for an authenticated account without a saved profile', async () => {
+  it("returns 404 for an authenticated account without a saved profile", async () => {
     queued.push([]);
 
     const response = await request(buildApp())
-      .get('/v1/profile')
-      .set('Authorization', 'Bearer token');
+      .get("/v1/profile")
+      .set("Authorization", "Bearer token");
 
     expect(response.status).toBe(404);
-    expect(response.body.message).toContain('No profile');
+    expect(response.body.message).toContain("No profile");
   });
 
-  it('round-trips a durable profile without trusting a client user id', async () => {
-    queued.push([{ profile: row, name: 'Alex' }]);
+  it("round-trips a durable profile without trusting a client user id", async () => {
+    queued.push([{ profile: row, name: "Alex" }]);
 
     const getResponse = await request(buildApp())
-      .get('/v1/profile')
-      .set('Authorization', 'Bearer token');
+      .get("/v1/profile")
+      .set("Authorization", "Bearer token");
 
     expect(getResponse.status).toBe(200);
     expect(getResponse.body).toMatchObject({
-      name: 'Alex',
-      goal: 'lose',
-      activity: 'moderate',
+      name: "Alex",
+      goal: "lose",
+      activity: "moderate",
       heightCm: 170,
       calorieTarget: 1800,
     });
-    expect(ensureUserRow).toHaveBeenCalledWith('auth-user', 'alex@example.com');
+    expect(ensureUserRow).toHaveBeenCalledWith("auth-user", "alex@example.com");
   });
 
-  it('returns legacy unset preferences as unknown rather than inferred defaults', async () => {
-    queued.push([{
-      profile: {
-        ...row,
-        targetMode: null,
-        proteinTargetGrams: null,
-        carbsTargetGrams: null,
-        fatTargetGrams: null,
-        units: null,
+  it("returns legacy unset preferences as unknown rather than inferred defaults", async () => {
+    queued.push([
+      {
+        profile: {
+          ...row,
+          targetMode: null,
+          proteinTargetGrams: null,
+          carbsTargetGrams: null,
+          fatTargetGrams: null,
+          units: null,
+        },
+        name: "Alex",
       },
-      name: 'Alex',
-    }]);
+    ]);
 
     const response = await request(buildApp())
-      .get('/v1/profile')
-      .set('Authorization', 'Bearer token');
+      .get("/v1/profile")
+      .set("Authorization", "Bearer token");
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -170,44 +198,66 @@ describe('profile persistence routes', () => {
     });
   });
 
-  it('upserts onboarding preferences and records the initial consent atomically', async () => {
-    queued.push([], [{ ...row, userId: 'internal-user', targetMode: 'automatic', proteinTargetGrams: 140, carbsTargetGrams: 180, fatTargetGrams: 60, units: 'imperial' }], [], []);
+  it("upserts onboarding preferences and records the initial consent atomically", async () => {
+    queued.push(
+      [],
+      [
+        {
+          ...row,
+          userId: "internal-user",
+          targetMode: "automatic",
+          proteinTargetGrams: 140,
+          carbsTargetGrams: 180,
+          fatTargetGrams: 60,
+          units: "imperial",
+        },
+      ],
+      [],
+      [],
+    );
     const putResponse = await request(buildApp())
-      .put('/v1/profile')
-      .set('Authorization', 'Bearer token')
-      .send({ ...input, targetMode: 'automatic', proteinTargetGrams: 140, carbsTargetGrams: 180, fatTargetGrams: 60, units: 'imperial' });
+      .put("/v1/profile")
+      .set("Authorization", "Bearer token")
+      .send({
+        ...input,
+        targetMode: "automatic",
+        proteinTargetGrams: 140,
+        carbsTargetGrams: 180,
+        fatTargetGrams: 60,
+        units: "imperial",
+      });
 
     expect(putResponse.status).toBe(200);
     expect(putResponse.body).toMatchObject({
-      name: 'Alex',
-      consentVersion: 'calora-onboarding-v1',
-      targetMode: 'automatic',
+      name: "Alex",
+      consentVersion: "calora-onboarding-v1",
+      targetMode: "automatic",
       proteinTargetGrams: 140,
-      units: 'imperial',
+      units: "imperial",
     });
 
     queued.push([], []);
     const deleteResponse = await request(buildApp())
-      .delete('/v1/profile')
-      .set('Authorization', 'Bearer token');
+      .delete("/v1/profile")
+      .set("Authorization", "Bearer token");
 
     expect(deleteResponse.status).toBe(204);
   });
 
-  it('rejects a forged onboarding consent version', async () => {
+  it("rejects a forged onboarding consent version", async () => {
     const response = await request(buildApp())
-      .put('/v1/profile')
-      .set('Authorization', 'Bearer token')
-      .send({ ...input, consentVersion: 'arbitrary-client-version' });
+      .put("/v1/profile")
+      .set("Authorization", "Bearer token")
+      .send({ ...input, consentVersion: "arbitrary-client-version" });
 
     expect(response.status).toBe(400);
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
-  it('rejects unauthenticated profile access', async () => {
+  it("rejects unauthenticated profile access", async () => {
     verifyBearerToken.mockResolvedValue(null);
 
-    const response = await request(buildApp()).get('/v1/profile');
+    const response = await request(buildApp()).get("/v1/profile");
 
     expect(response.status).toBe(401);
   });

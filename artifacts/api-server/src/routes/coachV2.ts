@@ -51,8 +51,12 @@ const COACH_REPORT_REASONS = new Set([
   "other",
 ]);
 
-type ProviderMessage = { role: "user" | "assistant"; content: string };
-type CoachSafetyKind = "immediate" | "medical" | "restriction";
+type ProviderMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+type CoachSafetyKind =
+  "immediate" | "medical" | "restriction" | "diabetes" | "minor";
 
 const immediateSafetyPatterns: RegExp[] = [
   /\b(?:self[- ]?(?:harm|injur)|suicid(?:e|al)?|(?:hurt|harm) myself|kill myself|end my life)\b/i,
@@ -65,6 +69,14 @@ const restrictionSafetyPatterns: RegExp[] = [
   /\b(?:under|below|less than|only)\s*\d{2,3}\s*(?:kcal|calories)\b/i,
   /\b(?:water|extended|multi[- ]?day|\d{2,3}[- ]?hour|\d+[- ]?day)\s+fast(?:ing)?\b/i,
   /\b(?:fast(?:ing)?\s+(?:for|more than)\s+\d{2,3}\s*(?:hours|days))\b/i,
+];
+
+const diabetesSafetyPatterns: RegExp[] = [
+  /\b(?:diabet(?:e|es|ic)|insulin|glucose|blood\s+sugar|hypo(?:glyc|g?lyc)emia|hyperglycemia|carb(?:ohydrate)?\s+ratio|continuous\s+glucose|\bcgm\b|a1c)\b/i,
+];
+
+const minorSafetyPatterns: RegExp[] = [
+  /\b(?:minor|under\s*18|1[3-7]\s*(?:years?\s*old|yo)|teen(?:ager)?|child|pediatric)\b/i,
 ];
 
 const medicalSafetyPatterns: RegExp[] = [
@@ -90,6 +102,12 @@ export function coachSafetyKind(content: string): CoachSafetyKind | null {
   if (restrictionSafetyPatterns.some((pattern) => pattern.test(normalized))) {
     return "restriction";
   }
+  if (diabetesSafetyPatterns.some((pattern) => pattern.test(normalized))) {
+    return "diabetes";
+  }
+  if (minorSafetyPatterns.some((pattern) => pattern.test(normalized))) {
+    return "minor";
+  }
   if (medicalSafetyPatterns.some((pattern) => pattern.test(normalized))) {
     return "medical";
   }
@@ -102,6 +120,12 @@ function coachSafetyReply(kind: CoachSafetyKind): string {
   }
   if (kind === "restriction") {
     return "I can't help with restrictive, compensatory, or eating-disorder-related nutrition or weight instructions. Please contact a qualified clinician or eating-disorder support service, and reach out to a trusted person if you need support now.";
+  }
+  if (kind === "diabetes") {
+    return "I can share general nutrition information, but I can't give diabetes, glucose, insulin, carb-ratio, or medication instructions. Please ask your diabetes clinician or pharmacist for advice tailored to you.";
+  }
+  if (kind === "minor") {
+    return "I can share general nutrition education, but I can't provide personalized calorie, weight-loss, or health instructions for someone under 18. Please involve a parent, guardian, or qualified clinician.";
   }
   return "I can't diagnose, treat, give medication or pregnancy-specific guidance, replace professional care, or provide certainty about a health outcome. Please contact a qualified clinician or pharmacist for advice tailored to your situation.";
 }
@@ -184,12 +208,12 @@ function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
 }
 
 export function buildCoachV2Messages(input: {
-  history: Array<{ role: CoachV2Role; content: string }>;
+  history: Array<{ role: ProviderMessage["role"]; content: string }>;
   snapshot: CoachV2Snapshot | null;
 }): ProviderMessage[] {
   return [
     {
-      role: "user",
+      role: "system",
       content: [
         "You are Calora Coach, a supportive general wellness and app-navigation assistant.",
         "Give concise, practical responses. You are not medical care: do not diagnose, provide treatment recommendations, prescribe, give medication or pregnancy-specific guidance, replace professional care, promise certainty, or provide emergency advice. Encourage qualified help for symptoms, eating-disorder concerns, pregnancy-specific questions, medication decisions, or emergencies.",

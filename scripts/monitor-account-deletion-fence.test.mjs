@@ -519,13 +519,10 @@ globalThis.fetch = async (url, options) => {
       },
     );
 
-    assert.deepEqual(
-      JSON.parse(await readFile(fetchCalledPath, "utf8")),
-      {
-        url: "https://example.test/api/version",
-        redirect: "manual",
-      },
-    );
+    assert.deepEqual(JSON.parse(await readFile(fetchCalledPath, "utf8")), {
+      url: "https://example.test/api/version",
+      redirect: "manual",
+    });
     await assert.rejects(access(reportPath));
     await assert.rejects(access(payloadReadPath));
   } finally {
@@ -953,7 +950,9 @@ test("keeps legacy signals readable while rejecting unsafe schema revisions", ()
     count: 2,
     rawLogContent,
   };
-  const report = summarizeAccountDeletionFenceLogs(JSON.stringify(legacySignal));
+  const report = summarizeAccountDeletionFenceLogs(
+    JSON.stringify(legacySignal),
+  );
 
   assert.deepEqual(ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS, [
     undefined,
@@ -1032,15 +1031,13 @@ test("uses one shared fence schema for API construction and monitor parsing", ()
 const ACCOUNT_DELETION_FENCE_CALL_SITES = [
   {
     file: "capture.ts",
-    invocation:
-      'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
+    invocation: 'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
     routes: ["/v1/capture/:sessionId/approve"],
     countSource: "builder default count",
   },
   {
     file: "capture.ts",
-    invocation:
-      'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
+    invocation: 'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
     routes: ["/v1/capture/:sessionId/approve"],
     countSource: "builder default count",
   },
@@ -1250,23 +1247,19 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     /accountDeletionFenceSignal\(\s*route:\s*string,\s*count\s*=\s*1/,
   );
 
-  const actualCallSites = routeSources.flatMap(({ file, source }) =>
-    source
-      .split("\n")
-      .map((line, lineNumber) => ({
+  const actualCallSites = routeSources.flatMap(({ file, source }) => {
+    const calls = [];
+    const callPattern = /accountDeletionFenceSignal\((?:[^()]|\([^()]*\))*\)/g;
+    for (const match of source.matchAll(callPattern)) {
+      const invocation = match[0].replace(/\s+/g, " ").trim();
+      calls.push({
         file,
-        lineNumber,
-        line: line.trim(),
-      }))
-      .filter(({ line }) => line.includes("accountDeletionFenceSignal("))
-      .map(({ file, lineNumber, line }) => ({
-        file,
-        lineNumber,
-        invocation: line
-          .slice(line.indexOf("accountDeletionFenceSignal("))
-          .replace(/,$/, ""),
-      })),
-  );
+        lineNumber: source.slice(0, match.index ?? 0).split("\n").length,
+        invocation,
+      });
+    }
+    return calls;
+  });
   assert.deepEqual(
     actualCallSites.map(({ file, invocation }) => ({ file, invocation })),
     ACCOUNT_DELETION_FENCE_CALL_SITES.map(({ file, invocation }) => ({

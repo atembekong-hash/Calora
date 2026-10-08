@@ -44,6 +44,10 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
         IF rate_limit_user_id IS NOT NULL THEN
           PERFORM calora_assert_deletion_writable(rate_limit_user_id);
         END IF;
+      ELSIF TG_TABLE_NAME = 'calora_coach_fact_context_idempotency' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_user_id);
+      ELSIF TG_TABLE_NAME = 'calora_cohort_memberships' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_user_id);
       END IF;
       RETURN NEW;
     END;
@@ -57,8 +61,29 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_referral_qualifications",
     "calora_recipe_media",
     "calora_capture_rate_limits",
+    "calora_coach_fact_context_idempotency",
+    "calora_cohort_memberships",
   ];
+  const optionalTables = new Set([
+    "calora_coach_fact_context_idempotency",
+    "calora_cohort_memberships",
+  ]);
   for (const table of fencedTables) {
+    if (optionalTables.has(table)) {
+      await client.query(`
+        DO $$
+        BEGIN
+          IF to_regclass('public.${table}') IS NOT NULL THEN
+            EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.${table}';
+            EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
+              BEFORE INSERT OR UPDATE ON public.${table}
+              FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
+          END IF;
+        END
+        $$;
+      `);
+      continue;
+    }
     await client.query(
       `DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`,
     );
