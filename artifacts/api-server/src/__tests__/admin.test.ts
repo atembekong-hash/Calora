@@ -151,10 +151,26 @@ describe("restricted admin control plane", () => {
       "No user nutrition or Coach message content is displayed",
     );
     expect(response.text).not.toContain("export database");
+    expect(response.text).toContain("Continue with Google");
+    expect(response.text).toContain("location.origin+'/auth/callback'");
+    expect(response.text).toContain("code_challenge_method','s256'");
+    expect(response.text).toContain("grant_type=pkce");
+    expect(response.text).toContain("calora-admin-pkce-verifier");
 
     const script = response.text.match(/<script>([\s\S]*)<\/script>/)?.[1];
     expect(script).toContain("replace(/\\/$/,'')");
     expect(() => new Function(script!)).not.toThrow();
+  });
+
+  it("serves the same restricted console at the fixed OAuth callback path", async () => {
+    const response = await request(app())
+      .get("/auth/callback")
+      .set("Host", "admin.mycaloraapp.com");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("resumeGoogleLogin");
+    expect(response.headers["x-robots-tag"]).toBe(
+      "noindex, nofollow, noarchive, nosnippet",
+    );
   });
 
   it("returns no operational data when the server-side role check denies access", async () => {
