@@ -445,6 +445,21 @@ export const consentEventsTable = pgTable("calora_consent_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const privacyRightsRequestsTable = pgTable("calora_privacy_rights_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  requestType: text("request_type").notNull(),
+  status: text("status").notNull().default("received"),
+  requesterNote: text("requester_note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+}, (table) => ({
+  userCreatedIndex: index("calora_privacy_rights_requests_user_created_idx").on(table.userId, table.createdAt),
+  requestTypeCheck: check("calora_privacy_rights_requests_type_chk", sql`${table.requestType} IN ('access', 'correct', 'delete', 'portability', 'restrict', 'withdraw_consent')`),
+  statusCheck: check("calora_privacy_rights_requests_status_chk", sql`${table.status} IN ('received', 'needs_verification', 'in_review', 'completed', 'declined')`),
+}));
+
 /**
  * The current server-authoritative decision for a narrowly-scoped Coach data
  * purpose. This ledger deliberately contains consent metadata only: never
@@ -602,6 +617,7 @@ export const insertAiCaptureCandidateSchema = createInsertSchema(aiCaptureCandid
 export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
 export const insertSyncMutationSchema = createInsertSchema(syncMutationsTable);
 export const insertConsentEventSchema = createInsertSchema(consentEventsTable);
+export const insertPrivacyRightsRequestSchema = createInsertSchema(privacyRightsRequestsTable);
 export const insertCoachFactContextConsentSchema = createInsertSchema(coachFactContextConsentsTable);
 export const insertServerConfigSchema = createInsertSchema(serverConfigTable);
 export const insertCohortMembershipSchema = createInsertSchema(cohortMembershipsTable);
@@ -674,6 +690,7 @@ export type AiCaptureCandidate = typeof aiCaptureCandidatesTable.$inferSelect;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
 export type SyncMutation = typeof syncMutationsTable.$inferSelect;
 export type ConsentEvent = typeof consentEventsTable.$inferSelect;
+export type PrivacyRightsRequest = typeof privacyRightsRequestsTable.$inferSelect;
 export type ServerConfig = typeof serverConfigTable.$inferSelect;
 export type CohortMembership = typeof cohortMembershipsTable.$inferSelect;
 export type CoachFactContextIdempotency = typeof coachFactContextIdempotencyTable.$inferSelect;

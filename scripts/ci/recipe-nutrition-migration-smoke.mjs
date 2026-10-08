@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 19) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 20) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -355,7 +355,8 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
           'calora_admin_sessions',
           'calora_admin_audit_events',
           'calora_admin_operational_alerts',
-          'calora_admin_alert_deliveries'
+          'calora_admin_alert_deliveries',
+          'calora_privacy_rights_requests'
         )`,
   );
   assert.deepEqual(
@@ -369,6 +370,7 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
       { tablename: "calora_admin_principals", rowsecurity: true },
       { tablename: "calora_admin_sessions", rowsecurity: true },
       { tablename: "calora_coach_reports", rowsecurity: true },
+      { tablename: "calora_privacy_rights_requests", rowsecurity: true },
     ],
     `${scenario} must create the private Coach reporting and admin control-plane tables`,
   );
@@ -397,6 +399,19 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
     reportFence.rowCount,
     1,
     `${scenario} must fence account-scoped Coach reports during erasure`,
+  );
+  const privacyRequestFence = await client.query(
+    `SELECT 1
+       FROM pg_trigger trigger
+       JOIN pg_class table_ref ON table_ref.oid = trigger.tgrelid
+      WHERE table_ref.relname = 'calora_privacy_rights_requests'
+        AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+        AND NOT trigger.tgisinternal`,
+  );
+  assert.equal(
+    privacyRequestFence.rowCount,
+    1,
+    `${scenario} must fence privacy-rights requests during erasure`,
   );
 }
 
@@ -491,9 +506,9 @@ try {
   await historical.end();
 }
 runMigrations("historical 0008 no-cache upgrade");
-const historicalUpgrade = await verifyExpectedColumns(
-  "historical 0008 no-cache upgrade",
-  12,
+  const historicalUpgrade = await verifyExpectedColumns(
+    "historical 0008 no-cache upgrade",
+    13,
 );
 try {
   await verifyCaptureRateLimiter(
@@ -521,7 +536,7 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    12,
+    13,
     "historical upgrade must record the expected migration suffix",
   );
 } finally {

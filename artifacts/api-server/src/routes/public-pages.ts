@@ -190,6 +190,16 @@ router.get("/support", (_req: Request, res: Response) =>
     "support",
   ),
 );
+router.get("/legal-center", (_req: Request, res: Response) =>
+  sendPage(
+    "Calora Legal Center",
+    "Calora legal documents, privacy controls, and review status.",
+    `<main class="page legal"><span class="eyebrow">Trust & governance</span><h1>Calora Legal Center</h1><p class="meta">Document status: review package · Last engineering verification: October 8, 2026</p><p class="lede">This page is a transparent index of Calora’s current legal and privacy surfaces. It does not replace the applicable Terms of Use or Privacy Policy and does not publish unresolved draft provisions.</p><div class="notice"><strong>Publication status:</strong> The binding documents currently available on this site remain the source of truth. Additional jurisdiction-specific language, retention periods, regional rights handling, and dispute provisions remain subject to owner approval and qualified-counsel review.</div><h2>Current public documents</h2><ul><li>${link("/privacy", "Privacy Policy")} — current public notice.</li><li>${link("/terms", "Terms of Use")} — current public terms.</li><li>${link("/subscriptions", "Subscription Information")} — purchase, renewal, cancellation, and refund information.</li><li>${link("/delete-account", "Account Deletion")} — authenticated deletion and support path.</li><li>${link("/support", "Help & Support")} — product, privacy, billing, and account contact.</li></ul><h2>Privacy controls</h2><p>Signed-in users can submit an access, correction, deletion, portability, restriction, or consent-withdrawal request through the application’s privacy controls. Requests are recorded with an account-scoped status and are reviewed according to the applicable policy and law. Account deletion remains available separately.</p><h2>What is still under review</h2><p>Launch jurisdictions, operator identity details, retention periods, provider contract settings, age policy, international transfer analysis, accessibility evidence, and jurisdiction-specific dispute provisions are not represented as finalized here.</p>${contactCard("legal")}</main>`,
+    res,
+    "/legal-center",
+    "legal",
+  ),
+);
 router.get("/contact", (_req: Request, res: Response) =>
   sendPage(
     "Contact Calora",
@@ -228,6 +238,7 @@ router.get("/sitemap.xml", (_req: Request, res: Response) => {
     "contact",
     "delete-account",
     "subscriptions",
+    "legal-center",
   ];
   res
     .status(200)
