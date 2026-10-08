@@ -64,18 +64,33 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_coach_fact_context_idempotency",
     "calora_cohort_memberships",
   ];
+  const optionalTables = new Set([
+    "calora_coach_fact_context_idempotency",
+    "calora_cohort_memberships",
+  ]);
   for (const table of fencedTables) {
+    if (optionalTables.has(table)) {
+      await client.query(`
+        DO $$
+        BEGIN
+          IF to_regclass('public.${table}') IS NOT NULL THEN
+            EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.${table}';
+            EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
+              BEFORE INSERT OR UPDATE ON public.${table}
+              FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
+          END IF;
+        END
+        $$;
+      `);
+      continue;
+    }
+    await client.query(
+      `DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`,
+    );
     await client.query(`
-      DO $$
-      BEGIN
-        IF to_regclass('public.${table}') IS NOT NULL THEN
-          EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.${table}';
-          EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
-            BEFORE INSERT OR UPDATE ON public.${table}
-            FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
-        END IF;
-      END
-      $$;
+      CREATE TRIGGER calora_account_deletion_write_fence_trigger
+      BEFORE INSERT OR UPDATE ON ${table}
+      FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()
     `);
   }
 }
