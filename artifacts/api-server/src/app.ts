@@ -80,12 +80,13 @@ app.get("/health", (_req, res) => {
   res.json(HealthCheckResponse.parse({ status: "ok" }));
 });
 
+// The dedicated admin host must take priority over the generic native callback
+// fallback because both legitimately use /auth/callback. The admin router
+// declines every non-admin host, preserving the consumer/native recovery page.
+app.use(adminRouter);
 // Universal / App Links verification and invite fallback — must be at root
 // (not under /api) so the OS can reach /.well-known/* without a redirect.
 app.use(universalLinksRouter);
-// The dedicated admin host is handled before public pages. The router refuses
-// every other host, so the consumer domain has no public /admin surface.
-app.use(adminRouter);
 app.use(publicPagesRouter);
 // The API artifact owns /api in production. Mounting the public pages below a
 // legal namespace avoids shadowing the API's existing /api liveness response.
