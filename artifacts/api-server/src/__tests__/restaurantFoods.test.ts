@@ -219,6 +219,17 @@ describe("Restaurant food routes", () => {
 
     expect(res.status).toBe(503);
     expect(JSON.stringify(res.body)).not.toContain("provider rejected");
+    expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("provider rejected");
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      {
+        event: "restaurant_food_provider_failure",
+        provider: "FatSecret",
+        errorKind: "restricted",
+        providerCode: "21",
+        httpStatus: 200,
+      },
+      "Restaurant food provider request failed",
+    );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/foods/detail");
     expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ sourceId: "fatsecret-food:321" }));
   });

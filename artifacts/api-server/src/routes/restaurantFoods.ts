@@ -50,12 +50,16 @@ async function authorizeAndLimit(req: Request, route: string) {
 
 function safeProviderState(error: unknown) {
   if (error instanceof FatSecretProviderError) {
-    console.warn("[restaurant-foods] provider request failed", {
-      kind: error.kind,
-      providerCode: error.providerCode,
-      httpStatus: error.httpStatus,
-      providerMessage: error.providerMessage,
-    });
+    logger.warn(
+      {
+        event: "restaurant_food_provider_failure",
+        provider: "FatSecret",
+        errorKind: error.kind,
+        providerCode: error.providerCode ?? null,
+        httpStatus: error.httpStatus ?? null,
+      },
+      "Restaurant food provider request failed",
+    );
     const restricted = error.kind === "restricted" || error.kind === "authentication";
     return {
       status: restricted ? "restricted" as const : "error" as const,
@@ -69,7 +73,10 @@ function safeProviderState(error: unknown) {
       nextOffset: null,
     };
   }
-  console.warn("[restaurant-foods] unexpected provider failure");
+  logger.warn(
+    { event: "restaurant_food_provider_failure", provider: "FatSecret", errorKind: "unknown" },
+    "Restaurant food provider request failed",
+  );
   return {
     status: "error" as const,
     provider: "FatSecret",
