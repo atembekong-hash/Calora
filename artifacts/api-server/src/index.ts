@@ -11,6 +11,7 @@ import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
 import { runSafeBackgroundTask } from "./lib/safe-background-task";
 import { assertStartupReady } from "./lib/startup-readiness";
+import { refreshOperationalAlerts } from "./lib/admin-alerts";
 
 const rawPort = process.env["PORT"];
 
@@ -30,9 +31,7 @@ if (Number.isNaN(port) || port <= 0) {
 // - approved migration operations apply Drizzle's schema changes;
 // - each hosting environment receives an explicitly reviewed deployment.
 // The API must never mutate database structure during boot.
-logger.info(
-  "Database schema is managed by reviewed Drizzle migrations",
-);
+logger.info("Database schema is managed by reviewed Drizzle migrations");
 
 // node-postgres emits idle-client failures on the Pool. Without a listener,
 // EventEmitter treats them as uncaught errors and can terminate the process.
@@ -49,6 +48,7 @@ pool.on("error", (err) => {
 // ---------------------------------------------------------------------------
 const RATE_LIMIT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const ACCOUNT_DELETION_RECOVERY_INTERVAL_MS = 60 * 1000;
+const ADMIN_ALERT_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 // Must exceed the longest bounded provider request (currently 12 seconds)
 // with enough margin to flush the response and close pooled connections.
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 20_000;
@@ -96,6 +96,7 @@ async function startAccountDeletionRecovery(): Promise<void> {
 
 let rateLimitCleanupTimer: NodeJS.Timeout | undefined;
 let accountRecoveryTimer: NodeJS.Timeout | undefined;
+let adminAlertRefreshTimer: NodeJS.Timeout | undefined;
 let recoveryWarningSummaryTimer: NodeJS.Timeout | undefined;
 let server: ReturnType<typeof app.listen> | undefined;
 let shutdownStarted = false;
@@ -110,11 +111,22 @@ async function startServer(): Promise<void> {
   void startAccountDeletionRecovery().catch((err) =>
     logger.error({ err }, "Account deletion recovery startup failed"),
   );
+  void refreshOperationalAlerts().catch((err) =>
+    logger.warn({ err }, "Initial operational alert refresh failed"),
+  );
   accountRecoveryTimer = setInterval(
     () => void runAccountDeletionRecovery(),
     ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
   );
   accountRecoveryTimer.unref();
+  adminAlertRefreshTimer = setInterval(
+    () =>
+      void refreshOperationalAlerts().catch((err) =>
+        logger.warn({ err }, "Operational alert refresh failed"),
+      ),
+    ADMIN_ALERT_REFRESH_INTERVAL_MS,
+  );
+  adminAlertRefreshTimer.unref();
   recoveryWarningSummaryTimer = setInterval(
     flushSuppressedRecoveryWarningSummary,
     RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
@@ -151,6 +163,7 @@ function shutdown(reason: string, exitCode: number): void {
 
   logger.info({ reason, exitCode }, "API shutdown started");
   if (accountRecoveryTimer) clearInterval(accountRecoveryTimer);
+  if (adminAlertRefreshTimer) clearInterval(adminAlertRefreshTimer);
   if (recoveryWarningSummaryTimer) clearInterval(recoveryWarningSummaryTimer);
   if (rateLimitCleanupTimer) clearInterval(rateLimitCleanupTimer);
 

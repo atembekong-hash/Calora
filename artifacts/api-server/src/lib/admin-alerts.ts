@@ -1,6 +1,8 @@
 import { pool } from "@workspace/db";
 import type { AdminSession } from "./admin-auth.js";
 import { writeAdminAudit } from "./admin-data.js";
+import { notifyOperationalAlerts } from "./admin-alert-email.js";
+import { logger } from "./logger.js";
 
 export type AlertSeverity = "warning" | "critical";
 export type AlertStatus = "open" | "acknowledged" | "resolved";
@@ -156,6 +158,26 @@ export async function refreshOperationalAlerts(): Promise<void> {
       );
     }
     await client.query("COMMIT");
+
+    if (observedKeys.length > 0) {
+      const current = await pool.query<Parameters<typeof mapAlert>[0]>(
+        `SELECT id, alert_key, severity, status, title, detail, occurrence_count,
+                first_seen_at, last_seen_at, acknowledged_at, resolved_at
+           FROM calora_admin_operational_alerts
+          WHERE status = 'open' AND alert_key = ANY($1::text[])
+          ORDER BY last_seen_at DESC
+          LIMIT 100`,
+        [observedKeys],
+      );
+      await notifyOperationalAlerts(current.rows.map(mapAlert)).catch(
+        (error) => {
+          logger.warn(
+            { error: error instanceof Error ? error.message : "unknown" },
+            "Operational alert email processing failed",
+          );
+        },
+      );
+    }
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
     throw error;

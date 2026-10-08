@@ -127,6 +127,13 @@
       "when": 1791421680000,
       "tag": "0018_admin_operational_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791435000000,
+      "tag": "0019_admin_alert_deliveries",
+      "breakpoints": true
     }
   ]
 }
