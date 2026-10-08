@@ -2,11 +2,11 @@
  * Calora authentication utilities.
  */
 
-import * as WebBrowser from 'expo-web-browser';
-import * as Crypto from 'expo-crypto';
-import { Platform } from 'react-native';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import * as WebBrowser from "expo-web-browser";
+import * as Crypto from "expo-crypto";
+import { Platform } from "react-native";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./supabase";
 
 /**
  * HTTPS is intentional here. The production host is associated with this
@@ -14,8 +14,10 @@ import { supabase } from './supabase';
  * custom scheme—owns the callback. Keep the path in sync with app.json,
  * the association responses, and Supabase's redirect allow-list.
  */
-export const OAUTH_REDIRECT_URI = 'https://mycaloraapp.com/auth/callback' as const;
-export const WEB_OAUTH_CALLBACK_URI = 'https://app.mycaloraapp.com/auth/callback' as const;
+export const OAUTH_REDIRECT_URI =
+  "https://mycaloraapp.com/auth/callback" as const;
+export const WEB_OAUTH_CALLBACK_URI =
+  "https://app.mycaloraapp.com/auth/callback" as const;
 const TRUSTED_OAUTH_CALLBACK_URLS = [
   new URL(OAUTH_REDIRECT_URI),
   new URL(WEB_OAUTH_CALLBACK_URI),
@@ -33,30 +35,34 @@ type OAuthPlatform = typeof Platform.OS;
  * Browser email and OAuth flows return to the dedicated web origin, while
  * installed apps continue to use the OS-claimed associated-link route.
  */
-export function getAuthCallbackRedirectUri(platform: OAuthPlatform = Platform.OS): string {
-  return platform === 'web' ? WEB_OAUTH_CALLBACK_URI : OAUTH_REDIRECT_URI;
+export function getAuthCallbackRedirectUri(
+  platform: OAuthPlatform = Platform.OS,
+): string {
+  return platform === "web" ? WEB_OAUTH_CALLBACK_URI : OAUTH_REDIRECT_URI;
 }
 
-export function getGoogleOAuthRedirectUri(platform: OAuthPlatform = Platform.OS): string {
+export function getGoogleOAuthRedirectUri(
+  platform: OAuthPlatform = Platform.OS,
+): string {
   return getAuthCallbackRedirectUri(platform);
 }
 
 export type AuthErrorCode =
-  | 'cancelled'
-  | 'network'
-  | 'provider'
-  | 'token'
-  | 'unknown'
-  | 'invalid_credentials'
-  | 'verify_email'
-  | 'expired';
+  | "cancelled"
+  | "network"
+  | "provider"
+  | "token"
+  | "unknown"
+  | "invalid_credentials"
+  | "verify_email"
+  | "expired";
 
 export interface AuthError {
   code: AuthErrorCode;
   message: string;
 }
 
-export type AuthCallbackIntent = 'ordinary' | 'recovery';
+export type AuthCallbackIntent = "ordinary" | "recovery";
 
 export type AuthResult =
   | { success: true; session: Session; callbackIntent?: AuthCallbackIntent }
@@ -79,14 +85,14 @@ function isTrustedOAuthCallbackUrl(url: URL): boolean {
 function getValidatedCallbackIntent(url: URL): AuthCallbackIntent {
   // Recovery intent comes from the already exact-origin/path validated callback
   // data. It is not inferred from the asynchronous auth listener.
-  return url.searchParams.get('type') === 'recovery' ? 'recovery' : 'ordinary';
+  return url.searchParams.get("type") === "recovery" ? "recovery" : "ordinary";
 }
 
 const OAUTH_CODE_SUCCESS_TTL_MS = 60_000;
 const MAX_OAUTH_CODE_EXCHANGES = 8;
 
 type PendingOAuthCodeExchange = {
-  kind: 'pending';
+  kind: "pending";
   startedAt: number;
   /** Shared terminal routing intent for every delivery of one PKCE code. */
   callbackIntent: AuthCallbackIntent;
@@ -94,7 +100,7 @@ type PendingOAuthCodeExchange = {
 };
 
 type SettledOAuthCodeExchange = {
-  kind: 'success';
+  kind: "success";
   userId: string;
   callbackIntent: AuthCallbackIntent;
   settledAt: number;
@@ -108,13 +114,13 @@ const oauthCodeExchanges = new Map<string, OAuthCodeExchange>();
 function removeOAuthCodeExchange(key: string, expected?: OAuthCodeExchange) {
   const current = oauthCodeExchanges.get(key);
   if (!current || (expected && current !== expected)) return;
-  if (current.kind === 'success') clearTimeout(current.evictionTimer);
+  if (current.kind === "success") clearTimeout(current.evictionTimer);
   oauthCodeExchanges.delete(key);
 }
 
 function pruneExpiredOAuthCodeExchanges(now: number) {
   for (const [key, exchange] of oauthCodeExchanges) {
-    if (exchange.kind === 'success' && exchange.expiresAt <= now) {
+    if (exchange.kind === "success" && exchange.expiresAt <= now) {
       removeOAuthCodeExchange(key, exchange);
     }
   }
@@ -124,16 +130,20 @@ function reserveOAuthCodeExchangeSlot(): boolean {
   if (oauthCodeExchanges.size < MAX_OAUTH_CODE_EXCHANGES) return true;
 
   const oldestSuccess = [...oauthCodeExchanges.entries()]
-    .filter((entry): entry is [string, SettledOAuthCodeExchange] => entry[1].kind === 'success')
+    .filter(
+      (entry): entry is [string, SettledOAuthCodeExchange] =>
+        entry[1].kind === "success",
+    )
     .sort((a, b) => a[1].settledAt - b[1].settledAt)[0];
-  if (oldestSuccess) removeOAuthCodeExchange(oldestSuccess[0], oldestSuccess[1]);
+  if (oldestSuccess)
+    removeOAuthCodeExchange(oldestSuccess[0], oldestSuccess[1]);
 
   return oauthCodeExchanges.size < MAX_OAUTH_CODE_EXCHANGES;
 }
 
 export function clearSettledOAuthCodeExchanges() {
   for (const [key, exchange] of oauthCodeExchanges) {
-    if (exchange.kind === 'success') removeOAuthCodeExchange(key, exchange);
+    if (exchange.kind === "success") removeOAuthCodeExchange(key, exchange);
   }
 }
 
@@ -149,7 +159,11 @@ async function replaySettledOAuthSuccess(
     const { data, error } = await supabase.auth.getSession();
     const session = data.session;
     if (!error && session?.user?.id === exchange.userId) {
-      return { success: true, session, callbackIntent: exchange.callbackIntent };
+      return {
+        success: true,
+        session,
+        callbackIntent: exchange.callbackIntent,
+      };
     }
   } catch {
     // A stale replay must fail closed without changing the current session.
@@ -158,7 +172,10 @@ async function replaySettledOAuthSuccess(
   removeOAuthCodeExchange(key, exchange);
   return {
     success: false,
-    error: { code: 'token', message: 'This sign-in callback is no longer current. Please try again.' },
+    error: {
+      code: "token",
+      message: "This sign-in callback is no longer current. Please try again.",
+    },
   };
 }
 
@@ -172,69 +189,87 @@ async function exchangeOAuthCodeOnce(
   pruneExpiredOAuthCodeExchanges(now);
 
   const existing = oauthCodeExchanges.get(key);
-  if (existing?.kind === 'pending') {
+  if (existing?.kind === "pending") {
     // Prefer recovery if two trusted deliveries disagree. Reset-password is the
     // conservative terminal route; most importantly both callers now observe
     // the same intent instead of racing independent navigation decisions.
-    if (callbackIntent === 'recovery') existing.callbackIntent = 'recovery';
+    if (callbackIntent === "recovery") existing.callbackIntent = "recovery";
     const result = await existing.result;
-    return result.success ? { ...result, callbackIntent: existing.callbackIntent } : result;
+    return result.success
+      ? { ...result, callbackIntent: existing.callbackIntent }
+      : result;
   }
-  if (existing?.kind === 'success') return replaySettledOAuthSuccess(key, existing);
+  if (existing?.kind === "success")
+    return replaySettledOAuthSuccess(key, existing);
 
   if (!reserveOAuthCodeExchangeSlot()) {
     return {
       success: false,
-      error: { code: 'provider', message: 'Too many sign-in attempts are already in progress.' },
+      error: {
+        code: "provider",
+        message: "Too many sign-in attempts are already in progress.",
+      },
     };
   }
 
   const result = (async (): Promise<AuthResult> => {
-    onStatus?.('Exchanging code\u2026');
+    onStatus?.("Exchanging code\u2026");
     try {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return { success: false, error: { code: 'token', message: error.message } };
+      if (error)
+        return {
+          success: false,
+          error: { code: "token", message: error.message },
+        };
       if (data?.session) return { success: true, session: data.session };
-      return { success: false, error: { code: 'token', message: 'Sign-in could not be completed.' } };
+      return {
+        success: false,
+        error: { code: "token", message: "Sign-in could not be completed." },
+      };
     } catch (err) {
       return classifyError(err);
     }
   })();
 
   const pending: PendingOAuthCodeExchange = {
-    kind: 'pending',
+    kind: "pending",
     startedAt: now,
     callbackIntent,
     result,
   };
   oauthCodeExchanges.set(key, pending);
 
-  void result.then((authResult) => {
-    if (oauthCodeExchanges.get(key) !== pending) return;
-    const userId = authResult.success ? authResult.session.user?.id : null;
-    if (!userId) {
-      removeOAuthCodeExchange(key, pending);
-      return;
-    }
+  void result.then(
+    (authResult) => {
+      if (oauthCodeExchanges.get(key) !== pending) return;
+      const userId = authResult.success ? authResult.session.user?.id : null;
+      if (!userId) {
+        removeOAuthCodeExchange(key, pending);
+        return;
+      }
 
-    const settledAt = Date.now();
-    const settled: SettledOAuthCodeExchange = {
-      kind: 'success',
-      userId,
-      callbackIntent: pending.callbackIntent,
-      settledAt,
-      expiresAt: settledAt + OAUTH_CODE_SUCCESS_TTL_MS,
-      evictionTimer: setTimeout(() => {
-        removeOAuthCodeExchange(key, settled);
-      }, OAUTH_CODE_SUCCESS_TTL_MS),
-    };
-    oauthCodeExchanges.set(key, settled);
-  }, () => {
-    removeOAuthCodeExchange(key, pending);
-  });
+      const settledAt = Date.now();
+      const settled: SettledOAuthCodeExchange = {
+        kind: "success",
+        userId,
+        callbackIntent: pending.callbackIntent,
+        settledAt,
+        expiresAt: settledAt + OAUTH_CODE_SUCCESS_TTL_MS,
+        evictionTimer: setTimeout(() => {
+          removeOAuthCodeExchange(key, settled);
+        }, OAUTH_CODE_SUCCESS_TTL_MS),
+      };
+      oauthCodeExchanges.set(key, settled);
+    },
+    () => {
+      removeOAuthCodeExchange(key, pending);
+    },
+  );
 
   const authResult = await result;
-  return authResult.success ? { ...authResult, callbackIntent: pending.callbackIntent } : authResult;
+  return authResult.success
+    ? { ...authResult, callbackIntent: pending.callbackIntent }
+    : authResult;
 }
 
 /**
@@ -255,10 +290,10 @@ export async function signInWithGoogle(
   platform: OAuthPlatform = Platform.OS,
 ): Promise<AuthResult> {
   try {
-    onStatus?.('Connecting to Google\u2026');
+    onStatus?.("Connecting to Google\u2026");
     const redirectTo = getGoogleOAuthRedirectUri(platform);
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
         redirectTo,
         skipBrowserRedirect: true,
@@ -268,15 +303,24 @@ export async function signInWithGoogle(
     if (oauthError || !data?.url) {
       return {
         success: false,
-        error: { code: 'provider', message: oauthError?.message || 'Failed to connect to Google.' },
+        error: {
+          code: "provider",
+          message: oauthError?.message || "Failed to connect to Google.",
+        },
       };
     }
 
-    onStatus?.('Opening browser\u2026');
-    const browserResult = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    onStatus?.("Opening browser\u2026");
+    const browserResult = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectTo,
+    );
 
-    if (browserResult.type !== 'success' || !browserResult.url) {
-      return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
+    if (browserResult.type !== "success" || !browserResult.url) {
+      return {
+        success: false,
+        error: { code: "cancelled", message: "Sign-in was cancelled." },
+      };
     }
 
     return handleOAuthCallbackUrl(browserResult.url, onStatus);
@@ -288,35 +332,52 @@ export async function signInWithGoogle(
 /**
  * Processes the deep-link callback URL and exchanges the code for a session.
  */
-export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
-  onStatus?.('Verifying credentials…');
+export async function handleOAuthCallbackUrl(
+  url: string,
+  onStatus?: AuthStatusCallback,
+): Promise<AuthResult> {
+  onStatus?.("Verifying credentials…");
 
   try {
-    const urlObj = new URL(url.replace('#', '?'));
+    const urlObj = new URL(url.replace("#", "?"));
     if (!isTrustedOAuthCallbackUrl(urlObj)) {
       return {
         success: false,
-        error: { code: 'token', message: 'This sign-in callback is not trusted.' },
+        error: {
+          code: "token",
+          message: "This sign-in callback is not trusted.",
+        },
       };
     }
     const callbackIntent = getValidatedCallbackIntent(urlObj);
-    const code = urlObj.searchParams.get('code');
-    const accessToken = urlObj.searchParams.get('access_token');
-    const refreshToken = urlObj.searchParams.get('refresh_token');
-    const error = urlObj.searchParams.get('error');
-    const errorDescription = urlObj.searchParams.get('error_description');
+    const code = urlObj.searchParams.get("code");
+    const hasUnboundBearer =
+      urlObj.searchParams.has("access_token") ||
+      urlObj.searchParams.has("refresh_token");
+    if (hasUnboundBearer) {
+      return {
+        success: false,
+        error: {
+          code: "token",
+          message:
+            "This sign-in callback is missing a valid authorization code.",
+        },
+      };
+    }
+    const error = urlObj.searchParams.get("error");
+    const errorDescription = urlObj.searchParams.get("error_description");
 
     if (error) {
       return {
         success: false,
         error: {
-          code: 'provider',
-          message: resolveUserMessage('provider', errorDescription || error),
+          code: "provider",
+          message: resolveUserMessage("provider", errorDescription || error),
         },
       };
     }
 
-    onStatus?.('Finalizing sign-in\u2026');
+    onStatus?.("Finalizing sign-in\u2026");
 
     // Case 1: PKCE Flow (Authorization Code)
     // Used by Google OAuth and modern email links.
@@ -324,27 +385,17 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
       return exchangeOAuthCodeOnce(code, callbackIntent, onStatus);
     }
 
-    // Case 2: Implicit Flow Fallback (Access Token)
-    // Preserved for compatibility with legacy email confirmation links.
-    if (accessToken) {
-      onStatus?.('Setting session\u2026');
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || '',
-      });
-      if (sessionError) {
-        return {
-          success: false,
-          error: {
-            code: 'token',
-            message: resolveUserMessage('token', sessionError.message),
-          },
-        };
-      }
-      if (data?.session) return { success: true, session: data.session, callbackIntent };
-    }
+    // Bearer tokens are deliberately not accepted from callback URLs. Only a
+    // locally initiated PKCE authorization-code exchange may establish a
+    // session, preventing login-CSRF/session-fixation through crafted links.
 
-    return { success: false, error: { code: 'unknown', message: 'No valid authentication data found.' } };
+    return {
+      success: false,
+      error: {
+        code: "unknown",
+        message: "No valid authentication data found.",
+      },
+    };
   } catch (err) {
     return classifyError(err);
   }
@@ -365,29 +416,58 @@ export async function signUpWithEmail(
       password,
       options: { emailRedirectTo: getAuthCallbackRedirectUri(platform) },
     });
-    if (error) return { success: false, error: { code: 'unknown', message: error.message } };
-    if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email for a confirmation link.' } };
+    if (error)
+      return {
+        success: false,
+        error: { code: "unknown", message: error.message },
+      };
+    if (!data.session)
+      return {
+        success: false,
+        error: {
+          code: "verify_email",
+          message: "Check your email for a confirmation link.",
+        },
+      };
     return { success: true, session: data.session };
-  } catch (err) { return classifyError(err); }
+  } catch (err) {
+    return classifyError(err);
+  }
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
+export async function signInWithEmail(
+  email: string,
+  password: string,
+): Promise<AuthResult> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
-    if (error) return { success: false, error: { code: 'invalid_credentials', message: error.message } };
-    if (!data.session) return { success: false, error: { code: 'token', message: 'Sign-in failed.' } };
+    if (error)
+      return {
+        success: false,
+        error: { code: "invalid_credentials", message: error.message },
+      };
+    if (!data.session)
+      return {
+        success: false,
+        error: { code: "token", message: "Sign-in failed." },
+      };
     return { success: true, session: data.session };
-  } catch (err) { return classifyError(err); }
+  } catch (err) {
+    return classifyError(err);
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Account Recovery & Management
 // ---------------------------------------------------------------------------
 
-export async function sendPasswordReset(email: string, platform: OAuthPlatform = Platform.OS) {
+export async function sendPasswordReset(
+  email: string,
+  platform: OAuthPlatform = Platform.OS,
+) {
   return supabase.auth.resetPasswordForEmail(email, {
     redirectTo: getAuthCallbackRedirectUri(platform),
   });
@@ -397,9 +477,12 @@ export async function updatePassword(newPassword: string) {
   return supabase.auth.updateUser({ password: newPassword });
 }
 
-export async function resendVerificationEmail(email: string, platform: OAuthPlatform = Platform.OS) {
+export async function resendVerificationEmail(
+  email: string,
+  platform: OAuthPlatform = Platform.OS,
+) {
   return supabase.auth.resend({
-    type: 'signup',
+    type: "signup",
     email,
     options: { emailRedirectTo: getAuthCallbackRedirectUri(platform) },
   });
@@ -410,7 +493,7 @@ export async function signOut() {
   // unexpectedly signing the user out everywhere, and does not depend on a
   // network round trip before the local session can be cleared.
   clearSettledOAuthCodeExchanges();
-  return supabase.auth.signOut({ scope: 'local' });
+  return supabase.auth.signOut({ scope: "local" });
 }
 
 export async function getSession() {
@@ -423,26 +506,40 @@ export async function getSession() {
 // ---------------------------------------------------------------------------
 
 function classifyError(err: unknown): { success: false; error: AuthError } {
-  const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+  const message =
+    err instanceof Error ? err.message : String(err ?? "Unknown error");
   const lower = message.toLowerCase();
   const code: AuthErrorCode =
-    lower.includes('network') || lower.includes('fetch') || lower.includes('offline')
-      ? 'network'
-      : lower.includes('expired')
-        ? 'expired'
-        : 'unknown';
-  return { success: false, error: { code, message: resolveUserMessage(code, message) } };
+    lower.includes("network") ||
+    lower.includes("fetch") ||
+    lower.includes("offline")
+      ? "network"
+      : lower.includes("expired")
+        ? "expired"
+        : "unknown";
+  return {
+    success: false,
+    error: { code, message: resolveUserMessage(code, message) },
+  };
 }
 
 function resolveUserMessage(code: AuthErrorCode, raw: string): string {
   switch (code) {
-    case 'cancelled': return 'Sign-in was cancelled.';
-    case 'network': return 'No internet connection. Please check your network and try again.';
-    case 'expired': return 'This sign-in link has expired. Please request a new one.';
-    case 'provider': return 'Unable to connect to the sign-in provider. Please try again.';
-    case 'invalid_credentials': return 'Incorrect email or password. Please try again.';
-    case 'verify_email': return 'Please verify your email address before signing in.';
-    case 'token': return 'Sign-in could not be completed. Please try again.';
-    default: return __DEV__ ? raw : 'Something went wrong. Please try again.';
+    case "cancelled":
+      return "Sign-in was cancelled.";
+    case "network":
+      return "No internet connection. Please check your network and try again.";
+    case "expired":
+      return "This sign-in link has expired. Please request a new one.";
+    case "provider":
+      return "Unable to connect to the sign-in provider. Please try again.";
+    case "invalid_credentials":
+      return "Incorrect email or password. Please try again.";
+    case "verify_email":
+      return "Please verify your email address before signing in.";
+    case "token":
+      return "Sign-in could not be completed. Please try again.";
+    default:
+      return __DEV__ ? raw : "Something went wrong. Please try again.";
   }
 }

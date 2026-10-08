@@ -12,8 +12,8 @@
  * and calls supabase.auth.admin.deleteUser() with the resolved user ID.
  */
 
-import { Feather } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import { Feather } from "@expo/vector-icons";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,43 +23,51 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { router } from 'expo-router';
-import { useCalora } from '@/context/CaloraContext';
-import { useAuth } from '@/context/AuthContext';
-import { BRAND } from '@/lib/brand';
-import { getApiBaseUrl } from '@/lib/api-config';
-import { spacing, radius, typography } from '@/constants/tokens';
+} from "react-native";
+import { router } from "expo-router";
+import { useCalora } from "@/context/CaloraContext";
+import { useAuth } from "@/context/AuthContext";
+import { BRAND } from "@/lib/brand";
+import { getApiBaseUrl } from "@/lib/api-config";
+import { spacing, radius, typography } from "@/constants/tokens";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Provider = 'google' | 'email' | 'unknown';
+type Provider = "google" | "email" | "unknown";
 
 // Do not leave a destructive account action showing a spinner indefinitely
 // when the API is unreachable. This is long enough for a normal mobile
 // connection while still giving the user a clear recovery path.
 export const ACCOUNT_DELETION_TIMEOUT_MS = 15_000;
 
-function resolveProvider(session: NonNullable<ReturnType<typeof useAuth>['session']>): Provider {
+function resolveProvider(
+  session: NonNullable<ReturnType<typeof useAuth>["session"]>,
+): Provider {
   const identities = session.user.identities ?? [];
-  if (identities.some((id) => id.provider === 'google')) return 'google';
-  if (identities.some((id) => id.provider === 'email')) return 'email';
-  return 'unknown';
+  if (identities.some((id) => id.provider === "google")) return "google";
+  if (identities.some((id) => id.provider === "email")) return "email";
+  return "unknown";
 }
 
 function providerLabel(p: Provider): string {
   switch (p) {
-    case 'google': return 'Google';
-    case 'email': return 'Email & password';
-    default: return 'Unknown';
+    case "google":
+      return "Google";
+    case "email":
+      return "Email & password";
+    default:
+      return "Unknown";
   }
 }
 
 function providerIcon(p: Provider): keyof typeof Feather.glyphMap {
   switch (p) {
-    case 'google': return 'globe';
-    case 'email': return 'mail';
-    default: return 'user';
+    case "google":
+      return "globe";
+    case "email":
+      return "mail";
+    default:
+      return "user";
   }
 }
 
@@ -72,17 +80,20 @@ interface AccountSectionProps {
   clearAllData: () => Promise<void>;
 }
 
-export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionProps) {
+export function AccountSection({
+  fontScale = 1,
+  clearAllData,
+}: AccountSectionProps) {
   const { colors, clearProfilePhoto } = useCalora();
   const { session, signOut } = useAuth();
 
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [signOutConfirm, setSignOutConfirm] = useState(false);
-  const [signOutError, setSignOutError] = useState('');
+  const [signOutError, setSignOutError] = useState("");
   const [deleteModal, setDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [deleteError, setDeleteError] = useState("");
 
   const f = fontScale;
 
@@ -95,52 +106,68 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 
   const handleSignOut = useCallback(async () => {
     setSignOutLoading(true);
-    setSignOutError('');
+    setSignOutError("");
     try {
       // Profile photos are stored under an account-scoped path, so a local
       // filesystem failure must not trap the user in an authenticated session.
       await clearProfilePhoto().catch(() => undefined);
       const { error } = await signOut();
       if (error) {
-        setSignOutError(error.message || 'Could not sign out. Please try again.');
+        setSignOutError(
+          error.message || "Could not sign out. Please try again.",
+        );
         return;
       }
       setSignOutConfirm(false);
     } catch (error) {
-      setSignOutError(error instanceof Error ? error.message : 'Could not sign out. Please try again.');
+      setSignOutError(
+        error instanceof Error
+          ? error.message
+          : "Could not sign out. Please try again.",
+      );
     } finally {
       setSignOutLoading(false);
     }
   }, [signOut, clearProfilePhoto]);
 
   const handleOpenDeleteModal = useCallback(() => {
-    setDeleteConfirmText('');
-    setDeleteError('');
+    setDeleteConfirmText("");
+    setDeleteError("");
     setDeleteModal(true);
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') return;
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
     if (deleteLoading) return;
     if (!session) return;
 
     setDeleteLoading(true);
-    setDeleteError('');
+    setDeleteError("");
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), ACCOUNT_DELETION_TIMEOUT_MS);
+    const timeoutId = setTimeout(
+      () => abortController.abort(),
+      ACCOUNT_DELETION_TIMEOUT_MS,
+    );
     try {
       // Call the server-side endpoint which uses the service-role key to
       // permanently remove the Supabase Auth user record. The user's JWT is
       // sent as a Bearer token; the server verifies and resolves the user ID.
       const baseUrl = getApiBaseUrl();
       const response = await fetch(`${baseUrl}/api/v1/account`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: { Authorization: `Bearer ${session.access_token}` },
         signal: abortController.signal,
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({})) as { error?: string; message?: string };
-        throw new Error(body.message ?? body.error ?? `Account deletion failed (${response.status})`);
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
+        throw new Error(
+          body.message ??
+            body.error ??
+            `Account deletion failed (${response.status})`,
+        );
       }
       const deletionPending = response.status === 202;
 
@@ -170,13 +197,13 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 
       setTimeout(() => {
         const localCleanupMessage = localCleanupError
-          ? ' Some on-device data could not be cleared automatically; restart the app before using it again.'
-          : '';
+          ? " Some on-device data could not be cleared automatically; restart the app before using it again."
+          : "";
         const signOutMessage = localSignOutError
-          ? ' Local sign-out did not finish. Close and restart Calora. If this device still shows an account afterward, contact support.'
-          : ' This device was signed out.';
+          ? " Local sign-out did not finish. Close and restart Calora. If this device still shows an account afterward, contact support."
+          : " This device was signed out.";
         Alert.alert(
-          deletionPending ? 'Deletion in progress' : 'Account deleted',
+          deletionPending ? "Deletion in progress" : "Account deleted",
           deletionPending
             ? `Your deletion request is securely in progress. The server will finish removing your account even if you cannot reopen the app.${localCleanupMessage}${signOutMessage}`
             : `Your ${BRAND.name} account and associated server data were permanently removed.${localCleanupMessage}${signOutMessage}`,
@@ -184,39 +211,77 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
       }, 300);
     } catch (err: unknown) {
       const message = abortController.signal.aborted
-        ? 'Account deletion is taking too long. Check your connection and try again.'
-        : err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+        ? "Account deletion is taking too long. Check your connection and try again."
+        : err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.";
       setDeleteError(message);
     } finally {
       clearTimeout(timeoutId);
       setDeleteLoading(false);
     }
-  }, [deleteConfirmText, deleteLoading, session, clearAllData, clearProfilePhoto, signOut]);
+  }, [
+    deleteConfirmText,
+    deleteLoading,
+    session,
+    clearAllData,
+    clearProfilePhoto,
+    signOut,
+  ]);
 
   // ── Signed-out state ───────────────────────────────────────────────────────
 
   if (!session) {
     return (
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: 18 * f }]}>Account</Text>
-        <View style={[styles.signInCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.signInIconWrap, { backgroundColor: colors.accent }]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            { color: colors.foreground, fontSize: 18 * f },
+          ]}
+        >
+          Account
+        </Text>
+        <View
+          style={[
+            styles.signInCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View
+            style={[styles.signInIconWrap, { backgroundColor: colors.accent }]}
+          >
             <Feather name="cloud" size={20} color={colors.accentForeground} />
           </View>
           <View style={styles.signInTextGroup}>
-            <Text style={[styles.signInTitle, { color: colors.foreground, fontSize: 15 * f }]}>
+            <Text
+              style={[
+                styles.signInTitle,
+                { color: colors.foreground, fontSize: 15 * f },
+              ]}
+            >
               Use your Calora account
             </Text>
-            <Text style={[styles.signInBody, { color: colors.mutedForeground, fontSize: 12 * f }]}>
+            <Text
+              style={[
+                styles.signInBody,
+                { color: colors.mutedForeground, fontSize: 12 * f },
+              ]}
+            >
               Sign in for referrals and Premium.
             </Text>
           </View>
           <Pressable
             accessibilityLabel="Sign in to Calora"
-            onPress={() => router.push('/auth/sign-in' as any)}
+            onPress={() => router.push("/auth/sign-in" as any)}
             style={[styles.signInButton, { backgroundColor: colors.primary }]}
           >
-            <Text style={[styles.signInButtonText, { color: colors.primaryForeground, fontSize: 13 * f }]}>
+            <Text
+              style={[
+                styles.signInButtonText,
+                { color: colors.primaryForeground, fontSize: 13 * f },
+              ]}
+            >
               Sign in
             </Text>
           </Pressable>
@@ -229,48 +294,93 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: 18 * f }]}>Account</Text>
+      <Text
+        style={[
+          styles.sectionTitle,
+          { color: colors.foreground, fontSize: 18 * f },
+        ]}
+      >
+        Account
+      </Text>
 
       {/* Account info card */}
-      <View style={[styles.accountCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.accountCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
         {/* Avatar + email row */}
         <View style={styles.accountRow}>
           <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
             <Feather name="user" size={18} color={colors.accentForeground} />
           </View>
           <View style={styles.accountTextGroup}>
-            <Text style={[styles.accountEmail, { color: colors.foreground, fontSize: 14 * f }]} numberOfLines={1}>
-              {email ?? 'Unknown email'}
+            <Text
+              style={[
+                styles.accountEmail,
+                { color: colors.foreground, fontSize: 14 * f },
+              ]}
+              numberOfLines={1}
+            >
+              {email ?? "Unknown email"}
             </Text>
             <View style={styles.providerRow}>
-              <Feather name={providerIcon(provider!)} size={11} color={colors.mutedForeground} />
-              <Text style={[styles.providerText, { color: colors.mutedForeground, fontSize: 11 * f }]}>
+              <Feather
+                name={providerIcon(provider!)}
+                size={11}
+                color={colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.providerText,
+                  { color: colors.mutedForeground, fontSize: 11 * f },
+                ]}
+              >
                 {providerLabel(provider!)}
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+        <View
+          style={[styles.cardDivider, { backgroundColor: colors.border }]}
+        />
 
         {/* Sign out row */}
         <Pressable
           accessibilityLabel="Sign out"
           onPress={() => {
-            setSignOutError('');
+            setSignOutError("");
             setSignOutConfirm(true);
           }}
           disabled={signOutLoading}
           style={styles.accountAction}
         >
-          {signOutLoading
-            ? <ActivityIndicator size="small" color={colors.mutedForeground} />
-            : <Feather name="log-out" size={16} color={colors.mutedForeground} />}
-          <Text style={[styles.accountActionText, { color: colors.foreground, fontSize: 14 * f }]}>Sign out</Text>
-          <Feather name="chevron-right" size={16} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
+          {signOutLoading ? (
+            <ActivityIndicator size="small" color={colors.mutedForeground} />
+          ) : (
+            <Feather name="log-out" size={16} color={colors.mutedForeground} />
+          )}
+          <Text
+            style={[
+              styles.accountActionText,
+              { color: colors.foreground, fontSize: 14 * f },
+            ]}
+          >
+            Sign out
+          </Text>
+          <Feather
+            name="chevron-right"
+            size={16}
+            color={colors.mutedForeground}
+            style={{ marginLeft: "auto" }}
+          />
         </Pressable>
 
-        <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+        <View
+          style={[styles.cardDivider, { backgroundColor: colors.border }]}
+        />
 
         {/* Delete account row */}
         <Pressable
@@ -279,8 +389,20 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
           style={styles.accountAction}
         >
           <Feather name="trash-2" size={16} color={colors.destructive} />
-          <Text style={[styles.accountActionText, { color: colors.destructive, fontSize: 14 * f }]}>Delete account</Text>
-          <Feather name="chevron-right" size={16} color={colors.destructive} style={{ marginLeft: 'auto' }} />
+          <Text
+            style={[
+              styles.accountActionText,
+              { color: colors.destructive, fontSize: 14 * f },
+            ]}
+          >
+            Delete account
+          </Text>
+          <Feather
+            name="chevron-right"
+            size={16}
+            color={colors.destructive}
+            style={{ marginLeft: "auto" }}
+          />
         </Pressable>
       </View>
 
@@ -289,20 +411,52 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         visible={deleteModal}
         transparent
         animationType="fade"
-        onRequestClose={() => { if (!deleteLoading) setDeleteModal(false); }}
+        onRequestClose={() => {
+          if (!deleteLoading) setDeleteModal(false);
+        }}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-          <View accessibilityViewIsModal style={[styles.modalCard, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: "rgba(0,0,0,0.55)" },
+          ]}
+        >
+          <View
+            accessibilityViewIsModal
+            style={[styles.modalCard, { backgroundColor: colors.background }]}
+          >
             {/* Icon */}
-            <View style={[styles.modalIcon, { backgroundColor: `${colors.destructive}18` }]}>
-              <Feather name="alert-triangle" size={24} color={colors.destructive} />
+            <View
+              style={[
+                styles.modalIcon,
+                { backgroundColor: `${colors.destructive}18` },
+              ]}
+            >
+              <Feather
+                name="alert-triangle"
+                size={24}
+                color={colors.destructive}
+              />
             </View>
 
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Delete your account?</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Delete your account?
+            </Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
-              This will permanently delete your account and all data — diary entries, weight logs, meals, and profile — from this device and our servers. This cannot be undone.
-              {'\n\n'}
-              To confirm, type <Text style={{ fontFamily: 'Inter_700Bold', color: colors.destructive }}>DELETE</Text> below.
+              This will permanently delete your account and all data — diary
+              entries, weight logs, meals, and profile — from this device and
+              our servers. This cannot be undone.
+              {"\n\n"}
+              To confirm, type{" "}
+              <Text
+                style={{
+                  fontFamily: "Inter_700Bold",
+                  color: colors.destructive,
+                }}
+              >
+                DELETE
+              </Text>{" "}
+              below.
             </Text>
 
             <TextInput
@@ -318,44 +472,83 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
                 {
                   color: colors.foreground,
                   backgroundColor: colors.card,
-                  borderColor: deleteConfirmText.trim().toUpperCase() === 'DELETE'
-                    ? colors.destructive
-                    : colors.input,
+                  borderColor:
+                    deleteConfirmText.trim().toUpperCase() === "DELETE"
+                      ? colors.destructive
+                      : colors.input,
                 },
               ]}
             />
 
             {deleteError ? (
-              <View accessibilityLiveRegion="polite" style={[styles.deleteError, { backgroundColor: `${colors.destructive}14` }]}>
-                <Feather name="alert-circle" size={15} color={colors.destructive} />
-                <Text style={[styles.deleteErrorText, { color: colors.destructive }]}>{deleteError}</Text>
+              <View
+                accessibilityLiveRegion="polite"
+                style={[
+                  styles.deleteError,
+                  { backgroundColor: `${colors.destructive}14` },
+                ]}
+              >
+                <Feather
+                  name="alert-circle"
+                  size={15}
+                  color={colors.destructive}
+                />
+                <Text
+                  style={[
+                    styles.deleteErrorText,
+                    { color: colors.destructive },
+                  ]}
+                >
+                  {deleteError}
+                </Text>
               </View>
             ) : null}
 
             <Pressable
               accessibilityLabel="Confirm account deletion"
               onPress={handleConfirmDelete}
-              disabled={deleteLoading || deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+              disabled={
+                deleteLoading ||
+                deleteConfirmText.trim().toUpperCase() !== "DELETE"
+              }
               style={[
                 styles.deleteButton,
                 {
                   backgroundColor: colors.destructive,
-                  opacity: (deleteLoading || deleteConfirmText.trim().toUpperCase() !== 'DELETE') ? 0.4 : 1,
+                  opacity:
+                    deleteLoading ||
+                    deleteConfirmText.trim().toUpperCase() !== "DELETE"
+                      ? 0.4
+                      : 1,
                 },
               ]}
             >
-              {deleteLoading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.deleteButtonText}>Delete account and data</Text>}
+              {deleteLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.deleteButtonText}>
+                  Delete account and data
+                </Text>
+              )}
             </Pressable>
 
             <Pressable
               accessibilityLabel="Cancel account deletion"
               disabled={deleteLoading}
               onPress={() => setDeleteModal(false)}
-              style={[styles.cancelButton, { backgroundColor: colors.muted, opacity: deleteLoading ? 0.5 : 1 }]}
+              style={[
+                styles.cancelButton,
+                {
+                  backgroundColor: colors.muted,
+                  opacity: deleteLoading ? 0.5 : 1,
+                },
+              ]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
+              <Text
+                style={[styles.cancelButtonText, { color: colors.foreground }]}
+              >
+                Cancel
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -365,42 +558,98 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         visible={signOutConfirm}
         transparent
         animationType="fade"
-        onRequestClose={() => { if (!signOutLoading) setSignOutConfirm(false); }}
+        onRequestClose={() => {
+          if (!signOutLoading) setSignOutConfirm(false);
+        }}
       >
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-          <View accessibilityViewIsModal style={[styles.modalCard, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="log-out" size={24} color={colors.accentForeground} />
+        <View
+          style={[
+            styles.modalBackdrop,
+            { backgroundColor: "rgba(0,0,0,0.55)" },
+          ]}
+        >
+          <View
+            accessibilityViewIsModal
+            style={[styles.modalCard, { backgroundColor: colors.background }]}
+          >
+            <View
+              style={[styles.modalIcon, { backgroundColor: colors.accent }]}
+            >
+              <Feather
+                name="log-out"
+                size={24}
+                color={colors.accentForeground}
+              />
             </View>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Sign out?</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Sign out?
+            </Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
-              Your local health data stays safely separated from other accounts on this device.
+              Your local health data stays safely separated from other accounts
+              on this device.
             </Text>
             {signOutError ? (
-              <View accessibilityLiveRegion="polite" style={[styles.deleteError, { backgroundColor: `${colors.destructive}14` }]}>
-                <Feather name="alert-circle" size={15} color={colors.destructive} />
-                <Text style={[styles.deleteErrorText, { color: colors.destructive }]}>{signOutError}</Text>
+              <View
+                accessibilityLiveRegion="polite"
+                style={[
+                  styles.deleteError,
+                  { backgroundColor: `${colors.destructive}14` },
+                ]}
+              >
+                <Feather
+                  name="alert-circle"
+                  size={15}
+                  color={colors.destructive}
+                />
+                <Text
+                  style={[
+                    styles.deleteErrorText,
+                    { color: colors.destructive },
+                  ]}
+                >
+                  {signOutError}
+                </Text>
               </View>
             ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Confirm sign out"
-              onPress={() => { void handleSignOut(); }}
+              onPress={() => {
+                void handleSignOut();
+              }}
               disabled={signOutLoading}
-              style={[styles.deleteButton, { backgroundColor: colors.destructive, opacity: signOutLoading ? 0.4 : 1 }]}
+              style={[
+                styles.deleteButton,
+                {
+                  backgroundColor: colors.destructive,
+                  opacity: signOutLoading ? 0.4 : 1,
+                },
+              ]}
             >
-              {signOutLoading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.deleteButtonText}>Sign out</Text>}
+              {signOutLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.deleteButtonText}>Sign out</Text>
+              )}
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel sign out"
               disabled={signOutLoading}
               onPress={() => setSignOutConfirm(false)}
-              style={[styles.cancelButton, { backgroundColor: colors.muted, opacity: signOutLoading ? 0.5 : 1 }]}
+              style={[
+                styles.cancelButton,
+                {
+                  backgroundColor: colors.muted,
+                  opacity: signOutLoading ? 0.5 : 1,
+                },
+              ]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
+              <Text
+                style={[styles.cancelButtonText, { color: colors.foreground }]}
+              >
+                Cancel
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -414,7 +663,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 const styles = StyleSheet.create({
   section: { marginBottom: 4 },
   sectionTitle: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: "Inter_700Bold",
     letterSpacing: -0.3,
     marginTop: 25,
     marginBottom: 11,
@@ -431,29 +680,29 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   signInTextGroup: { gap: 3, flex: 1 },
-  signInTitle: { fontFamily: 'Inter_700Bold' },
-  signInBody: { fontFamily: 'Inter_400Regular', lineHeight: 17 },
+  signInTitle: { fontFamily: "Inter_700Bold" },
+  signInBody: { fontFamily: "Inter_400Regular", lineHeight: 17 },
   signInButton: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
   },
-  signInButtonText: { fontFamily: 'Inter_700Bold' },
+  signInButtonText: { fontFamily: "Inter_700Bold" },
 
   // Signed-in card
   accountCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   accountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     padding: spacing.lg,
   },
@@ -461,94 +710,109 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.sm + 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   accountTextGroup: { flex: 1, gap: 3 },
-  accountEmail: { fontFamily: 'Inter_600SemiBold' },
-  providerRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  providerText: { fontFamily: 'Inter_400Regular' },
-  cardDivider: { height: StyleSheet.hairlineWidth, marginHorizontal: spacing.lg },
+  accountEmail: { fontFamily: "Inter_600SemiBold" },
+  providerRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  providerText: { fontFamily: "Inter_400Regular" },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.lg,
+  },
   accountAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg - 2,
     minHeight: 52,
   },
-  accountActionText: { fontFamily: 'Inter_400Regular' },
+  accountActionText: { fontFamily: "Inter_400Regular" },
 
   // Delete modal
   modalBackdrop: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: spacing.xl,
   },
   modalCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     borderRadius: radius.xl,
     padding: spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalIcon: {
     width: 60,
     height: 60,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.lg,
   },
   modalTitle: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: "Inter_700Bold",
     fontSize: 20,
     letterSpacing: -0.4,
     marginBottom: spacing.md,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalBody: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.lg,
   },
   deleteInput: {
-    width: '100%',
+    width: "100%",
     borderWidth: 1,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: "Inter_600SemiBold",
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: spacing.lg,
     letterSpacing: 2,
   },
-  deleteError: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  deleteErrorText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 16 },
+  deleteError: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  deleteErrorText: {
+    flex: 1,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    lineHeight: 16,
+  },
   deleteButton: {
-    width: '100%',
+    width: "100%",
     borderRadius: radius.md,
     paddingVertical: spacing.md + 2,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: spacing.sm,
   },
   deleteButtonText: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: "Inter_700Bold",
     fontSize: 14,
-    color: '#fff',
+    color: "#fff",
   },
   cancelButton: {
-    width: '100%',
+    width: "100%",
     borderRadius: radius.md,
     paddingVertical: spacing.md + 2,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButtonText: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
   },
 });

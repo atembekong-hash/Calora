@@ -44,6 +44,10 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
         IF rate_limit_user_id IS NOT NULL THEN
           PERFORM calora_assert_deletion_writable(rate_limit_user_id);
         END IF;
+      ELSIF TG_TABLE_NAME = 'calora_coach_fact_context_idempotency' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_user_id);
+      ELSIF TG_TABLE_NAME = 'calora_cohort_memberships' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_user_id);
       END IF;
       RETURN NEW;
     END;
@@ -57,6 +61,8 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_referral_qualifications",
     "calora_recipe_media",
     "calora_capture_rate_limits",
+    "calora_coach_fact_context_idempotency",
+    "calora_cohort_memberships",
   ];
   for (const table of fencedTables) {
     await client.query(

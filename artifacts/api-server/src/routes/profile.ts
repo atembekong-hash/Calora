@@ -11,6 +11,10 @@ import { z } from "zod";
 import { db, profilesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import {
+  assertAccountWritable,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
 const ONBOARDING_CONSENT_VERSION = "calora-onboarding-v1";
@@ -49,13 +53,15 @@ function serializeProfile(
     // NULL marks a pre-preference legacy row. Do not invent a user choice on
     // read; the client retains a known local preference until an explicit save
     // makes this account-authoritative.
-    targetMode: row.targetMode === "automatic" || row.targetMode === "custom"
-      ? row.targetMode
-      : null,
+    targetMode:
+      row.targetMode === "automatic" || row.targetMode === "custom"
+        ? row.targetMode
+        : null,
     proteinTargetGrams: row.proteinTargetGrams ?? null,
     carbsTargetGrams: row.carbsTargetGrams ?? null,
     fatTargetGrams: row.fatTargetGrams ?? null,
-    units: row.units === "imperial" || row.units === "metric" ? row.units : null,
+    units:
+      row.units === "imperial" || row.units === "metric" ? row.units : null,
     consentVersion: row.consentVersion,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -84,7 +90,9 @@ router.get("/v1/profile", async (req, res): Promise<void> => {
   const userId = await ensureUserRow(auth.id, auth.email);
   const row = await readProfile(userId);
   if (!row) {
-    res.status(404).json({ message: "No profile has been saved for this account." });
+    res
+      .status(404)
+      .json({ message: "No profile has been saved for this account." });
     return;
   }
 
@@ -98,9 +106,24 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
     return;
   }
 
+  try {
+    await assertAccountWritable(auth.id);
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      res.status(503).json({
+        message:
+          "Profile is unavailable while account deletion is in progress.",
+      });
+      return;
+    }
+    throw error;
+  }
+
   const parsed = UpdateProfileBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid profile." });
+    res
+      .status(400)
+      .json({ message: parsed.error.issues[0]?.message ?? "Invalid profile." });
     return;
   }
 
@@ -117,17 +140,23 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
       .where(eq(profilesTable.userId, userId))
       .limit(1);
     const existing = existingRows[0];
-    const targetMode = input.targetMode ?? (existing?.targetMode === "automatic" ? "automatic" : "custom");
-    const units = input.units ?? (existing?.units === "imperial" ? "imperial" : "metric");
-    const proteinTargetGrams = input.proteinTargetGrams === undefined
-      ? existing?.proteinTargetGrams ?? null
-      : input.proteinTargetGrams;
-    const carbsTargetGrams = input.carbsTargetGrams === undefined
-      ? existing?.carbsTargetGrams ?? null
-      : input.carbsTargetGrams;
-    const fatTargetGrams = input.fatTargetGrams === undefined
-      ? existing?.fatTargetGrams ?? null
-      : input.fatTargetGrams;
+    const targetMode =
+      input.targetMode ??
+      (existing?.targetMode === "automatic" ? "automatic" : "custom");
+    const units =
+      input.units ?? (existing?.units === "imperial" ? "imperial" : "metric");
+    const proteinTargetGrams =
+      input.proteinTargetGrams === undefined
+        ? (existing?.proteinTargetGrams ?? null)
+        : input.proteinTargetGrams;
+    const carbsTargetGrams =
+      input.carbsTargetGrams === undefined
+        ? (existing?.carbsTargetGrams ?? null)
+        : input.carbsTargetGrams;
+    const fatTargetGrams =
+      input.fatTargetGrams === undefined
+        ? (existing?.fatTargetGrams ?? null)
+        : input.fatTargetGrams;
     const [saved] = await tx
       .insert(profilesTable)
       .values({
@@ -152,22 +181,22 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
       .onConflictDoUpdate({
         target: profilesTable.userId,
         set: {
-        goal: input.goal,
-        activityLevel: input.activity,
-        dietPreference: input.diet,
-        age: input.age,
-        heightCm: String(input.heightCm),
-        weightKg: String(input.weightKg),
-        targetWeightKg: String(input.targetWeightKg),
-        calorieTarget: input.calorieTarget,
-        targetMode,
-        proteinTargetGrams,
-        carbsTargetGrams,
-        fatTargetGrams,
-        units,
-        consentVersion: input.consentVersion,
-        consentAcceptedAt: existing?.consentAcceptedAt ?? now,
-        updatedAt: now,
+          goal: input.goal,
+          activityLevel: input.activity,
+          dietPreference: input.diet,
+          age: input.age,
+          heightCm: String(input.heightCm),
+          weightKg: String(input.weightKg),
+          targetWeightKg: String(input.targetWeightKg),
+          calorieTarget: input.calorieTarget,
+          targetMode,
+          proteinTargetGrams,
+          carbsTargetGrams,
+          fatTargetGrams,
+          units,
+          consentVersion: input.consentVersion,
+          consentAcceptedAt: existing?.consentAcceptedAt ?? now,
+          updatedAt: now,
         },
       })
       .returning();
@@ -211,6 +240,18 @@ router.delete("/v1/profile", async (req, res): Promise<void> => {
     return;
   }
 
+  try {
+    await assertAccountWritable(auth.id);
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      res.status(503).json({
+        message:
+          "Profile is unavailable while account deletion is in progress.",
+      });
+      return;
+    }
+    throw error;
+  }
   const userId = await ensureUserRow(auth.id, auth.email);
   await db.delete(profilesTable).where(eq(profilesTable.userId, userId));
   await db

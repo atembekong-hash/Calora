@@ -21,8 +21,17 @@
  */
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { CreateDiaryEntryBody, SyncFirstDiaryEntryBody } from "@workspace/api-zod";
-import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
+import {
+  CreateDiaryEntryBody,
+  SyncFirstDiaryEntryBody,
+} from "@workspace/api-zod";
+import {
+  db,
+  aiCaptureCandidatesTable,
+  aiCaptureSessionsTable,
+  diaryEntriesTable,
+  usersTable,
+} from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import {
@@ -34,6 +43,7 @@ import {
 import { logger } from "../lib/logger.js";
 import {
   accountDeletionFenceSignal,
+  assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 
@@ -84,32 +94,78 @@ type ValidDiaryInput = {
 };
 
 function isDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return false;
   const [y, m, d] = value.split("-").map(Number);
   // Use UTC to avoid timezone shifts. If the browser/runtime normalises an
   // overflow date (e.g. Feb 31 → Mar 3) the reconstructed values won't match.
   const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
 }
 
 function numeric(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
 }
 
-function parseInput(body: DiaryInput): { ok: true; value: ValidDiaryInput } | { ok: false; message: string } {
-  if (!isDate(body.entryDate)) return { ok: false, message: "A valid entry date is required." };
-  if (typeof body.meal !== "string" || !MEALS.has(body.meal)) return { ok: false, message: "Choose a valid meal." };
-  if (typeof body.name !== "string" || body.name.trim().length < 1 || body.name.trim().length > 160) return { ok: false, message: "A food name is required." };
-  if (typeof body.serving !== "string" || body.serving.trim().length < 1 || body.serving.trim().length > 160) return { ok: false, message: "A serving is required." };
-  if (typeof body.provenance !== "string" || !PROVENANCE.has(body.provenance)) return { ok: false, message: "Choose a valid food source." };
+function parseInput(
+  body: DiaryInput,
+): { ok: true; value: ValidDiaryInput } | { ok: false; message: string } {
+  if (!isDate(body.entryDate))
+    return { ok: false, message: "A valid entry date is required." };
+  if (typeof body.meal !== "string" || !MEALS.has(body.meal))
+    return { ok: false, message: "Choose a valid meal." };
+  if (
+    typeof body.name !== "string" ||
+    body.name.trim().length < 1 ||
+    body.name.trim().length > 160
+  )
+    return { ok: false, message: "A food name is required." };
+  if (
+    typeof body.serving !== "string" ||
+    body.serving.trim().length < 1 ||
+    body.serving.trim().length > 160
+  )
+    return { ok: false, message: "A serving is required." };
+  if (typeof body.provenance !== "string" || !PROVENANCE.has(body.provenance))
+    return { ok: false, message: "Choose a valid food source." };
   const calories = numeric(body.calories);
   const proteinG = numeric(body.proteinG);
   const carbsG = numeric(body.carbsG);
   const fatG = numeric(body.fatG);
-  if (calories === null || proteinG === null || carbsG === null || fatG === null) return { ok: false, message: "Nutrition values must be non-negative numbers." };
-  if (typeof body.confidence !== "number" || !Number.isInteger(body.confidence) || body.confidence < 0 || body.confidence > 100) return { ok: false, message: "Confidence must be between 0 and 100." };
-  if (typeof body.clientUpdatedAt !== "string" || Number.isNaN(Date.parse(body.clientUpdatedAt))) return { ok: false, message: "A valid update time is required." };
-  if (body.notes !== undefined && body.notes !== null && typeof body.notes !== "string") return { ok: false, message: "Notes must be text." };
+  if (
+    calories === null ||
+    proteinG === null ||
+    carbsG === null ||
+    fatG === null
+  )
+    return {
+      ok: false,
+      message: "Nutrition values must be non-negative numbers.",
+    };
+  if (
+    typeof body.confidence !== "number" ||
+    !Number.isInteger(body.confidence) ||
+    body.confidence < 0 ||
+    body.confidence > 100
+  )
+    return { ok: false, message: "Confidence must be between 0 and 100." };
+  if (
+    typeof body.clientUpdatedAt !== "string" ||
+    Number.isNaN(Date.parse(body.clientUpdatedAt))
+  )
+    return { ok: false, message: "A valid update time is required." };
+  if (
+    body.notes !== undefined &&
+    body.notes !== null &&
+    typeof body.notes !== "string"
+  )
+    return { ok: false, message: "Notes must be text." };
   return {
     ok: true,
     value: {
@@ -126,20 +182,34 @@ function parseInput(body: DiaryInput): { ok: true; value: ValidDiaryInput } | { 
       provenance: body.provenance,
       confidence: body.confidence,
       clientUpdatedAt: body.clientUpdatedAt,
-      notes: typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) || null : null,
+      notes:
+        typeof body.notes === "string"
+          ? body.notes.trim().slice(0, 2000) || null
+          : null,
     },
   };
 }
 
 /** Creates the internal data owner lazily from the JWT identity. */
 async function ensureDataUser(externalId: string, email: string | null) {
-  const existing = await db.select().from(usersTable).where(eq(usersTable.externalId, externalId)).limit(1);
+  const existing = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.externalId, externalId))
+    .limit(1);
   if (existing[0]) return existing[0];
   try {
-    const inserted = await db.insert(usersTable).values({ externalId, email }).returning();
+    const inserted = await db
+      .insert(usersTable)
+      .values({ externalId, email })
+      .returning();
     return inserted[0];
   } catch {
-    const concurrent = await db.select().from(usersTable).where(eq(usersTable.externalId, externalId)).limit(1);
+    const concurrent = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.externalId, externalId))
+      .limit(1);
     if (!concurrent[0]) throw new Error("Unable to create the diary owner.");
     return concurrent[0];
   }
@@ -170,21 +240,41 @@ function serialize(row: typeof diaryEntriesTable.$inferSelect) {
 
 router.get("/v1/diary", async (req, res) => {
   const auth = await verifyBearerToken(req);
-  if (!auth) return res.status(401).json({ message: "Please sign in to view your diary." });
+  if (!auth)
+    return res
+      .status(401)
+      .json({ message: "Please sign in to view your diary." });
   const date = typeof req.query.date === "string" ? req.query.date : "";
-  if (!isDate(date)) return res.status(400).json({ message: "A valid date is required." });
+  if (!isDate(date))
+    return res.status(400).json({ message: "A valid date is required." });
   const userId = await ensureUserRow(auth.id, auth.email);
-  const rows = await db.select().from(diaryEntriesTable).where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.entryDate, date))).orderBy(desc(diaryEntriesTable.createdAt));
+  const rows = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(
+      and(
+        eq(diaryEntriesTable.userId, userId),
+        eq(diaryEntriesTable.entryDate, date),
+      ),
+    )
+    .orderBy(desc(diaryEntriesTable.createdAt));
   return res.json({ date, entries: rows.map(serialize) });
 });
 
 router.post("/v1/diary", async (req, res) => {
   try {
     const auth = await verifyBearerToken(req);
-    if (!auth) return res.status(401).json({ message: "Please sign in to save a diary entry." });
+    if (!auth)
+      return res
+        .status(401)
+        .json({ message: "Please sign in to save a diary entry." });
     const parsed = CreateDiaryEntryBody.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
+    if (!parsed.success)
+      return res.status(400).json({
+        message: parsed.error.issues[0]?.message ?? "Invalid diary entry",
+      });
     const entry = parsed.data;
+    await assertAccountWritable(auth.id);
     const userId = await ensureUserRow(auth.id, auth.email);
     // Image metadata is optional and provider/user supplied — re-validate it
     // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
@@ -211,12 +301,17 @@ router.post("/v1/diary", async (req, res) => {
       imageUrl: image.imageUrl,
       imageSource: image.imageSource,
       syncMetadata: {
-        ...(typeof entry.imageAssetKey === "string" ? { imageAssetKey: entry.imageAssetKey } : {}),
+        ...(typeof entry.imageAssetKey === "string"
+          ? { imageAssetKey: entry.imageAssetKey }
+          : {}),
         ...(imageEvidence ? { imageEvidence } : {}),
       },
       clientUpdatedAt: entry.clientUpdatedAt,
     };
-    const [created] = await db.insert(diaryEntriesTable).values(values).returning();
+    const [created] = await db
+      .insert(diaryEntriesTable)
+      .values(values)
+      .returning();
     return res.status(201).json(serialize(created));
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
@@ -224,7 +319,9 @@ router.post("/v1/diary", async (req, res) => {
         accountDeletionFenceSignal("/v1/diary"),
         "Account deletion fence rejected diary write",
       );
-      return res.status(503).json({ message: "Diary is unavailable right now. Please try again later." });
+      return res.status(503).json({
+        message: "Diary is unavailable right now. Please try again later.",
+      });
     }
     throw err;
   }
@@ -233,9 +330,20 @@ router.post("/v1/diary", async (req, res) => {
 router.delete("/v1/diary/:entryId", async (req, res) => {
   try {
     const auth = await verifyBearerToken(req);
-    if (!auth) return res.status(401).json({ message: "Please sign in to delete a diary entry." });
+    if (!auth)
+      return res
+        .status(401)
+        .json({ message: "Please sign in to delete a diary entry." });
+    await assertAccountWritable(auth.id);
     const userId = await ensureUserRow(auth.id, auth.email);
-    await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, userId)));
+    await db
+      .delete(diaryEntriesTable)
+      .where(
+        and(
+          eq(diaryEntriesTable.id, req.params.entryId),
+          eq(diaryEntriesTable.userId, userId),
+        ),
+      );
     return res.status(204).send();
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
@@ -243,7 +351,10 @@ router.delete("/v1/diary/:entryId", async (req, res) => {
         accountDeletionFenceSignal("/v1/diary/:entryId"),
         "Account deletion fence rejected diary deletion",
       );
-      return res.status(503).json({ message: "Diary entry could not be deleted right now. Please try again later." });
+      return res.status(503).json({
+        message:
+          "Diary entry could not be deleted right now. Please try again later.",
+      });
     }
     throw err;
   }
@@ -260,7 +371,9 @@ router.post("/v1/diary/first-log", async (req, res) => {
 
     const parsed = SyncFirstDiaryEntryBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
+      res.status(400).json({
+        message: parsed.error.issues[0]?.message ?? "Invalid diary entry",
+      });
       return;
     }
     const entry = parsed.data;
@@ -291,14 +404,24 @@ router.post("/v1/diary/first-log", async (req, res) => {
       )
       .limit(1);
     const session = sessions[0];
-    if (!session || session.reviewedAt !== null || Date.now() - session.createdAt.getTime() > SESSION_MAX_AGE_MS) {
-      res.status(422).json({ message: "This entry doesn't match a recent food scan. Log a meal with capture first." });
+    if (
+      !session ||
+      session.reviewedAt !== null ||
+      Date.now() - session.createdAt.getTime() > SESSION_MAX_AGE_MS
+    ) {
+      res.status(422).json({
+        message:
+          "This entry doesn't match a recent food scan. Log a meal with capture first.",
+      });
       return;
     }
 
     // Text-mode captures cannot anchor this capture-first sync route.
-    if (session.mode === 'text') {
-      res.status(422).json({ message: "Text-only captures cannot be saved through this capture sync. Use image or barcode capture." });
+    if (session.mode === "text") {
+      res.status(422).json({
+        message:
+          "Text-only captures cannot be saved through this capture sync. Use image or barcode capture.",
+      });
       return;
     }
 
@@ -320,13 +443,18 @@ router.post("/v1/diary/first-log", async (req, res) => {
           eq(aiCaptureSessionsTable.userId, userId),
         ),
       );
-    const analyzedCalories = candidates.reduce((sum, c) => sum + Number(c.calories), 0);
+    const analyzedCalories = candidates.reduce(
+      (sum, c) => sum + Number(c.calories),
+      0,
+    );
     const withinBand =
       analyzedCalories > 0 &&
       entry.calories >= analyzedCalories * 0.25 &&
       entry.calories <= analyzedCalories * 2.5 + 100;
     if (!withinBand) {
-      res.status(422).json({ message: "This entry doesn't match the scanned meal's nutrition." });
+      res.status(422).json({
+        message: "This entry doesn't match the scanned meal's nutrition.",
+      });
       return;
     }
 
@@ -339,7 +467,7 @@ router.post("/v1/diary/first-log", async (req, res) => {
         .where(
           and(
             eq(aiCaptureSessionsTable.id, entry.captureSessionId),
-              eq(aiCaptureSessionsTable.userId, userId),
+            eq(aiCaptureSessionsTable.userId, userId),
             sql`${aiCaptureSessionsTable.reviewedAt} IS NULL`,
           ),
         )
@@ -351,8 +479,20 @@ router.post("/v1/diary/first-log", async (req, res) => {
       if (entry.imageEvidence?.semanticRole === "exact") {
         for (const candidate of candidates) {
           const candidateEvidence = candidate.evidence?.imageEvidence;
-          if (!matchesCaptureImageEvidence(candidateEvidence, entry.imageEvidence, user.id)) continue;
-          imageEvidence = normalizeImageEvidence(candidateEvidence, user.id, undefined, { allowExact: true });
+          if (
+            !matchesCaptureImageEvidence(
+              candidateEvidence,
+              entry.imageEvidence,
+              user.id,
+            )
+          )
+            continue;
+          imageEvidence = normalizeImageEvidence(
+            candidateEvidence,
+            user.id,
+            undefined,
+            { allowExact: true },
+          );
           break;
         }
       }
@@ -362,7 +502,10 @@ router.post("/v1/diary/first-log", async (req, res) => {
         imageAssetKey: entry.imageAssetKey,
       });
       if (imageEvidence?.semanticRole === "exact" && imageEvidence.locator) {
-        image = normalizeImageMetadata(imageEvidence.locator, imageEvidence.provider ?? image.imageSource);
+        image = normalizeImageMetadata(
+          imageEvidence.locator,
+          imageEvidence.provider ?? image.imageSource,
+        );
       }
       const values: typeof diaryEntriesTable.$inferInsert = {
         userId,
@@ -380,7 +523,9 @@ router.post("/v1/diary/first-log", async (req, res) => {
         imageUrl: image.imageUrl,
         imageSource: image.imageSource,
         syncMetadata: {
-          ...(typeof entry.imageAssetKey === "string" ? { imageAssetKey: entry.imageAssetKey } : {}),
+          ...(typeof entry.imageAssetKey === "string"
+            ? { imageAssetKey: entry.imageAssetKey }
+            : {}),
           ...(imageEvidence ? { imageEvidence } : {}),
         },
         clientUpdatedAt: entry.clientUpdatedAt,
@@ -401,11 +546,15 @@ router.post("/v1/diary/first-log", async (req, res) => {
         accountDeletionFenceSignal("/v1/diary/first-log"),
         "Account deletion fence rejected diary first-log",
       );
-      res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
+      res.status(503).json({
+        message: "Diary sync is unavailable right now. Please try again later.",
+      });
       return;
     }
     logger.error({ err }, "First diary log sync failed");
-    res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
+    res.status(503).json({
+      message: "Diary sync is unavailable right now. Please try again later.",
+    });
   }
 });
 
