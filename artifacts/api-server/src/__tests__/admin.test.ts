@@ -137,10 +137,16 @@ describe("restricted admin control plane", () => {
       .set("Host", "admin.mycaloraapp.com");
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toContain("no-store");
+    expect(response.headers["x-robots-tag"]).toBe(
+      "noindex, nofollow, noarchive, nosnippet",
+    );
     expect(response.headers["content-security-policy"]).toContain(
       "frame-ancestors 'none'",
     );
     expect(response.text).toContain("Calora Control Center");
+    expect(response.text).toContain(
+      '<meta name="robots" content="noindex,nofollow,noarchive,nosnippet">',
+    );
     expect(response.text).toContain(
       "No user nutrition or Coach message content is displayed",
     );
