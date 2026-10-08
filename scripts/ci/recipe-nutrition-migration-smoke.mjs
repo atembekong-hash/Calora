@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 18) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 19) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -354,7 +354,8 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
           'calora_admin_principals',
           'calora_admin_sessions',
           'calora_admin_audit_events',
-          'calora_admin_operational_alerts'
+          'calora_admin_operational_alerts',
+          'calora_admin_alert_deliveries',
         )`,
   );
   assert.deepEqual(
@@ -362,6 +363,7 @@ async function verifyAdminControlPlaneStorage(client, scenario) {
       left.tablename.localeCompare(right.tablename),
     ),
     [
+      { tablename: "calora_admin_alert_deliveries", rowsecurity: true },
       { tablename: "calora_admin_audit_events", rowsecurity: true },
       { tablename: "calora_admin_operational_alerts", rowsecurity: true },
       { tablename: "calora_admin_principals", rowsecurity: true },
