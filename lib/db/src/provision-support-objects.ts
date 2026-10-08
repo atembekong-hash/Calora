@@ -64,29 +64,18 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_coach_fact_context_idempotency",
     "calora_cohort_memberships",
   ];
-  const existingTablesResult = await client.query<{ regclass: string | null }>(
-    `
-    SELECT table_name::text AS regclass
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_name = ANY($1::text[])
-  `,
-    [fencedTables],
-  );
-  const existingTables = new Set(
-    existingTablesResult?.rows?.map((row) => row.regclass).filter(Boolean) ??
-      fencedTables,
-  );
-  for (const table of fencedTables.filter((candidate) =>
-    existingTables.has(candidate),
-  )) {
-    await client.query(
-      `DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`,
-    );
+  for (const table of fencedTables) {
     await client.query(`
-      CREATE TRIGGER calora_account_deletion_write_fence_trigger
-      BEFORE INSERT OR UPDATE ON ${table}
-      FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()
+      DO $$
+      BEGIN
+        IF to_regclass('public.${table}') IS NOT NULL THEN
+          EXECUTE 'DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON public.${table}';
+          EXECUTE 'CREATE TRIGGER calora_account_deletion_write_fence_trigger
+            BEFORE INSERT OR UPDATE ON public.${table}
+            FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()';
+        END IF;
+      END
+      $$;
     `);
   }
 }

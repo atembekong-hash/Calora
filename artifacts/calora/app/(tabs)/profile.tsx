@@ -1285,7 +1285,8 @@ export default function ProfileScreen() {
               nestedScrollEnabled
               keyboardShouldPersistTaps="handled"
             >
-              <View style={tab === "you" ? undefined : styles.hiddenSection}>
+              {/* prettier-ignore */}
+              <View style={tab === 'you' ? undefined : styles.hiddenSection}>
                 {/* ── Profile card ── */}
                 <Animated.View
                   entering={enterMotion("screen", 0)}
@@ -1656,7 +1657,8 @@ export default function ProfileScreen() {
                 </Animated.View>
               </View>
 
-              <View style={tab === "you" ? undefined : styles.hiddenSection}>
+              {/* prettier-ignore */}
+              <View style={tab === 'you' ? undefined : styles.hiddenSection}>
                 {/* ── Reminders ── */}
                 <Animated.View entering={enterMotion("screen", 4)}>
                   <Text
@@ -2737,9 +2739,8 @@ export default function ProfileScreen() {
                 </Animated.View>
               </View>
 
-              <View
-                style={tab === "membership" ? undefined : styles.hiddenSection}
-              >
+              {/* prettier-ignore */}
+              <View style={tab === 'membership' ? undefined : styles.hiddenSection}>
                 {/* ── Calora Pro ── */}
                 <View style={styles.planHeader}>
                   <View>
@@ -3445,9 +3446,8 @@ export default function ProfileScreen() {
                 </Animated.View>
               </View>
 
-              <View
-                style={tab === "account" ? undefined : styles.hiddenSection}
-              >
+              {/* prettier-ignore */}
+              <View style={tab === 'account' ? undefined : styles.hiddenSection}>
                 {/* ── Account ── */}
                 <AccountSection
                   fontScale={fontScale}
