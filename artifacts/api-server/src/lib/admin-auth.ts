@@ -25,6 +25,8 @@ export type AdminPermission =
   | "content.read"
   | "privacy.read"
   | "system.read"
+  | "alerts.read"
+  | "alerts.manage"
   | "audit.read"
   | "feature_flags.manage"
   | "admin.roles.manage";
@@ -43,6 +45,8 @@ export const ADMIN_ROLE_PERMISSIONS: Readonly<
     "content.read",
     "privacy.read",
     "system.read",
+    "alerts.read",
+    "alerts.manage",
     "audit.read",
     "feature_flags.manage",
     "admin.roles.manage",
@@ -58,6 +62,8 @@ export const ADMIN_ROLE_PERMISSIONS: Readonly<
     "content.read",
     "privacy.read",
     "system.read",
+    "alerts.read",
+    "alerts.manage",
     "audit.read",
     "feature_flags.manage",
   ],

@@ -120,6 +120,13 @@
       "when": 1791277200000,
       "tag": "0017_admin_control_plane",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791421680000,
+      "tag": "0018_admin_operational_alerts",
+      "breakpoints": true
     }
   ]
 }
