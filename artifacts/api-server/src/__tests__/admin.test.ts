@@ -151,6 +151,10 @@ describe("restricted admin control plane", () => {
       "No user nutrition or Coach message content is displayed",
     );
     expect(response.text).not.toContain("export database");
+
+    const script = response.text.match(/<script>([\s\S]*)<\/script>/)?.[1];
+    expect(script).toContain("replace(/\\/$/,'')");
+    expect(() => new Function(script!)).not.toThrow();
   });
 
   it("returns no operational data when the server-side role check denies access", async () => {
