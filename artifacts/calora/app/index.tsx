@@ -25,7 +25,7 @@ import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
 import { completeDeviceLocalReset } from '@/lib/deviceLocalReset';
 import { recommendCalories } from '@/lib/calorieRecommendation';
-import { validatePersonalDetails } from '@/lib/profileTargets';
+import { MINIMUM_COMMERCIAL_AGE, validatePersonalDetails } from '@/lib/profileTargets';
 import { useAuth } from '@/context/AuthContext';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
@@ -214,7 +214,7 @@ export default function OnboardingScreen() {
     age, height, weight, targetWeight, activity, diet, goal,
   }, 'metric'), [activity, age, diet, goal, height, targetWeight, weight]);
   const calorieTarget = useMemo(
-    () => validatedPersonalDetails.ok && validatedPersonalDetails.values.age >= 18
+    () => validatedPersonalDetails.ok && validatedPersonalDetails.values.age >= MINIMUM_COMMERCIAL_AGE
       ? recommendCalories({
           weightKg: validatedPersonalDetails.values.weightKg,
           activity,
@@ -236,12 +236,12 @@ export default function OnboardingScreen() {
     const profile: Profile = {
       name: name.trim() || 'Alex Morgan',
       ...validation.values,
-      calorieTarget: validation.values.age >= 18 ? recommendCalories({
+      calorieTarget: validation.values.age >= MINIMUM_COMMERCIAL_AGE ? recommendCalories({
         weightKg: validation.values.weightKg,
         activity: validation.values.activity,
         goal: validation.values.goal,
       }) : 2000,
-      targetMode: validation.values.age >= 18 ? 'automatic' : 'custom',
+      targetMode: validation.values.age >= MINIMUM_COMMERCIAL_AGE ? 'automatic' : 'custom',
     };
     try {
       await completeOnboarding(profile, consent);

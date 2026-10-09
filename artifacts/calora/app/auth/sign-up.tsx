@@ -40,6 +40,7 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   const handleLegalLink = useCallback(async (url: string, label: string) => {
     setError(null);
@@ -63,6 +64,7 @@ export default function SignUpScreen() {
     if (!trimmedEmail.includes('@')) { setError('Please enter a valid email address.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (!ageConfirmed) { setError('Calora is currently available to people 18 and older. Please confirm your eligibility.'); return; }
 
     setError(null);
     setLoading(true);
@@ -87,7 +89,7 @@ export default function SignUpScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loading, email, password, confirmPassword, signUpWithEmail]);
+  }, [ageConfirmed, loading, email, password, confirmPassword, signUpWithEmail]);
 
   return (
     <KeyboardAvoidingView
@@ -181,6 +183,21 @@ export default function SignUpScreen() {
           style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
         />
 
+        {/* Commercial age eligibility */}
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: ageConfirmed }}
+          accessibilityLabel="I confirm that I am 18 or older"
+          onPress={() => { setAgeConfirmed((value) => !value); setError(null); }}
+          disabled={loading}
+          style={[styles.ageConfirmRow, { borderColor: colors.border }]}
+        >
+          <View style={[styles.checkbox, { borderColor: ageConfirmed ? colors.primary : colors.input, backgroundColor: ageConfirmed ? colors.primary : colors.card }]}>
+            {ageConfirmed ? <Feather name="check" size={13} color={colors.primaryForeground} /> : null}
+          </View>
+          <Text style={[styles.ageConfirmText, { color: colors.foreground }]}>I confirm that I am 18 or older.</Text>
+        </Pressable>
+
         {/* Password hint */}
         <View style={[styles.hintRow, { backgroundColor: colors.muted }]}>
           <Feather name="shield" size={13} color={colors.mutedForeground} />
@@ -261,6 +278,9 @@ const styles = StyleSheet.create({
   eyeButton: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
   inviteNotice: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
   inviteNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1, lineHeight: 18 },
+  ageConfirmRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 20 },
+  checkbox: { width: 22, height: 22, borderWidth: 1.5, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  ageConfirmText: { fontFamily: 'Inter_500Medium', fontSize: 13, flex: 1 },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
   hintText: { fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
