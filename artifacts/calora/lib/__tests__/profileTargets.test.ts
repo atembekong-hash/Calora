@@ -34,9 +34,9 @@ describe('profile target migration helpers', () => {
       expect(imperial.values.heightCm).toBeCloseTo(172.72, 2);
     }
     expect(validatePersonalDetails({
-      age: '8', height: '172', weight: '76', targetWeight: '68',
+      age: '17', height: '172', weight: '76', targetWeight: '68',
       activity: 'moderate', diet: 'Everything', goal: 'lose',
-    }, 'metric')).toEqual({ ok: false, message: 'Enter an age from 13 to 120.' });
+    }, 'metric')).toEqual({ ok: false, message: 'Calora is currently available to people 18 and older.' });
   });
 
   it('round-trips whole-number imperial display strings without exposing fractions', () => {

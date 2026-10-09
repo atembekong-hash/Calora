@@ -254,6 +254,17 @@ describe("profile persistence routes", () => {
     expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
+  it("rejects under-18 profiles before persistence", async () => {
+    const response = await request(buildApp())
+      .put("/v1/profile")
+      .set("Authorization", "Bearer token")
+      .send({ ...input, age: 17 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("18");
+    expect(dbMock.transaction).not.toHaveBeenCalled();
+  });
+
   it("rejects unauthenticated profile access", async () => {
     verifyBearerToken.mockResolvedValue(null);
 

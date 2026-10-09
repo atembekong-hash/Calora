@@ -15,6 +15,7 @@ export type PersonalDetailsValidation =
   | { ok: true; values: Pick<Profile, 'age' | 'heightCm' | 'weightKg' | 'targetWeightKg' | 'activity' | 'diet' | 'goal'> }
   | { ok: false; message: string };
 
+export const MINIMUM_COMMERCIAL_AGE = 18;
 const poundsPerKg = 2.20462;
 const inchesPerCm = 0.393701;
 
@@ -60,8 +61,8 @@ export function validatePersonalDetails(
   const heightCm = units === 'imperial' ? height / inchesPerCm : height;
   const weightKg = units === 'imperial' ? weight / poundsPerKg : weight;
 
-  if (!Number.isFinite(age) || age < 13 || age > 120 || !Number.isInteger(age)) {
-    return { ok: false, message: 'Enter an age from 13 to 120.' };
+  if (!Number.isFinite(age) || age < MINIMUM_COMMERCIAL_AGE || age > 120 || !Number.isInteger(age)) {
+    return { ok: false, message: 'Calora is currently available to people 18 and older.' };
   }
   if (!Number.isFinite(height) || !Number.isInteger(height) || heightCm < 80 || heightCm > 260) {
     return { ok: false, message: `Enter a height from ${units === 'imperial' ? '32 to 102 in' : '80 to 260 cm'}.` };

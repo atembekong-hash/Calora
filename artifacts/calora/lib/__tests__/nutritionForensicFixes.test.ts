@@ -41,7 +41,7 @@ describe('nutrition and personal-detail forensic regressions', () => {
       goal: 'lose' as const,
     };
     const invalidCases = [
-      { patch: { age: '12' }, message: 'Enter an age from 13 to 120.' },
+      { patch: { age: '17' }, message: 'Calora is currently available to people 18 and older.' },
       { patch: { height: '79' }, message: 'Enter a height from 80 to 260 cm.' },
       { patch: { weight: '24' }, message: 'Enter a current weight from 25 to 350 kg.' },
       { patch: { targetWeight: '351' }, message: 'Enter a target weight from 25 to 350 kg.' },
