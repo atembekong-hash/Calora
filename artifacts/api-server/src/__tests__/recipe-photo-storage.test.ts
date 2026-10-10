@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { info } = vi.hoisted(() => ({ info: vi.fn() }));
 
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: { info },
 }));
 

@@ -2,7 +2,7 @@ import { pool } from "@workspace/db";
 import type { AdminSession } from "./admin-auth.js";
 import { writeAdminAudit } from "./admin-data.js";
 import { notifyOperationalAlerts } from "./admin-alert-email.js";
-import { logger } from "./logger.js";
+import { logger, safeErrorDetails } from "./logger.js";
 
 export type AlertSeverity = "warning" | "critical";
 export type AlertStatus = "open" | "acknowledged" | "resolved";

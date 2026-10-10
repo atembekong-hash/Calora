@@ -27,6 +27,8 @@ vi.mock("../lib/revenuecat.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: {
     warn: loggerWarnMock,
     error: vi.fn(),

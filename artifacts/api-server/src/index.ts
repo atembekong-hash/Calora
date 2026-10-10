@@ -2,6 +2,7 @@ import app from "./app";
 import {
   flushSuppressedRecoveryWarningSummary,
   logger,
+  safeErrorDetails,
   RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
   restoreSuppressedRecoveryWarningSummary,
   waitForRecoverySummaryPersistence,
@@ -38,7 +39,7 @@ logger.info("Database schema is managed by reviewed Drizzle migrations");
 // The failed client is already removed by pg; log the event and let subsequent
 // requests acquire a healthy connection.
 pool.on("error", (err) => {
-  logger.error({ err }, "Unexpected idle database client error");
+  logger.error(safeErrorDetails(err), "Unexpected idle database client error");
 });
 
 // ---------------------------------------------------------------------------
@@ -66,13 +67,13 @@ async function cleanupExpiredRateLimitRows(): Promise<void> {
     const count = Number(result.rows[0]?.count ?? 0);
     logger.info({ count }, "Rate-limit cleanup: removed expired rows");
   } catch (err) {
-    logger.error({ err }, "Rate-limit cleanup failed");
+    logger.error(safeErrorDetails(err), "Rate-limit cleanup failed");
   }
 }
 
 const runAccountDeletionRecovery = () =>
   runSafeBackgroundTask(recoverPendingAccountDeletions, (err) =>
-    logger.error({ err }, "Account deletion recovery failed"),
+    logger.error(safeErrorDetails(err), "Account deletion recovery failed"),
   );
 
 async function startAccountDeletionRecovery(): Promise<void> {
@@ -109,10 +110,10 @@ async function startServer(): Promise<void> {
   if (shutdownStarted) return;
 
   void startAccountDeletionRecovery().catch((err) =>
-    logger.error({ err }, "Account deletion recovery startup failed"),
+    logger.error(safeErrorDetails(err), "Account deletion recovery startup failed"),
   );
   void refreshOperationalAlerts().catch((err) =>
-    logger.warn({ err }, "Initial operational alert refresh failed"),
+    logger.warn(safeErrorDetails(err), "Initial operational alert refresh failed"),
   );
   accountRecoveryTimer = setInterval(
     () => void runAccountDeletionRecovery(),
@@ -122,7 +123,7 @@ async function startServer(): Promise<void> {
   adminAlertRefreshTimer = setInterval(
     () =>
       void refreshOperationalAlerts().catch((err) =>
-        logger.warn({ err }, "Operational alert refresh failed"),
+        logger.warn(safeErrorDetails(err), "Operational alert refresh failed"),
       ),
     ADMIN_ALERT_REFRESH_INTERVAL_MS,
   );
@@ -135,7 +136,7 @@ async function startServer(): Promise<void> {
 
   server = app.listen(port, (err) => {
     if (err) {
-      logger.fatal({ err }, "API listener failed during startup");
+      logger.fatal(safeErrorDetails(err), "API listener failed during startup");
       shutdown("listen_error", 1);
       return;
     }
@@ -153,7 +154,7 @@ async function startServer(): Promise<void> {
 }
 
 void startServer().catch((err) => {
-  logger.fatal({ err }, "API startup readiness check failed");
+  logger.fatal(safeErrorDetails(err), "API startup readiness check failed");
   shutdown("startup_readiness", 1);
 });
 
@@ -178,7 +179,7 @@ function shutdown(reason: string, exitCode: number): void {
       let finalExitCode = exitCode;
       if (serverError) {
         finalExitCode = 1;
-        logger.error({ err: serverError }, "HTTP server close failed");
+        logger.error(safeErrorDetails(serverError), "HTTP server close failed");
       }
 
       try {
@@ -186,7 +187,7 @@ function shutdown(reason: string, exitCode: number): void {
         await pool.end();
       } catch (err) {
         finalExitCode = 1;
-        logger.error({ err }, "Database pool close failed");
+        logger.error(safeErrorDetails(err), "Database pool close failed");
       } finally {
         clearTimeout(hardShutdownTimer);
         logger.info(
@@ -208,10 +209,10 @@ function shutdown(reason: string, exitCode: number): void {
 process.once("SIGTERM", () => shutdown("SIGTERM", 0));
 process.once("SIGINT", () => shutdown("SIGINT", 0));
 process.once("uncaughtException", (err) => {
-  logger.fatal({ err }, "Uncaught exception");
+  logger.fatal(safeErrorDetails(err), "Uncaught exception");
   shutdown("uncaughtException", 1);
 });
 process.once("unhandledRejection", (reason) => {
-  logger.fatal({ err: reason }, "Unhandled promise rejection");
+  logger.fatal(safeErrorDetails(reason), "Unhandled promise rejection");
   shutdown("unhandledRejection", 1);
 });

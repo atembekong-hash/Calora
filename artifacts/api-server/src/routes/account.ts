@@ -24,7 +24,7 @@ import {
   type RecoverableAccountDeletion,
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
-import { logger, noteSuppressedRecoveryWarning } from "../lib/logger.js";
+import { logger, safeErrorDetails, noteSuppressedRecoveryWarning } from "../lib/logger.js";
 import {
   eraseRecipePhotoObjects,
   isRecipePhotoStorageConfigured,
@@ -411,7 +411,7 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
       return;
     }
   } catch (error) {
-    req.log.error({ err: error }, "Account deletion operation failed");
+    req.log.error(safeErrorDetails(error), "Account deletion operation failed");
     res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
     return;
   }

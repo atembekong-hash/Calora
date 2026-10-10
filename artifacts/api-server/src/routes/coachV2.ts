@@ -30,7 +30,7 @@ import {
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 import { isCoachReportIntakeEnabled } from "../lib/admin-feature-flags.js";
-import { logger } from "../lib/logger.js";
+import { logger, safeErrorDetails } from "../lib/logger.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 
@@ -332,7 +332,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
   try {
     verified = await optionalVerifiedUser(req);
   } catch (error) {
-    logger.error({ err: error }, "Coach authentication verifier unavailable");
+    logger.error(safeErrorDetails(error), "Coach authentication verifier unavailable");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
     return;
   }
@@ -392,7 +392,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
           await completeCoachV2Turn(turn.conversationId, turn.turnId, message);
           return { message, ok: true };
         } catch (error) {
-          logger.error({ err: error }, "Coach provider request failed");
+          logger.error(safeErrorDetails(error), "Coach provider request failed");
           await completeCoachV2Turn(
             turn.conversationId,
             turn.turnId,
@@ -422,7 +422,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
       res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
       return;
     }
-    logger.error({ err: error }, "Coach V2 request failed");
+    logger.error(safeErrorDetails(error), "Coach V2 request failed");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -472,7 +472,7 @@ router.post("/v1/coach/v2/report", async (req, res) => {
     );
     res.status(202).json({ accepted: true });
   } catch (error) {
-    logger.error({ err: error }, "Unable to record Coach report");
+    logger.error(safeErrorDetails(error), "Unable to record Coach report");
     res.status(503).json({
       message: "Coach report could not be submitted. Please try again.",
     });
@@ -498,7 +498,7 @@ router.get("/v1/coach/v2/conversation", async (req, res) => {
       personalizationEnabled: settings.personalizationEnabled,
     });
   } catch (error) {
-    logger.error({ err: error }, "Unable to read Coach V2 conversation");
+    logger.error(safeErrorDetails(error), "Unable to read Coach V2 conversation");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -518,7 +518,7 @@ router.delete("/v1/coach/v2/conversation", async (req, res) => {
     });
     res.status(204).send();
   } catch (error) {
-    logger.error({ err: error }, "Unable to clear Coach V2 conversation");
+    logger.error(safeErrorDetails(error), "Unable to clear Coach V2 conversation");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -535,7 +535,7 @@ router.get("/v1/coach/v2/conversations", async (req, res) => {
     const userId = await resolveCoachV2User(verified.id, verified.email);
     res.json({ conversations: await listCoachV2Conversations(userId) });
   } catch (error) {
-    logger.error({ err: error }, "Unable to list Coach V2 conversations");
+    logger.error(safeErrorDetails(error), "Unable to list Coach V2 conversations");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -561,7 +561,7 @@ router.post("/v1/coach/v2/conversation/new", async (req, res) => {
     }
     res.status(204).send();
   } catch (error) {
-    logger.error({ err: error }, "Unable to start a new Coach V2 conversation");
+    logger.error(safeErrorDetails(error), "Unable to start a new Coach V2 conversation");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -600,7 +600,7 @@ router.delete("/v1/coach/v2/conversation/:conversationId", async (req, res) => {
     // unknown identifier so this route never confirms another account's data.
     res.status(404).json({ message: "Saved Coach chat not found." });
   } catch (error) {
-    logger.error({ err: error }, "Unable to delete saved Coach V2 chat");
+    logger.error(safeErrorDetails(error), "Unable to delete saved Coach V2 chat");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -647,7 +647,7 @@ router.post(
       }
       res.json(conversation);
     } catch (error) {
-      logger.error({ err: error }, "Unable to open Coach V2 conversation");
+      logger.error(safeErrorDetails(error), "Unable to open Coach V2 conversation");
       res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
     }
   },
@@ -663,7 +663,7 @@ router.get("/v1/coach/v2/settings", async (req, res) => {
     const userId = await resolveCoachV2User(verified.id, verified.email);
     res.json(await getCoachV2Settings(userId));
   } catch (error) {
-    logger.error({ err: error }, "Unable to read Coach V2 settings");
+    logger.error(safeErrorDetails(error), "Unable to read Coach V2 settings");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -691,7 +691,7 @@ router.put("/v1/coach/v2/settings", async (req, res) => {
     );
     res.json(settings);
   } catch (error) {
-    logger.error({ err: error }, "Unable to update Coach V2 settings");
+    logger.error(safeErrorDetails(error), "Unable to update Coach V2 settings");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });

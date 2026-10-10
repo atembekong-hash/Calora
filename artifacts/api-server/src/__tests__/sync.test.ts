@@ -177,6 +177,8 @@ vi.mock('../lib/account-deletion-state.js', () => ({
 }));
 
 vi.mock('../lib/logger.js', () => ({
+  safeErrorDetails: () => ({ errorClass: 'test_error' }),
+  safeErrorCode: () => 'test_error',
   logger: { warn: loggerWarn, error: loggerError },
 }));
 

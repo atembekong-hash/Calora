@@ -24,7 +24,7 @@ import { normalizeTrustedFoodImageUrl } from "@workspace/api-zod/image-source-po
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { logger } from "../lib/logger";
+import { logger, safeErrorDetails } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import {
@@ -302,7 +302,7 @@ async function generateConcepts(body: RecipeGenerationConceptInput, res: Respons
     res.json(response.data);
     return;
   } catch (error) {
-    logger.warn({ err: error }, "Recipe concept generation failed");
+    logger.warn(safeErrorDetails(error), "Recipe concept generation failed");
     res.status(502).json({ message: "Calora couldn’t generate ideas right now. Your request is still here—try again shortly." });
     return;
   } finally {
@@ -528,7 +528,7 @@ router.post("/v1/recipes/photo", async (req, res) => {
       );
       return res.status(503).json({ code: "account_unavailable", retryable: true, message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
     }
-    logger.warn({ err: error }, "Recipe photo generation failed");
+    logger.warn(safeErrorDetails(error), "Recipe photo generation failed");
     return res.status(502).json({ code: "recipe_photo_retryable", retryable: true, message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
   }
 });
@@ -547,7 +547,7 @@ router.post("/v1/recipes/photo-url", async (req, res) => {
     if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
     return res.json(await locatorForRecipeMedia(user.id, row));
   } catch (error) {
-    logger.warn({ err: error }, "Recipe photo URL refresh failed");
+    logger.warn(safeErrorDetails(error), "Recipe photo URL refresh failed");
     return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
   }
 });
@@ -742,7 +742,7 @@ async function getNutritionFromDb(
       isStale: age > NUTRITION_DB_TTL_MS,
     };
   } catch (err) {
-    logger.warn({ err, mealId }, "nutrition DB read failed — falling back to OpenAI");
+    logger.warn({ ...safeErrorDetails(err), mealId }, "nutrition DB read failed — falling back to OpenAI");
     return null;
   }
 }
@@ -761,7 +761,7 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
       });
   } catch (err) {
     // Best-effort — a write failure should never break the response.
-    logger.warn({ err, mealId }, "nutrition DB write failed — estimate not persisted");
+    logger.warn({ ...safeErrorDetails(err), mealId }, "nutrition DB write failed — estimate not persisted");
   }
 }
 
@@ -848,7 +848,7 @@ async function refreshNutritionInBackground(
       logger.info({ mealId }, "nutrition estimate refreshed in background");
     }
   } catch (err) {
-    logger.warn({ err, mealId }, "background nutrition refresh failed");
+    logger.warn({ ...safeErrorDetails(err), mealId }, "background nutrition refresh failed");
   } finally {
     nutritionRefreshInFlight.delete(mealId);
   }
@@ -1004,7 +1004,7 @@ async function warmNutritionCache(meals: Meal[]): Promise<void> {
       // Rate-limit: pause between OpenAI requests.
       await new Promise<void>((resolve) => setTimeout(resolve, WARMUP_DELAY_MS));
     } catch (err) {
-      logger.warn({ err, mealId: meal.idMeal }, "nutrition warm-up skipped meal");
+      logger.warn({ ...safeErrorDetails(err), mealId: meal.idMeal }, "nutrition warm-up skipped meal");
     }
   }
 

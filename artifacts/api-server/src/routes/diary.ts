@@ -40,7 +40,7 @@ import {
   normalizeImageMetadata,
   type ImageEvidence,
 } from "../lib/image-metadata.js";
-import { logger } from "../lib/logger.js";
+import { logger, safeErrorDetails } from "../lib/logger.js";
 import {
   accountDeletionFenceSignal,
   assertAccountWritable,
@@ -551,7 +551,7 @@ router.post("/v1/diary/first-log", async (req, res) => {
       });
       return;
     }
-    logger.error({ err }, "First diary log sync failed");
+    logger.error(safeErrorDetails(err), "First diary log sync failed");
     res.status(503).json({
       message: "Diary sync is unavailable right now. Please try again later.",
     });

@@ -36,6 +36,8 @@ vi.mock("../lib/rate-limit.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: {
     error: loggerErrorMock,
     warn: vi.fn(),

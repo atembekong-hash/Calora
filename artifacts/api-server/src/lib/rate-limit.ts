@@ -18,7 +18,7 @@
  */
 
 import { pool } from "@workspace/db";
-import { logger } from "./logger.js";
+import { logger, safeErrorDetails } from "./logger.js";
 import { classifyAccountDeletionError } from "./account-deletion-state.js";
 
 export type RateLimitResult = {

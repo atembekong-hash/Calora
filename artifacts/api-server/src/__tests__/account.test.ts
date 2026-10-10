@@ -73,6 +73,8 @@ vi.mock("../lib/recipe-photo-storage.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: { warn, info },
   noteSuppressedRecoveryWarning: (...args: unknown[]) => noteSuppressedRecoveryWarning(...args),
 }));

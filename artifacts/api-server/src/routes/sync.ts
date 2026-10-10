@@ -37,7 +37,7 @@ import {
   normalizeImageMetadata,
   type ImageEvidence,
 } from "../lib/image-metadata.js";
-import { logger } from "../lib/logger.js";
+import { logger, safeErrorDetails } from "../lib/logger.js";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   accountDeletionFenceSignal,
@@ -778,7 +778,7 @@ router.post("/v1/sync", async (req, res) => {
       });
       return;
     }
-    logger.error({ err }, "Sync request failed");
+    logger.error(safeErrorDetails(err), "Sync request failed");
     res.status(503).json({
       message: "Sync is unavailable right now. Please try again later.",
     });

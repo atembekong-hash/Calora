@@ -14,7 +14,7 @@ import {
   safeImageSource,
   type ImageEvidence,
 } from "../lib/image-metadata.js";
-import { logger } from "../lib/logger.js";
+import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   accountDeletionFenceSignal,
@@ -118,7 +118,7 @@ async function persistCaptureSession(
     return sessionId;
   } catch (err) {
     if (classifyAccountDeletionError(err)) throw err;
-    logger.error({ err }, "Failed to persist capture session");
+    logger.error(safeErrorDetails(err), "Failed to persist capture session");
     return null;
   }
 }
@@ -605,7 +605,7 @@ router.post("/v1/capture/:sessionId/approve", async (req, res) => {
       res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
       return;
     }
-    logger.error({ err: error }, "Failed to approve capture session");
+    logger.error(safeErrorDetails(error), "Failed to approve capture session");
     res.status(503).json({ message: "Capture approval is temporarily unavailable. Please try again shortly." });
   }
 });
@@ -627,7 +627,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
       return;
     }
-    logger.error({ err: error }, "Capture authentication verification failed");
+    logger.error(safeErrorDetails(error), "Capture authentication verification failed");
     res.status(503).json({ message: "Capture authentication is temporarily unavailable. Please try again shortly." });
     return;
   }
@@ -787,7 +787,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
         mode: "voice",
         status: "transcript",
         title: "Check what we heard",
-        reviewMessage: "Edit this transcript if needed, then estimate nutrition. Your recording is discarded after transcription.",
+        reviewMessage: "Edit this transcript if needed, then estimate nutrition. Calora does not store your recording after this request; provider retention follows the configured service terms.",
         provider: "OpenAI transcription",
         transcript,
         candidates: [],
@@ -930,7 +930,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
       return;
     }
-    logger.error({ err: error }, "Capture provider request failed");
+    logger.error(safeErrorDetails(error), "Capture provider request failed");
     if (error instanceof Error && /deadline exceeded/i.test(error.message)) {
       res.status(504).json({ message: "Capture analysis timed out. Please retry; your photo was not retained." });
       return;
