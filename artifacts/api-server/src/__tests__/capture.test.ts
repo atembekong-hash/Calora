@@ -103,6 +103,8 @@ vi.mock('../lib/account-deletion-state.js', () => ({
 }));
 
 vi.mock('../lib/logger.js', () => ({
+  safeErrorDetails: () => ({ errorClass: 'test_error' }),
+  safeErrorCode: () => 'test_error',
   logger: { warn: loggerWarn, error: loggerError },
 }));
 
@@ -970,7 +972,7 @@ describe('POST /v1/capture/analyze', () => {
       expect(sessionInsert.values).toHaveBeenCalledTimes(1);
       expect(candidateInsert.values).toHaveBeenCalledTimes(1);
       expect(loggerError).toHaveBeenCalledWith(
-        { err: candidateWriteError },
+        { errorClass: 'test_error' },
         'Failed to persist capture session',
       );
 

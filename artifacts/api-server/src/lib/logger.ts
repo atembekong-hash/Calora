@@ -28,6 +28,20 @@ export function createLogger(destination?: DestinationStream) {
 
 export const logger = createLogger();
 
+/** Return only bounded error classification; never serialize message, stack, cause, or provider bodies. */
+export function safeErrorDetails(error: unknown): { errorClass: string } {
+  if (error instanceof Error) {
+    const name = error.name.trim();
+    return { errorClass: /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) ? name : "Error" };
+  }
+  return { errorClass: "unknown_error" };
+}
+
+/** Fixed classification for durable retry state; intentionally excludes error text. */
+export function safeErrorCode(error: unknown): string {
+  return safeErrorDetails(error).errorClass.toLowerCase().slice(0, 64);
+}
+
 export const RECOVERY_WARNING_SUMMARY_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_SUPPRESSED_RECOVERY_COHORTS = 128;
 const MAX_CORRELATION_KEYS_PER_COHORT = 128;

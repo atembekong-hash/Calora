@@ -8,6 +8,8 @@ vi.mock("@workspace/db", () => ({
   pool: { query: (...args: unknown[]) => poolQuery(...args) },
 }));
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: { info: vi.fn(), warn: vi.fn() },
 }));
 vi.mock("../lib/admin-data.js", () => ({

@@ -12,6 +12,8 @@ vi.mock("@workspace/db", () => ({
   db: { execute, transaction },
 }));
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   noteRecoveryWarningCooldownStorageUnavailable,
 }));
 

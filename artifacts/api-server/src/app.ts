@@ -9,7 +9,7 @@ import router from "./routes";
 import universalLinksRouter from "./routes/universal-links";
 import publicPagesRouter from "./routes/public-pages";
 import adminRouter from "./routes/admin";
-import { logger } from "./lib/logger";
+import { logger, safeErrorDetails } from "./lib/logger";
 import { isCorsOriginAllowed } from "./lib/cors-policy";
 import { HealthCheckResponse } from "@workspace/api-zod";
 
@@ -39,6 +39,7 @@ app.use(
           statusCode: res.statusCode,
         };
       },
+      err: safeErrorDetails,
     },
   }),
 );
@@ -100,7 +101,7 @@ const handleUnhandledRequestError: ErrorRequestHandler = (
   res,
   next,
 ) => {
-  req.log.error({ err }, "Unhandled request error");
+  req.log.error(safeErrorDetails(err), "Unhandled request error");
   if (res.headersSent) {
     next(err);
     return;

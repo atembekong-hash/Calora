@@ -9,7 +9,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
-import { logger } from "../lib/logger.js";
+import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   accountDeletionFenceSignal,

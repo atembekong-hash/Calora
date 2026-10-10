@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { pool } from "@workspace/db";
-import { logger } from "./logger.js";
+import { logger, safeErrorCode } from "./logger.js";
 import { writeAdminAudit } from "./admin-data.js";
 import type { AdminAlert } from "./admin-alerts.js";
 
@@ -36,12 +36,16 @@ function escapeHtml(value: string): string {
   );
 }
 
+function boundedAlertText(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
 function textBody(alert: AdminAlert): string {
   return [
     "Calora Admin System operational alert",
     `Severity: ${alert.severity.toUpperCase()}`,
     `Alert: ${alert.title}`,
-    `Detail: ${alert.detail}`,
+    `Detail: ${boundedAlertText(alert.detail)}`,
     `Occurrences: ${alert.occurrenceCount}`,
     `Last seen: ${alert.lastSeenAt}`,
     "",
@@ -73,7 +77,7 @@ async function sendViaResend(alert: AdminAlert): Promise<string> {
           to: [to],
           subject: `[Calora] ${alert.severity.toUpperCase()}: ${alert.title}`,
           text: textBody(alert),
-          html: `<p><strong>Calora Admin System operational alert</strong></p><p><strong>Severity:</strong> ${escapeHtml(alert.severity.toUpperCase())}</p><p><strong>Alert:</strong> ${escapeHtml(alert.title)}</p><p>${escapeHtml(alert.detail)}</p><p><strong>Occurrences:</strong> ${alert.occurrenceCount}<br><strong>Last seen:</strong> ${escapeHtml(alert.lastSeenAt)}</p><hr><p>This message contains bounded operational metadata only.</p>`,
+          html: `<p><strong>Calora Admin System operational alert</strong></p><p><strong>Severity:</strong> ${escapeHtml(alert.severity.toUpperCase())}</p><p><strong>Alert:</strong> ${escapeHtml(alert.title)}</p><p>${escapeHtml(boundedAlertText(alert.detail))}</p><p><strong>Occurrences:</strong> ${alert.occurrenceCount}<br><strong>Last seen:</strong> ${escapeHtml(alert.lastSeenAt)}</p><hr><p>This message contains bounded operational metadata only.</p>`,
         }),
         signal: controller.signal,
       },
@@ -160,9 +164,7 @@ export async function notifyOperationalAlerts(
           WHERE id = $1::uuid`,
           [
             deliveryRow.id,
-            error instanceof Error
-              ? error.message.slice(0, 200)
-              : "delivery failed",
+            safeErrorCode(error),
           ],
         )
         .catch(() => undefined);

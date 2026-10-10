@@ -1,5 +1,5 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { logger } from "./logger.js";
+import { logger, safeErrorDetails } from "./logger.js";
 import { createRecipePhotoSignedUrl } from "./recipe-photo-storage.js";
 import {
   RECIPE_MEDIA_URL_TTL_SECS,
@@ -58,7 +58,7 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
         ? error.message
         : "generation_unavailable";
     await markRecipeMediaError(ownerExternalId, row.id, code).catch(() => undefined);
-    logger.warn({ err: error, mediaId: row.id, code }, "Recipe media generation failed");
+    logger.warn({ ...safeErrorDetails(error), mediaId: row.id, code }, "Recipe media generation failed");
     throw error;
   } finally {
     clearTimeout(timer);

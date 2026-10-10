@@ -20,6 +20,8 @@ vi.mock("../lib/coach-fact-consent.js", () => ({
 }));
 const loggerWarn = vi.hoisted(() => vi.fn());
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: { warn: loggerWarn, error: vi.fn() },
 }));
 vi.mock("../lib/account-deletion-state.js", () => ({

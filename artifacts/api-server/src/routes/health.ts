@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { pool } from "@workspace/db";
-import { logger } from "../lib/logger";
+import { logger, safeErrorDetails } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -22,7 +22,7 @@ router.get("/healthz", async (_req, res) => {
     await pool.query("SELECT 1");
     sendHealthStatus(res);
   } catch (err) {
-    logger.warn({ err }, "Database readiness check failed");
+    logger.warn(safeErrorDetails(err), "Database readiness check failed");
     const data = HealthCheckResponse.parse({ status: "unavailable" });
     res.status(503).json(data);
   }

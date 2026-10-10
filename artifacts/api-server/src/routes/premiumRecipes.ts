@@ -5,7 +5,7 @@ import {
   listPremiumRecipes,
   premiumProviderStatus,
 } from "../lib/premiumRecipes";
-import { logger } from "../lib/logger";
+import { logger, safeErrorDetails } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { checkRateLimit } from "../lib/rate-limit";
 import { hasActivePremiumEntitlement } from "../lib/revenuecat";
@@ -127,7 +127,7 @@ async function authorizePremiumAccess(
       };
     }
   } catch (error) {
-    logger.warn({ err: error }, "Premium entitlement verification unavailable");
+    logger.warn(safeErrorDetails(error), "Premium entitlement verification unavailable");
     return {
       allowed: false,
       status: 503,
@@ -203,7 +203,6 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
           kind: error.kind,
           providerCode: error.providerCode,
           httpStatus: error.httpStatus,
-          providerMessage: error.providerMessage,
         },
         "premium recipe provider unavailable",
       );
@@ -225,7 +224,7 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
       return;
     }
     (req.log ?? logger).warn(
-      { err: error },
+      safeErrorDetails(error),
       "premium recipe provider unavailable",
     );
     res.status(502).json({
@@ -263,7 +262,6 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
           kind: error.kind,
           providerCode: error.providerCode,
           httpStatus: error.httpStatus,
-          providerMessage: error.providerMessage,
         },
         "premium recipe detail unavailable",
       );
@@ -277,7 +275,7 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
       return;
     }
     (req.log ?? logger).warn(
-      { err: error },
+      safeErrorDetails(error),
       "premium recipe detail unavailable",
     );
     res.status(502).json({ message: "Premium recipe provider unavailable" });

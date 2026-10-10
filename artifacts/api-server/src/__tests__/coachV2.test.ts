@@ -90,6 +90,8 @@ vi.mock("../lib/account-deletion-state.js", () => ({
   accountDeletionFenceSignal: () => ({}),
 }));
 vi.mock("../lib/logger.js", () => ({
+  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorCode: () => "test_error",
   logger: { error: vi.fn(), warn: vi.fn() },
 }));
 vi.mock("../lib/admin-feature-flags.js", () => ({
