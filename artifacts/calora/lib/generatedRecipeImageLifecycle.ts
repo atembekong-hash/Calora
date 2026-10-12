@@ -306,6 +306,12 @@ export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRe
   return delay;
 }
 
+export function generatedRecipeImageLifecycleKey(recipes: readonly GeneratedRecipeImageCandidate[]): string {
+  return recipes
+    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? ''].join(':'))
+    .join('|');
+}
+
 export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecipe, restoreRecipe, renewalWindowMs }: {
   accountId?: string | null; recipes: readonly GeneratedRecipeImageCandidate[]; updateRecipe: UpdateGeneratedRecipe; restoreRecipe?: (recipe: CaloraRecipe) => void; renewalWindowMs?: number;
 }): void {
@@ -313,6 +319,7 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
   const updateRef = useRef(updateRecipe); updateRef.current = updateRecipe;
   const restoreRef = useRef(restoreRecipe); restoreRef.current = restoreRecipe;
   const accountRef = useRef(accountId ?? null); accountRef.current = accountId ?? null;
+  const lifecycleKey = generatedRecipeImageLifecycleKey(recipes);
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
@@ -358,5 +365,5 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
     schedule();
     const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') void reconcile(); });
     return () => { cancelled = true; clearTimeout(timer); subscription.remove(); };
-  }, [accountId, renewalWindowMs]);
+  }, [accountId, lifecycleKey, renewalWindowMs]);
 }

@@ -4,6 +4,7 @@ import {
   GENERATED_RECIPE_STALE_GENERATION_MS,
   clearGeneratedRecipeImageRefreshes,
   decideGeneratedRecipeImageRefresh,
+  generatedRecipeImageLifecycleKey,
   isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
@@ -38,6 +39,17 @@ afterEach(() => {
 });
 
 describe('generated recipe image renewal decision', () => {
+  it('changes when a newly saved recipe enters or advances its media lifecycle', () => {
+    const recipe = generatedRecipe({ imageStatus: undefined, imageId: undefined, imageMediaId: undefined });
+    const generating = { ...recipe, imageStatus: 'generating' as const };
+    const ready = { ...generating, imageStatus: 'url_ready' as const, imageId: IMAGE_ID, imageMediaId: 'media-7' };
+
+    expect(generatedRecipeImageLifecycleKey([])).toBe('');
+    expect(generatedRecipeImageLifecycleKey([recipe])).not.toBe(generatedRecipeImageLifecycleKey([]));
+    expect(generatedRecipeImageLifecycleKey([generating])).not.toBe(generatedRecipeImageLifecycleKey([recipe]));
+    expect(generatedRecipeImageLifecycleKey([ready])).not.toBe(generatedRecipeImageLifecycleKey([generating]));
+  });
+
   it('classifies newly created local recipes before generated provenance is persisted', () => {
     expect(isGeneratedRecipeImageCandidate(generatedRecipe({
       imageProvenance: undefined,

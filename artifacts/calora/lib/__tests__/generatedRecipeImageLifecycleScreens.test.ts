@@ -20,4 +20,10 @@ describe('generated recipe image renewal screen integration', () => {
     expect(savedRecipesScreen).toContain('retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive });');
     expect(savedRecipesScreen).toContain('const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;');
   });
+
+  it('reconciles when local recipe lifecycle state changes so a new Create photo starts promptly', () => {
+    const lifecycleSource = readFileSync(resolve(__dirname, '../generatedRecipeImageLifecycle.ts'), 'utf8');
+    expect(lifecycleSource).toContain('const lifecycleKey = generatedRecipeImageLifecycleKey(recipes);');
+    expect(lifecycleSource).toContain('[accountId, lifecycleKey, renewalWindowMs]');
+  });
 });
