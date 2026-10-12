@@ -152,11 +152,10 @@ export default function RestaurantsScreen() {
         version: 1,
         semanticRole: 'representative',
         contentId: `restaurant-food:${providerDetail.sourceId}`,
-        source: providerDetail.nutritionSource,
-        provider: 'FatSecret',
-        providerItemId: providerDetail.sourceId,
+        source: 'Calora bundled restaurant illustration',
+        provider: 'Calora',
         assetKey: imageAssetKey,
-        rightsReviewState: 'approved',
+        rightsReviewState: 'unreviewed',
       },
     });
     setSelectedFood(null);

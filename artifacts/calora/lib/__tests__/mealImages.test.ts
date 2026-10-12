@@ -170,6 +170,11 @@ describe('curated meal image identity', () => {
     expect(plannerImageRenderDecision({ ...recipeMeal, recipeId: undefined }).remoteImageUrl).toBeUndefined();
   });
 
+  it('rejects an expired generated Planner locator before it reaches Expo Image', () => {
+    const expiredGeneratedMeal = { ...plannerCatalog.find((meal) => meal.id === 'yogurt-parfait')!, id: 'recipe-plan-generated-expired', name: 'Generated brunch', image: 'https://storage.example/private/recipe-photos/account-a/123e4567-e89b-42d3-a456-426614174000.png', imageAssetKey: undefined, recipeId: 'generated-recipe', recipeSource: 'calora_ai' as const, generatedMediaId: 'media-1', generatedImageId: '123e4567-e89b-42d3-a456-426614174000', generatedImageUrlExpiresAt: '2020-01-01T00:00:00.000Z' };
+    expect(plannerImageRenderDecision(expiredGeneratedMeal, 'account-a').remoteImageUrl).toBeUndefined();
+  });
+
   it('rejects untrusted Planner remote URLs at the final source resolver', () => {
     expect(plannerImageSource(undefined, 'http://images.unsplash.com/photo.jpg')).toBeNull();
     expect(plannerImageSource(undefined, 'https://untrusted.example/photo.jpg')).toBeNull();

@@ -255,9 +255,10 @@ export function foodImageCategory(food: { name: string; meal?: string }): FoodIm
 export function resolveFoodImage(input: FoodImageResolutionInput): FoodImageResolution {
   const category = foodImageCategory(input);
   const evidence = normalizeFoodImageEvidence(input.imageEvidence);
+  const evidenceExpired = Boolean(evidence?.expiresAt && Date.parse(evidence.expiresAt) <= Date.now());
   const imageUrl = evidence?.semanticRole === 'generated'
-    ? normalizeGeneratedRecipeImageUrl(input.imageUrl, evidence.imageId, evidence.accountScope) ?? evidence.locator
-    : normalizeFoodImageUrl(input.imageUrl);
+    ? evidenceExpired ? undefined : normalizeGeneratedRecipeImageUrl(input.imageUrl, evidence.imageId, evidence.accountScope) ?? evidence.locator
+    : evidenceExpired ? undefined : normalizeFoodImageUrl(input.imageUrl);
   const canonicalImageKey = foodImageKeyForName(input.name);
   const representativeAssetKey = input.imageSource === 'restaurant_representative'
     && input.imageAssetKey?.startsWith('restaurant:')

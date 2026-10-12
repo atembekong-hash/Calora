@@ -80,7 +80,7 @@ export function PlannerMealImage({
   useEffect(() => {
     failedRef.current = !source;
     setLoadState(source ? 'loading' : 'fallback');
-  }, [meal.id, meal.image, meal.imageAssetKey, resolvedImageKey]);
+  }, [meal.id, meal.image, meal.imageAssetKey, meal.recipeId, meal.recipeSource, meal.generatedMediaId, meal.generatedImageId, meal.generatedImageUrlExpiresAt, user?.id, resolvedImageKey]);
 
   const image = (
     <View

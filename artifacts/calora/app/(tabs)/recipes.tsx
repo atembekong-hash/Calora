@@ -133,7 +133,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
     ? normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)
     : normalizeFoodImageUrl(recipe.image);
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => { setImageFailed(false); }, [recipe.id, recipe.image]);
+  useEffect(() => { setImageFailed(false); }, [recipe.id, recipe.image, recipeImageUrl, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imageUrlExpiresAt, user?.id]);
   const retry = localRecipe ? () => { setImageFailed(false); void retryOrRegenerateRecipeImage({
     accountId: user?.id, recipe: localRecipe, updateRecipe,
     isAccountActive: (id) => activeAccountIdRef.current === id,

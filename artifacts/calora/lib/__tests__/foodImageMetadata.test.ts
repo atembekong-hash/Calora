@@ -261,6 +261,12 @@ describe('resolveFoodImage', () => {
     expect(resolution).toMatchObject({ state: 'unverified', visibleDisclosure: 'Unverified provider image' });
   });
 
+  it('does not send an expired evidence locator to the image renderer', () => {
+    const resolution = resolveFoodImage({ id: 'expired-log', name: 'Custom entree', imageUrl: 'https://images.openfoodfacts.org/expired-entree.jpg', imageSource: 'provider', imageEvidence: { ...exactEvidence('expired-item', 'https://images.openfoodfacts.org/expired-entree.jpg'), expiresAt: '2020-01-01T00:00:00.000Z' } });
+    expect(resolution).toMatchObject({ state: 'fallback' });
+    expect('imageUrl' in resolution).toBe(false);
+  });
+
   it('derives recycle identities from content ID, semantic role, and image identity', () => {
     const original = resolveFoodImage({
       id: 'same-log',
