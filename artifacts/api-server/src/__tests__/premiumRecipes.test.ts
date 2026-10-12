@@ -298,6 +298,31 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("uses a recent positive verification during a transient RevenueCat outage", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ recipes: [], nextOffset: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const initial = await request(app).get("/v1/premium-recipes");
+    expect(initial.status).toBe(200);
+
+    hasActivePremiumEntitlementMock.mockRejectedValueOnce(
+      new Error("RevenueCat temporarily unavailable"),
+    );
+    const duringOutage = await request(app).get("/v1/premium-recipes");
+
+    expect(duringOutage.status).toBe(200);
+    expect(duringOutage.body).toMatchObject({ recipes: [] });
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cachedAccess: true }),
+      "Premium entitlement verification unavailable",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("returns an honest unavailable state with no provider configuration", async () => {
     const app = await appWithProvider();
     const res = await request(app).get("/v1/premium-recipes");
