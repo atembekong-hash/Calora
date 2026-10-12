@@ -244,11 +244,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
       expect(response.body.sessionId).toBe(clientSessionId);
       expect(JSON.stringify(response.body)).not.toContain(databaseErrorDetails);
       expect(loggerErrorMock).toHaveBeenCalledWith(
-        {
-          err: expect.objectContaining({
-            cause: expect.objectContaining({ message: databaseErrorDetails }),
-          }),
-        },
+        { errorClass: "test_error" },
         "Failed to persist capture session",
       );
 
