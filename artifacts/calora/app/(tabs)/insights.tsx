@@ -20,13 +20,14 @@ import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
-import { dateKey } from '@/lib/dates';
+import { dateFromKey, dateKey, rollingDateRange, type DateRange } from '@/lib/dates';
 import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
-import { deriveWeeklyHealthTrend, deriveWeeklyWaterTrend } from '@/lib/progressTrends';
+import { deriveCalorieTrend, deriveHealthTrend, deriveWaterTrend } from '@/lib/progressTrends';
+import { GraphDateRangePicker } from '@/components/GraphDateRangePicker';
 import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -1306,6 +1307,7 @@ export default function InsightsScreen() {
   const [goalError, setGoalError] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
   const [shoppingVisible, setShoppingVisible] = useState(false);
+  const [graphRange, setGraphRange] = useState<DateRange>(() => rollingDateRange(7));
 
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
@@ -1630,18 +1632,27 @@ export default function InsightsScreen() {
     [remembered, target, todayKey, activityMinutesLogs],
   );
   const weekDays = weeklySignals.days;
+  useEffect(() => {
+    const selectedDays = Math.round((dateFromKey(graphRange.end).getTime() - dateFromKey(graphRange.start).getTime()) / 86400000) + 1;
+    if (selectedDays === 7 && graphRange.end !== todayKey) setGraphRange(rollingDateRange(7, todayKey));
+  }, [graphRange.end, graphRange.start, todayKey]);
   const healthStepWeekPoints = useMemo(
-    () => deriveWeeklyHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'steps', todayKey),
-    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, todayKey],
+    () => deriveHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'steps', graphRange),
+    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, graphRange],
   );
   const healthEnergyWeekPoints = useMemo(
-    () => deriveWeeklyHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'activeEnergyKcal', todayKey),
-    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, todayKey],
+    () => deriveHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'activeEnergyKcal', graphRange),
+    [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, graphRange],
   );
   const waterWeekPoints = useMemo(
-    () => deriveWeeklyWaterTrend(remembered.waterLogs, todayKey),
-    [remembered.waterLogs, todayKey],
+    () => deriveWaterTrend(remembered.waterLogs, graphRange),
+    [remembered.waterLogs, graphRange],
   );
+  const calorieRangePoints = useMemo(() => deriveCalorieTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
+  const graphAverageCalories = useMemo(() => {
+    const values = calorieRangePoints.map((point) => point.value).filter((value): value is number => value !== null && value > 0);
+    return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
+  }, [calorieRangePoints]);
   const signalDays = weeklySignals.trackedDays;
   const averageWeekCalories = weeklySignals.averageCalories;
   const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
@@ -1823,29 +1834,29 @@ export default function InsightsScreen() {
         <View style={view === 'trends' ? undefined : styles.hiddenSection}>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Against your {formatWhole(target)} kcal target</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrition trends</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose any period to explore your data.</Text>
           </View>
-          <View accessibilityLabel="Insights show the last 7 days" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
-            <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
-          </View>
+          <GraphDateRangePicker range={graphRange} colors={colors} onChange={setGraphRange} />
         </View>
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.chart}>
-            {weekDays.map((item, index) => (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
+          <View style={[styles.chart, calorieRangePoints.length > 7 && { width: calorieRangePoints.length * 54 }]}>
+            {calorieRangePoints.map((item, index) => (
               <View key={item.date} style={styles.barColumn}>
-                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? formatWhole(item.kcal) : '—'}</Text>
+                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.value !== null ? formatWhole(item.value) : '—'}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
-                  <AnimatedBar value={item.value} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 65} />
+                  <AnimatedBar value={item.value ?? 0} color={index === calorieRangePoints.length - 1 ? colors.primary : colors.success} delay={index * 35} />
                 </View>
-                <Text style={[styles.barDay, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+                <Text style={[styles.barDay, { color: index === calorieRangePoints.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.label}</Text>
               </View>
             ))}
           </View>
+          </ScrollView>
           <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
             <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
-            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${formatWhole(averageWeekCalories)} kcal` : 'No calorie average yet'}</Text>
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{graphAverageCalories ? `Avg. ${formatWhole(graphAverageCalories)} kcal` : 'No calorie average yet'}</Text>
           </View>
         </View>
         </AnimatedReveal>
@@ -1855,7 +1866,7 @@ export default function InsightsScreen() {
             colors={colors}
             title="Calorie trend"
             subtitle="Daily intake compared with your target."
-            points={weekDays.map((day) => ({ label: day.day, value: day.kcal > 0 ? day.kcal : null }))}
+            points={calorieRangePoints}
             color={colors.success}
             valueFormatter={(value) => `${formatWhole(value)} kcal`}
             target={{ value: target, label: 'Target' }}
@@ -1865,11 +1876,9 @@ export default function InsightsScreen() {
         <View style={styles.healthTrendHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement & hydration</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Daily totals across the last seven days.</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Steps, burned calories, and water for the selected period.</Text>
           </View>
-          <View accessibilityLabel="Seven-day range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
-            <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
-          </View>
+          <GraphDateRangePicker range={graphRange} colors={colors} onChange={setGraphRange} />
         </View>
 
         <AnimatedReveal delay={365}>
@@ -2082,7 +2091,7 @@ export default function InsightsScreen() {
             <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}>
               <Feather name={healthConnected ? 'check-circle' : 'link-2'} size={11} color={healthConnected ? colors.success : colors.mutedForeground} />
               <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>
-                {healthConnected 
+                {healthConnected
                   ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.`
                   : 'Health sync unavailable · connect a health integration to import workouts automatically.'}
               </Text>
