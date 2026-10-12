@@ -88,7 +88,10 @@ function ClassicTabLayout() {
         name="scan"
         options={{
           title: 'Scan',
-          tabBarShowLabel: false,
+          // Keep labels enabled at the navigator level. The custom button
+          // renders Scan's label itself; disabling labels here causes the
+          // native tab navigator to hide sibling labels when Scan is focused.
+          tabBarShowLabel: true,
           tabBarButton: (props) => (
             <Pressable
               accessibilityRole="button"
