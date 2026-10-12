@@ -26,7 +26,7 @@ import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/wee
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
-import { deriveCalorieTrend, deriveHealthTrend, deriveWaterTrend } from '@/lib/progressTrends';
+import { deriveCalorieTrend, deriveHealthTrend, deriveMacroTrend, deriveWaterTrend, type MacroTrendPoint } from '@/lib/progressTrends';
 import { GraphDateRangePicker } from '@/components/GraphDateRangePicker';
 import {
   buildDailyIntelligenceFacts,
@@ -1277,6 +1277,95 @@ function ProgressLineGraph({
   );
 }
 
+
+function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalora>['colors']; points: MacroTrendPoint[] }) {
+  const [chartWidth, setChartWidth] = useState(320);
+  const progress = useSharedValue(0);
+  const chartHeight = 128;
+  const padX = 8;
+  const padTop = 12;
+  const padBottom = 22;
+  const series = [
+    { key: 'protein', label: 'Protein', color: colors.primary },
+    { key: 'carbs', label: 'Carbs', color: colors.warning },
+    { key: 'fat', label: 'Fat', color: colors.success },
+  ] as const;
+  const values = series.flatMap((item) => points.flatMap((point) => point[item.key] == null ? [] : [point[item.key]!])) as number[];
+  const hasData = values.length > 0;
+  const min = hasData ? Math.min(...values) : 0;
+  const max = hasData ? Math.max(...values, 1) : 1;
+  const range = Math.max(max - min, 1);
+  const contentWidth = points.length > 7 ? points.length * 54 : chartWidth;
+  const plotWidth = Math.max(contentWidth - padX * 2, 1);
+  const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
+  const pathFor = (key: typeof series[number]['key']) => {
+    const segments: { x: number; y: number }[][] = [];
+    let segment: { x: number; y: number }[] = [];
+    points.forEach((point, index) => {
+      const value = point[key];
+      if (value == null) {
+        if (segment.length) segments.push(segment);
+        segment = [];
+        return;
+      }
+      segment.push({ x: padX + index * xStep, y: padTop + (1 - (value - min) / range) * (chartHeight - padTop - padBottom) });
+    });
+    if (segment.length) segments.push(segment);
+    return segments.map((current) => {
+      if (!current.length) return '';
+      let path = `M ${current[0].x.toFixed(2)} ${current[0].y.toFixed(2)}`;
+      for (let index = 1; index < current.length; index += 1) {
+        const previous = current[index - 1];
+        const next = current[index];
+        const controlX = (previous.x + next.x) / 2;
+        path += ` C ${controlX.toFixed(2)} ${previous.y.toFixed(2)} ${controlX.toFixed(2)} ${next.y.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
+      }
+      return path;
+    }).join(' ');
+  };
+  const paths = series.map((item) => ({ ...item, path: pathFor(item.key) }));
+  const lineDashLength = Math.max(contentWidth * 2, 1);
+  const animatedPathProps = useAnimatedProps(() => ({ strokeDashoffset: lineDashLength * (1 - progress.value) }));
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+  }, [paths.map((item) => item.path).join('|'), progress]);
+
+  return (
+    <View accessibilityLabel={`Macro trend. ${hasData ? points.map((point) => `${point.label}: Protein ${point.protein == null ? 'no data' : `${formatWhole(point.protein)} grams`}, Carbs ${point.carbs == null ? 'no data' : `${formatWhole(point.carbs)} grams`}, Fat ${point.fat == null ? 'no data' : `${formatWhole(point.fat)} grams`}`).join(', ') : 'No data yet'}`} accessibilityRole="summary" style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro trend</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Protein, carbohydrates, and fat for the selected period.</Text>
+        </View>
+        <View style={[styles.lineGraphBadge, { backgroundColor: colors.muted }]}>
+          <Feather name="activity" size={12} color={colors.primary} />
+          <Text style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? `${formatWhole(values[values.length - 1])} g` : 'No data'}</Text>
+        </View>
+      </View>
+      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphPlot}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
+          <View style={{ width: contentWidth, height: chartHeight }}>
+            <Svg width={contentWidth} height={chartHeight} viewBox={`0 0 ${contentWidth} ${chartHeight}`} preserveAspectRatio="none">
+              <Line x1={padX} y1={padTop} x2={contentWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+              <Line x1={padX} y1={chartHeight - padBottom} x2={contentWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+              {paths.map((item) => item.path ? <AnimatedPath key={item.key} d={item.path} stroke={item.color} strokeWidth={2.5} fill="none" strokeDasharray={lineDashLength} strokeLinecap="round" strokeLinejoin="round" animatedProps={animatedPathProps} /> : null)}
+            </Svg>
+          </View>
+        </ScrollView>
+        {!hasData && <View pointerEvents="none" style={styles.lineGraphEmpty}><Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log food to start your macro graph.</Text></View>}
+      </View>
+      <View style={[styles.lineGraphLabels, points.length > 7 && { width: contentWidth }]}>
+        {points.map((point, index) => <Text key={`${point.label}-${index}`} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>)}
+      </View>
+      <View style={[styles.lineGraphLegend, { borderTopColor: colors.border }]}>
+        {series.map((item) => <View key={item.key} style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: item.color }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>{item.label}</Text></View>)}
+      </View>
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
@@ -1649,6 +1738,7 @@ export default function InsightsScreen() {
     [remembered.waterLogs, graphRange],
   );
   const calorieRangePoints = useMemo(() => deriveCalorieTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
+  const macroRangePoints = useMemo(() => deriveMacroTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
   const graphAverageCalories = useMemo(() => {
     const values = calorieRangePoints.map((point) => point.value).filter((value): value is number => value !== null && value > 0);
     return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
@@ -1871,6 +1961,10 @@ export default function InsightsScreen() {
             valueFormatter={(value) => `${formatWhole(value)} kcal`}
             target={{ value: target, label: 'Target' }}
           />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={360}>
+          <MacroTrendGraph colors={colors} points={macroRangePoints} />
         </AnimatedReveal>
 
         <View style={styles.healthTrendHeader}>

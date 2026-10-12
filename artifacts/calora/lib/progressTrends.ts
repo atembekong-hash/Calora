@@ -61,6 +61,35 @@ export function deriveCalorieTrend(logs: readonly { date: string; calories: numb
   return rangePoints(values, range);
 }
 
+export type MacroTrendPoint = ProgressTrendPoint & {
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+};
+
+export function deriveMacroTrend(
+  logs: readonly { date: string; protein: number; carbs: number; fat: number }[],
+  range: DateRange,
+): MacroTrendPoint[] {
+  const protein = new Map<string, number>();
+  const carbs = new Map<string, number>();
+  const fat = new Map<string, number>();
+  for (const log of logs) {
+    protein.set(log.date, (protein.get(log.date) ?? 0) + Math.max(0, Number(log.protein) || 0));
+    carbs.set(log.date, (carbs.get(log.date) ?? 0) + Math.max(0, Number(log.carbs) || 0));
+    fat.set(log.date, (fat.get(log.date) ?? 0) + Math.max(0, Number(log.fat) || 0));
+  }
+  const proteinPoints = rangePoints(protein, range);
+  const carbsPoints = rangePoints(carbs, range);
+  const fatPoints = rangePoints(fat, range);
+  return proteinPoints.map((point, index) => ({
+    ...point,
+    protein: point.value,
+    carbs: carbsPoints[index]?.value ?? null,
+    fat: fatPoints[index]?.value ?? null,
+  }));
+}
+
 /**
  * Derives a seven-day provider trend. An absent provider aggregate remains
  * `null`, allowing the chart to show a gap instead of a fabricated zero.

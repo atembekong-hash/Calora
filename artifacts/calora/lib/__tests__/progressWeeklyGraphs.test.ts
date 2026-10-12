@@ -9,6 +9,7 @@ describe('Progress weekly health graphs', () => {
     expect(source).toContain('title="Steps trend"');
     expect(source).toContain('title="Calories burned"');
     expect(source).toContain('title="Water intake"');
+    expect(source).toContain('MacroTrendGraph');
     expect(source).toContain('Movement & hydration');
     expect(source).toContain('GraphDateRangePicker');
   });
