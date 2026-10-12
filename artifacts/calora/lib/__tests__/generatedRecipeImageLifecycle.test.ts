@@ -288,4 +288,19 @@ describe('generated recipe image renewal service', () => {
     await expect(refresh).resolves.toEqual({ state: 'skipped', recipeId: 'recipe-7', reason: 'account-changed' });
     expect(updateRecipe).toHaveBeenCalledTimes(1);
   });
+
+  it('does not let an older same-account locator refresh overwrite a newer media identity', async () => {
+    const updateRecipe = vi.fn();
+    const resolvers: Array<(value: { imageUrl: string; imageUrlExpiresAt: string }) => void> = [];
+    const requestPhotoUrl = vi.fn(() => new Promise<{ imageUrl: string; imageUrlExpiresAt: string }>((resolve) => { resolvers.push(resolve); }));
+    const first = refreshGeneratedRecipeImage({ accountId: 'account-a', recipe: generatedRecipe({ imageUrlExpiresAt: new Date(NOW - 1).toISOString() }), updateRecipe, isAccountActive: accountActive, requestPhotoUrl, now: NOW });
+    const newerImageId = '223e4567-e89b-42d3-a456-426614174000';
+    const second = refreshGeneratedRecipeImage({ accountId: 'account-a', recipe: generatedRecipe({ imageId: newerImageId, imageUrlExpiresAt: new Date(NOW - 1).toISOString() }), updateRecipe, isAccountActive: accountActive, requestPhotoUrl, now: NOW });
+    resolvers[1]?.({ imageUrl: 'https://storage.example/signed-newer.png', imageUrlExpiresAt: '2026-09-24T12:00:00.000Z' });
+    resolvers[0]?.({ imageUrl: 'https://storage.example/signed-older.png', imageUrlExpiresAt: '2026-09-24T12:00:00.000Z' });
+
+    await expect(second).resolves.toMatchObject({ state: 'refreshed', imageId: newerImageId });
+    await expect(first).resolves.toEqual({ state: 'skipped', recipeId: 'recipe-7', reason: 'stale-request' });
+    expect(updateRecipe.mock.calls.at(-1)).toEqual(['recipe-7', { image: 'https://storage.example/signed-newer.png', imageUrlExpiresAt: '2026-09-24T12:00:00.000Z', imageStatus: 'url_ready', imageProvenance: 'generated' }]);
+  });
 });

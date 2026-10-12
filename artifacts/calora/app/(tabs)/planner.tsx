@@ -397,7 +397,7 @@ export default function PlannerScreen() {
         .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
       return [...plannerItems, ...recipeItems];
     },
-    [plannedWeek, shoppingItems],
+    [plannedWeek, shoppingItems, viewWeekStart],
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;

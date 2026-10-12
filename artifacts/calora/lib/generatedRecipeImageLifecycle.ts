@@ -50,7 +50,7 @@ export type GeneratedRecipeImagePatch = Partial<Omit<GeneratedRecipeImageCandida
 export type UpdateGeneratedRecipe = (recipeId: string, patch: GeneratedRecipeImagePatch) => void;
 type RequestPhotoUrl = (payload: { mediaId?: string; imageId?: string }, signal?: AbortSignal) => Promise<GeneratedRecipePhoto | Pick<GeneratedRecipePhoto, 'imageUrl' | 'imageUrlExpiresAt'>>;
 
-type RefreshSkipReason = 'not-generated' | 'missing-image-id' | 'generating' | 'retryable-error' | 'fresh' | 'signed-out' | 'account-changed';
+type RefreshSkipReason = 'not-generated' | 'missing-image-id' | 'generating' | 'retryable-error' | 'fresh' | 'signed-out' | 'account-changed' | 'stale-request';
 export type GeneratedRecipeImageRefreshDecision = { action: 'skip'; reason: RefreshSkipReason } | { action: 'refresh'; imageId: string; mediaId?: string };
 export type GeneratedRecipeImageRefreshResult =
   | { state: 'skipped'; recipeId: string; reason: RefreshSkipReason }
@@ -176,9 +176,18 @@ export function decideGeneratedRecipeImageRefresh(recipe: GeneratedRecipeImageCa
 
 const requestsInFlight = new Map<string, Promise<unknown>>();
 const forcedLocatorRenewals = new Set<string>();
+const refreshGenerations = new Map<string, number>();
 const key = (accountId: string, action: string, identity: string) => `${accountId}:${action}:${identity}`;
 const errorMessage = (error: unknown) => error instanceof Error && error.message ? error.message : 'Recipe photo is temporarily unavailable.';
-export function clearGeneratedRecipeImageRefreshes() { requestsInFlight.clear(); forcedLocatorRenewals.clear(); }
+function nextRefreshGeneration(identity: string) {
+  const generation = (refreshGenerations.get(identity) ?? 0) + 1;
+  refreshGenerations.set(identity, generation);
+  return generation;
+}
+function isCurrentRefreshGeneration(identity: string, generation: number) {
+  return refreshGenerations.get(identity) === generation;
+}
+export function clearGeneratedRecipeImageRefreshes() { requestsInFlight.clear(); forcedLocatorRenewals.clear(); refreshGenerations.clear(); }
 
 export function ensureGeneratedRecipeImage({ accountId, recipe, updateRecipe, isAccountActive, force = false, signal }: {
   accountId?: string | null; recipe: GeneratedRecipeImageCandidate; updateRecipe: UpdateGeneratedRecipe;
@@ -222,11 +231,14 @@ export function refreshGeneratedRecipeImage({ accountId, recipe, updateRecipe, i
   if (!accountId) return Promise.resolve({ state: 'skipped', recipeId: recipe.id, reason: 'signed-out' });
   if (!isAccountActive(accountId)) return Promise.resolve({ state: 'skipped', recipeId: recipe.id, reason: 'account-changed' });
   const requestKey = key(accountId, 'refresh', decision.mediaId ?? decision.imageId);
+  const generationKey = key(accountId, 'refresh-recipe', recipe.id);
   const existing = requestsInFlight.get(requestKey) as Promise<GeneratedRecipeImageRefreshResult> | undefined;
   if (existing) return existing;
+  const generation = nextRefreshGeneration(generationKey);
   updateRecipe(recipe.id, { imageStatus: 'url_refreshing', imageErrorCode: null });
   const request = requestPhotoUrl({ mediaId: decision.mediaId, imageId: decision.imageId }).then((photo): GeneratedRecipeImageRefreshResult => {
     if (!isAccountActive(accountId)) return { state: 'skipped', recipeId: recipe.id, reason: 'account-changed' };
+    if (!isCurrentRefreshGeneration(generationKey, generation)) return { state: 'skipped', recipeId: recipe.id, reason: 'stale-request' };
     updateRecipe(recipe.id, 'mediaId' in photo ? patchForRecipeMedia(photo) : {
       image: photo.imageUrl,
       imageUrlExpiresAt: photo.imageUrlExpiresAt,
@@ -236,6 +248,7 @@ export function refreshGeneratedRecipeImage({ accountId, recipe, updateRecipe, i
     return { state: 'refreshed', recipeId: recipe.id, imageId: decision.imageId };
   }).catch((error): GeneratedRecipeImageRefreshResult => {
     if (!isAccountActive(accountId)) return { state: 'skipped', recipeId: recipe.id, reason: 'account-changed' };
+    if (!isCurrentRefreshGeneration(generationKey, generation)) return { state: 'skipped', recipeId: recipe.id, reason: 'stale-request' };
     updateRecipe(recipe.id, { imageStatus: 'retryable_error', imageErrorCode: error instanceof RecipeApiError ? error.code ?? `http_${error.status}` : 'refresh_failed' });
     return { state: 'failed', recipeId: recipe.id, imageId: decision.imageId, error: errorMessage(error) };
   }).finally(() => { if (requestsInFlight.get(requestKey) === request) requestsInFlight.delete(requestKey); });
@@ -254,10 +267,11 @@ export async function handleGeneratedRecipeImageError({ accountId, recipe, updat
   accountId?: string | null; recipe: GeneratedRecipeImageCandidate; updateRecipe: UpdateGeneratedRecipe; isAccountActive: (id: string) => boolean;
 }) {
   if (!generated(recipe) || !recipe.image) return false;
-  const renewalKey = `${recipe.imageMediaId ?? recipe.imageId}:${recipe.image}`;
+  const renewalKey = `${accountId ?? 'signed-out'}:${recipe.id}:${recipe.imageMediaId ?? recipe.imageId}:${recipe.image}`;
   if (!forcedLocatorRenewals.has(renewalKey)) {
     forcedLocatorRenewals.add(renewalKey);
     const result = await refreshGeneratedRecipeImage({ accountId, recipe, updateRecipe, isAccountActive, force: true });
+    if (result.state === 'refreshed') forcedLocatorRenewals.delete(renewalKey);
     return result.state === 'refreshed';
   }
   updateRecipe(recipe.id, { imageStatus: 'retryable_error', imageErrorCode: 'render_failed' });
@@ -308,7 +322,7 @@ export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRe
 
 export function generatedRecipeImageLifecycleKey(recipes: readonly GeneratedRecipeImageCandidate[]): string {
   return recipes
-    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? ''].join(':'))
+    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? '', recipe.image ?? '', recipe.imageUrlExpiresAt ?? '', recipe.imageProvenance ?? ''].join(':'))
     .join('|');
 }
 
