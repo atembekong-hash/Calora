@@ -49,4 +49,27 @@ describe('range-aware progress trends', () => {
     const points = deriveWaterTrend({ '2025-10-01': 40, '2026-09-20': 64 }, { start: '2025-10-01', end: '2026-09-30' });
     expect(points).toHaveLength(12); expect(points[0].value).toBe(40); expect(points[11].value).toBe(64);
   });
+
+  it('aggregates protein, carbs, and fat using the same selected buckets', async () => {
+    const { deriveMacroTrend } = await import('../progressTrends');
+    const points = deriveMacroTrend([
+      { date: '2026-09-01', protein: 20, carbs: 40, fat: 10 },
+      { date: '2026-09-01', protein: 15, carbs: 25, fat: 5 },
+      { date: '2026-09-20', protein: 30, carbs: 60, fat: 20 },
+    ], { start: '2026-09-01', end: '2026-09-30' });
+    expect(points).toHaveLength(30);
+    expect(points[0]).toMatchObject({ protein: 35, carbs: 65, fat: 15 });
+    expect(points[19]).toMatchObject({ protein: 30, carbs: 60, fat: 20 });
+    expect(points[1]).toMatchObject({ protein: null, carbs: null, fat: null });
+  });
+
+  it('keeps macro series aligned when a long range is bucketed weekly', async () => {
+    const { deriveMacroTrend } = await import('../progressTrends');
+    const points = deriveMacroTrend([
+      { date: '2026-07-15', protein: 20, carbs: 40, fat: 10 },
+      { date: '2026-07-16', protein: 30, carbs: 60, fat: 20 },
+    ], { start: '2026-07-15', end: '2026-10-12' });
+    expect(points[0]).toMatchObject({ protein: 50, carbs: 100, fat: 30 });
+    expect(points.every((point) => point.protein === null ? point.carbs === null && point.fat === null : true)).toBe(true);
+  });
 });
