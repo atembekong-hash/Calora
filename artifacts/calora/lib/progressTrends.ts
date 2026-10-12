@@ -1,4 +1,4 @@
-import { dateFromKey, dateList } from '@/lib/dates';
+import { addDays, dateFromKey, dateKey, dateList, type DateRange } from '@/lib/dates';
 import type { WaterLog } from '@/context/CaloraContext';
 import type { HealthDailyMetric } from '@/lib/health/weekHistory';
 
@@ -11,6 +11,54 @@ export type ProgressTrendPoint = {
 function weekdayLabel(date: string): string {
   const localDate = dateFromKey(date);
   return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(localDate);
+}
+
+
+function bucketFor(range: DateRange): 'day' | 'week' | 'month' {
+  const days = Math.round((dateFromKey(range.end).getTime() - dateFromKey(range.start).getTime()) / 86400000) + 1;
+  return days <= 31 ? 'day' : days <= 180 ? 'week' : 'month';
+}
+function bucketKey(date: string, bucket: 'day' | 'week' | 'month'): string {
+  if (bucket === 'day') return date;
+  const source = dateFromKey(date);
+  if (bucket === 'month') return `${source.getFullYear()}-${String(source.getMonth() + 1).padStart(2, '0')}-01`;
+  const weekStart = new Date(source);
+  weekStart.setDate(source.getDate() - source.getDay());
+  return dateKey(weekStart);
+}
+function rangePoints(values: Map<string, number | null>, range: DateRange): ProgressTrendPoint[] {
+  const bucket = bucketFor(range);
+  const keys: string[] = [];
+  for (let date = range.start; date <= range.end; date = addDays(date, 1)) {
+    const key = bucketKey(date, bucket);
+    if (keys[keys.length - 1] !== key) keys.push(key);
+  }
+  return keys.map((key, index) => {
+    const start = key < range.start ? range.start : key;
+    const end = keys[index + 1] ? addDays(keys[index + 1], -1) : range.end;
+    let total = 0; let present = false;
+    for (let date = start; date <= end; date = addDays(date, 1)) {
+      const value = values.get(date);
+      if (typeof value === 'number' && Number.isFinite(value)) { total += value; present = true; }
+    }
+    const localDate = dateFromKey(start);
+    const label = bucket === 'day'
+      ? new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }).format(localDate)
+      : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(localDate);
+    return { date: start, label, value: present ? Math.round(total) : null };
+  });
+}
+
+export function deriveHealthTrend(metrics: readonly HealthDailyMetric[] | undefined, key: 'steps' | 'activeEnergyKcal', range: DateRange): ProgressTrendPoint[] {
+  return rangePoints(new Map(metrics?.map((metric) => [metric.date, metric[key]]) ?? []), range);
+}
+export function deriveWaterTrend(waterLogs: WaterLog, range: DateRange): ProgressTrendPoint[] {
+  return rangePoints(new Map(Object.entries(waterLogs).map(([date, value]) => [date, value ?? null] as const)), range);
+}
+export function deriveCalorieTrend(logs: readonly { date: string; calories: number }[], range: DateRange): ProgressTrendPoint[] {
+  const values = new Map<string, number>();
+  for (const log of logs) values.set(log.date, (values.get(log.date) ?? 0) + Math.max(0, Number(log.calories) || 0));
+  return rangePoints(values, range);
 }
 
 /**

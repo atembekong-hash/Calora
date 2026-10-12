@@ -36,3 +36,17 @@ describe('seven-day Progress trends', () => {
     expect(points.map((point) => point.value)).toEqual([40, null, 0, null, null, null, 72]);
   });
 });
+
+
+describe('range-aware progress trends', () => {
+  it('supports a custom range above one week without fabricating missing values', async () => {
+    const { deriveCalorieTrend } = await import('../progressTrends');
+    const points = deriveCalorieTrend([{ date: '2026-09-01', calories: 500 }, { date: '2026-09-20', calories: 700 }], { start: '2026-09-01', end: '2026-09-30' });
+    expect(points).toHaveLength(30); expect(points[0].value).toBe(500); expect(points[19].value).toBe(700); expect(points[1].value).toBeNull();
+  });
+  it('buckets a year range by month', async () => {
+    const { deriveWaterTrend } = await import('../progressTrends');
+    const points = deriveWaterTrend({ '2025-10-01': 40, '2026-09-20': 64 }, { start: '2025-10-01', end: '2026-09-30' });
+    expect(points).toHaveLength(12); expect(points[0].value).toBe(40); expect(points[11].value).toBe(64);
+  });
+});

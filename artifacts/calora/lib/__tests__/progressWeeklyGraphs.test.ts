@@ -10,12 +10,12 @@ describe('Progress weekly health graphs', () => {
     expect(source).toContain('title="Calories burned"');
     expect(source).toContain('title="Water intake"');
     expect(source).toContain('Movement & hydration');
-    expect(source).toContain('Seven-day range');
+    expect(source).toContain('GraphDateRangePicker');
   });
 
   it('derives graphs from provider history and account-scoped water logs instead of default data', () => {
-    expect(source).toContain('deriveWeeklyHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined');
-    expect(source).toContain("deriveWeeklyWaterTrend(remembered.waterLogs, todayKey)");
+    expect(source).toContain('deriveHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined');
+    expect(source).toContain('deriveWaterTrend(remembered.waterLogs, graphRange)');
     expect(source).toContain('emptyMessage="Sync Health to show measured steps."');
     expect(source).toContain('emptyMessage="Sync Health to show active calories."');
     expect(source).toContain('emptyMessage="Log water to start your hydration graph."');
