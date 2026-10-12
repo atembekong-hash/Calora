@@ -27,4 +27,11 @@ describe('Plus caller reliability decisions', () => {
     expect(shouldLoadMorePremiumRecipes({ ...atEnd, section: 'premium', activeSection: 'discover' })).toBe(false);
     expect(shouldLoadMorePremiumRecipes({ ...atEnd, section: 'premium', activeSection: 'premium', offsetY: 0 })).toBe(false);
   });
+
+  it('waits for valid native layout metrics before paging', () => {
+    const atEnd = { offsetY: 850, viewportHeight: 600, contentHeight: 1_600, prefetchDistance: 160 };
+    expect(shouldLoadMorePremiumRecipes({ ...atEnd, section: 'premium', activeSection: 'premium', contentHeight: 0 })).toBe(false);
+    expect(shouldLoadMorePremiumRecipes({ ...atEnd, section: 'premium', activeSection: 'premium', viewportHeight: 0 })).toBe(false);
+    expect(shouldLoadMorePremiumRecipes({ ...atEnd, section: 'premium', activeSection: 'premium', offsetY: Number.NaN })).toBe(false);
+  });
 });

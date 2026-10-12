@@ -56,6 +56,10 @@ export function shouldLoadMorePremiumRecipes(input: {
 }): boolean {
   return input.section === 'premium'
     && input.activeSection === 'premium'
+    && Number.isFinite(input.offsetY)
+    && Number.isFinite(input.viewportHeight)
+    && Number.isFinite(input.contentHeight)
     && input.viewportHeight > 0
+    && input.contentHeight > 0
     && input.offsetY + input.viewportHeight >= input.contentHeight - input.prefetchDistance;
 }
