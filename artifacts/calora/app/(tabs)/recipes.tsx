@@ -32,6 +32,7 @@ import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/pr
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
+import { shouldLoadMoreRecipePage } from '@/lib/recipePagination';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
@@ -1965,7 +1966,17 @@ export default function RecipesScreen() {
   const loadMoreDiscoverRecipesIfAtEnd = (section: RecipeSection) => {
     if (section !== 'discover' || activeSection !== 'discover') return;
     const { offsetY, viewportHeight, contentHeight } = discoverRecipeScrollMetricsRef.current;
-    if (viewportHeight > 0 && contentHeight > 0 && offsetY + viewportHeight >= contentHeight - RECIPE_PREFETCH_DISTANCE) {
+    if (shouldLoadMoreRecipePage({
+      section,
+      activeSection,
+      offsetY,
+      viewportHeight,
+      contentHeight,
+      nextOffset: remoteNextOffset,
+      isFetching: recipesQuery.isFetching,
+      isLoadingMore: loadingMoreRef.current,
+      prefetchDistance: RECIPE_PREFETCH_DISTANCE,
+    })) {
       loadMoreRecipes();
     }
   };
