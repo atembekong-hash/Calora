@@ -47,4 +47,18 @@ describe('recipe freshness', () => {
     expect(session.order([recipes[0], recipes[1]], session.beginVisit(1), 1).map((recipe) => recipe.id)).toEqual(['a', 'b']);
     expect(session.order([recipes[0]], session.beginVisit(11), 11)).toEqual([recipes[0]]);
   });
+
+  it('mixes the eligible front-page recipes on each later open', () => {
+    const session = new RecipeFreshnessSession(2, 10_000);
+    session.remember([recipes[0], recipes[1]], 0);
+    const firstOpen = session.order(recipes, session.beginVisit(0), 0).map((recipe) => recipe.id);
+    const secondOpen = session.order(recipes, session.beginVisit(1), 1).map((recipe) => recipe.id);
+    const thirdOpen = session.order(recipes, session.beginVisit(2), 2).map((recipe) => recipe.id);
+
+    expect(firstOpen).toEqual(['c', 'd', 'b', 'a']);
+    expect(secondOpen).toEqual(['d', 'c', 'a', 'b']);
+    expect(thirdOpen).toEqual(['c', 'd', 'b', 'a']);
+    expect(new Set(firstOpen)).toEqual(new Set(secondOpen));
+    expect(new Set(secondOpen)).toEqual(new Set(thirdOpen));
+  });
 });
