@@ -8,6 +8,11 @@ export function dedupeRecipes<T extends RecipeIdentity>(recipes: readonly T[]): 
   return recipes.filter((recipe) => { const id = recipeIdentity(recipe); if (!id || seen.has(id)) return false; seen.add(id); return true; });
 }
 export function mergeRecipePages<T extends RecipeIdentity>(current: readonly T[], page: readonly T[]): T[] { return dedupeRecipes([...current, ...page]); }
+function rotateRecipes<T>(recipes: readonly T[], rotation: number): T[] {
+  if (recipes.length < 2) return [...recipes];
+  const offset = ((rotation % recipes.length) + recipes.length) % recipes.length;
+  return [...recipes.slice(offset), ...recipes.slice(0, offset)];
+}
 export class RecipeFreshnessSession {
   private recentIds = new Map<string, number>();
   private visit = 0;
@@ -18,9 +23,10 @@ export class RecipeFreshnessSession {
     const unique = dedupeRecipes(recipes);
     const eligible = unique.filter((recipe) => !this.recentIds.has(recipeIdentity(recipe)));
     const recent = unique.filter((recipe) => this.recentIds.has(recipeIdentity(recipe)));
-    if (recent.length === 0) return eligible;
+    const mixedEligible = rotateRecipes(eligible, Math.max(0, visit - 1));
+    if (recent.length === 0) return mixedEligible;
     const rotation = visit % recent.length;
-    return [...eligible, ...recent.slice(rotation), ...recent.slice(0, rotation)];
+    return [...mixedEligible, ...recent.slice(rotation), ...recent.slice(0, rotation)];
   }
   remember(recipes: readonly RecipeIdentity[], now = Date.now()): void {
     this.prune(now);
