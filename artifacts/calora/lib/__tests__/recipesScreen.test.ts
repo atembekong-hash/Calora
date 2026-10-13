@@ -124,7 +124,7 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('const [imageFailed, setImageFailed] = useState(false)');
     expect(source).toContain('onError={() => {');
-    expect(source).toContain('if (!localRecipe || !generatedImage) { setImageFailed(true); return; }');
+    expect(source).toContain('if (!localRecipe || !acceptedGeneratedImage) { setImageFailed(true); return; }');
     expect(source).toContain('handleGeneratedRecipeImageError({');
     expect(source).toContain("import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
     expect(source).toContain('normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)');

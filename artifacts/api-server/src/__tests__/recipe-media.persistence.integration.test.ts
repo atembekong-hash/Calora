@@ -87,11 +87,11 @@ describe.skipIf(!HAS_DB)('recipe media persistence (real database)', () => {
 
     const stored = await updateRecipeMediaStored(ownerA, initial.row.id);
     expect(stored.status).toBe('stored');
-    const ready = await issueRecipeMediaUrlState(ownerA, initial.row.id);
-    expect(ready.status).toBe('url_ready');
     expect(await setOwnerRecipeMediaReview(ownerA, initial.row.id, 'accepted')).toMatchObject({
       semantic_review_state: 'accepted',
     });
+    const ready = await issueRecipeMediaUrlState(ownerA, initial.row.id);
+    expect(ready.status).toBe('url_ready');
     expect(await acknowledgeOwnerRecipeMediaRendered(ownerA, initial.row.id)).toBe(true);
     expect((await listOwnerRecipeMedia(ownerA)).map((row) => row.id)).toContain(initial.row.id);
     expect(await listOwnerRecipeMedia(ownerB)).toEqual([]);
@@ -106,6 +106,7 @@ describe.skipIf(!HAS_DB)('recipe media persistence (real database)', () => {
     expect(changed.row.id).not.toBe(initial.row.id);
     expect(changed.row.content_hash).not.toBe(initial.row.content_hash);
     await updateRecipeMediaStored(ownerA, changed.row.id);
+    await setOwnerRecipeMediaReview(ownerA, changed.row.id, 'accepted');
     await issueRecipeMediaUrlState(ownerA, changed.row.id);
 
     expect(await findOwnerRecipeMedia(ownerA, { mediaId: initial.row.id })).toMatchObject({
