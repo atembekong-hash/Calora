@@ -39,6 +39,14 @@ afterEach(() => {
 });
 
 describe('generated recipe image renewal decision', () => {
+  it('does not request a signed URL before generated media is accepted', () => {
+    expect(decideGeneratedRecipeImageRefresh(generatedRecipe({
+      image: null,
+      imageReviewState: 'needs_review',
+      imageStatus: 'stored',
+    }))).toEqual({ action: 'skip', reason: 'review-required' });
+  });
+
   it('changes when a newly saved recipe enters or advances its media lifecycle', () => {
     const recipe = generatedRecipe({ imageStatus: undefined, imageId: undefined, imageMediaId: undefined });
     const generating = { ...recipe, imageStatus: 'generating' as const };

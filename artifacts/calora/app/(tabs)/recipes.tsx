@@ -124,14 +124,15 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
   // Keep this classification aligned with the lifecycle refresher so no
   // generic fallback photo can impersonate that recipe's pending image.
   const generatedImage = Boolean(localRecipe && isGeneratedRecipeImageCandidate(localRecipe));
+  const acceptedGeneratedImage = generatedImage && localRecipe?.imageReviewState === 'accepted';
   const state = localRecipe?.imageStatus === 'pending' ? 'generating'
     : localRecipe?.imageStatus === 'ready' ? 'url_ready'
       : localRecipe?.imageStatus === 'failed' ? 'retryable_error'
         : localRecipe?.imageStatus ?? 'not_requested';
   const photoPending = generatedImage && ['generating', 'stored'].includes(state);
-  const recipeImageUrl = generatedImage
+  const recipeImageUrl = acceptedGeneratedImage
     ? normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)
-    : normalizeFoodImageUrl(recipe.image);
+    : generatedImage ? undefined : normalizeFoodImageUrl(recipe.image);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => { setImageFailed(false); }, [recipe.id, recipe.image, recipeImageUrl, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imageUrlExpiresAt, user?.id]);
   const retry = localRecipe ? () => { setImageFailed(false); void retryOrRegenerateRecipeImage({
@@ -148,7 +149,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
         cachePolicy="memory-disk"
         onLoad={() => { setImageFailed(false); if (localRecipe) markGeneratedRecipeImageRendered(localRecipe, updateRecipe); }}
         onError={() => {
-          if (!localRecipe || !generatedImage) { setImageFailed(true); return; }
+          if (!localRecipe || !acceptedGeneratedImage) { setImageFailed(true); return; }
           void handleGeneratedRecipeImageError({ accountId: user?.id, recipe: localRecipe, updateRecipe, isAccountActive: (id) => activeAccountIdRef.current === id })
             .then((renewed) => { if (!renewed) setImageFailed(true); });
         }}
@@ -170,7 +171,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
       ) : (
         <View style={styles.imageFallbackCopy}>
           <ActivityIndicator size="small" color="#d4eadc" />
-          <Text style={styles.imageFallbackText}>Creating recipe photo…</Text>
+          <Text style={styles.imageFallbackText}>{localRecipe?.imageReviewState === 'needs_review' ? 'Recipe photo awaiting review' : 'Creating recipe photo…'}</Text>
         </View>
       )}
     </View>
@@ -179,7 +180,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
        <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
     </View>)}
-    {generatedImage && recipeImageUrl && !imageFailed && !photoPending && (
+    {acceptedGeneratedImage && recipeImageUrl && !imageFailed && !photoPending && (
       <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image${localRecipe?.imageReviewState === 'needs_review' ? ' that needs review' : ''}`} pointerEvents="none" style={styles.generatedImageBadge}>
         <Text style={styles.generatedImageBadgeText}>{localRecipe?.imageReviewState === 'needs_review' ? 'AI-generated · needs review' : 'AI-generated image'}</Text>
       </View>

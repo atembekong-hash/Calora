@@ -6,13 +6,6 @@ import type { FoodLog } from '@/context/CaloraContext';
 import { resolveFoodImage, type FoodImageResolution } from '@/lib/foodImageMetadata';
 import { foodImageSource } from '@/lib/mealImages';
 
-const FALLBACK_IMAGES: Record<FoodImageResolution['category'], ImageSource> = {
-  breakfast: require('../assets/images/food-fallback-breakfast.jpg'),
-  main: require('../assets/images/food-fallback-main.jpg'),
-  snack: require('../assets/images/food-fallback-snack.jpg'),
-  drink: require('../assets/images/food-fallback-drink.jpg'),
-};
-
 export function FoodLogThumbnail({
   log,
   size = 48,
@@ -32,7 +25,6 @@ export function FoodLogThumbnail({
     log.imageAssetKey,
     log.imageEvidence,
   ]);
-  const fallback = FALLBACK_IMAGES[resolution.category];
   const [remoteFailed, setRemoteFailed] = useState(false);
 
   useEffect(() => {
@@ -44,29 +36,30 @@ export function FoodLogThumbnail({
     if (resolution.state === 'exact' || resolution.state === 'generated' || resolution.state === 'unverified') {
       return { uri: resolution.imageUrl };
     }
-    if (resolution.state === 'canonical') return foodImageSource(resolution.imageAssetKey) ?? fallback;
-    return fallback;
-  }, [fallback, remoteFailed, resolution]);
+    if (resolution.state === 'canonical') return foodImageSource(resolution.imageAssetKey) ?? undefined;
+    return undefined;
+  }, [remoteFailed, resolution]);
 
   const visibleDisclosure = remoteFailed
     ? undefined
     : resolution.state === 'representative' || resolution.state === 'unverified'
       ? resolution.visibleDisclosure
       : undefined;
-  const accessibilityLabel = remoteFailed
-    ? `${log.name}, representative Calora ${resolution.category} meal illustration`
+  const noPhoto = remoteFailed || resolution.state === 'fallback' || resolution.state === 'unverified';
+  const accessibilityLabel = noPhoto
+    ? `${log.name}, no verified photo available`
     : resolution.accessibilityLabel;
 
   // Hooks run before this branch so a recycled row can safely change between a
   // no-photo restaurant entry and any image-backed state without retaining a
   // stale error. A verified remote image has already won in resolveFoodImage.
-  if (resolution.state === 'no-image' || resolution.state === 'representative') {
+  if (resolution.state === 'no-image' || resolution.state === 'representative' || noPhoto || !source) {
     const representative = resolution.state === 'representative';
     return (
       <View style={[styles.frame, { width: size, height: size, borderRadius }]}>
         <View
           accessible
-          accessibilityLabel={resolution.accessibilityLabel}
+          accessibilityLabel={accessibilityLabel}
           style={styles.restaurantMarker}
         >
           <Feather name={representative ? 'image' : 'map-pin'} size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
@@ -85,9 +78,8 @@ export function FoodLogThumbnail({
         cachePolicy="memory-disk"
         contentFit="cover"
         onError={() => setRemoteFailed(true)}
-        placeholder={fallback}
         recyclingKey={`${resolution.recyclingKey}:${remoteFailed ? 'failed' : 'active'}`}
-        source={source ?? fallback}
+        source={source}
         style={StyleSheet.absoluteFill}
         transition={120}
       />

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('expo-image', () => ({
@@ -25,7 +25,7 @@ describe('FoodLogThumbnail clean fallbacks', () => {
     vi.clearAllMocks();
   });
 
-  it('renders an unbound food record with a clean representative illustration and no technical failure copy', () => {
+  it('renders an unbound food record as no photo rather than an unrelated category illustration', () => {
     render(
       <FoodLogThumbnail
         log={{
@@ -37,12 +37,12 @@ describe('FoodLogThumbnail clean fallbacks', () => {
       />,
     );
 
-    expect(screen.getByAltText('Custom dinner bowl, representative Calora main meal illustration')).toBeTruthy();
+    expect(screen.getByLabelText('Custom dinner bowl, no verified photo available')).toBeTruthy();
     expect(screen.queryByText(/image unavailable/i)).toBeNull();
     expect(screen.queryByText(/food photo unavailable/i)).toBeNull();
   });
 
-  it('removes remote-image disclosure overlays after a load error and keeps a clean fallback image', () => {
+  it('fails closed when a provider image is not bound to the exact food item', () => {
     render(
       <FoodLogThumbnail
         log={{
@@ -56,10 +56,7 @@ describe('FoodLogThumbnail clean fallbacks', () => {
       />,
     );
 
-    expect(screen.getByText('Unverified provider image')).toBeTruthy();
-    fireEvent.error(screen.getByAltText('Provider dinner bowl provider image; exact item binding is not verified'));
-
-    expect(screen.getByAltText('Provider dinner bowl, representative Calora main meal illustration')).toBeTruthy();
+    expect(screen.getByLabelText('Provider dinner bowl, no verified photo available')).toBeTruthy();
     expect(screen.queryByText('Unverified provider image')).toBeNull();
     expect(screen.queryByText(/image unavailable/i)).toBeNull();
   });

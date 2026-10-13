@@ -402,7 +402,9 @@ describe("AI recipe creation endpoints", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ imageUrl: expect.any(String), imageId: expect.any(String), imageUrlExpiresAt: expect.any(String) });
+    expect(response.body).toMatchObject({ imageId: expect.any(String), status: "stored", semanticReviewState: "needs_review" });
+    expect(response.body.imageUrl).toBeUndefined();
+    expect(response.body.imageUrlExpiresAt).toBeUndefined();
     expect(mockOpenAiImageGenerate).toHaveBeenCalledWith(expect.objectContaining({
       model: "gpt-image-1",
       n: 1,

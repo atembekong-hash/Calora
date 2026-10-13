@@ -50,14 +50,14 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
       signal: controller.signal,
     });
     if (!upload.ok) throw new Error(`recipe_media_upload_${upload.status}`);
-    return locatorForRecipeMedia(ownerExternalId, await updateRecipeMediaStored(ownerExternalId, row.id));
+    return toRecipeMediaResource(await updateRecipeMediaStored(ownerExternalId, row.id, row.attempts));
   } catch (error) {
     const code = error instanceof Error && error.name === "AbortError"
       ? "generation_timeout"
       : error instanceof Error && /^image_provider_|^recipe_media_upload_/.test(error.message)
         ? error.message
         : "generation_unavailable";
-    await markRecipeMediaError(ownerExternalId, row.id, code).catch(() => undefined);
+    await markRecipeMediaError(ownerExternalId, row.id, code, row.attempts).catch(() => undefined);
     logger.warn({ ...safeErrorDetails(error), mediaId: row.id, code }, "Recipe media generation failed");
     throw error;
   } finally {

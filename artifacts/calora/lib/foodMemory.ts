@@ -545,7 +545,7 @@ export function plannerMealToDraft(
         assetKey: imageDecision.canonicalImageKey,
         rightsReviewState: 'approved',
       })
-    : imageDecision.generated && imageUrl && meal.generatedMediaId && meal.generatedImageId
+    : imageDecision.generated && meal.generatedImageReviewState === 'accepted' && imageUrl && meal.generatedMediaId && meal.generatedImageId
       ? normalizeFoodImageEvidence({
           version: 1,
           semanticRole: 'generated',

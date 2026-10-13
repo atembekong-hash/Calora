@@ -50,7 +50,7 @@ export type GeneratedRecipeImagePatch = Partial<Omit<GeneratedRecipeImageCandida
 export type UpdateGeneratedRecipe = (recipeId: string, patch: GeneratedRecipeImagePatch) => void;
 type RequestPhotoUrl = (payload: { mediaId?: string; imageId?: string }, signal?: AbortSignal) => Promise<GeneratedRecipePhoto | Pick<GeneratedRecipePhoto, 'imageUrl' | 'imageUrlExpiresAt'>>;
 
-type RefreshSkipReason = 'not-generated' | 'missing-image-id' | 'generating' | 'retryable-error' | 'fresh' | 'signed-out' | 'account-changed' | 'stale-request';
+type RefreshSkipReason = 'not-generated' | 'missing-image-id' | 'generating' | 'retryable-error' | 'fresh' | 'signed-out' | 'account-changed' | 'stale-request' | 'review-required';
 export type GeneratedRecipeImageRefreshDecision = { action: 'skip'; reason: RefreshSkipReason } | { action: 'refresh'; imageId: string; mediaId?: string };
 export type GeneratedRecipeImageRefreshResult =
   | { state: 'skipped'; recipeId: string; reason: RefreshSkipReason }
@@ -166,6 +166,9 @@ export function restoredRecipeFromMedia(photo: GeneratedRecipePhoto): CaloraReci
 
 export function decideGeneratedRecipeImageRefresh(recipe: GeneratedRecipeImageCandidate, { now = Date.now(), renewalWindowMs = GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS, force = false }: { now?: number; renewalWindowMs?: number; force?: boolean } = {}): GeneratedRecipeImageRefreshDecision {
   if (!generated(recipe)) return { action: 'skip', reason: 'not-generated' };
+  if (recipe.imageReviewState === 'needs_review' || recipe.imageReviewState === 'rejected') {
+    return { action: 'skip', reason: 'review-required' };
+  }
   if (!recipe.imageId) return { action: 'skip', reason: 'missing-image-id' };
   const state = clientState(recipe.imageStatus);
   if (state === 'generating') return { action: 'skip', reason: 'generating' };
@@ -305,8 +308,13 @@ export async function retryOrRegenerateRecipeImage({ accountId, recipe, updateRe
 export async function reviewRecipeImage(recipe: GeneratedRecipeImageCandidate, reviewState: RecipeMediaReviewState, updateRecipe: UpdateGeneratedRecipe) {
   if (!recipe.imageMediaId) return null;
   const photo = await reviewGeneratedRecipeMedia(recipe.imageMediaId, reviewState);
-  updateRecipe(recipe.id, { imageReviewState: photo.semanticReviewState });
-  return photo;
+  if (photo.semanticReviewState !== 'accepted') {
+    updateRecipe(recipe.id, { image: null, imageUrlExpiresAt: null, imageReviewState: photo.semanticReviewState, imageStatus: 'stored' });
+    return photo;
+  }
+  const published = await requestGeneratedRecipePhotoUrl({ mediaId: recipe.imageMediaId });
+  updateRecipe(recipe.id, patchForRecipeMedia(published));
+  return published;
 }
 
 export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRecipeImageCandidate[], now = Date.now(), renewalWindowMs = GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS) {

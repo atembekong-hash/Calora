@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
+import { offCandidate } from '../routes/capture.js';
 
 // ---------------------------------------------------------------------------
 // Shared in-memory state that backs the pool.query mock below.
@@ -1424,5 +1425,15 @@ describe('POST /v1/capture/analyze', () => {
 
       expect(res.status).toBe(200);
     });
+  });
+});
+
+describe('barcode candidate identity', () => {
+  it('rejects a provider product whose returned code differs from the scanned code', () => {
+    expect(offCandidate({ code: '0000000000000', product_name: 'Wrong item' }, '1111111111111')).toBeNull();
+  });
+
+  it('accepts a provider product only when its returned code matches', () => {
+    expect(offCandidate({ code: '1111111111111', product_name: 'Matching item' }, '1111111111111')).not.toBeNull();
   });
 });

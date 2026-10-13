@@ -267,6 +267,8 @@ async function fetchJson(url: string, init?: RequestInit) {
 }
 
 export function offCandidate(product: Record<string, any>, barcode: string): CaptureCandidate | null {
+  const productCode = String(product.code ?? '').replace(/\D/g, '');
+  if (productCode && productCode !== barcode) return null;
   const nutriments = product.nutriments ?? {};
   const calories = numberOrZero(nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"]);
   const proteinG = numberOrZero(nutriments["proteins_serving"] ?? nutriments["proteins_100g"]);
@@ -319,7 +321,8 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
 async function lookupBarcode(barcode: string) {
   try {
     const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
-    if (data.status === 1 && data.product) {
+    const returnedCode = String(data.code ?? data.product?.code ?? '').replace(/\D/g, '');
+    if (data.status === 1 && data.product && returnedCode === barcode) {
       const candidate = offCandidate(data.product, barcode);
       if (candidate) return { candidate, provider: "Open Food Facts" };
     }
