@@ -650,11 +650,12 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toMatch(/accessibilityLabel="Discard food review"/);
   });
 
-  it('switches the camera to video before recording Voice and restores picture capture', () => {
-    expect(scanSource).toContain("const [cameraMode, setCameraMode] = useState<CameraMode>('picture')");
-    expect(scanSource).toContain('mode={cameraMode}');
-    expect(scanSource).toMatch(/setCameraMode\('video'\);\s+setVoiceRecording\(true\)/);
-    expect(scanSource).toMatch(/finally \{[\s\S]*setVoiceRecording\(false\);[\s\S]*setCameraMode\('picture'\)/);
+  it('records Voice as real audio and sends the supported m4a container for transcription', () => {
+    expect(scanSource).toContain("import { Audio } from 'expo-av';");
+    expect(scanSource).toContain('Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)');
+    expect(scanSource).toContain("audioFormat: Platform.OS === 'web' ? 'webm' : 'm4a'");
+    expect(scanSource).not.toContain('camera.recordAsync');
+    expect(scanSource).toContain('stopAndUnloadAsync');
   });
 
   it('auto-starts Voice when opened from the Add Food card and falls back to editable text', () => {
