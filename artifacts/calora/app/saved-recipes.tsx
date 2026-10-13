@@ -18,6 +18,7 @@ import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy'
 import { PREMIUM_RECIPE_REQUEST_OPTIONS } from '@/lib/premiumRecipeRequest';
 import { premiumSavedRecipeRestorationState } from '@/lib/premiumRecipeReliability';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
+import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -64,9 +65,10 @@ function sourceForRecipe(recipe: SavedRecipe): SavedSource {
   return 'discover';
 }
 
-function sourceForId(id: string, localIds: Set<string>): SavedSource {
+function sourceForId(id: string, localIds: Set<string>, builtInIds: Set<string>): SavedSource {
   if (isPremiumRecipeId(id)) return 'plus';
   if (localIds.has(id)) return 'create';
+  if (builtInIds.has(id)) return 'discover';
   return 'discover';
 }
 
@@ -171,8 +173,10 @@ export default function SavedRecipesScreen() {
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
 
   const localIds = useMemo(() => new Set(localRecipes.map((recipe) => recipe.id)), [localRecipes]);
+  const builtInIds = useMemo(() => new Set(caloraOriginalRecipes.map((recipe) => recipe.id)), []);
   const savedLocalRecipes = useMemo(() => localRecipes.filter((recipe) => savedRecipeIds.includes(recipe.id)), [localRecipes, savedRecipeIds]);
-  const remoteSavedIds = useMemo(() => savedRecipeIds.filter((id) => !localIds.has(id)), [localIds, savedRecipeIds]);
+  const savedBuiltInRecipes = useMemo(() => caloraOriginalRecipes.filter((recipe) => savedRecipeIds.includes(recipe.id)), [savedRecipeIds]);
+  const remoteSavedIds = useMemo(() => savedRecipeIds.filter((id) => !localIds.has(id) && !builtInIds.has(id)), [builtInIds, localIds, savedRecipeIds]);
   const discoverIds = useMemo(() => remoteSavedIds.filter((id) => !isPremiumRecipeId(id)), [remoteSavedIds]);
   const premiumIds = useMemo(() => remoteSavedIds.filter(isPremiumRecipeId), [remoteSavedIds]);
 
@@ -202,23 +206,24 @@ export default function SavedRecipesScreen() {
   const savedRecipes = useMemo(() => {
     const byId = new Map<string, SavedRecipe>();
     savedLocalRecipes.forEach((recipe) => byId.set(recipe.id, recipe));
+    savedBuiltInRecipes.forEach((recipe) => byId.set(recipe.id, recipe));
     discoverRecipes.forEach((recipe) => byId.set(recipe.id, recipe));
     premiumRecipes.forEach((recipe) => byId.set(recipe.id, recipe));
     return savedRecipeIds.flatMap((id) => {
       const recipe = byId.get(id);
       return recipe ? [recipe] : [];
     });
-  }, [discoverRecipes, premiumRecipes, savedLocalRecipes, savedRecipeIds]);
+  }, [discoverRecipes, premiumRecipes, savedBuiltInRecipes, savedLocalRecipes, savedRecipeIds]);
   const groupedRecipes = useMemo(() => ({
     discover: savedRecipes.filter((recipe) => sourceForRecipe(recipe) === 'discover'),
     plus: savedRecipes.filter((recipe) => sourceForRecipe(recipe) === 'plus'),
     create: savedRecipes.filter((recipe) => sourceForRecipe(recipe) === 'create'),
   }), [savedRecipes]);
   const sourceCounts = useMemo(() => savedRecipeIds.reduce<Record<SavedSource, number>>((counts, id) => {
-    const source = sourceForId(id, localIds);
+    const source = sourceForId(id, localIds, builtInIds);
     counts[source] += 1;
     return counts;
-  }, { discover: 0, plus: 0, create: 0 }), [localIds, savedRecipeIds]);
+  }, { discover: 0, plus: 0, create: 0 }), [builtInIds, localIds, savedRecipeIds]);
   const loadingSources = {
     discover: discoverQueries.some((query) => query.isLoading),
     plus: premiumQueries.some((query) => query.isLoading),
