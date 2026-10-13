@@ -35,7 +35,7 @@ All bundled runtime images listed below are original assets commissioned specifi
 | `artifacts/calora/assets/images/foods/tuna-cucumber-crackers.jpg` | 1024×1024 | `d6701c4cb1b46e34588c0ac6d4fee8e35f3e56d3d33878e94af3dc495676b752` | canonical food-reference image |
 | `artifacts/calora/assets/images/foods/turkey-avocado-wrap.jpg` | 1024×1024 | `1210caa95cdf1606b1e843c1ca80b7dd02ba974f709f5d3ae1e8c440ea5b8eb5` | canonical food-reference image |
 | `artifacts/calora/assets/images/foods/whole-wheat-pasta-primavera.jpg` | 1024×1024 | `5cb6d36fb4d37021ee5b3f39df2dd8107cd9166ee0c89f8f9b82d36059a6a661` | canonical food-reference image |
-| `artifacts/calora/assets/images/icon.png` | 1024×1024 | `ee1589be4909f672e6ecf799745904455ecfa76a6da1681fc4587bd5d1aeb667` | application icon and native splash mark |
+| `artifacts/calora/assets/images/icon.png` | 1024×1024 | `2b0689d807afc5d81e14d6230494423c07ca8b8526d4b8d45becdb0598a9f1df` | application icon and native splash mark |
 | `artifacts/calora/assets/images/meals/apple-almond.jpg` | 1024×1024 | `89cf182b891a7f0ad8d116f94cf408772091952f2133415789a59907ba6915e3` | planner curated meal image |
 | `artifacts/calora/assets/images/meals/banana-pancakes.jpg` | 1024×1024 | `c5d421a64f342b469d76e135446b4457f8702070e9481023f958d2fcfaf26527` | planner curated meal image |
 | `artifacts/calora/assets/images/meals/banana-peanut-butter.jpg` | 1024×1024 | `5e4fb542253e8b94324695012599838736a1d7cd5a5df951563f64fee870f0b5` | planner curated meal image |

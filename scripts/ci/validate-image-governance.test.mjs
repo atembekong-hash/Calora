@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -244,7 +245,20 @@ test("enforces the per-asset compressed mobile delivery budget", () => {
   const root = fixtureRoot();
   try {
     const target = path.join(root, "artifacts/calora/assets/images/icon.png");
-    writeFileSync(target, Buffer.concat([readFileSync(target), Buffer.alloc(100_000)]));
+    writeFileSync(target, Buffer.concat([readFileSync(target), Buffer.alloc(700_000)]));
+    mutateJson(root, (manifest) => {
+      const icon = manifest.bundledAssets.find((asset) => asset.path === "artifacts/calora/assets/images/icon.png");
+      icon.sha256 = createHash("sha256").update(readFileSync(target)).digest("hex");
+    });
+    const ledgerPath = path.join(root, "docs/image-assets/GENERATED_ASSET_PROVENANCE.md");
+    const oversizedHash = createHash("sha256").update(readFileSync(target)).digest("hex");
+    writeFileSync(
+      ledgerPath,
+      readFileSync(ledgerPath, "utf8").replace(
+        /(`artifacts\/calora\/assets\/images\/icon\.png` \| 1024×1024 \| `)[a-f0-9]{64}(`)/,
+        `$1${oversizedHash}$2`,
+      ),
+    );
     const result = validateImageGovernance({ root, manifestPath });
     assert.equal(result.ok, false);
     assert.match(result.failures.join("\n"), /compressed budget: artifacts\/calora\/assets\/images\/icon\.png/);
