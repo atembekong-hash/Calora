@@ -42,6 +42,11 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("captureMode === 'auto' && autoBarcodeHintRef.current");
   });
 
+  it('gives the Restaurants action enough horizontal room for its icon and label', () => {
+    expect(source).toContain('styles.restaurantButton');
+    expect(source).toContain('restaurantButton: { width: 110, paddingHorizontal: 10 }');
+  });
+
   it("offers explicit sign-in recovery after a persistent capture auth failure", () => {
     expect(source).toContain("captureFlow.failure.kind === 'authentication'");
     expect(source).toContain('accessibilityLabel="Sign in again for Scan"');

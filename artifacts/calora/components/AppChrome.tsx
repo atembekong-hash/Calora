@@ -23,9 +23,10 @@ type AppHeaderProps = {
   onBack?: () => void;
   action?: React.ReactNode;
   leftAlignTitle?: boolean;
+  titleOffset?: number;
 };
 
-export function AppHeader({ title, back = false, onBack, action, leftAlignTitle = false }: AppHeaderProps) {
+export function AppHeader({ title, back = false, onBack, action, leftAlignTitle = false, titleOffset }: AppHeaderProps) {
   const { colors } = useCalora();
   const insets = useSafeAreaInsets();
   const handleBack = () => {
@@ -48,7 +49,7 @@ export function AppHeader({ title, back = false, onBack, action, leftAlignTitle 
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
         ) : !leftAlignTitle ? <View style={styles.backSpacer} /> : null}
-        <Text numberOfLines={1} style={[styles.title, leftAlignTitle && back && styles.leftAlignedTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text numberOfLines={1} style={[styles.title, leftAlignTitle && back && styles.leftAlignedTitle, titleOffset !== undefined && { marginLeft: titleOffset }, { color: colors.foreground }]}>{title}</Text>
         <View style={styles.action}>{action}</View>
       </View>
     </View>

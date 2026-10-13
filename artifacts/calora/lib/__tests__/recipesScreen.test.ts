@@ -153,6 +153,11 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Source: {sourceName}');
   });
 
+  it('hides the View original link for Discover recipes while preserving attribution', () => {
+    expect(source).toContain("sourceUrl && provenance.sourceType !== 'open'");
+    expect(source).toContain('Source: {sourceName}');
+  });
+
   it('renders up to forty related recipes in two independently swipeable twenty-card rows', () => {
     expect(source).toContain('const RECIPE_SUGGESTION_ROW_COUNT = 2');
     expect(source).toContain('const RECIPE_SUGGESTIONS_PER_ROW = 20');
