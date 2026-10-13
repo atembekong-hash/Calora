@@ -1188,6 +1188,7 @@ export default function ProfileScreen() {
       <AppHeader
         back
         leftAlignTitle
+        titleOffset={-2}
         title="Settings and profile"
         action={
           <Pressable

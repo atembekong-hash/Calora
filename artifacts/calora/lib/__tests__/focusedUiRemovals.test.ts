@@ -31,6 +31,12 @@ describe("focused UI removals", () => {
     expect(scanSource).not.toContain(
       "Nothing reaches your diary until you approve it.",
     );
+    expect(scanSource).toContain("styles.restaurantButton");
+  });
+
+  it("keeps the Settings/Profile title slightly inset from the back control", () => {
+    const source = app("(tabs)/profile.tsx");
+    expect(source).toContain("titleOffset={-2}");
   });
 
   it("places the Profile card within the You pane rather than the tab header or other tabs", () => {

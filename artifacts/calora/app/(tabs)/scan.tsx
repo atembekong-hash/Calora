@@ -852,7 +852,7 @@ export default function ScanScreen() {
             <View style={styles.captureActions}>
               <Pressable accessibilityLabel="Choose food photo from library" disabled={captureBusy} onPress={() => void choosePhoto()} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border, opacity: captureBusy ? 0.55 : 1 }]}><Feather name="image" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Library</Text></Pressable>
               <Pressable accessibilityLabel="Capture food photo" disabled={captureBusy || !cameraReady} onPress={() => void takePhoto()} style={[styles.shutter, { backgroundColor: colors.primary, opacity: captureBusy || !cameraReady ? 0.55 : 1 }]}>{captureBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <CaloraFeatureIcon name="camera" size={34} primaryColor={colors.primaryForeground} accentColor={colors.accent} foregroundColor={colors.primary} highlightColor={colors.primaryForeground} />}</Pressable>
-              <Pressable accessibilityLabel="Search restaurant foods" disabled={captureBusy} onPress={() => router.push({ pathname: '/restaurants', params: { date: entryDate } })} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border, opacity: captureBusy ? 0.55 : 1 }]}><CaloraFeatureIcon name="restaurant" size={23} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Restaurants</Text></Pressable>
+              <Pressable accessibilityLabel="Search restaurant foods" disabled={captureBusy} onPress={() => router.push({ pathname: '/restaurants', params: { date: entryDate } })} style={[styles.secondaryButton, styles.restaurantButton, { backgroundColor: colors.card, borderColor: colors.border, opacity: captureBusy ? 0.55 : 1 }]}><CaloraFeatureIcon name="restaurant" size={23} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Restaurants</Text></Pressable>
             </View>
             <View style={styles.altCaptureSection}>
               <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>OTHER WAYS TO LOG</Text>
@@ -921,6 +921,7 @@ const styles = StyleSheet.create({
   modeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   captureActions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 17 },
   secondaryButton: { width: 92, height: 42, borderWidth: 1, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  restaurantButton: { width: 110, paddingHorizontal: 10 },
   secondaryButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   shutter: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: '#f7f8f3' },
   trustCard: { flexDirection: 'row', gap: 10, marginHorizontal: 20, borderRadius: 17, padding: 14, marginTop: 20 },
