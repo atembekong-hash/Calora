@@ -876,7 +876,14 @@ export default function PlannerScreen() {
   const acceptPlannerDraft = async () => {
     if (!plannerReviewDraft) return;
     try {
-      await acceptFoodMemory(plannerReviewDraft.id);
+      // The draft can be created and accepted in the same native event turn.
+      // Pass the review object directly so acceptance does not depend on the
+      // context state render having committed before the button press.
+      const acceptedLog = await acceptFoodMemory(plannerReviewDraft.id, plannerReviewDraft);
+      if (!acceptedLog) {
+        acknowledge('This planned meal was not added to your diary. Please try again.');
+        return;
+      }
     } catch (error) {
       acknowledge(error instanceof Error ? error.message : 'Meal could not be added to your diary.');
       return;
