@@ -35,6 +35,13 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('.catch(() => undefined)');
   });
 
+  it('keeps Auto barcode detections as a hint until the captured image is submitted', () => {
+    expect(source).toContain('const autoBarcodeHintRef = useRef<string | null>(null);');
+    expect(source).toContain('autoBarcodeHintRef.current = barcode;');
+    expect(source).toContain("if (mode === 'auto') {");
+    expect(source).toContain("captureMode === 'auto' && autoBarcodeHintRef.current");
+  });
+
   it("offers explicit sign-in recovery after a persistent capture auth failure", () => {
     expect(source).toContain("captureFlow.failure.kind === 'authentication'");
     expect(source).toContain('accessibilityLabel="Sign in again for Scan"');
