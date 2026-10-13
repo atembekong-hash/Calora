@@ -177,6 +177,10 @@ export default function ScanScreen() {
   const barcodeLaunchRequested = useRef(false);
   const barcodeSequenceRef = useRef(0);
   const barcodeLockRef = useRef<{ barcode: string; sequence: number } | null>(null);
+  // Auto uses camera barcode detection as a hint, not as a terminal result.
+  // A false/partial barcode must not prevent the captured image from reaching
+  // the working food-vision path.
+  const autoBarcodeHintRef = useRef<string | null>(null);
   // Set before native calls so synchronous Android lifecycle and barcode
   // callbacks cannot race React state commits for a manual photo flow.
   const manualPhotoCaptureRef = useRef(false);
@@ -185,6 +189,7 @@ export default function ScanScreen() {
   const resetBarcodeCapture = () => {
     barcodeSequenceRef.current += 1;
     barcodeLockRef.current = null;
+    autoBarcodeHintRef.current = null;
     setHasScanned(false);
   };
 
@@ -544,6 +549,12 @@ export default function ScanScreen() {
     if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy || mode === 'food' || mode === 'label') return;
     const barcode = result.data?.trim();
     if (!barcode) return;
+    if (mode === 'auto') {
+      // Do not submit from the preview callback. Auto must retain the image so
+      // an unmatched barcode can fall through to food-photo analysis.
+      autoBarcodeHintRef.current = barcode;
+      return;
+    }
     const sequence = ++barcodeSequenceRef.current;
     // Camera callbacks can repeat synchronously before React commits state.
     // Claim the sequence in a ref first, then update visible state.
@@ -593,7 +604,12 @@ export default function ScanScreen() {
       ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
       const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food';
-      await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
+      await submitAnalysis({
+        mode: captureMode,
+        ...(captureMode === 'auto' && autoBarcodeHintRef.current ? { barcode: autoBarcodeHintRef.current } : {}),
+        imageBase64: prepared.base64,
+        imageMimeType: prepared.mimeType,
+      }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
     } finally {
@@ -638,7 +654,12 @@ export default function ScanScreen() {
       ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
       const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food');
-      await submitAnalysis({ mode: captureMode, imageBase64: prepared.base64, imageMimeType: prepared.mimeType }, operationId);
+      await submitAnalysis({
+        mode: captureMode,
+        ...(captureMode === 'auto' && autoBarcodeHintRef.current ? { barcode: autoBarcodeHintRef.current } : {}),
+        imageBase64: prepared.base64,
+        imageMimeType: prepared.mimeType,
+      }, operationId);
     } catch (error) {
       failCaptureOperation(operationId, error);
     } finally {
