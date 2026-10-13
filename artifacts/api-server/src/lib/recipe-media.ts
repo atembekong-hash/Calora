@@ -209,10 +209,11 @@ export async function claimRecipeMedia(ownerExternalId: string, input: RecipePho
   return { row: existing.rows[0], claimed: false };
 }
 
-export async function updateRecipeMediaStored(ownerExternalId: string, mediaId: string): Promise<RecipeMediaRow> {
+export async function updateRecipeMediaStored(ownerExternalId: string, mediaId: string, claimedAttempt?: number): Promise<RecipeMediaRow> {
   const result = await pool.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'stored', last_error_code = NULL, updated_at = NOW()
-      WHERE id = $1 AND owner_external_id = $2 RETURNING *`, [mediaId, ownerExternalId],
+      WHERE id = $1 AND owner_external_id = $2 AND status = 'generating'
+        AND ($3::integer IS NULL OR attempts = $3) RETURNING *`, [mediaId, ownerExternalId, claimedAttempt ?? null],
   );
   if (!result.rows[0]) throw new Error("recipe_media_not_found");
   return result.rows[0];
@@ -222,6 +223,7 @@ export async function issueRecipeMediaUrlState(ownerExternalId: string, mediaId:
   const result = await pool.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'url_ready', url_last_issued_at = NOW(), updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2 AND image_id IS NOT NULL
+        AND semantic_review_state = 'accepted'
         AND status IN ('stored', 'url_ready') RETURNING *`, [mediaId, ownerExternalId],
   );
   if (!result.rows[0]) throw new Error("recipe_media_not_found");
@@ -234,10 +236,11 @@ export async function issueRecipeMediaUrlState(ownerExternalId: string, mediaId:
   return result.rows[0];
 }
 
-export async function markRecipeMediaError(ownerExternalId: string, mediaId: string, code: string): Promise<void> {
+export async function markRecipeMediaError(ownerExternalId: string, mediaId: string, code: string, claimedAttempt?: number): Promise<void> {
   await pool.query(
     `UPDATE calora_recipe_media SET status = 'retryable_error', last_error_code = $3, updated_at = NOW()
-      WHERE id = $1 AND owner_external_id = $2`, [mediaId, ownerExternalId, code.slice(0, 80)],
+      WHERE id = $1 AND owner_external_id = $2
+        AND ($4::integer IS NULL OR attempts = $4)`, [mediaId, ownerExternalId, code.slice(0, 80), claimedAttempt ?? null],
   );
 }
 

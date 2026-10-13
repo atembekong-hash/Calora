@@ -41,7 +41,7 @@ export function plannerImageRenderDecision(meal: PlannerImageRecord, accountScop
   // Generated media never enters the generic provider URL allowlist. It must
   // carry a recipe link plus its durable media/image IDs, and the signed object
   // path must validate against the currently authenticated account.
-  const generatedImageUrl = recipeOwned && meal.generatedMediaId && meal.generatedImageId
+  const generatedImageUrl = recipeOwned && meal.generatedImageReviewState === 'accepted' && meal.generatedMediaId && meal.generatedImageId
     && (!meal.generatedImageUrlExpiresAt || Number.isFinite(Date.parse(meal.generatedImageUrlExpiresAt)) && Date.parse(meal.generatedImageUrlExpiresAt) > Date.now())
     ? normalizeGeneratedRecipeImageUrl(meal.image, meal.generatedImageId, accountScope)
     : undefined;
