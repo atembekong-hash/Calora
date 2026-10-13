@@ -543,16 +543,20 @@ describe('POST /v1/capture/analyze', () => {
       expect(res.body.message).toMatch(/receipt image/i);
     });
 
-    it('returns an editable transcript from a short voice recording', async () => {
+    it('returns an editable transcript from a short m4a voice recording', async () => {
       vi.mocked(openai.audio.transcriptions.create).mockResolvedValueOnce({ text: 'Turkey sandwich with apple' } as any);
       const res = await request(app)
         .post('/v1/capture/analyze')
-        .send({ mode: 'voice', audioBase64: Buffer.from('audio').toString('base64'), audioFormat: 'mp4' })
+        .send({ mode: 'voice', audioBase64: Buffer.from('audio').toString('base64'), audioFormat: 'm4a' })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('transcript');
       expect(res.body.transcript).toBe('Turkey sandwich with apple');
       expect(res.body.candidates).toEqual([]);
+      expect(openai.audio.transcriptions.create).toHaveBeenCalledTimes(1);
+      const transcriptionRequest = vi.mocked(openai.audio.transcriptions.create).mock.calls[0]?.[0] as { file: File };
+      expect(transcriptionRequest.file.name).toBe('calora-voice.m4a');
+      expect(transcriptionRequest.file.type).toBe('audio/m4a');
     });
 
     it('returns receipt items as reviewable estimates', async () => {
