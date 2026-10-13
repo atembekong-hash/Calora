@@ -42,6 +42,11 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("captureMode === 'auto' && autoBarcodeHintRef.current");
   });
 
+  it('gives Barcode capture a food-photo fallback when product lookup cannot match', () => {
+    expect(source).toContain("mode === 'auto' || mode === 'barcode' ? 'auto' : 'food'");
+    expect(source).toContain('autoBarcodeHintRef.current = null;');
+  });
+
   it('gives the Restaurants action enough horizontal room for its icon and label', () => {
     expect(source).toContain('styles.restaurantButton');
     expect(source).toContain('restaurantButton: { width: 110, paddingHorizontal: 10 }');
