@@ -566,6 +566,9 @@ export default function ScanScreen() {
   const takePhoto = async () => {
     if (captureBusy) return;
     manualPhotoCaptureRef.current = true;
+    // A previous Auto frame may have produced an unmatched hint. It must not
+    // be reused for this new deliberate photo capture.
+    autoBarcodeHintRef.current = null;
     if (!permission?.granted) {
       const operationId = beginCaptureOperation('preparing');
       failCaptureOperation(operationId, cameraError('Camera permission is required before taking a photo.'));
@@ -603,7 +606,10 @@ export default function ScanScreen() {
       if (!isCurrentOperation(operationId)) return;
       ownedCaptureArtifactsRef.current.add(prepared.uri);
       setCapturedPhotoUri(prepared.uri);
-      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food';
+      // Barcode mode also supports a deliberate photo fallback. Sending it as
+      // Auto lets the API try the detected product first and then analyze the
+      // captured image when the product databases cannot match the code.
+      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' || mode === 'barcode' ? 'auto' : 'food';
       await submitAnalysis({
         mode: captureMode,
         ...(captureMode === 'auto' && autoBarcodeHintRef.current ? { barcode: autoBarcodeHintRef.current } : {}),
