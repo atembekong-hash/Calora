@@ -1,6 +1,7 @@
 import { type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult, type CameraMode } from 'expo-camera';
+import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -237,6 +238,9 @@ export default function ScanScreen() {
   const mountedRef = useRef(true);
   const retryInputRef = useRef<{ input: CaptureAnalyzeInput; previewUri: string | null } | null>(null);
   const voiceCaptureInFlight = useRef(false);
+  const voiceRecordingRef = useRef<Audio.Recording | null>(null);
+  const voiceStopResolverRef = useRef<(() => void) | null>(null);
+  const voiceStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceLaunchRequested = useRef(false);
   const voicePendingAfterCameraPermission = useRef(false);
   const ownedCaptureArtifactsRef = useRef(new Set<string>());
@@ -253,6 +257,11 @@ export default function ScanScreen() {
       captureAbortRef.current = null;
       manualPhotoCaptureRef.current = false;
       nativePickerActiveRef.current = false;
+      if (voiceStopTimerRef.current) clearTimeout(voiceStopTimerRef.current);
+      voiceStopTimerRef.current = null;
+      void voiceRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined).finally(() => voiceStopResolverRef.current?.());
+      voiceStopResolverRef.current = null;
+      voiceRecordingRef.current = null;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
       ownedCaptureArtifactsRef.current.clear();
     };
@@ -418,29 +427,35 @@ export default function ScanScreen() {
   };
 
   useEffect(() => {
-    if (cameraMode !== 'video' || !voiceRecording || voiceCaptureInFlight.current) return;
-    const camera = cameraRef.current;
-    if (!camera) {
-      setVoiceRecording(false);
-      setCameraMode('picture');
-      setAltCaptureBanner('Open the camera, then try voice again.');
-      return;
-    }
-
+    if (!voiceRecording || voiceCaptureInFlight.current) return;
     voiceCaptureInFlight.current = true;
     const recordVoice = async () => {
-      let recording: { uri?: string } | null = null;
+      let recording: Audio.Recording | null = null;
       try {
-        recording = (await camera.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 })) ?? null;
-        if (!recording?.uri) {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+        const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        recording = created.recording;
+        voiceRecordingRef.current = recording;
+        const stopped = new Promise<void>((resolve) => {
+          voiceStopResolverRef.current = resolve;
+        });
+        voiceStopTimerRef.current = setTimeout(() => {
+          void voiceRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined).finally(() => voiceStopResolverRef.current?.());
+        }, 12_000);
+        const status = await recording.getStatusAsync();
+        if (!status.isRecording) {
           setAltCaptureBanner('No recording was captured. Try again, or type your meal description instead.');
           return;
         }
-        const audioBase64 = await FileSystem.readAsStringAsync(recording.uri, { encoding: FileSystem.EncodingType.Base64 });
+        await stopped;
+        const uri = recording.getURI();
+        if (!uri) throw new Error('The recording could not be saved');
+        ownedCaptureArtifactsRef.current.add(uri);
+        const audioBase64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
         if (!audioBase64) throw new Error('The recording could not be read');
         setHasScanned(true);
         setCapturedPhotoUri(null);
-        const next = await submitAnalysis({ mode: 'voice', audioBase64, audioFormat: 'mp4' });
+        const next = await submitAnalysis({ mode: 'voice', audioBase64, audioFormat: Platform.OS === 'web' ? 'webm' : 'm4a' });
         if (next?.status === 'transcript' && next.transcript) {
           setTextEntry(next.transcript);
           setTextEntryKind('voice');
@@ -452,38 +467,26 @@ export default function ScanScreen() {
         setHasScanned(false);
         setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
       } finally {
-        if (recording?.uri) void deleteOwnedCaptureArtifacts(FileSystem, [recording.uri]);
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true }).catch(() => undefined);
+        if (voiceStopTimerRef.current) clearTimeout(voiceStopTimerRef.current);
+        voiceStopTimerRef.current = null;
+        const uri = recording?.getURI();
+        if (uri) void deleteOwnedCaptureArtifacts(FileSystem, [uri]);
+        voiceStopResolverRef.current = null;
+        voiceRecordingRef.current = null;
         voiceCaptureInFlight.current = false;
         setVoiceRecording(false);
-        setCameraMode('picture');
       }
     };
 
     void recordVoice();
-  }, [cameraMode, voiceRecording]);
+  }, [voiceRecording]);
 
   const startVoiceCapture = async () => {
     if (Platform.OS === 'web') {
       setAltCaptureBanner('Voice recording is available in the mobile app. Type your meal instead.');
       setTextEntryKind('voice');
       setShowTextEntry(true);
-      return;
-    }
-    if (!permission?.granted) {
-      const granted = (await requestPermission()).granted;
-      if (!granted) {
-        setAltCaptureBanner('Camera access is needed to record a voice note here. You can type your meal instead.');
-        setTextEntryKind('voice');
-        setShowTextEntry(true);
-        return;
-      }
-      voicePendingAfterCameraPermission.current = true;
-      setAltCaptureBanner('Camera ready. Preparing voice recording…');
-      return;
-    }
-    if (!cameraRef.current || !cameraReady) {
-      voicePendingAfterCameraPermission.current = true;
-      setAltCaptureBanner('Preparing voice recording…');
       return;
     }
     const granted = microphonePermission?.granted || (await requestMicrophonePermission()).granted;
@@ -495,11 +498,9 @@ export default function ScanScreen() {
     }
     try {
       setAltCaptureBanner('Listening… tap Voice again when you are done.');
-      setCameraMode('video');
       setVoiceRecording(true);
     } catch (error) {
       setVoiceRecording(false);
-      setCameraMode('picture');
       setHasScanned(false);
       setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
     }
@@ -507,18 +508,17 @@ export default function ScanScreen() {
 
   useEffect(() => {
     const routeRequested = params.capture === 'voice' && !voiceLaunchRequested.current;
-    const permissionRequested = voicePendingAfterCameraPermission.current && permission?.granted;
+    const permissionRequested = voicePendingAfterCameraPermission.current && microphonePermission?.granted;
     if ((!routeRequested && !permissionRequested) || voiceRecording || captureBusy) return;
-    if (Platform.OS !== 'web' && !permission?.granted) return;
-    if (Platform.OS !== 'web' && (!cameraRef.current || !cameraReady)) return;
+    if (Platform.OS !== 'web' && !microphonePermission?.granted) return;
     voiceLaunchRequested.current = routeRequested ? true : voiceLaunchRequested.current;
     voicePendingAfterCameraPermission.current = false;
     void startVoiceCapture();
-  }, [cameraReady, captureBusy, params.capture, permission?.granted, voiceRecording]);
+  }, [captureBusy, microphonePermission?.granted, params.capture, voiceRecording]);
 
   const onVoicePress = () => {
     if (voiceRecording) {
-      cameraRef.current?.stopRecording();
+      void voiceRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined).finally(() => voiceStopResolverRef.current?.());
       setAltCaptureBanner('Finishing your recording…');
       return;
     }

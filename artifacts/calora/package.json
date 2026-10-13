@@ -85,6 +85,7 @@
     "@kingstinct/react-native-healthkit": "14.0.2",
     "@noble/ciphers": "^2.4.0",
     "@supabase/supabase-js": "^2.112.2",
+    "expo-av": "~16.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
