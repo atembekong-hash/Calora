@@ -269,6 +269,36 @@ function mediaPatchChanged(recipe: GeneratedRecipeImageCandidate, patch: Generat
   return Object.entries(patch).some(([key, value]) => recipe[key as keyof GeneratedRecipeImageCandidate] !== value);
 }
 
+/**
+ * The owner-media endpoint returns a newly signed private URL on every
+ * reconciliation. Replacing a valid rendered locator on every poll remounts
+ * Expo Image and flashes Create cards and their suggestion cards. Keep the
+ * accepted image mounted until the existing capability needs renewal.
+ */
+export function reconcileGeneratedRecipeMedia(
+  recipe: GeneratedRecipeImageCandidate,
+  photo: GeneratedRecipePhoto,
+  renewalWindowMs?: number,
+): GeneratedRecipeImagePatch {
+  const patch = patchForRecipeMedia(photo);
+  const renderedAndCurrent = clientState(recipe.imageStatus) === 'rendered'
+    && Boolean(recipe.image)
+    && recipe.imageId === patch.imageId
+    && recipe.imageMediaId === patch.imageMediaId
+    && patch.imageReviewState === 'accepted';
+  const currentLocator = decideGeneratedRecipeImageRefresh(recipe, { renewalWindowMs });
+
+  if (renderedAndCurrent && currentLocator.action === 'skip' && currentLocator.reason === 'fresh') {
+    return {
+      ...patch,
+      image: recipe.image,
+      imageUrlExpiresAt: recipe.imageUrlExpiresAt,
+      imageStatus: 'rendered',
+    };
+  }
+  return patch;
+}
+
 /** One forced owner-scoped renewal per failed locator; further failure exposes retry instead of looping. */
 export async function handleGeneratedRecipeImageError({ accountId, recipe, updateRecipe, isAccountActive }: {
   accountId?: string | null; recipe: GeneratedRecipeImageCandidate; updateRecipe: UpdateGeneratedRecipe; isAccountActive: (id: string) => boolean;
@@ -363,14 +393,7 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
         recipesRef.current.forEach((recipe) => {
           const media = byRecipe.get(recipe.id);
           if (!media) return;
-          const patch = patchForRecipeMedia(media);
-          // The API reports url_ready after an image is rendered. Never turn
-          // that durable local terminal state back into url_ready on every
-          // reconciliation: doing so remounts native image views and causes
-          // the visible flash observed in Create and suggestion cards.
-          if (clientState(recipe.imageStatus) === 'rendered' && patch.image === recipe.image && patch.imageId === recipe.imageId) {
-            patch.imageStatus = 'rendered';
-          }
+          const patch = reconcileGeneratedRecipeMedia(recipe, media, renewalWindowMs);
           if (mediaPatchChanged(recipe, patch)) updateRef.current(recipe.id, patch);
           if (isStaleGeneratedRecipeMedia(media)) {
             void ensureGeneratedRecipeImage({

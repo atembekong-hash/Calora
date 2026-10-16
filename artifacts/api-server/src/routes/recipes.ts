@@ -536,6 +536,9 @@ router.post("/v1/recipes/photo", async (req, res) => {
 router.post("/v1/recipes/photo-url", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to view your recipe photo." });
+  // Owner-scoped signed storage locators must never be retained by a shared
+  // cache or replayed after the client renews a photo capability.
+  res.setHeader("Cache-Control", "private, no-store");
   const body = requestBody(req.body);
   const imageId = conceptText(body.imageId, 64);
   const mediaId = conceptText(body.mediaId, 64);
@@ -555,6 +558,7 @@ router.post("/v1/recipes/photo-url", async (req, res) => {
 router.get("/v1/recipes/media", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to restore recipe photos." });
+  res.setHeader("Cache-Control", "private, no-store");
   const rows = await listOwnerRecipeMedia(user.id);
   const media = await Promise.all(rows.map((row) => locatorForRecipeMedia(user.id, row).catch(() => toRecipeMediaResource(row))));
   return res.json({ media });
@@ -563,6 +567,7 @@ router.get("/v1/recipes/media", async (req, res) => {
 router.get("/v1/recipes/media/:mediaId", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to view recipe photo status." });
+  res.setHeader("Cache-Control", "private, no-store");
   if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
   const row = await findOwnerRecipeMedia(user.id, { mediaId: req.params.mediaId });
   if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
