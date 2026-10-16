@@ -26,7 +26,7 @@ const pages = [
   ["/contact", "Contact Calora", "/contact"],
   ["/delete-account", "Delete your account", "/delete-account"],
   ["/subscriptions", "Subscription Information", "/subscriptions"],
-  ["/help", "Calora Help", "/support"],
+  ["/help", "Calora Help", "/help"],
 ];
 
 const appleTeamId =

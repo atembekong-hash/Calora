@@ -290,7 +290,7 @@ globalThis.fetch = async (url) => {
     return jsonResponse({ status: "ok" });
   }
   if (value === "https://example.test/") {
-    return new Response(releasePage(value.endsWith("/help") ? "https://example.test/support" : value), {
+    return new Response(releasePage(value), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
@@ -305,7 +305,7 @@ globalThis.fetch = async (url) => {
     value === "https://example.test/subscription" ||
     value.startsWith("https://example.test/")
   ) {
-    return new Response(releasePage(value.endsWith("/help") ? "https://example.test/support" : value), {
+    return new Response(releasePage(value), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
