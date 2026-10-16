@@ -16,4 +16,16 @@ describe("tab bar labels", () => {
     expect(layoutSource).toMatch(/title: ["']Progress["']/);
     expect(layoutSource).toMatch(/title: ["']Plan["']/);
   });
+
+  it("reserves an inset-aware native bar for the raised Scan label", () => {
+    expect(layoutSource).toContain("const insets = useSafeAreaInsets();");
+    expect(layoutSource).toContain("const tabBarHeight = isWeb ? 84 : Math.max(88, 56 + insets.bottom);");
+    expect(layoutSource).toContain("height: tabBarHeight");
+    expect(layoutSource).toContain("paddingBottom: isWeb ? 0 : Math.max(insets.bottom, 4)");
+    expect(layoutSource).toContain("tabBarItemStyle: styles.tabBarItem");
+    expect(layoutSource).toContain("minHeight: 44");
+    expect(layoutSource).toContain("style={[props.style, styles.scanTabButton]}");
+    expect(layoutSource).toContain("height: 88");
+    expect(layoutSource).toContain("marginTop: -24");
+  });
 });
