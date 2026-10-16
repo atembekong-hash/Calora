@@ -582,7 +582,6 @@ export default function ScanScreen() {
       return;
     }
     const operationId = beginCaptureOperation('preparing');
-    setHasScanned(true);
     setAltCaptureBanner(null);
     try {
       const photo = await withCaptureDeadline(
@@ -591,6 +590,12 @@ export default function ScanScreen() {
       );
       if (!isCurrentOperation(operationId)) return;
       if (!photo?.uri) throw cameraError(`${BRAND.name} did not receive a photo from the camera. Retake it or choose one from your library.`);
+      // Do not toggle hasScanned until after the native shutter resolves. On
+      // Android, changing this prop before takePictureAsync completes removes
+      // CameraView's barcode callback and makes CameraX detach/reopen its
+      // capture session, leaving Auto/Barcode with no photo and no API call.
+      // manualPhotoCaptureRef already suppresses callbacks during the shutter.
+      setHasScanned(true);
       ownedCaptureArtifactsRef.current.add(photo.uri);
       setCapturedPhotoUri(photo.uri);
       const prepared = await withCaptureDeadline(

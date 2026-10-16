@@ -1494,6 +1494,7 @@ export default function InsightsScreen() {
   // so that mood, activity, water check-ins, and the local insight all use the current day.
   const [todayKey, setTodayKey] = useState(() => dateKey());
   const [progressView, setProgressView] = useState<ProgressView>('overview');
+  const [progressPreview, setProgressPreview] = useState<ProgressView | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
       const current = dateKey();
@@ -1802,7 +1803,7 @@ export default function InsightsScreen() {
         <SwipeableTabList
           items={PROGRESS_VIEWS}
           activeItem={progressView}
-          onChange={setProgressView}
+          onChange={(next) => { setProgressPreview(null); setProgressView(next); }}
           accessibilityLabel="Progress sections"
           testID="progress-section-tabs"
           style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
@@ -1812,7 +1813,8 @@ export default function InsightsScreen() {
             { key: 'trends' as const, label: 'Trends' },
             { key: 'weight' as const, label: 'Weight' },
           ]).map((tab) => {
-            const selected = progressView === tab.key;
+            const selected = (progressPreview ?? progressView) === tab.key;
+            const previewSelected = progressPreview === tab.key;
             return (
               <Pressable
                 key={tab.key}
@@ -1820,9 +1822,9 @@ export default function InsightsScreen() {
                 accessibilityState={{ selected }}
                 accessibilityLabel={`${tab.label} progress tab`}
                 onPress={() => setProgressView(tab.key)}
-                style={[styles.progressTab, selected && { backgroundColor: colors.card }]}
+                style={[styles.progressTab, selected && { backgroundColor: previewSelected ? colors.accent : colors.card }]}
               >
-                <Text style={[styles.progressTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+                <Text style={[styles.progressTabText, { color: previewSelected ? colors.accentForeground : selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
               </Pressable>
             );
           })}
@@ -1831,7 +1833,8 @@ export default function InsightsScreen() {
         <SwipeableSectionPager
           items={PROGRESS_VIEWS}
           activeItem={progressView}
-          onChange={setProgressView}
+          onPreviewChange={setProgressPreview}
+          onChange={(next) => { setProgressPreview(null); setProgressView(next); }}
           renderItem={(view) => (
             <Animated.ScrollView
               style={styles.progressPaneScroll}

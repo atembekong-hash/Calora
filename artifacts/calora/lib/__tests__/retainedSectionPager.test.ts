@@ -21,6 +21,9 @@ describe('retained section pager contracts', () => {
     expect(pagerSource).toContain("const useNativePaging = nativePaging && Platform.OS !== 'web';");
     expect(pagerSource).toContain('if (useNativePaging && hasAdjacentPages && renderItem)');
     expect(pagerSource).toContain('if (!useNativePaging || surfaceWidth <= 0) return;');
+    expect(pagerSource).toContain('onPreviewChange?: (item: T | null) => void;');
+    expect(pagerSource).toContain('onScroll={(event) => {');
+    expect(pagerSource).toContain('runOnJS(previewIndex)');
   });
 
   it.each([
@@ -43,5 +46,14 @@ describe('retained section pager contracts', () => {
     expect(profilePaneSource).toContain("tab === 'membership'");
     expect(profilePaneSource).toContain("tab === 'account'");
     expect(profilePaneSource).not.toContain('profileTab ===');
+  });
+
+  it('highlights the destination menu item during direct-manipulation swipes', () => {
+    expect(profileSource).toContain('const [profilePreview, setProfilePreview]');
+    expect(profileSource).toContain('previewSelected ? colors.accent : colors.card');
+    expect(insightsSource).toContain('const [progressPreview, setProgressPreview]');
+    expect(insightsSource).toContain('previewSelected ? colors.accent : colors.card');
+    expect(recipesSource).toContain('const [sectionPreview, setSectionPreview]');
+    expect(recipesSource).toContain('previewSelected ? colors.accent : colors.card');
   });
 });

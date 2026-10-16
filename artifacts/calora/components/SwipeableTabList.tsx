@@ -36,6 +36,7 @@ type SwipeableTabListProps<T extends string> = {
 type SwipeableSectionPagerProps<T extends string> = {
   items: readonly T[];
   activeItem: T;
+  onPreviewChange?: (item: T | null) => void;
   onChange: (item: T) => void;
   children?: React.ReactNode;
   /** Renders real adjacent panes in one horizontal track. */
@@ -159,6 +160,7 @@ export function SwipeableTabList<T extends string>({
 export function SwipeableSectionPager<T extends string>({
   items,
   activeItem,
+  onPreviewChange,
   onChange,
   children,
   renderItem,
@@ -187,9 +189,12 @@ export function SwipeableSectionPager<T extends string>({
   const [excluded, setExcludedState] = useState(false);
   const itemsRef = useRef(items);
   const onChangeRef = useRef(onChange);
+  const onPreviewChangeRef = useRef(onPreviewChange);
+  const lastPreviewIndexRef = useRef<number | null>(null);
   const nativePagerRef = useRef<ScrollView>(null);
   itemsRef.current = items;
   onChangeRef.current = onChange;
+  onPreviewChangeRef.current = onPreviewChange;
 
   useEffect(() => {
     activeIndexValue.value = activeIndex;
@@ -199,7 +204,23 @@ export function SwipeableSectionPager<T extends string>({
 
   const commitIndex = useCallback((index: number) => {
     const nextItem = itemsRef.current[index];
-    if (nextItem) onChangeRef.current(nextItem);
+    if (nextItem) {
+      lastPreviewIndexRef.current = null;
+      onPreviewChangeRef.current?.(null);
+      onChangeRef.current(nextItem);
+    }
+  }, []);
+
+  const getPreviewIndex = useCallback((index: number, offset: number, width: number) => {
+    if (!Number.isFinite(offset) || !Number.isFinite(width) || width <= 0 || Math.abs(offset) / width < 0.2) return index;
+    const direction = offset < 0 ? 1 : -1;
+    return Math.max(0, Math.min(itemsRef.current.length - 1, index + direction));
+  }, []);
+
+  const previewIndex = useCallback((index: number | null) => {
+    if (lastPreviewIndexRef.current === index) return;
+    lastPreviewIndexRef.current = index;
+    onPreviewChangeRef.current?.(index === null ? null : itemsRef.current[index] ?? null);
   }, []);
 
   const setExcluded = useCallback((isExcluded: boolean) => {
@@ -219,6 +240,8 @@ export function SwipeableSectionPager<T extends string>({
     const targetIndex = Math.round(event.nativeEvent.contentOffset.x / surfaceWidth);
     const nextItem = itemsRef.current[targetIndex];
     if (nextItem && targetIndex !== getActiveIndex(itemsRef.current, activeItem)) {
+      lastPreviewIndexRef.current = null;
+      onPreviewChangeRef.current?.(null);
       onChangeRef.current(nextItem);
     }
   }, [activeItem, surfaceWidth, useNativePaging]);
@@ -250,6 +273,8 @@ export function SwipeableSectionPager<T extends string>({
           pageWidth.value,
           hasAdjacentPages,
         ) + dragOffset;
+        const nextPreviewIndex = getPreviewIndex(activeIndexValue.value, event.translationX, pageWidth.value);
+        runOnJS(previewIndex)(nextPreviewIndex === activeIndexValue.value ? null : nextPreviewIndex);
       })
       .onEnd((event) => {
         const currentIndex = activeIndexValue.value;
@@ -265,6 +290,7 @@ export function SwipeableSectionPager<T extends string>({
         activeIndexValue.value = settledIndex;
         translateX.value = getWorkspacePagerRestingOffset(settledIndex, pageWidth.value, hasAdjacentPages);
         if (targetIndex !== null) runOnJS(commitIndex)(targetIndex);
+        else runOnJS(previewIndex)(null);
       })
       .onFinalize(() => {
         translateX.value = getWorkspacePagerRestingOffset(
@@ -273,7 +299,7 @@ export function SwipeableSectionPager<T extends string>({
           hasAdjacentPages,
         );
       }),
-    [activeIndexValue, commitIndex, excluded, hasAdjacentPages, itemCountValue, pageWidth, translateX],
+    [activeIndexValue, commitIndex, excluded, getPreviewIndex, hasAdjacentPages, itemCountValue, pageWidth, previewIndex, translateX],
   );
 
   const trackStyle = useAnimatedStyle(() => ({
@@ -308,6 +334,14 @@ export function SwipeableSectionPager<T extends string>({
           scrollEventThrottle={16}
           onMomentumScrollEnd={commitNativePagerPosition}
           onScrollEndDrag={commitNativePagerPosition}
+          onScroll={(event) => {
+            const nextPreviewIndex = getPreviewIndex(
+              activeIndexValue.value,
+              event.nativeEvent.contentOffset.x - activeIndexValue.value * surfaceWidth,
+              surfaceWidth,
+            );
+            previewIndex(nextPreviewIndex === activeIndexValue.value ? null : nextPreviewIndex);
+          }}
           style={styles.nativePager}
           contentContainerStyle={[styles.nativePagerTrack, fillViewport && styles.nativePagerTrackFill]}
         >
