@@ -35,16 +35,18 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('.catch(() => undefined)');
   });
 
-  it('keeps Auto barcode detections as a hint until the captured image is submitted', () => {
-    expect(source).toContain('const autoBarcodeHintRef = useRef<string | null>(null);');
-    expect(source).toContain('autoBarcodeHintRef.current = barcode;');
+  it('captures and submits Auto barcode detections without requiring a second shutter tap', () => {
+    expect(source).toContain('const takePhoto = async (detectedBarcode?: string, barcodeSequence?: number) => {');
+    expect(source).toContain('void takePhoto(barcode, sequence);');
+    expect(source).toContain("...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),");
+    expect(source).toContain('}, operationId, barcodeSequence);');
     expect(source).toContain("if (mode === 'auto') {");
-    expect(source).toContain("captureMode === 'auto' && autoBarcodeHintRef.current");
+    expect(source).not.toContain('autoBarcodeHintRef');
   });
 
   it('gives Barcode capture a food-photo fallback when product lookup cannot match', () => {
     expect(source).toContain("mode === 'auto' || mode === 'barcode' ? 'auto' : 'food'");
-    expect(source).toContain('autoBarcodeHintRef.current = null;');
+    expect(source).toContain("...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),");
   });
 
   it('gives the Restaurants action enough horizontal room for its icon and label', () => {
