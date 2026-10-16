@@ -62,6 +62,7 @@ import * as ImagePicker from "expo-image-picker";
 import Animated from "react-native-reanimated";
 import * as Sharing from "expo-sharing";
 import { deriveExportHasData, makeExportHandler } from "@/lib/exportUiHandler";
+import { launchExternalUrl } from "@/lib/externalLink";
 import { SettingRowPressable } from "@/components/SettingRowPressable";
 import { AccountSection } from "@/components/auth/AccountSection";
 import { useAuth } from "@/context/AuthContext";
@@ -301,6 +302,16 @@ export default function ProfileScreen() {
   // isExporting is UI-only (spinner, disabled state) and does NOT close the race.
   const exportLockRef = useRef(false);
   const [isExporting, setIsExporting] = useState(false);
+  const externalLinkLockRef = useRef(false);
+  const [externalLinkRequest, setExternalLinkRequest] = useState<{
+    title: string;
+    url: string;
+  } | null>(null);
+  const [externalLinkError, setExternalLinkError] = useState<{
+    title: string;
+    url: string;
+    message: string;
+  } | null>(null);
 
   // Reminder statuses
   const [reminderStatus, setReminderStatus] = useState<
@@ -370,6 +381,26 @@ export default function ProfileScreen() {
     notificationPreferences.categories.hydration.preferences;
   const mealReminderPrefs = notificationPreferences.categories.meal.preferences;
   const goalReminderPrefs = notificationPreferences.categories.goal.preferences;
+
+  const openExternalLink = useCallback(async (title: string, url: string) => {
+    if (externalLinkLockRef.current) return;
+    externalLinkLockRef.current = true;
+    setExternalLinkError(null);
+    setExternalLinkRequest({ title, url });
+    const result = await launchExternalUrl(Linking, url);
+    if (result !== "opened") {
+      setExternalLinkError({
+        title,
+        url,
+        message:
+          result === "unsupported"
+            ? `This device cannot open ${title} right now.`
+            : `${title} could not be opened right now.`,
+      });
+    }
+    externalLinkLockRef.current = false;
+    setExternalLinkRequest(null);
+  }, []);
 
   const refreshNotifications = useCallback(async () => {
     const requestId = ++notificationRequestRef.current;
@@ -1253,7 +1284,7 @@ export default function ProfileScreen() {
                   onPress={() => { setProfilePreview(null); setProfileTab(tab.key); }}
                   style={[
                     styles.profileTab,
-                    selected && { backgroundColor: previewSelected ? colors.accent : colors.card },
+                    selected && { backgroundColor: previewSelected ? colors.primary : colors.card },
                   ]}
                 >
                   <Text
@@ -1261,7 +1292,7 @@ export default function ProfileScreen() {
                       styles.profileTabText,
                       {
                         color: previewSelected
-                          ? colors.accentForeground
+                          ? colors.primaryForeground
                           : selected
                           ? colors.foreground
                           : colors.mutedForeground,
@@ -3693,16 +3724,14 @@ export default function ProfileScreen() {
                 ].map((item) => (
                   <SettingRowPressable
                     key={item.title}
-                    onPress={
-                      item.url ? () => Linking.openURL(item.url!) : () => {}
-                    }
-                    disabled={!item.url}
+                    onPress={item.url ? () => void openExternalLink(item.title, item.url) : undefined}
+                    disabled={!item.url || externalLinkRequest !== null}
                     style={[
                       styles.settingRow,
                       {
                         backgroundColor: colors.card,
                         borderColor: colors.border,
-                        opacity: item.url ? 1 : 0.75,
+                        opacity: item.url && externalLinkRequest === null ? 1 : 0.75,
                       },
                     ]}
                   >
@@ -3736,7 +3765,13 @@ export default function ProfileScreen() {
                         {item.body}
                       </Text>
                     </View>
-                    {item.url && (
+                    {item.url && externalLinkRequest?.url === item.url ? (
+                      <ActivityIndicator
+                        accessibilityLabel={`Opening ${item.title}`}
+                        size="small"
+                        color={colors.mutedForeground}
+                      />
+                    ) : item.url && (
                       <Feather
                         name="external-link"
                         size={15}
@@ -3745,6 +3780,23 @@ export default function ProfileScreen() {
                     )}
                   </SettingRowPressable>
                 ))}
+                {externalLinkError && (
+                  <View
+                    accessibilityRole="alert"
+                    style={[styles.externalLinkError, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.settingBody, { color: colors.foreground }]}>{externalLinkError.message}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Retry opening ${externalLinkError.title}`}
+                      onPress={() => void openExternalLink(externalLinkError.title, externalLinkError.url)}
+                      style={[styles.externalLinkRetry, { backgroundColor: colors.primary }]}
+                    >
+                      <Feather name="refresh-cw" size={14} color={colors.primaryForeground} />
+                      <Text style={[styles.externalLinkRetryText, { color: colors.primaryForeground }]}>Retry</Text>
+                    </Pressable>
+                  </View>
+                )}
                 <Text
                   style={[styles.version, { color: colors.mutedForeground }]}
                 >
@@ -5956,6 +6008,25 @@ function makeStyles(f: number) {
       fontSize: 10 * f,
       marginTop: 4,
     },
+    externalLinkError: {
+      borderWidth: 1,
+      borderRadius: 14,
+      padding: 12,
+      marginTop: -4,
+      marginBottom: 12,
+      gap: 10,
+    },
+    externalLinkRetry: {
+      minHeight: 44,
+      alignSelf: "flex-start",
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    externalLinkRetryText: { fontFamily: "Inter_700Bold", fontSize: 12 * f },
 
     // Version
     version: {

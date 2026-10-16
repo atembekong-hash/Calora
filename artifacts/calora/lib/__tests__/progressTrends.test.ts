@@ -69,6 +69,16 @@ describe('range-aware progress trends', () => {
     expect(points.map((point) => point.label)).toEqual(['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   });
 
+  it('buckets Health workout sessions over the same selected calendar range', async () => {
+    const { deriveWorkoutTrend } = await import('../progressTrends');
+    const points = deriveWorkoutTrend([
+      { id: 'workout-1', startAt: '2026-10-10T08:00:00.000Z', endAt: '2026-10-10T08:30:00.000Z', type: 'run' },
+      { id: 'workout-2', startAt: '2026-10-10T17:00:00.000Z', endAt: '2026-10-10T17:45:00.000Z', type: 'walk' },
+      { id: 'workout-3', startAt: '2026-10-16T09:00:00.000Z', endAt: '2026-10-16T09:20:00.000Z', type: 'cycle' },
+    ], { start: '2026-10-10', end: '2026-10-16' });
+    expect(points.map((point) => point.value)).toEqual([2, null, null, null, null, null, 1]);
+  });
+
   it('keeps macro series aligned when a long range is bucketed weekly', async () => {
     const { deriveMacroTrend } = await import('../progressTrends');
     const points = deriveMacroTrend([

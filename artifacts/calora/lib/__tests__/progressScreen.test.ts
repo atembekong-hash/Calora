@@ -42,4 +42,18 @@ describe('Progress dashboard layout contracts', () => {
     expect(source).toContain('style={[styles.chart, { width: nutritionChartContentWidth }]}');
     expect(source).not.toContain('style={[styles.chart, { minWidth: calorieRangePoints.length * 48 }]}');
   });
+
+  it('preserves an explicit calendar range while refreshing only the default rolling range', () => {
+    expect(source).toContain('const [graphRangeSelection, setGraphRangeSelection] = useState(() => createRollingSevenDaySelection());');
+    expect(source).toContain('refreshRollingGraphRange(current, todayKey)');
+    expect(source).toContain('setGraphRangeSelection(createCustomGraphRangeSelection(range))');
+    expect(source).not.toContain('selectedDays === 7');
+  });
+
+  it('renders a date-range-aware Workout sessions chart from Health records', () => {
+    expect(source).toContain('deriveWorkoutTrend(healthConnection.snapshot?.workouts, graphRange)');
+    expect(source).toContain('title="Workout sessions"');
+    expect(source).toContain('points={workoutRangePoints}');
+    expect(source).toContain('Sync Health to show recorded workout sessions.');
+  });
 });

@@ -116,7 +116,6 @@
         "artifacts/calora/components/FoodLogThumbnail.tsx",
         "artifacts/calora/components/PlannerMealImage.tsx",
         "artifacts/calora/app/(tabs)/index.tsx: RecipeWidgetImage",
-        "artifacts/calora/app/(tabs)/recipes.tsx: recipe fallback",
         "artifacts/calora/app/saved-recipes.tsx: saved-recipe hero"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
@@ -140,7 +139,6 @@
         "artifacts/calora/components/FoodLogThumbnail.tsx",
         "artifacts/calora/components/PlannerMealImage.tsx",
         "artifacts/calora/app/(tabs)/index.tsx: RecipeWidgetImage",
-        "artifacts/calora/app/(tabs)/recipes.tsx: recipe fallback",
         "artifacts/calora/app/saved-recipes.tsx: saved-recipe hero"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
@@ -164,7 +162,6 @@
         "artifacts/calora/components/FoodLogThumbnail.tsx",
         "artifacts/calora/components/PlannerMealImage.tsx",
         "artifacts/calora/app/(tabs)/index.tsx: RecipeWidgetImage",
-        "artifacts/calora/app/(tabs)/recipes.tsx: recipe fallback",
         "artifacts/calora/app/saved-recipes.tsx: saved-recipe hero"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
@@ -188,7 +185,6 @@
         "artifacts/calora/components/FoodLogThumbnail.tsx",
         "artifacts/calora/components/PlannerMealImage.tsx",
         "artifacts/calora/app/(tabs)/index.tsx: RecipeWidgetImage",
-        "artifacts/calora/app/(tabs)/recipes.tsx: recipe fallback",
         "artifacts/calora/app/saved-recipes.tsx: saved-recipe hero"
       ],
       "source": "Original Calora asset generated through Manus generate_image on 2026-09-23",
@@ -1290,15 +1286,6 @@
       "anchor": "source={{ uri: recipeImageUrl }}",
       "classification": "content",
       "role": "recipe photo from runtime recipe data",
-      "owner": "Calora product team",
-      "reviewStatus": "reviewed renderer registration"
-    },
-    {
-      "id": "recipes-fallback-photo",
-      "path": "artifacts/calora/app/(tabs)/recipes.tsx",
-      "anchor": "source={recipeFallbackImage(recipe)}",
-      "classification": "content",
-      "role": "registered recipe category fallback",
       "owner": "Calora product team",
       "reviewStatus": "reviewed renderer registration"
     },
