@@ -410,19 +410,17 @@ function LivingRhythmCard({
           </View>
         </View>
       </View>
-      {livingState.routineStage === 'building' && (
-        <ScalePressable
-          accessibilityLabel="Add a meal from the building your picture card"
-          testID="building-picture-add-meal-button"
-          onPress={onAddMeal}
-          haptic="none"
-          scale={0.96}
-          style={[styles.livingRhythmAddMealAction, { backgroundColor: colors.accent }]}
-        >
-          <Feather name="plus" size={13} color={colors.accentForeground} />
-          <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
-        </ScalePressable>
-      )}
+      <ScalePressable
+        accessibilityLabel="Add a meal from your rhythm card"
+        testID="living-rhythm-add-meal-button"
+        onPress={onAddMeal}
+        haptic="none"
+        scale={0.96}
+        style={[styles.livingRhythmAddMealAction, { backgroundColor: colors.accent }]}
+      >
+        <Feather name="plus" size={13} color={colors.accentForeground} />
+        <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
+      </ScalePressable>
     </View>
   );
 }

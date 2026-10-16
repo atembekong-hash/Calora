@@ -575,7 +575,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('followsTodayRef.current = true;');
   });
 
-  it('keeps the add-meal flow on the Building your picture dashboard card after removing Meals logged', async () => {
+  it('keeps the add-meal flow on every Today rhythm-card stage after removing Meals logged', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -587,9 +587,9 @@ describe('Today dashboard — date context and display contracts', () => {
       source.indexOf('function RecipeSwipeWidget'),
     );
 
-    expect(livingCard).toContain("livingState.routineStage === 'building'");
-    expect(livingCard).toContain('testID="building-picture-add-meal-button"');
-    expect(livingCard).toContain('accessibilityLabel="Add a meal from the building your picture card"');
+    expect(livingCard).not.toContain("livingState.routineStage === 'building'");
+    expect(livingCard).toContain('testID="living-rhythm-add-meal-button"');
+    expect(livingCard).toContain('accessibilityLabel="Add a meal from your rhythm card"');
     expect(livingCard).toContain('onPress={onAddMeal}');
     expect(source).toContain('<LivingRhythmCard');
     expect(source).toContain('onAddMeal={openAdd}');
