@@ -26,4 +26,12 @@ describe('Progress weekly health graphs', () => {
     expect(source).toContain('accessibilityRole="summary"');
     expect(source).toContain('No data yet');
   });
+
+  it('uses the shared date-range picker for every chart range without allowing its label to force overflow', () => {
+    const picker = readFileSync(resolve(__dirname, '../../components/GraphDateRangePicker.tsx'), 'utf8');
+    expect(source).toContain('GraphDateRangePicker range={graphRange}');
+    expect(picker).toContain('numberOfLines={1}');
+    expect(picker).toContain('ellipsizeMode="tail"');
+    expect(picker).toContain('triggerText: { flexShrink: 1');
+  });
 });

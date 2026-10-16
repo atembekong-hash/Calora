@@ -133,7 +133,11 @@ export function GraphDateRangePicker({
         ]}
       >
         <Feather name="calendar" size={15} color={colors.primary} />
-        <Text style={[styles.triggerText, { color: colors.foreground }]}>
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[styles.triggerText, { color: colors.foreground }]}
+        >
           {rangeLabel(range, today)}
         </Text>
         <Feather name="chevron-down" size={15} color={colors.mutedForeground} />
@@ -335,8 +339,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 11,
     paddingVertical: 8,
+    flexShrink: 1,
+    maxWidth: "100%",
   },
-  triggerText: { fontSize: 12, fontWeight: "700" },
+  triggerText: { flexShrink: 1, fontSize: 12, fontWeight: "700" },
   sheet: {
     maxHeight: "88%",
     borderTopLeftRadius: 24,

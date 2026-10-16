@@ -63,6 +63,12 @@ describe('range-aware progress trends', () => {
     expect(points[1]).toMatchObject({ protein: null, carbs: null, fat: null });
   });
 
+  it('uses compact weekday labels for daily ranges so native chart strips remain contained', async () => {
+    const { deriveCalorieTrend } = await import('../progressTrends');
+    const points = deriveCalorieTrend([], { start: '2026-10-10', end: '2026-10-16' });
+    expect(points.map((point) => point.label)).toEqual(['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  });
+
   it('keeps macro series aligned when a long range is bucketed weekly', async () => {
     const { deriveMacroTrend } = await import('../progressTrends');
     const points = deriveMacroTrend([

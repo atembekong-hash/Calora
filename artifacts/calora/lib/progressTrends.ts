@@ -42,8 +42,11 @@ function rangePoints(values: Map<string, number | null>, range: DateRange): Prog
       if (typeof value === 'number' && Number.isFinite(value)) { total += value; present = true; }
     }
     const localDate = dateFromKey(start);
+    // Daily charts use short weekday labels. The selected range already supplies
+    // the exact dates, while compact labels keep seven points readable on a
+    // narrow native viewport without allowing text to escape the card.
     const label = bucket === 'day'
-      ? new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }).format(localDate)
+      ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(localDate)
       : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(localDate);
     return { date: start, label, value: present ? Math.round(total) : null };
   });

@@ -594,7 +594,7 @@ type CaloraContextValue = {
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
   createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; servingLabel?: string }, date?: string, meal?: MealType) => FoodMemoryDraft | null;
-  createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
+  createPlannerDraft: (meal: PlannerMeal, loggedDate?: string) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   updateFoodMemoryDraftMeal: (draftId: string, meal: MealType) => void;
   acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => Promise<FoodLog | null>;
@@ -2139,8 +2139,8 @@ export function CaloraProvider({
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
-    createPlannerDraft: (meal) => {
-      const draft = plannerMealToDraft(meal, new Date().toISOString(), accountId);
+    createPlannerDraft: (meal, loggedDate = dateKey()) => {
+      const draft = plannerMealToDraft(meal, new Date().toISOString(), accountId, loggedDate);
       foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
