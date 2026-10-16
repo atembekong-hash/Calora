@@ -687,6 +687,16 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toContain("error.name = 'CaptureCameraError'");
   });
 
+  it('does not reconfigure CameraView before the native shutter resolves', () => {
+    const captureStart = scanSource.indexOf('const photo = await withCaptureDeadline');
+    const shutterEnd = scanSource.indexOf('if (!photo?.uri)', captureStart);
+    const photoReadyStateUpdate = scanSource.indexOf('setHasScanned(true);', shutterEnd);
+    expect(captureStart).toBeGreaterThan(-1);
+    expect(shutterEnd).toBeGreaterThan(captureStart);
+    expect(photoReadyStateUpdate).toBeGreaterThan(shutterEnd);
+    expect(scanSource.slice(captureStart, shutterEnd)).not.toContain('setHasScanned(true);');
+  });
+
   it('recovers cleanly when the image library fails and preserves explicit capture intent', () => {
     expect(scanSource).toMatch(/const choosePhoto = async \(requestedMode\?: 'receipt' \| 'food' \| 'nutrition_label'\)/);
     expect(scanSource).toMatch(/const choosePhoto = async[\s\S]*catch \(error\) \{[\s\S]*failCaptureOperation\(operationId, error\);/);
