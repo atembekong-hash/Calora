@@ -4,6 +4,7 @@ import {
   deleteRevenueCatSubscriber,
   grantPromoDays,
   hasActivePremiumEntitlement,
+  RevenueCatProviderError,
 } from "../lib/revenuecat";
 
 const fetchMock = vi.hoisted(() => vi.fn());
@@ -72,8 +73,8 @@ describe("hasActivePremiumEntitlement", () => {
   it("requires a server-owned RevenueCat credential", async () => {
     delete process.env.REVENUECAT_SECRET_API_KEY;
 
-    await expect(hasActivePremiumEntitlement("premium-user")).rejects.toThrow(
-      "RevenueCat server credential is not configured",
+    await expect(hasActivePremiumEntitlement("premium-user")).rejects.toBeInstanceOf(
+      RevenueCatProviderError,
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -174,8 +175,8 @@ describe("deleteRevenueCatSubscriber", () => {
   it("fails safely on provider network errors", async () => {
     fetchMock.mockRejectedValueOnce(new TypeError("network unavailable"));
 
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer lookup request failed",
-    );
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toMatchObject({
+      name: "RevenueCatUpstreamError",
+    });
   });
 });

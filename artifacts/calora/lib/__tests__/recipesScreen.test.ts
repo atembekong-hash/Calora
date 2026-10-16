@@ -186,7 +186,7 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('savedRecipes.map((recipe) => (');
-    expect(source).toContain('displayRecipes.map((recipe) => (');
+    expect(source).toContain('continuousCatalogueEntries.map(({ recipe, feedEntryKey }) => (');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
@@ -227,7 +227,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
-    expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('if (data?.nextOffset == null) {');
+    expect(source).toContain('setCatalogueCycle((current) => current + 1);');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain("if (section === 'premium') {");
@@ -354,10 +355,11 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const canLog = hasCompleteNutrition(detail);');
   });
 
-  it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {
-    expect(source).toContain('return mergeRecipePages(current, page);');
+  it('keeps Discover loading after a provider page cycle with stable feed-entry keys', () => {
+    expect(source).toContain('appendDiscoverFeedPage(current, page, remoteOffset)');
+    expect(source).toContain('orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit)');
     expect(source).toContain('visibleRemote.map((recipe)');
-    expect(source).toContain('key={recipe.id}');
+    expect(source).toContain('key={discoverFeedEntryKey(recipe)}');
   });
 
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {

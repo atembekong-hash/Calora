@@ -7,6 +7,7 @@ import {
   generatedRecipeImageLifecycleKey,
   isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
+  markGeneratedRecipeImageRendered,
   refreshGeneratedRecipeImage,
   restoredRecipeFromMedia,
   type GeneratedRecipeImageCandidate,
@@ -155,6 +156,14 @@ describe('generated recipe image renewal decision', () => {
 });
 
 describe('generated recipe image renewal service', () => {
+  it('does not rewrite an already rendered generated photo and trigger a card remount loop', () => {
+    const updateRecipe = vi.fn();
+
+    markGeneratedRecipeImageRendered(generatedRecipe({ imageStatus: 'rendered' }), updateRecipe);
+
+    expect(updateRecipe).not.toHaveBeenCalled();
+  });
+
   it('restores only an owner media payload with the matching stable recipe ID', () => {
     const restored = restoredRecipeFromMedia({
       mediaId: 'media-7', clientRecipeId: 'recipe-7', contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
