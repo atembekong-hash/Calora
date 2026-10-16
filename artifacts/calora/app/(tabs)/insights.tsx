@@ -1419,6 +1419,9 @@ export default function InsightsScreen() {
   const [showExpandedChart, setShowExpandedChart] = useState(false);
   const [shoppingVisible, setShoppingVisible] = useState(false);
   const [graphRange, setGraphRange] = useState<DateRange>(() => rollingDateRange(7));
+  // Measure the card instead of assuming a fixed width: a seven-day chart must
+  // fit its native viewport while longer ranges scroll within that same boundary.
+  const [nutritionChartWidth, setNutritionChartWidth] = useState(0);
 
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
@@ -1762,6 +1765,7 @@ export default function InsightsScreen() {
   );
   const calorieRangePoints = useMemo(() => deriveCalorieTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
   const macroRangePoints = useMemo(() => deriveMacroTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
+  const nutritionChartContentWidth = Math.max(nutritionChartWidth, calorieRangePoints.length * 40);
   const graphAverageCalories = useMemo(() => {
     const values = calorieRangePoints.map((point) => point.value).filter((value): value is number => value !== null && value > 0);
     return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
@@ -1956,8 +1960,15 @@ export default function InsightsScreen() {
         </View>
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lineGraphScroll} contentContainerStyle={{ minWidth: '100%' }}>
-          <View style={[styles.chart, { minWidth: calorieRangePoints.length * 48 }]}>
+          <View
+            style={styles.chartViewport}
+            onLayout={(event) => {
+              const measuredWidth = Math.max(event.nativeEvent.layout.width, 1);
+              setNutritionChartWidth((current) => current === measuredWidth ? current : measuredWidth);
+            }}
+          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lineGraphScroll} contentContainerStyle={{ width: nutritionChartContentWidth }}>
+          <View style={[styles.chart, { width: nutritionChartContentWidth }]}>
             {calorieRangePoints.map((item, index) => (
               <View key={item.date} style={styles.barColumn}>
                 <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.value !== null ? formatWhole(item.value) : '—'}</Text>
@@ -1969,6 +1980,7 @@ export default function InsightsScreen() {
             ))}
           </View>
           </ScrollView>
+          </View>
           <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
             <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
             <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{graphAverageCalories ? `Avg. ${formatWhole(graphAverageCalories)} kcal` : 'No calorie average yet'}</Text>
@@ -2645,6 +2657,7 @@ function makeStyles(f: number) {
   lineGraphCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
   lineGraphBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6, maxWidth: '100%' },
   lineGraphBadgeText: { flexShrink: 1, fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  chartViewport: { width: '100%', overflow: 'hidden' },
   lineGraphViewport: { width: '100%', overflow: 'hidden' },
   lineGraphScroll: { width: '100%' },
   lineGraphPlot: { height: 128, marginTop: 4, position: 'relative' },
