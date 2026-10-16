@@ -202,4 +202,18 @@ describe('planner day pager rendering', () => {
     expect(plannerSource).toContain('noMotion');
     expect(plannerSource).not.toContain('ScalePressable');
   });
+
+  it('keeps the Plan save popup dismissible when no-motion feedback is enabled', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const noticeSource = readFileSync(
+      resolve(__dirname, '../../components/LocalSaveNotice.tsx'),
+      'utf8',
+    );
+
+    // noMotion sets progress synchronously. The same animated style must stay
+    // mounted so progress=0 actually hides the popup after its timer clears.
+    expect(noticeSource).toContain('style={[styles.host, { bottom: bottomOffset }, animatedStyle]}');
+    expect(noticeSource).not.toContain('noMotion ? undefined : animatedStyle');
+  });
 });

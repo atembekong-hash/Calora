@@ -19,6 +19,7 @@ export function LocalSaveNotice({
   onAction,
   countdownDuration,
   noMotion = false,
+  bottomOffset = 91,
 }: {
   visible: boolean;
   message: string;
@@ -29,6 +30,8 @@ export function LocalSaveNotice({
   countdownDuration?: number;
   /** Shows immediately without notice or countdown motion. */
   noMotion?: boolean;
+  /** Distance above the native tab bar and system navigation area. */
+  bottomOffset?: number;
 }) {
   const progress = useSharedValue(0);
   const countdown = useSharedValue(1);
@@ -78,7 +81,7 @@ export function LocalSaveNotice({
   const showCountdown = !!countdownDuration && !noMotion;
 
   return (
-    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, noMotion ? undefined : animatedStyle]}>
+    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, { bottom: bottomOffset }, animatedStyle]}>
       <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.icon, { backgroundColor: colors.success }]}>
           <Feather name="check" size={12} color="#ffffff" />
