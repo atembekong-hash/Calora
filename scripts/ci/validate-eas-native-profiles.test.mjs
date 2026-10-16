@@ -10,9 +10,13 @@ const script = new URL("./validate-eas-native-profiles.mjs", import.meta.url);
 function validConfig() {
   return {
     build: {
+      base: {
+        ios: { image: "macos-sequoia-15.6-xcode-26.0" },
+      },
       production: {
         environment: "production",
         env: { EXPO_PUBLIC_API_URL: "https://mycaloraapp.com" },
+        ios: { distribution: "store" },
       },
       "development-device": {
         extends: "production",

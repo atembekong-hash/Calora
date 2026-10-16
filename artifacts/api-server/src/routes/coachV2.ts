@@ -512,10 +512,16 @@ router.delete("/v1/coach/v2/conversation", async (req, res) => {
     return;
   }
   try {
-    await withAccountDeletionReadLock(verified.id, async () => {
+    const cleared = await withAccountDeletionReadLock(verified.id, async () => {
       const userId = await resolveCoachV2User(verified.id, verified.email);
-      await clearCoachV2Conversation(userId);
+      return clearCoachV2Conversation(userId);
     });
+    if (!cleared) {
+      res.status(409).json({
+        message: "Please wait for Coach to finish replying before clearing your history.",
+      });
+      return;
+    }
     res.status(204).send();
   } catch (error) {
     logger.error(safeErrorDetails(error), "Unable to clear Coach V2 conversation");

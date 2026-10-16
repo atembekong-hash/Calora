@@ -266,6 +266,17 @@ export default function RestaurantsScreen() {
           <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.stateTitle, { color: colors.foreground }]}>Restaurant nutrition unavailable</Text>
             <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>{statusMessage}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry restaurant provider"
+              accessibilityState={{ busy: searchResult.isFetching, disabled: searchResult.isFetching }}
+              disabled={searchResult.isFetching}
+              onPress={() => { void searchResult.refetch(); }}
+              style={[styles.retryButton, { borderColor: colors.border, opacity: searchResult.isFetching ? 0.65 : 1 }]}
+            >
+              <Feather name="refresh-cw" size={14} color={colors.foreground} />
+              <Text style={[styles.retryButtonText, { color: colors.foreground }]}>{searchResult.isFetching ? 'Retrying…' : 'Retry provider'}</Text>
+            </Pressable>
           </View>
         ) : searchQuery.length < 2 ? (
           <View style={styles.startState}>

@@ -1563,7 +1563,7 @@ export default function HomeScreen() {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
     livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
     startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
-    activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
+    activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated, hydrationError, retryHydration, isRetrying,
     updateProfile,
   } = useCalora();
   const insets = useSafeAreaInsets();
@@ -2046,6 +2046,28 @@ export default function HomeScreen() {
           <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
         </View>
       </ScrollView>
+      {hydrationError || isRetrying ? (
+        <View style={[styles.hydrationRecoveryOverlay, { backgroundColor: colors.background }]}>
+          <View accessibilityRole="alert" style={[styles.hydrationRecoveryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.hydrationRecoveryIcon, { backgroundColor: colors.muted }]}>
+              {isRetrying ? <ActivityIndicator color={colors.primary} /> : <Feather name="refresh-cw" size={20} color={colors.primary} />}
+            </View>
+            <Text style={[styles.hydrationRecoveryTitle, { color: colors.foreground }]}>Today needs to reload</Text>
+            <Text style={[styles.hydrationRecoveryMessage, { color: colors.mutedForeground }]}>{hydrationError ?? 'Reloading your saved diary data.'}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading Today"
+              accessibilityState={{ disabled: isRetrying, busy: isRetrying }}
+              disabled={isRetrying}
+              onPress={retryHydration}
+              style={[styles.hydrationRecoveryButton, { backgroundColor: colors.primary, opacity: isRetrying ? 0.65 : 1 }]}
+            >
+              <Feather name="refresh-cw" size={15} color={colors.primaryForeground} />
+              <Text style={[styles.hydrationRecoveryButtonText, { color: colors.primaryForeground }]}>{isRetrying ? 'Retrying…' : 'Try again'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
       <AddFoodModal visible={showAdd} entryDate={selectedDate} initialMode={addFoodMode} onClose={() => setShowAdd(false)} />
       <CalendarPicker
         visible={calendarVisible}
@@ -2075,7 +2097,14 @@ export default function HomeScreen() {
 
 function makeStyles(f: number) {
   return StyleSheet.create({
-  page: { flex: 1 },
+   page: { flex: 1 },
+   hydrationRecoveryOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, zIndex: 20 },
+   hydrationRecoveryCard: { width: '100%', maxWidth: 420, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, alignItems: 'center', padding: 24 },
+   hydrationRecoveryIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+   hydrationRecoveryTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, textAlign: 'center' },
+   hydrationRecoveryMessage: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 * f, textAlign: 'center', marginTop: 8 },
+   hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+   hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
     homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
