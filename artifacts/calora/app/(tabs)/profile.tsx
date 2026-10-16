@@ -353,6 +353,7 @@ export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTab>(
     tab === "membership" || tab === "account" ? tab : "you",
   );
+  const [profilePreview, setProfilePreview] = useState<ProfileTab | null>(null);
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>(
     [],
@@ -1228,7 +1229,7 @@ export default function ProfileScreen() {
           <SwipeableTabList
             items={PROFILE_TABS}
             activeItem={profileTab}
-            onChange={setProfileTab}
+            onChange={(next) => { setProfilePreview(null); setProfileTab(next); }}
             accessibilityLabel="Profile sections"
             testID="profile-section-tabs"
             style={[
@@ -1241,7 +1242,8 @@ export default function ProfileScreen() {
               { key: "membership" as const, label: "Membership" },
               { key: "account" as const, label: "Account" },
             ].map((tab) => {
-              const selected = profileTab === tab.key;
+              const selected = (profilePreview ?? profileTab) === tab.key;
+              const previewSelected = profilePreview === tab.key;
               return (
                 <Pressable
                   key={tab.key}
@@ -1251,14 +1253,16 @@ export default function ProfileScreen() {
                   onPress={() => setProfileTab(tab.key)}
                   style={[
                     styles.profileTab,
-                    selected && { backgroundColor: colors.card },
+                    selected && { backgroundColor: previewSelected ? colors.accent : colors.card },
                   ]}
                 >
                   <Text
                     style={[
                       styles.profileTabText,
                       {
-                        color: selected
+                        color: previewSelected
+                          ? colors.accentForeground
+                          : selected
                           ? colors.foreground
                           : colors.mutedForeground,
                       },
@@ -1274,7 +1278,8 @@ export default function ProfileScreen() {
         <SwipeableSectionPager
           items={PROFILE_TABS}
           activeItem={profileTab}
-          onChange={setProfileTab}
+          onPreviewChange={setProfilePreview}
+          onChange={(next) => { setProfilePreview(null); setProfileTab(next); }}
           renderItem={(tab) => (
             <ScrollView
               style={styles.profilePaneScroll}

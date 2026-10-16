@@ -240,6 +240,7 @@ export default function PlannerScreen() {
     const persistedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index));
     return persistedWeekDays.includes(today) ? today : plannerWeekStart;
   });
+  const [selectedDayPreview, setSelectedDayPreview] = useState<string | null>(null);
   const [detail, setDetail] = useState<PlannerMeal | null>(null);
   const [plannerReviewDraftId, setPlannerReviewDraftId] = useState<string | null>(null);
   const [shoppingVisible, setShoppingVisible] = useState(false);
@@ -1003,13 +1004,14 @@ export default function PlannerScreen() {
         >
           {weekDays.map((day) => {
             const date = parseDate(day);
-            const active = day === selectedDay;
+            const active = day === (selectedDayPreview ?? selectedDay);
+            const previewActive = day === selectedDayPreview;
             const isToday = day === today;
             const mealCount = plannerMeals.filter((meal) => meal.day === day).length;
             const loggedCount = plannerMeals.filter((meal) => meal.day === day && logs.some((log) => log.plannerMealId === meal.id)).length;
             return (
-              <Pressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`} accessibilityState={{ selected: active }} onPress={() => setSelectedDay(day)} style={[styles.dayCol, active && { backgroundColor: colors.accent }]}>
-                <Text style={[styles.dayName, { color: active ? colors.primary : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text>
+              <Pressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`} accessibilityState={{ selected: active }} onPress={() => { setSelectedDayPreview(null); setSelectedDay(day); }} style={[styles.dayCol, active && { backgroundColor: previewActive ? colors.primary : colors.accent }]}>
+                <Text style={[styles.dayName, { color: active ? previewActive ? colors.primaryForeground : colors.primary : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text>
                 <Text style={[styles.dayNumber, { color: colors.foreground }]}>{date.getDate()}</Text>
                 <View style={styles.dayCoverage}>{Array.from({ length: 4 }, (_, index) => <View key={index} style={[styles.coverageDot, { backgroundColor: index < loggedCount ? colors.success : index < mealCount ? colors.primary : colors.border }]} />)}</View>
                 {isToday && <Text style={[styles.todayTag, { color: active ? colors.primary : colors.mutedForeground }]}>Today</Text>}
@@ -1020,7 +1022,8 @@ export default function PlannerScreen() {
         <SwipeableSectionPager
           items={weekDays}
           activeItem={selectedDay}
-          onChange={setSelectedDay}
+          onPreviewChange={setSelectedDayPreview}
+          onChange={(next) => { setSelectedDayPreview(null); setSelectedDay(next); }}
           renderItem={renderPlannerDay}
           renderWindow={1}
           nativePaging

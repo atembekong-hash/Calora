@@ -1756,6 +1756,8 @@ export default function RecipesScreen() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('For you');
   const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
+  const [sectionPreview, setSectionPreview] = useState<RecipeSection | null>(null);
+  useEffect(() => { setSectionPreview(null); }, [activeSection]);
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -2092,16 +2094,18 @@ export default function RecipesScreen() {
         style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
       >
         {RECIPE_SECTIONS.map((section) => {
-          const selectedSection = activeSection === section;
-          return <Pressable key={section} accessibilityRole="tab" accessibilityState={{ selected: selectedSection }} accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`} onPress={() => changeSection(section)} style={[styles.sectionTab, selectedSection && { backgroundColor: colors.card }]}>
-            <Text style={[styles.sectionTabText, { color: selectedSection ? colors.foreground : colors.mutedForeground }]}>{section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}</Text>
+          const selectedSection = (sectionPreview ?? activeSection) === section;
+          const previewSelected = sectionPreview === section;
+          return <Pressable key={section} accessibilityRole="tab" accessibilityState={{ selected: selectedSection }} accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`} onPress={() => changeSection(section)} style={[styles.sectionTab, selectedSection && { backgroundColor: previewSelected ? colors.accent : colors.card }]}>
+            <Text style={[styles.sectionTabText, { color: previewSelected ? colors.accentForeground : selectedSection ? colors.foreground : colors.mutedForeground }]}>{section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}</Text>
           </Pressable>;
         })}
       </View>
       <SwipeableSectionPager
         items={RECIPE_SECTIONS}
         activeItem={activeSection}
-        onChange={changeSection}
+        onPreviewChange={setSectionPreview}
+        onChange={(next) => { setSectionPreview(null); changeSection(next); }}
         renderItem={renderRecipeSection}
         renderWindow={1}
         nativePaging
