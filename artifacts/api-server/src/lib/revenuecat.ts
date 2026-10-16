@@ -51,13 +51,26 @@ function revenueCatConfig() {
   return { projectId, secretApiKey };
 }
 
+/**
+ * Plus access needs only entitlement and customer read access. Keep that
+ * credential separate from the deletion/promotion secret so a low-privilege
+ * read key can never accidentally authorize a destructive provider request.
+ */
+function entitlementRevenueCatConfig() {
+  const projectId = process.env.REVENUECAT_PROJECT_ID;
+  const secretApiKey = process.env.REVENUECAT_ENTITLEMENT_API_KEY;
+  if (!projectId || !secretApiKey) throw new RevenueCatProviderError("Configuration");
+  return { projectId, secretApiKey };
+}
+
 async function revenueCatRequest(
   path: string,
   method: "GET" | "POST" | "DELETE",
   operation: string,
   body?: unknown,
+  secretApiKeyOverride?: string,
 ): Promise<Response> {
-  const { secretApiKey } = revenueCatConfig();
+  const secretApiKey = secretApiKeyOverride ?? revenueCatConfig().secretApiKey;
 
   try {
     return await fetch(`${REVENUECAT_V2_ORIGIN}${path}`, {
@@ -83,12 +96,14 @@ async function revenueCatRequest(
  * accepted as an authorization signal.
  */
 export async function hasActivePremiumEntitlement(appUserId: string): Promise<boolean> {
-  const { projectId } = revenueCatConfig();
+  const { projectId, secretApiKey } = entitlementRevenueCatConfig();
 
   const entitlementsResponse = await revenueCatRequest(
     `/v2/projects/${encodeURIComponent(projectId)}/entitlements?limit=100`,
     "GET",
     "entitlement lookup",
+    undefined,
+    secretApiKey,
   );
   if (!entitlementsResponse.ok) {
     throw revenueCatResponseError(entitlementsResponse);
@@ -106,6 +121,8 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}/active_entitlements`,
     "GET",
     "subscriber lookup",
+    undefined,
+    secretApiKey,
   );
   // A customer is absent until an account first reaches billing. Treat that as
   // an explicit fail-closed non-Premium state, not provider unavailability.

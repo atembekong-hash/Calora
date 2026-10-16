@@ -9,6 +9,7 @@ import {
 
 const fetchMock = vi.hoisted(() => vi.fn());
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
+const originalEntitlementApiKey = process.env.REVENUECAT_ENTITLEMENT_API_KEY;
 const originalSecretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -20,6 +21,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 beforeEach(() => {
   process.env.REVENUECAT_PROJECT_ID = "project-123";
+  process.env.REVENUECAT_ENTITLEMENT_API_KEY = "test-entitlement-read-secret";
   process.env.REVENUECAT_SECRET_API_KEY = "test-server-secret";
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
@@ -28,6 +30,8 @@ beforeEach(() => {
 afterEach(() => {
   if (originalProjectId === undefined) delete process.env.REVENUECAT_PROJECT_ID;
   else process.env.REVENUECAT_PROJECT_ID = originalProjectId;
+  if (originalEntitlementApiKey === undefined) delete process.env.REVENUECAT_ENTITLEMENT_API_KEY;
+  else process.env.REVENUECAT_ENTITLEMENT_API_KEY = originalEntitlementApiKey;
   if (originalSecretApiKey === undefined) delete process.env.REVENUECAT_SECRET_API_KEY;
   else process.env.REVENUECAT_SECRET_API_KEY = originalSecretApiKey;
   vi.useRealTimers();
@@ -50,13 +54,16 @@ describe("hasActivePremiumEntitlement", () => {
       "https://api.revenuecat.com/v2/projects/project-123/entitlements?limit=100",
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({ Authorization: "Bearer test-server-secret" }),
+        headers: expect.objectContaining({ Authorization: "Bearer test-entitlement-read-secret" }),
       }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "https://api.revenuecat.com/v2/projects/project-123/customers/premium-user/active_entitlements",
-      expect.objectContaining({ method: "GET" }),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer test-entitlement-read-secret" }),
+      }),
     );
   });
 
@@ -70,8 +77,8 @@ describe("hasActivePremiumEntitlement", () => {
     await expect(hasActivePremiumEntitlement("new-free-user")).resolves.toBe(false);
   });
 
-  it("requires a server-owned RevenueCat credential", async () => {
-    delete process.env.REVENUECAT_SECRET_API_KEY;
+  it("requires a separate server-owned entitlement credential", async () => {
+    delete process.env.REVENUECAT_ENTITLEMENT_API_KEY;
 
     await expect(hasActivePremiumEntitlement("premium-user")).rejects.toBeInstanceOf(
       RevenueCatProviderError,
@@ -106,6 +113,7 @@ describe("grantPromoDays", () => {
 
 describe("deleteRevenueCatSubscriber", () => {
   it("deletes through the server-authorized API and positively verifies absence", async () => {
+    delete process.env.REVENUECAT_ENTITLEMENT_API_KEY;
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
