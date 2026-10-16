@@ -264,5 +264,6 @@ describe('recipe photo requests', () => {
     const result = await requestGeneratedRecipePhotoUrl({ imageId: '6a647f11-9d1a-4248-a120-2d2a2ddf5711' });
     expect(result.imageUrl).toBe('https://image.example/renewed.png');
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.com/api/v1/recipes/photo-url');
+    expect(fetchMock.mock.calls[0][1].headers['Cache-Control']).toBe('no-store');
   });
 });

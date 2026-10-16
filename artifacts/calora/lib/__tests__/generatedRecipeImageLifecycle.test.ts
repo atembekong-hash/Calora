@@ -8,6 +8,7 @@ import {
   isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
   markGeneratedRecipeImageRendered,
+  reconcileGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
   restoredRecipeFromMedia,
   type GeneratedRecipeImageCandidate,
@@ -162,6 +163,52 @@ describe('generated recipe image renewal service', () => {
     markGeneratedRecipeImageRendered(generatedRecipe({ imageStatus: 'rendered' }), updateRecipe);
 
     expect(updateRecipe).not.toHaveBeenCalled();
+  });
+
+  it('keeps a rendered accepted locator stable when reconciliation returns a fresh replacement', () => {
+    const now = Date.now();
+    const current = generatedRecipe({
+      image: 'https://storage.example/signed-current.png',
+      imageStatus: 'rendered',
+      imageReviewState: 'accepted',
+      imageMediaId: 'media-7',
+      imageUrlExpiresAt: new Date(now + 2 * GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS).toISOString(),
+    });
+    const returned = {
+      mediaId: 'media-7', clientRecipeId: current.id, contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
+      imageUrl: 'https://storage.example/signed-reissued.png', imageUrlExpiresAt: new Date(now + 3 * GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS).toISOString(),
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'url_ready' as const, semanticReviewState: 'accepted' as const, attempts: 1,
+      createdAt: '2026-09-23T00:00:00.000Z', updatedAt: '2026-09-23T00:00:00.000Z',
+    };
+
+    expect(reconcileGeneratedRecipeMedia(current, returned, GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS)).toMatchObject({
+      image: current.image,
+      imageUrlExpiresAt: current.imageUrlExpiresAt,
+      imageStatus: 'rendered',
+      imageId: IMAGE_ID,
+    });
+  });
+
+  it('uses a renewed locator once a rendered image reaches its renewal window', () => {
+    const current = generatedRecipe({
+      image: 'https://storage.example/signed-expiring.png',
+      imageStatus: 'rendered',
+      imageReviewState: 'accepted',
+      imageMediaId: 'media-7',
+      imageUrlExpiresAt: new Date(NOW + GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS - 1).toISOString(),
+    });
+    const returned = {
+      mediaId: 'media-7', clientRecipeId: current.id, contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
+      imageUrl: 'https://storage.example/signed-renewed.png', imageUrlExpiresAt: new Date(NOW + 3 * GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS).toISOString(),
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'url_ready' as const, semanticReviewState: 'accepted' as const, attempts: 1,
+      createdAt: '2026-09-23T00:00:00.000Z', updatedAt: '2026-09-23T00:00:00.000Z',
+    };
+
+    expect(reconcileGeneratedRecipeMedia(current, returned, GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS)).toMatchObject({
+      image: returned.imageUrl,
+      imageUrlExpiresAt: returned.imageUrlExpiresAt,
+      imageStatus: 'url_ready',
+    });
   });
 
   it('restores only an owner media payload with the matching stable recipe ID', () => {

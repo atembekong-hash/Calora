@@ -127,6 +127,9 @@ export async function authedJsonRequest<T>({ path, body, method = 'POST', signal
         headers: {
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
           Authorization: `Bearer ${token}`,
+          // Generated-media responses carry owner-scoped signed URLs. Do not
+          // let an HTTP cache replay a prior locator after renewal.
+          'Cache-Control': 'no-store',
           ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         },
         signal,

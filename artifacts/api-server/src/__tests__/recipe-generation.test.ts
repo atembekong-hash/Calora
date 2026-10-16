@@ -232,6 +232,18 @@ describe("AI recipe creation endpoints", () => {
     expect(events.slice(0, 2)).toEqual(["lock", "media"]);
   });
 
+  it("marks generated-media responses private and non-cacheable", async () => {
+    const [locator, collection, detail] = await Promise.all([
+      request(app).post("/v1/recipes/photo-url").send({ imageId: "22222222-2222-4222-8222-222222222222" }),
+      request(app).get("/v1/recipes/media"),
+      request(app).get("/v1/recipes/media/11111111-1111-4111-8111-111111111111"),
+    ]);
+
+    [locator, collection, detail].forEach((response) => {
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+    });
+  });
+
   it("does not claim retryable media when the deletion read lock cannot be acquired", async () => {
     photoLockQuery.mockRejectedValueOnce(new Error("lock unavailable"));
 
