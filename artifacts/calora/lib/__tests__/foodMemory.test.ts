@@ -870,6 +870,18 @@ describe('plannerMealToDraft', () => {
     expect(draft.nutrition.proteinG).toBeCloseTo(30);
   });
 
+  it('uses the actual logging day for a diary draft while retaining the planned day as provenance', () => {
+    const draft = plannerMealToDraft(
+      { id: 'pm-today', name: 'Planned lunch', calories: 450, proteinG: 24, carbsG: 46, fatG: 14, meal: 'Lunch', day: '2026-08-01' },
+      NOW,
+      undefined,
+      '2026-08-06',
+    );
+
+    expect(draft.date).toBe('2026-08-06');
+    expect(draft.assumptions).toContain('Planned for 2026-08-01. Logged portion may differ from plan.');
+  });
+
   it('derives canonical evidence from the visible meal identity instead of a stale stored key', () => {
     const draft = plannerMealToDraft(
       { id: 'custom-oats', name: 'Overnight oats with berries', calories: 300, proteinG: 10, carbsG: 55, fatG: 5, meal: 'Breakfast', day: '2026-08-07', imageAssetKey: 'harvest-salad' },

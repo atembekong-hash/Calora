@@ -5,6 +5,14 @@ import { resolve } from 'node:path';
 const plannerSource = readFileSync(resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
 
 describe('Plan diary logging contract', () => {
+  it('records a selected Plan meal on Today rather than the scheduled slot day', () => {
+    const addToDiaryBlock = plannerSource.slice(
+      plannerSource.indexOf('const addToDiary = (meal: PlannerMeal) => {'),
+      plannerSource.indexOf('const updatePlannerComponent ='),
+    );
+    expect(addToDiaryBlock).toContain('createPlannerDraft(meal, dateKey())');
+  });
+
   it('passes the visible review draft directly to acceptance', () => {
     expect(plannerSource).toContain('acceptFoodMemory(plannerReviewDraft.id, plannerReviewDraft)');
   });

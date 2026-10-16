@@ -519,6 +519,7 @@ export function plannerMealToDraft(
   meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null; recipeId?: string; recipeSource?: string; generatedMediaId?: string; generatedImageId?: string; generatedImageUrlExpiresAt?: string; generatedImageReviewState?: 'needs_review' | 'accepted' | 'rejected' },
   now = new Date().toISOString(),
   accountScope?: string | null,
+  loggedDate = meal.day,
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'planner';
   const provenance: FoodMemoryProvenance = 'planner_estimate';
@@ -583,7 +584,10 @@ export function plannerMealToDraft(
     inputType,
     status: 'draft',
     title: meal.name,
-    date: meal.day,
+    // A planner slot is an intention; an accepted diary row records the day
+    // the person says they ate it. Keep both facts distinct so Plan logging
+    // appears immediately on Today without rewriting the original plan.
+    date: loggedDate,
     meal: meal.meal,
     components: [component],
     nutrition,

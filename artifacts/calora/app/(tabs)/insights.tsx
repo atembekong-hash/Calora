@@ -1060,7 +1060,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
   return (
     <View style={[styles.patternCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.sectionHeader}>
-        <View>
+        <View style={styles.sectionHeaderCopy}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weekly patterns</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your last seven days.</Text>
         </View>
@@ -1140,6 +1140,10 @@ function ProgressLineGraph({
   const padX = 8;
   const padTop = 12;
   const padBottom = 22;
+  // Every point receives enough horizontal room for its label. The viewport
+  // remains card-bounded and scrolls horizontally rather than leaking content
+  // beyond the Android screen edge.
+  const contentWidth = Math.max(chartWidth, points.length * 48);
   const values = points.flatMap((point) => point.value == null ? [] : [point.value]);
   const hasData = values.length > 0;
   const showTarget = hasData && target != null;
@@ -1147,7 +1151,7 @@ function ProgressLineGraph({
   const min = hasData ? Math.min(...scaleValues) : 0;
   const max = hasData ? Math.max(...scaleValues) : 1;
   const range = Math.max(max - min, 1);
-  const plotWidth = Math.max(chartWidth - padX * 2, 1);
+  const plotWidth = Math.max(contentWidth - padX * 2, 1);
   const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
   const chartPoints = points.map((point, index) => ({
     x: padX + index * xStep,
@@ -1190,7 +1194,7 @@ function ProgressLineGraph({
   const targetY = showTarget
     ? padTop + (1 - (target.value - min) / range) * (chartHeight - padTop - padBottom)
     : null;
-  const lineDashLength = Math.max(chartWidth * 2, 1);
+  const lineDashLength = Math.max(contentWidth * 2, 1);
   const animatedPathProps = useAnimatedProps(() => ({
     strokeDashoffset: lineDashLength * (1 - progress.value),
   }));
@@ -1207,59 +1211,70 @@ function ProgressLineGraph({
       style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={styles.sectionHeader}>
-        <View>
+        <View style={styles.sectionHeaderCopy}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
         </View>
         <View style={[styles.lineGraphBadge, { backgroundColor: colors.muted }]}>
           <Feather name="activity" size={12} color={color} />
-          <Text style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? valueFormatter(values[values.length - 1]) : 'No data'}</Text>
+          <Text numberOfLines={1} style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? valueFormatter(values[values.length - 1]) : 'No data'}</Text>
         </View>
       </View>
-      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphPlot}>
-        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
-          <Line x1={padX} y1={padTop} x2={chartWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
-          <Line x1={padX} y1={chartHeight - padBottom} x2={chartWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
-          {targetY != null && (
-            <Line x1={padX} y1={targetY} x2={chartWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
-          )}
-          {path ? (
-            <>
-              {fillPath ? <Path d={fillPath} fill={color} opacity={0.1} /> : null}
-              <AnimatedPath
-                d={path}
-                stroke={color}
-                strokeWidth={2.5}
-                fill="none"
-                strokeDasharray={lineDashLength}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                animatedProps={animatedPathProps}
-              />
-            </>
-          ) : null}
-          {chartPoints.map((point, index) => point.y == null ? null : (
-            <Circle
-              key={`${point.x}-${point.y}`}
-              cx={point.x}
-              cy={point.y}
-              r={index === chartPoints.length - 1 ? 4 : 3}
-              fill={index === chartPoints.length - 1 ? colors.primary : color}
-              stroke={colors.card}
-              strokeWidth={2}
-            />
-          ))}
-        </Svg>
-        {!hasData && (
-          <View pointerEvents="none" style={styles.lineGraphEmpty}>
-            <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>{emptyMessage}</Text>
+      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphViewport}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.lineGraphScroll}
+          contentContainerStyle={{ minWidth: contentWidth }}
+        >
+          <View style={{ width: contentWidth }}>
+            <View style={styles.lineGraphPlot}>
+              <Svg width={contentWidth} height={chartHeight} viewBox={`0 0 ${contentWidth} ${chartHeight}`} preserveAspectRatio="none">
+                <Line x1={padX} y1={padTop} x2={contentWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+                <Line x1={padX} y1={chartHeight - padBottom} x2={contentWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+                {targetY != null && (
+                  <Line x1={padX} y1={targetY} x2={contentWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
+                )}
+                {path ? (
+                  <>
+                    {fillPath ? <Path d={fillPath} fill={color} opacity={0.1} /> : null}
+                    <AnimatedPath
+                      d={path}
+                      stroke={color}
+                      strokeWidth={2.5}
+                      fill="none"
+                      strokeDasharray={lineDashLength}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      animatedProps={animatedPathProps}
+                    />
+                  </>
+                ) : null}
+                {chartPoints.map((point, index) => point.y == null ? null : (
+                  <Circle
+                    key={`${point.x}-${point.y}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={index === chartPoints.length - 1 ? 4 : 3}
+                    fill={index === chartPoints.length - 1 ? colors.primary : color}
+                    stroke={colors.card}
+                    strokeWidth={2}
+                  />
+                ))}
+              </Svg>
+              {!hasData && (
+                <View pointerEvents="none" style={styles.lineGraphEmpty}>
+                  <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>{emptyMessage}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.lineGraphLabels}>
+              {points.map((point, index) => (
+                <Text key={`${point.label}-${index}`} numberOfLines={1} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>
+              ))}
+            </View>
           </View>
-        )}
-      </View>
-      <View style={styles.lineGraphLabels}>
-        {points.map((point, index) => (
-          <Text key={`${point.label}-${index}`} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>
-        ))}
+        </ScrollView>
       </View>
       <View style={[styles.lineGraphLegend, { borderTopColor: colors.border }]}>
         <View style={styles.legendItem}>
@@ -1295,7 +1310,7 @@ function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalo
   const min = hasData ? Math.min(...values) : 0;
   const max = hasData ? Math.max(...values, 1) : 1;
   const range = Math.max(max - min, 1);
-  const contentWidth = points.length > 7 ? points.length * 54 : chartWidth;
+  const contentWidth = Math.max(chartWidth, points.length * 48);
   const plotWidth = Math.max(contentWidth - padX * 2, 1);
   const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
   const pathFor = (key: typeof series[number]['key']) => {
@@ -1335,29 +1350,36 @@ function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalo
   return (
     <View accessibilityLabel={`Macro trend. ${hasData ? points.map((point) => `${point.label}: Protein ${point.protein == null ? 'no data' : `${formatWhole(point.protein)} grams`}, Carbs ${point.carbs == null ? 'no data' : `${formatWhole(point.carbs)} grams`}, Fat ${point.fat == null ? 'no data' : `${formatWhole(point.fat)} grams`}`).join(', ') : 'No data yet'}`} accessibilityRole="summary" style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.sectionHeader}>
-        <View>
+        <View style={styles.sectionHeaderCopy}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro trend</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Protein, carbohydrates, and fat for the selected period.</Text>
         </View>
         <View style={[styles.lineGraphBadge, { backgroundColor: colors.muted }]}>
           <Feather name="activity" size={12} color={colors.primary} />
-          <Text style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? `${formatWhole(values[values.length - 1])} g` : 'No data'}</Text>
+          <Text numberOfLines={1} style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? `${formatWhole(values[values.length - 1])} g` : 'No data'}</Text>
         </View>
       </View>
-      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphPlot}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
-          <View style={{ width: contentWidth, height: chartHeight }}>
-            <Svg width={contentWidth} height={chartHeight} viewBox={`0 0 ${contentWidth} ${chartHeight}`} preserveAspectRatio="none">
-              <Line x1={padX} y1={padTop} x2={contentWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
-              <Line x1={padX} y1={chartHeight - padBottom} x2={contentWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
-              {paths.map((item) => item.path ? <AnimatedPath key={item.key} d={item.path} stroke={item.color} strokeWidth={2.5} fill="none" strokeDasharray={lineDashLength} strokeLinecap="round" strokeLinejoin="round" animatedProps={animatedPathProps} /> : null)}
-            </Svg>
+      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphViewport}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.lineGraphScroll}
+          contentContainerStyle={{ minWidth: contentWidth }}
+        >
+          <View style={{ width: contentWidth }}>
+            <View style={styles.lineGraphPlot}>
+              <Svg width={contentWidth} height={chartHeight} viewBox={`0 0 ${contentWidth} ${chartHeight}`} preserveAspectRatio="none">
+                <Line x1={padX} y1={padTop} x2={contentWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+                <Line x1={padX} y1={chartHeight - padBottom} x2={contentWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+                {paths.map((item) => item.path ? <AnimatedPath key={item.key} d={item.path} stroke={item.color} strokeWidth={2.5} fill="none" strokeDasharray={lineDashLength} strokeLinecap="round" strokeLinejoin="round" animatedProps={animatedPathProps} /> : null)}
+              </Svg>
+              {!hasData && <View pointerEvents="none" style={styles.lineGraphEmpty}><Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log food to start your macro graph.</Text></View>}
+            </View>
+            <View style={styles.lineGraphLabels}>
+              {points.map((point, index) => <Text key={`${point.label}-${index}`} numberOfLines={1} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>)}
+            </View>
           </View>
         </ScrollView>
-        {!hasData && <View pointerEvents="none" style={styles.lineGraphEmpty}><Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log food to start your macro graph.</Text></View>}
-      </View>
-      <View style={[styles.lineGraphLabels, points.length > 7 && { width: contentWidth }]}>
-        {points.map((point, index) => <Text key={`${point.label}-${index}`} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>)}
       </View>
       <View style={[styles.lineGraphLegend, { borderTopColor: colors.border }]}>
         {series.map((item) => <View key={item.key} style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: item.color }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>{item.label}</Text></View>)}
@@ -1891,7 +1913,7 @@ export default function InsightsScreen() {
         <AnimatedReveal delay={220}>
           <View style={[styles.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionHeaderCopy}>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
                 <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your week at a glance.</Text>
               </View>
@@ -1926,7 +1948,7 @@ export default function InsightsScreen() {
 
         <View style={view === 'trends' ? undefined : styles.hiddenSection}>
         <View style={styles.sectionHeader}>
-          <View>
+          <View style={styles.sectionHeaderCopy}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrition trends</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose any period to explore your data.</Text>
           </View>
@@ -1934,8 +1956,8 @@ export default function InsightsScreen() {
         </View>
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ minWidth: '100%' }}>
-          <View style={[styles.chart, calorieRangePoints.length > 7 && { width: calorieRangePoints.length * 54 }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lineGraphScroll} contentContainerStyle={{ minWidth: '100%' }}>
+          <View style={[styles.chart, { minWidth: calorieRangePoints.length * 48 }]}>
             {calorieRangePoints.map((item, index) => (
               <View key={item.date} style={styles.barColumn}>
                 <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.value !== null ? formatWhole(item.value) : '—'}</Text>
@@ -1971,7 +1993,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
 
         <View style={styles.healthTrendHeader}>
-          <View>
+          <View style={styles.sectionHeaderCopy}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement & hydration</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Steps, burned calories, and water for the selected period.</Text>
           </View>
@@ -2020,7 +2042,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
 
         <View style={styles.sectionHeader}>
-          <View>
+          <View style={styles.sectionHeaderCopy}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrient balance</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s foods; estimates are labeled.</Text>
           </View>
@@ -2599,7 +2621,8 @@ function makeStyles(f: number) {
   rhythmTrack: { width: '100%', height: 72, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
   rhythmFill: { width: '100%', borderRadius: 6 },
   rhythmDayLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 7 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 11 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 9, marginBottom: 11 },
+  sectionHeaderCopy: { flexGrow: 1, flexShrink: 1, minWidth: 0, paddingRight: 8 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
   rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
@@ -2616,8 +2639,10 @@ function makeStyles(f: number) {
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
   lineGraphCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
-  lineGraphBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
-  lineGraphBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  lineGraphBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6, maxWidth: '100%' },
+  lineGraphBadgeText: { flexShrink: 1, fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  lineGraphViewport: { width: '100%', overflow: 'hidden' },
+  lineGraphScroll: { width: '100%' },
   lineGraphPlot: { height: 128, marginTop: 4, position: 'relative' },
   lineGraphEmpty: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   lineGraphEmptyText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
@@ -2625,7 +2650,7 @@ function makeStyles(f: number) {
   lineGraphLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textAlign: 'center' },
   lineGraphLegend: { borderTopWidth: 1, marginTop: 12, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
   lineGraphTargetDot: { width: 7, height: 2, borderRadius: 1 },
-  healthTrendHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 2, marginBottom: 11 },
+  healthTrendHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 9, marginTop: 2, marginBottom: 11 },
   nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
   nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
   nutrientDot: { width: 8, height: 8, borderRadius: 4 },

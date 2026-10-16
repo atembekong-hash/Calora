@@ -864,7 +864,9 @@ export default function PlannerScreen() {
   };
 
   const addToDiary = (meal: PlannerMeal) => {
-    const draft = createPlannerDraft(meal);
+    // Logging records an eaten meal on Today, even when it was selected from
+    // a past or future planner page. The scheduled day remains in assumptions.
+    const draft = createPlannerDraft(meal, dateKey());
     setDetail(meal);
     setPlannerReviewDraftId(draft.id);
   };

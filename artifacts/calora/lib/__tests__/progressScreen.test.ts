@@ -22,4 +22,13 @@ describe('Progress dashboard layout contracts', () => {
     expect(tabs).toBeGreaterThan(-1);
     expect(pager).toBeGreaterThan(tabs);
   });
+
+  it('keeps Trend headers, date controls, and chart labels inside bounded scroll viewports', () => {
+    expect(source).toContain("lineGraphViewport: { width: '100%', overflow: 'hidden' }");
+    expect(source).toContain("lineGraphScroll: { width: '100%' }");
+    expect(source).toContain('const contentWidth = Math.max(chartWidth, points.length * 48);');
+    expect(source).toContain('sectionHeaderCopy: { flexGrow: 1, flexShrink: 1, minWidth: 0');
+    expect(source).toContain("healthTrendHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap'");
+    expect(source).toContain('numberOfLines={1} style={[styles.lineGraphLabel');
+  });
 });
