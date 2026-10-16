@@ -20,14 +20,15 @@ import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
-import { dateFromKey, dateKey, rollingDateRange, type DateRange } from '@/lib/dates';
+import { dateKey } from '@/lib/dates';
 import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
-import { deriveCalorieTrend, deriveHealthTrend, deriveMacroTrend, deriveWaterTrend, type MacroTrendPoint } from '@/lib/progressTrends';
+import { deriveCalorieTrend, deriveHealthTrend, deriveMacroTrend, deriveWaterTrend, deriveWorkoutTrend, type MacroTrendPoint } from '@/lib/progressTrends';
 import { GraphDateRangePicker } from '@/components/GraphDateRangePicker';
+import { createCustomGraphRangeSelection, createRollingSevenDaySelection, refreshRollingGraphRange } from '@/lib/graphRangeSelection';
 import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -1418,7 +1419,8 @@ export default function InsightsScreen() {
   const [goalError, setGoalError] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
   const [shoppingVisible, setShoppingVisible] = useState(false);
-  const [graphRange, setGraphRange] = useState<DateRange>(() => rollingDateRange(7));
+  const [graphRangeSelection, setGraphRangeSelection] = useState(() => createRollingSevenDaySelection());
+  const graphRange = graphRangeSelection.range;
   // Measure the card instead of assuming a fixed width: a seven-day chart must
   // fit its native viewport while longer ranges scroll within that same boundary.
   const [nutritionChartWidth, setNutritionChartWidth] = useState(0);
@@ -1748,9 +1750,8 @@ export default function InsightsScreen() {
   );
   const weekDays = weeklySignals.days;
   useEffect(() => {
-    const selectedDays = Math.round((dateFromKey(graphRange.end).getTime() - dateFromKey(graphRange.start).getTime()) / 86400000) + 1;
-    if (selectedDays === 7 && graphRange.end !== todayKey) setGraphRange(rollingDateRange(7, todayKey));
-  }, [graphRange.end, graphRange.start, todayKey]);
+    setGraphRangeSelection((current) => refreshRollingGraphRange(current, todayKey));
+  }, [todayKey]);
   const healthStepWeekPoints = useMemo(
     () => deriveHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined, 'steps', graphRange),
     [healthConnection.snapshot?.dailyMetrics, healthHistoryAvailable, graphRange],
@@ -1762,6 +1763,10 @@ export default function InsightsScreen() {
   const waterWeekPoints = useMemo(
     () => deriveWaterTrend(remembered.waterLogs, graphRange),
     [remembered.waterLogs, graphRange],
+  );
+  const workoutRangePoints = useMemo(
+    () => deriveWorkoutTrend(healthConnection.snapshot?.workouts, graphRange),
+    [healthConnection.snapshot?.workouts, graphRange],
   );
   const calorieRangePoints = useMemo(() => deriveCalorieTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
   const macroRangePoints = useMemo(() => deriveMacroTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
@@ -1848,9 +1853,9 @@ export default function InsightsScreen() {
                 accessibilityState={{ selected }}
                 accessibilityLabel={`${tab.label} progress tab`}
                 onPress={() => setProgressView(tab.key)}
-                style={[styles.progressTab, selected && { backgroundColor: previewSelected ? colors.accent : colors.card }]}
+                style={[styles.progressTab, selected && { backgroundColor: previewSelected ? colors.primary : colors.card }]}
               >
-                <Text style={[styles.progressTabText, { color: previewSelected ? colors.accentForeground : selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+                <Text style={[styles.progressTabText, { color: previewSelected ? colors.primaryForeground : selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
               </Pressable>
             );
           })}
@@ -1956,7 +1961,7 @@ export default function InsightsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrition trends</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose any period to explore your data.</Text>
           </View>
-          <GraphDateRangePicker range={graphRange} colors={colors} onChange={setGraphRange} />
+          <GraphDateRangePicker range={graphRange} colors={colors} onChange={(range) => setGraphRangeSelection(createCustomGraphRangeSelection(range))} />
         </View>
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -2009,7 +2014,7 @@ export default function InsightsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement & hydration</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Steps, burned calories, and water for the selected period.</Text>
           </View>
-          <GraphDateRangePicker range={graphRange} colors={colors} onChange={setGraphRange} />
+          <GraphDateRangePicker range={graphRange} colors={colors} onChange={(range) => setGraphRangeSelection(createCustomGraphRangeSelection(range))} />
         </View>
 
         <AnimatedReveal delay={365}>
@@ -2046,6 +2051,18 @@ export default function InsightsScreen() {
             color="#5d8edb"
             valueFormatter={(value) => `${formatWhole(value)} fl oz`}
             emptyMessage="Log water to start your hydration graph."
+          />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={405}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Workout sessions"
+            subtitle={healthConnection.provider === 'health-connect' ? 'Exercise sessions from Health Connect for the selected period.' : healthConnection.provider === 'healthkit' ? 'Exercise sessions from Apple Health for the selected period.' : 'Connect Health to show recorded workout sessions.'}
+            points={workoutRangePoints}
+            color="#9875c7"
+            valueFormatter={(value) => `${formatWhole(value)} ${value === 1 ? 'session' : 'sessions'}`}
+            emptyMessage="Sync Health to show recorded workout sessions."
           />
         </AnimatedReveal>
 

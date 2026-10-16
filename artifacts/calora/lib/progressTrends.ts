@@ -1,6 +1,7 @@
 import { addDays, dateFromKey, dateKey, dateList, type DateRange } from '@/lib/dates';
 import type { WaterLog } from '@/context/CaloraContext';
 import type { HealthDailyMetric } from '@/lib/health/weekHistory';
+import type { HealthWorkout } from '@/lib/health/types';
 
 export type ProgressTrendPoint = {
   date: string;
@@ -57,6 +58,21 @@ export function deriveHealthTrend(metrics: readonly HealthDailyMetric[] | undefi
 }
 export function deriveWaterTrend(waterLogs: WaterLog, range: DateRange): ProgressTrendPoint[] {
   return rangePoints(new Map(Object.entries(waterLogs).map(([date, value]) => [date, value ?? null] as const)), range);
+}
+
+/** Buckets provider-recorded workout sessions by their local start date without fabricating gaps. */
+export function deriveWorkoutTrend(
+  workouts: readonly HealthWorkout[] | undefined,
+  range: DateRange,
+): ProgressTrendPoint[] {
+  const sessionsByDate = new Map<string, number>();
+  for (const workout of workouts ?? []) {
+    const startedAt = new Date(workout.startAt);
+    if (!Number.isFinite(startedAt.getTime())) continue;
+    const date = dateKey(startedAt);
+    sessionsByDate.set(date, (sessionsByDate.get(date) ?? 0) + 1);
+  }
+  return rangePoints(sessionsByDate, range);
 }
 export function deriveCalorieTrend(logs: readonly { date: string; calories: number }[], range: DateRange): ProgressTrendPoint[] {
   const values = new Map<string, number>();

@@ -182,7 +182,7 @@ export async function refreshOperationalAlerts(): Promise<void> {
       await notifyOperationalAlerts(current.rows.map(mapAlert)).catch(
         (error) => {
           logger.warn(
-            { error: error instanceof Error ? error.message : "unknown" },
+            safeErrorDetails(error),
             "Operational alert email processing failed",
           );
         },

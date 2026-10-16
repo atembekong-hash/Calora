@@ -1,6 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
@@ -39,7 +38,6 @@ import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshne
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { resolvePremiumRecipeDetailImage } from '@/lib/premiumRecipeDetailImage';
-import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
@@ -60,13 +58,6 @@ const GRID_RECIPE_IMAGE_HEIGHT = 140;
 const RECIPE_SUGGESTION_ROW_COUNT = 2;
 const RECIPE_SUGGESTIONS_PER_ROW = 20;
 const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW;
-const RECIPE_FALLBACK_IMAGES = {
-  breakfast: require('../../assets/images/food-fallback-breakfast.jpg'),
-  drink: require('../../assets/images/food-fallback-drink.jpg'),
-  main: require('../../assets/images/food-fallback-main.jpg'),
-  snack: require('../../assets/images/food-fallback-snack.jpg'),
-} as const;
-
 type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
 
@@ -123,17 +114,6 @@ function recipeKey(recipe: Recipe | CaloraRecipe) {
 
 function isLocalRecipe(recipe: BrowseRecipe): recipe is CaloraRecipe {
   return 'isLocal' in recipe && recipe.isLocal === true;
-}
-
-function recipeFallbackImage(recipe: BrowseRecipe) {
-  return RECIPE_FALLBACK_IMAGES[
-    recipeImageRole({
-      name: recipe.name,
-      category: recipe.category,
-      mealType: recipeMealType(recipe),
-      tags: recipe.tags,
-    })
-  ];
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
@@ -209,9 +189,11 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
           )}
         </View>
       ) : (
-        <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
-          <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
+        <View accessible accessibilityRole="image" accessibilityLabel={`${recipe.name} photo unavailable`} style={[styles.recipeImage, styles.imageFallback, { height }]}>
+          <View style={styles.imageFallbackCopy}>
+            <Feather name="image" size={22} color="#d4eadc" />
+            <Text style={styles.imageFallbackText}>Photo unavailable</Text>
+          </View>
         </View>
       )}
       {acceptedGeneratedImage && recipeImageUrl && !imageFailed && !photoPending && (
@@ -3327,7 +3309,7 @@ export default function RecipesScreen() {
               style={[
                 styles.sectionTab,
                 selectedSection && {
-                  backgroundColor: previewSelected ? colors.accent : colors.card,
+                  backgroundColor: previewSelected ? colors.primary : colors.card,
                 },
               ]}
             >
@@ -3335,7 +3317,7 @@ export default function RecipesScreen() {
                 style={[
                   styles.sectionTabText,
                   {
-                    color: previewSelected ? colors.accentForeground : selectedSection ? colors.foreground : colors.mutedForeground,
+                    color: previewSelected ? colors.primaryForeground : selectedSection ? colors.foreground : colors.mutedForeground,
                   },
                 ]}
               >

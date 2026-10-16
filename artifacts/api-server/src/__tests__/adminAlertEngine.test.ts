@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { poolQuery, connect, notifyOperationalAlerts, writeAdminAudit } =
+const {
+  poolQuery,
+  connect,
+  notifyOperationalAlerts,
+  writeAdminAudit,
+  safeErrorDetails,
+  loggerWarn,
+} =
   vi.hoisted(() => ({
     poolQuery: vi.fn(),
     connect: vi.fn(),
     notifyOperationalAlerts: vi.fn(),
     writeAdminAudit: vi.fn(),
+    safeErrorDetails: vi.fn(),
+    loggerWarn: vi.fn(),
   }));
 
 vi.mock("@workspace/db", () => ({
@@ -22,9 +31,9 @@ vi.mock("../lib/admin-data.js", () => ({
   writeAdminAudit: (...args: unknown[]) => writeAdminAudit(...args),
 }));
 vi.mock("../lib/logger.js", () => ({
-  safeErrorDetails: () => ({ errorClass: "test_error" }),
+  safeErrorDetails: (...args: unknown[]) => safeErrorDetails(...args),
   safeErrorCode: () => "test_error",
-  logger: { info: vi.fn(), warn: vi.fn() },
+  logger: { info: vi.fn(), warn: (...args: unknown[]) => loggerWarn(...args) },
 }));
 
 import { refreshOperationalAlerts } from "../lib/admin-alerts.js";
@@ -74,6 +83,7 @@ describe("operational alert engine integration", () => {
     delete process.env.CALORA_RELEASE_COMMIT;
     writeAdminAudit.mockResolvedValue(undefined);
     notifyOperationalAlerts.mockResolvedValue(undefined);
+    safeErrorDetails.mockReturnValue({ errorClass: "unknown_error" });
   });
 
   it("detects a critical scan incident, persists it, and hands it to delivery", async () => {
@@ -128,5 +138,23 @@ describe("operational alert engine integration", () => {
       ),
     ).toBe(true);
     expect(notifyOperationalAlerts).not.toHaveBeenCalled();
+  });
+
+  it("classifies a rejected delivery handoff without logging raw provider or user details", async () => {
+    configureScenario();
+    const rawProviderMessage =
+      "provider response customer=raw-user-123 diagnostic=secret";
+    const failure = new Error(rawProviderMessage);
+    notifyOperationalAlerts.mockRejectedValueOnce(failure);
+    safeErrorDetails.mockReturnValueOnce({ errorClass: "delivery_failed" });
+
+    await refreshOperationalAlerts();
+
+    expect(safeErrorDetails).toHaveBeenCalledWith(failure);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: "delivery_failed" },
+      "Operational alert email processing failed",
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain(rawProviderMessage);
   });
 });

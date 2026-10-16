@@ -262,6 +262,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('isGeneratedRecipeImageCandidate(detail)');
   });
 
+  it('fails closed to an explicit unavailable state when a recipe image is absent or rejected', () => {
+    expect(source).toContain('Photo unavailable');
+    expect(source).toContain('accessibilityLabel={`${recipe.name} photo unavailable`}');
+    expect(source).not.toContain('RECIPE_FALLBACK_IMAGES');
+    expect(source).not.toContain('recipeFallbackImage');
+    expect(source).not.toContain('food photo fallback');
+  });
+
   it('does not create an unattached generated-photo request for a manual personal recipe', () => {
     const manualRecipeForm = source.slice(source.indexOf('function PersonalRecipeFormModal'));
     expect(manualRecipeForm).toContain("imageStatus: 'not_requested'");

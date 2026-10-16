@@ -50,10 +50,13 @@ describe('retained section pager contracts', () => {
 
   it('highlights the destination menu item during direct-manipulation swipes', () => {
     expect(profileSource).toContain('const [profilePreview, setProfilePreview]');
-    expect(profileSource).toContain('previewSelected ? colors.accent : colors.card');
+    expect(profileSource).toContain('previewSelected ? colors.primary : colors.card');
+    expect(profileSource).toContain('previewSelected\n                          ? colors.primaryForeground');
     expect(insightsSource).toContain('const [progressPreview, setProgressPreview]');
-    expect(insightsSource).toContain('previewSelected ? colors.accent : colors.card');
+    expect(insightsSource).toContain('previewSelected ? colors.primary : colors.card');
+    expect(insightsSource).toContain('previewSelected ? colors.primaryForeground');
     expect(recipesSource).toContain('const [sectionPreview, setSectionPreview]');
-    expect(recipesSource).toContain('previewSelected ? colors.accent : colors.card');
+    expect(recipesSource).toContain('previewSelected ? colors.primary : colors.card');
+    expect(recipesSource).toContain('previewSelected ? colors.primaryForeground');
   });
 });
