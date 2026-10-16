@@ -736,6 +736,50 @@ describe('POST /v1/capture/analyze', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Barcode — UPC-A and EAN-13 equivalent identifiers
+  // -------------------------------------------------------------------------
+
+  describe('barcode mode — equivalent UPC-A and EAN-13 identifiers', () => {
+    const UPC_A = '123456789012';
+    const EAN_13 = '0123456789012';
+
+    it('accepts the EAN-13 provider representation for a scanned UPC-A in Open Food Facts', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => offProductResponse(UPC_A, { code: EAN_13 }),
+      } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'barcode', barcode: UPC_A })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('review');
+      expect(res.body.provider).toBe('Open Food Facts');
+      expect(res.body.candidates[0].id).toBe(`off-${UPC_A}`);
+    });
+
+    it('accepts the EAN-13 provider representation for a scanned UPC-A in USDA', async () => {
+      mockFetch
+        .mockRejectedValueOnce(new Error('OFF unavailable'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => usdaSearchResponse(UPC_A, { gtinUpc: EAN_13 }),
+        } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'barcode', barcode: UPC_A })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('review');
+      expect(res.body.provider).toBe('USDA FoodData Central');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Barcode — USDA fallback with exact UPC match
   // -------------------------------------------------------------------------
 
