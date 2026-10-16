@@ -211,6 +211,22 @@ function normalizeBarcode(value: string) {
   return value.replace(/\D/g, "").slice(0, 32);
 }
 
+/**
+ * UPC-A is a 12-digit GTIN, while EAN-13 represents that same identifier with
+ * one leading zero. Providers are inconsistent about which representation
+ * they return, so accept that lossless pair but never a general prefix match.
+ */
+function barcodeMatches(scanned: string, providerValue: string) {
+  const normalizedScanned = normalizeBarcode(scanned);
+  const normalizedProvider = normalizeBarcode(providerValue);
+  if (!normalizedScanned || !normalizedProvider) return false;
+  if (normalizedScanned === normalizedProvider) return true;
+  return (
+    (normalizedScanned.length === 12 && normalizedProvider === `0${normalizedScanned}`) ||
+    (normalizedProvider.length === 12 && normalizedScanned === `0${normalizedProvider}`)
+  );
+}
+
 function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): CaptureCandidate {
   // Validate the image URL once; a source label without a valid URL is dropped.
   const imageUrl = safeImageUrl(candidate.imageUrl);
@@ -268,7 +284,7 @@ async function fetchJson(url: string, init?: RequestInit) {
 
 export function offCandidate(product: Record<string, any>, barcode: string): CaptureCandidate | null {
   const productCode = String(product.code ?? '').replace(/\D/g, '');
-  if (productCode && productCode !== barcode) return null;
+  if (productCode && !barcodeMatches(barcode, productCode)) return null;
   const nutriments = product.nutriments ?? {};
   const calories = numberOrZero(nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"]);
   const proteinG = numberOrZero(nutriments["proteins_serving"] ?? nutriments["proteins_100g"]);
@@ -322,7 +338,7 @@ async function lookupBarcode(barcode: string) {
   try {
     const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
     const returnedCode = String(data.code ?? data.product?.code ?? '').replace(/\D/g, '');
-    if (data.status === 1 && data.product && returnedCode === barcode) {
+    if (data.status === 1 && data.product && barcodeMatches(barcode, returnedCode)) {
       const candidate = offCandidate(data.product, barcode);
       if (candidate) return { candidate, provider: "Open Food Facts" };
     }
@@ -333,7 +349,7 @@ async function lookupBarcode(barcode: string) {
   try {
     const search = await fetchJson(`${USDA_ROOT}/foods/search?api_key=${encodeURIComponent(USDA_KEY)}&query=${encodeURIComponent(barcode)}&pageSize=5&dataType=Branded,SR%20Legacy,Foundation`);
     const food = search.foods?.[0];
-    if (food && String(food.gtinUpc ?? "").replace(/\D/g, "") === barcode) {
+    if (food && barcodeMatches(barcode, String(food.gtinUpc ?? ""))) {
       const nutrients = new Map((food.foodNutrients ?? []).map((item: any) => [item.nutrientName, item.value]));
       const candidate = ensureCandidate({
         id: `usda-${food.fdcId ?? barcode}`,
