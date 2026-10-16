@@ -1165,6 +1165,19 @@ async function getForYouMeals(): Promise<Meal[]> {
   return forYouFetchPromise;
 }
 
+/**
+ * Discover is a browse surface. Once an unfiltered provider catalogue reaches
+ * its end, begin a new visible cycle instead of producing a dead-end native
+ * ScrollView. Search results deliberately remain finite so a narrow result is
+ * never represented as new content.
+ */
+function circularBrowsePage<T>(items: readonly T[], offset: number, limit: number): T[] {
+  if (items.length === 0) return [];
+  const start = offset % items.length;
+  const size = Math.min(limit, items.length);
+  return Array.from({ length: size }, (_, index) => items[(start + index) % items.length]!);
+}
+
 router.get("/v1/recipes", async (req, res) => {
   if (!(await enforceRecipeIpLimit(req, res, "list"))) return;
   try {
@@ -1199,7 +1212,11 @@ router.get("/v1/recipes", async (req, res) => {
       meals = await getForYouMeals();
     }
 
-    const recipes = meals.slice(offset, offset + limit).map((meal) => {
+    const continuousBrowse = !query && meals.length > 0;
+    const pageMeals = continuousBrowse
+      ? circularBrowsePage(meals, offset, limit)
+      : meals.slice(offset, offset + limit);
+    const recipes = pageMeals.map((meal) => {
       const recipe = toRecipe(meal);
       // Attach any L1-cached estimate so the card can show ~kcal without
       // the user needing to open the detail sheet first.
@@ -1210,7 +1227,11 @@ router.get("/v1/recipes", async (req, res) => {
     // has not yet populated estimates for the first page of results.
     const warmupPending = !warmupDone || warmupPendingForPool;
     if (warmupPendingForPool) queueMicrotask(() => { warmupPendingForPool = false; });
-    const nextOffset = offset + recipes.length < meals.length ? offset + recipes.length : null;
+    const nextOffset = recipes.length === 0
+      ? null
+      : continuousBrowse
+        ? offset + recipes.length
+        : offset + recipes.length < meals.length ? offset + recipes.length : null;
     res.json({
       source: SOURCE,
       recipes,

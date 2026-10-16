@@ -260,9 +260,13 @@ export function refreshGeneratedRecipeImage({ accountId, recipe, updateRecipe, i
 }
 
 export function markGeneratedRecipeImageRendered(recipe: GeneratedRecipeImageCandidate, updateRecipe: UpdateGeneratedRecipe) {
-  if (!generated(recipe) || !recipe.image) return;
+  if (!generated(recipe) || !recipe.image || clientState(recipe.imageStatus) === 'rendered') return;
   updateRecipe(recipe.id, { imageStatus: 'rendered', imageErrorCode: null, imageLastRenderedAt: new Date().toISOString() });
   if (recipe.imageMediaId) void acknowledgeGeneratedRecipeMediaRendered(recipe.imageMediaId).catch(() => undefined);
+}
+
+function mediaPatchChanged(recipe: GeneratedRecipeImageCandidate, patch: GeneratedRecipeImagePatch): boolean {
+  return Object.entries(patch).some(([key, value]) => recipe[key as keyof GeneratedRecipeImageCandidate] !== value);
 }
 
 /** One forced owner-scoped renewal per failed locator; further failure exposes retry instead of looping. */
@@ -360,7 +364,14 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
           const media = byRecipe.get(recipe.id);
           if (!media) return;
           const patch = patchForRecipeMedia(media);
-          updateRef.current(recipe.id, patch);
+          // The API reports url_ready after an image is rendered. Never turn
+          // that durable local terminal state back into url_ready on every
+          // reconciliation: doing so remounts native image views and causes
+          // the visible flash observed in Create and suggestion cards.
+          if (clientState(recipe.imageStatus) === 'rendered' && patch.image === recipe.image && patch.imageId === recipe.imageId) {
+            patch.imageStatus = 'rendered';
+          }
+          if (mediaPatchChanged(recipe, patch)) updateRef.current(recipe.id, patch);
           if (isStaleGeneratedRecipeMedia(media)) {
             void ensureGeneratedRecipeImage({
               accountId: currentAccount,

@@ -26,11 +26,28 @@ type RevenueCatCustomerResponse = {
   id?: unknown;
 };
 
+/**
+ * Provider bodies and credential values may contain sensitive account data.
+ * This bounded class name is therefore the only diagnostic detail permitted in
+ * production logs when Plus entitlement verification fails.
+ */
+export class RevenueCatProviderError extends Error {
+  constructor(kind: "Configuration" | "Authentication" | "Timeout" | "Upstream") {
+    super(`RevenueCat ${kind.toLowerCase()} failure`);
+    this.name = `RevenueCat${kind}Error`;
+  }
+}
+
+function revenueCatResponseError(response: Response): RevenueCatProviderError {
+  return new RevenueCatProviderError(
+    response.status === 401 || response.status === 403 ? "Authentication" : "Upstream",
+  );
+}
+
 function revenueCatConfig() {
   const projectId = process.env.REVENUECAT_PROJECT_ID;
   const secretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
-  if (!projectId) throw new Error("RevenueCat project ID is not configured");
-  if (!secretApiKey) throw new Error("RevenueCat server credential is not configured");
+  if (!projectId || !secretApiKey) throw new RevenueCatProviderError("Configuration");
   return { projectId, secretApiKey };
 }
 
@@ -56,7 +73,7 @@ async function revenueCatRequest(
   } catch (error) {
     const timedOut = error instanceof Error
       && (error.name === "AbortError" || error.name === "TimeoutError");
-    throw new Error(`RevenueCat ${operation} ${timedOut ? "timed out" : "request failed"}`);
+    throw new RevenueCatProviderError(timedOut ? "Timeout" : "Upstream");
   }
 }
 
@@ -74,7 +91,7 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     "entitlement lookup",
   );
   if (!entitlementsResponse.ok) {
-    throw new Error(`RevenueCat entitlement lookup failed (${entitlementsResponse.status})`);
+    throw revenueCatResponseError(entitlementsResponse);
   }
 
   const entitlements = (await entitlementsResponse.json()) as EntitlementListResponse;
@@ -82,7 +99,7 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     (entitlement) => entitlement.lookup_key === ENTITLEMENT_ID,
   )?.id;
   if (!premiumEntitlementId) {
-    throw new Error("RevenueCat Premium entitlement is not configured");
+    throw new RevenueCatProviderError("Configuration");
   }
 
   const activeResponse = await revenueCatRequest(
@@ -94,7 +111,7 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
   // an explicit fail-closed non-Premium state, not provider unavailability.
   if (activeResponse.status === 404) return false;
   if (!activeResponse.ok) {
-    throw new Error(`RevenueCat subscriber lookup failed (${activeResponse.status})`);
+    throw revenueCatResponseError(activeResponse);
   }
 
   const activeEntitlements = (await activeResponse.json()) as ActiveEntitlementsResponse;

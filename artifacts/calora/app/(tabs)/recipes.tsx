@@ -68,6 +68,20 @@ const RECIPE_FALLBACK_IMAGES = {
 } as const;
 
 type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
+type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
+
+function appendDiscoverFeedPage(current: readonly DiscoverFeedRecipe[], page: readonly Recipe[], offset: number): DiscoverFeedRecipe[] {
+  const entries = page.map((recipe, index) => ({ ...recipe, feedEntryKey: `${recipe.id}:${offset + index}` }));
+  return offset === 0 ? entries : [...current, ...entries];
+}
+
+function orderDiscoverFeedRecipes(recipes: readonly DiscoverFeedRecipe[], session: ReturnType<typeof getRecipeFreshnessSession>, visit: number): DiscoverFeedRecipe[] {
+  return session.order(recipes.map((recipe) => ({ id: recipe.feedEntryKey, recipe })), visit).map((entry) => entry.recipe);
+}
+
+function discoverFeedEntryKey(recipe: BrowseRecipe): string {
+  return 'feedEntryKey' in recipe && typeof recipe.feedEntryKey === 'string' ? recipe.feedEntryKey : recipe.id;
+}
 
 function recipeMealType(recipe: BrowseRecipe): string | null {
   if (!('mealType' in recipe) || typeof recipe.mealType !== 'string') return null;
@@ -563,6 +577,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
+  const [catalogueCycle, setCatalogueCycle] = useState(0);
   const [filterVisible, setFilterVisible] = useState(false);
   const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
   const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
@@ -690,12 +705,16 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId, visible]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
-      if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;
+      if (query.isFetching || loadingMoreRef.current) return;
+      if (data?.nextOffset == null) {
+        if (loadedRecipes.length > 0) setCatalogueCycle((current) => current + 1);
+        return;
+      }
       loadingMoreRef.current = true;
       setOffset(data.nextOffset);
     };
     return () => { onLoadMoreRef.current = null; };
-  }, [data?.nextOffset, onLoadMoreRef, query.isFetching]);
+  }, [data?.nextOffset, loadedRecipes.length, onLoadMoreRef, query.isFetching]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
     // section remounts. Do not clear that restored list on the initial render;
@@ -705,6 +724,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       return;
     }
     setOffset(0);
+    setCatalogueCycle(0);
     setLoadedRecipes([]);
     loadingMoreRef.current = false;
   }, [search, category, unfilteredFreshnessDay]);
@@ -736,6 +756,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   };
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
   const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
+  const continuousCatalogueEntries = useMemo(
+    () => Array.from({ length: catalogueCycle + 1 }, (_, cycle) => displayRecipes.map((recipe) => ({ recipe, feedEntryKey: `${recipe.id}:${cycle}` }))).flat(),
+    [catalogueCycle, displayRecipes],
+  );
   useEffect(() => {
     if (!visible || !userId || freshnessVisit === 0 || recipes.length === 0) return;
     freshnessSession.remember(displayRecipes.slice(0, RECIPE_PAGE_SIZE));
@@ -844,9 +868,9 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             testID="plus-recipe-grid"
             style={styles.recipeGrid}
           >
-            {displayRecipes.map((recipe) => (
+            {continuousCatalogueEntries.map(({ recipe, feedEntryKey }) => (
               <View
-                key={recipe.id}
+                key={feedEntryKey}
                 testID={`plus-recipe-card-${recipe.sourceId}`}
                 style={styles.recipeGridCard}
               >
@@ -1767,7 +1791,7 @@ export default function RecipesScreen() {
   const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [remoteNextOffset, setRemoteNextOffset] = useState<number | null>(0);
-  const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
+  const [remoteRecipes, setRemoteRecipes] = useState<DiscoverFeedRecipe[]>([]);
   const [discoverFreshnessVisit, setDiscoverFreshnessVisit] = useState(0);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
   const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
@@ -1847,10 +1871,7 @@ export default function RecipesScreen() {
     const response = recipesQuery.data;
     const page = response?.recipes;
     if (!page) return;
-    setRemoteRecipes((current) => {
-      if (remoteOffset === 0) return mergeRecipePages([], page);
-      return mergeRecipePages(current, page);
-    });
+    setRemoteRecipes((current) => appendDiscoverFeedPage(current, page, remoteOffset));
     setRemoteNextOffset(response?.nextOffset ?? null);
     setHasMoreRemote(response?.nextOffset != null);
     loadingMoreRef.current = false;
@@ -1940,10 +1961,10 @@ export default function RecipesScreen() {
   useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe, restoreRecipe });
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
-  const freshRemoteRecipes = useMemo(() => discoverFreshnessSession.order(remoteRecipes, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
+  const freshRemoteRecipes = useMemo(() => orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
   useEffect(() => {
     if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
-    discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE));
+    discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE).map((recipe) => ({ id: recipe.feedEntryKey })));
   }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
   const visibleRemote: BrowseRecipe[] = category === 'My recipes'
     ? []
@@ -2058,7 +2079,7 @@ export default function RecipesScreen() {
          {savedDiscoverRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedDiscoverRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></SwipeGestureExclusion></>}
 
          <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
+         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={discoverFeedEntryKey(recipe)} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
           </> : section === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} /> : null}
       </ScrollView>
