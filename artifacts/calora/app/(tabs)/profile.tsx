@@ -1250,7 +1250,7 @@ export default function ProfileScreen() {
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${tab.label} profile tab`}
-                  onPress={() => setProfileTab(tab.key)}
+                  onPress={() => { setProfilePreview(null); setProfileTab(tab.key); }}
                   style={[
                     styles.profileTab,
                     selected && { backgroundColor: previewSelected ? colors.accent : colors.card },

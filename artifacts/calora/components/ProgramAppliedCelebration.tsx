@@ -2,16 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import type { useCalora } from '@/context/CaloraContext';
 
 type Colors = ReturnType<typeof useCalora>['colors'];
@@ -23,6 +14,7 @@ export function ProgramAppliedCelebration({
   colors,
   onDismiss,
   noMotion = false,
+  bottomOffset = 151,
 }: {
   visible: boolean;
   programLabel: string;
@@ -31,6 +23,8 @@ export function ProgramAppliedCelebration({
   onDismiss: () => void;
   /** Uses a static banner without entry, exit, or icon motion. */
   noMotion?: boolean;
+  /** Distance above navigation, derived by the host from its safe-area layout. */
+  bottomOffset?: number;
 }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
@@ -49,10 +43,7 @@ export function ProgramAppliedCelebration({
 
     opacity.value = withDelay(40, withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }));
     scale.value = withDelay(40, withSpring(1, { damping: 15, stiffness: 180 }));
-    iconScale.value = withDelay(420, withSequence(
-      withSpring(1.18, { damping: 9, stiffness: 260 }),
-      withSpring(1, { damping: 12, stiffness: 180 }),
-    ));
+    iconScale.value = withDelay(420, withSequence(withSpring(1.18, { damping: 9, stiffness: 260 }), withSpring(1, { damping: 12, stiffness: 180 })));
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
@@ -60,7 +51,10 @@ export function ProgramAppliedCelebration({
       opacity.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) }, (finished) => {
         if (finished) runOnJS(onDismiss)();
       });
-      scale.value = withTiming(0.94, { duration: 220, easing: Easing.out(Easing.cubic) });
+      scale.value = withTiming(0.94, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      });
     }, 3200);
 
     return () => clearTimeout(dismissTimer);
@@ -78,12 +72,7 @@ export function ProgramAppliedCelebration({
   if (!visible) return null;
 
   return (
-    <Animated.View
-      accessibilityLiveRegion="polite"
-      accessibilityRole="alert"
-      accessibilityLabel={`${programLabel} is now active. ${message}`}
-      style={[styles.host, bannerStyle]}
-    >
+    <Animated.View accessibilityLiveRegion="polite" accessibilityRole="alert" accessibilityLabel={`${programLabel} is now active. ${message}`} style={[styles.host, { bottom: bottomOffset }, bannerStyle]}>
       <View style={[styles.banner, { backgroundColor: colors.card, borderColor: colors.primary }]}>
         <Animated.View style={[styles.iconWrap, { backgroundColor: colors.primary }, iconStyle]}>
           <Feather name="star" size={16} color={colors.primaryForeground} />
@@ -93,13 +82,7 @@ export function ProgramAppliedCelebration({
           <Text style={[styles.program, { color: colors.primary }]}>{programLabel}</Text>
           <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
         </View>
-        <Pressable
-          accessibilityLabel="Dismiss program celebration"
-          accessibilityRole="button"
-          hitSlop={10}
-          onPress={onDismiss}
-          style={styles.close}
-        >
+        <Pressable accessibilityLabel="Dismiss program celebration" accessibilityRole="button" hitSlop={10} onPress={onDismiss} style={styles.close}>
           <Feather name="x" size={15} color={colors.mutedForeground} />
         </Pressable>
       </View>
@@ -112,7 +95,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    bottom: 151,
     zIndex: 30,
   },
   banner: {
@@ -157,7 +139,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   close: {
-    padding: 3,
+    width: 44,
+    height: 44,
+    marginRight: -9,
+    marginTop: -5,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'flex-start',
   },
 });

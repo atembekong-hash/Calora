@@ -8,18 +8,7 @@
 
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
@@ -60,11 +49,26 @@ export default function SignUpScreen() {
     if (loading) return;
 
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) { setError('Please enter your email address.'); return; }
-    if (!trimmedEmail.includes('@')) { setError('Please enter a valid email address.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
-    if (!ageConfirmed) { setError('Calora is currently available to people 18 and older. Please confirm your eligibility.'); return; }
+    if (!trimmedEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!trimmedEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!ageConfirmed) {
+      setError('Calora is currently available to people 18 and older. Please confirm your eligibility.');
+      return;
+    }
 
     setError(null);
     setLoading(true);
@@ -92,28 +96,16 @@ export default function SignUpScreen() {
   }, [ageConfirmed, loading, email, password, confirmPassword, signUpWithEmail]);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader back title="Create account" />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingTop: 24, paddingBottom: insets.bottom + 32 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 24, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {/* Brand mark */}
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
           <Feather name="sun" size={22} color={colors.primaryForeground} />
         </View>
 
         <Text style={[styles.heading, { color: colors.foreground }]}>Create your account</Text>
-        <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Create an account for referrals and Premium access.
-        </Text>
+        <Text style={[styles.subheading, { color: colors.mutedForeground }]}>Create an account for referrals and Premium access.</Text>
 
         {/* Pending invite code notice */}
         {pendingCode ? (
@@ -130,7 +122,10 @@ export default function SignUpScreen() {
         <TextInput
           accessibilityLabel="Email address"
           value={email}
-          onChangeText={(v) => { setEmail(v); setError(null); }}
+          onChangeText={(v) => {
+            setEmail(v);
+            setError(null);
+          }}
           placeholder="you@example.com"
           placeholderTextColor={colors.mutedForeground}
           keyboardType="email-address"
@@ -139,7 +134,14 @@ export default function SignUpScreen() {
           textContentType="emailAddress"
           returnKeyType="next"
           editable={!loading}
-          style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+          style={[
+            styles.input,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.input,
+            },
+          ]}
         />
 
         {/* Password */}
@@ -148,21 +150,27 @@ export default function SignUpScreen() {
           <TextInput
             accessibilityLabel="Password"
             value={password}
-            onChangeText={(v) => { setPassword(v); setError(null); }}
+            onChangeText={(v) => {
+              setPassword(v);
+              setError(null);
+            }}
             placeholder="Minimum 8 characters"
             placeholderTextColor={colors.mutedForeground}
             secureTextEntry={!showPassword}
             textContentType="newPassword"
             returnKeyType="next"
             editable={!loading}
-            style={[styles.input, styles.passwordInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+            style={[
+              styles.input,
+              styles.passwordInput,
+              {
+                color: colors.foreground,
+                backgroundColor: colors.card,
+                borderColor: colors.input,
+              },
+            ]}
           />
-          <Pressable
-            onPress={() => setShowPassword((v) => !v)}
-            style={styles.eyeButton}
-            hitSlop={8}
-            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-          >
+          <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton} hitSlop={8} accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
             <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
           </Pressable>
         </View>
@@ -172,7 +180,10 @@ export default function SignUpScreen() {
         <TextInput
           accessibilityLabel="Confirm password"
           value={confirmPassword}
-          onChangeText={(v) => { setConfirmPassword(v); setError(null); }}
+          onChangeText={(v) => {
+            setConfirmPassword(v);
+            setError(null);
+          }}
           placeholder="Repeat your password"
           placeholderTextColor={colors.mutedForeground}
           secureTextEntry={!showPassword}
@@ -180,7 +191,14 @@ export default function SignUpScreen() {
           returnKeyType="done"
           onSubmitEditing={handleSignUp}
           editable={!loading}
-          style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+          style={[
+            styles.input,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.input,
+            },
+          ]}
         />
 
         {/* Commercial age eligibility */}
@@ -188,11 +206,22 @@ export default function SignUpScreen() {
           accessibilityRole="checkbox"
           accessibilityState={{ checked: ageConfirmed }}
           accessibilityLabel="I confirm that I am 18 or older"
-          onPress={() => { setAgeConfirmed((value) => !value); setError(null); }}
+          onPress={() => {
+            setAgeConfirmed((value) => !value);
+            setError(null);
+          }}
           disabled={loading}
           style={[styles.ageConfirmRow, { borderColor: colors.border }]}
         >
-          <View style={[styles.checkbox, { borderColor: ageConfirmed ? colors.primary : colors.input, backgroundColor: ageConfirmed ? colors.primary : colors.card }]}>
+          <View
+            style={[
+              styles.checkbox,
+              {
+                borderColor: ageConfirmed ? colors.primary : colors.input,
+                backgroundColor: ageConfirmed ? colors.primary : colors.card,
+              },
+            ]}
+          >
             {ageConfirmed ? <Feather name="check" size={13} color={colors.primaryForeground} /> : null}
           </View>
           <Text style={[styles.ageConfirmText, { color: colors.foreground }]}>I confirm that I am 18 or older.</Text>
@@ -201,32 +230,20 @@ export default function SignUpScreen() {
         {/* Password hint */}
         <View style={[styles.hintRow, { backgroundColor: colors.muted }]}>
           <Feather name="shield" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-             Use at least 8 characters. Your data stays encrypted.
-          </Text>
+          <Text style={[styles.hintText, { color: colors.mutedForeground }]}>Use at least 8 characters. Your data stays encrypted.</Text>
         </View>
 
         {/* Error */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          <View accessibilityRole="alert" style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
             <Feather name="alert-circle" size={14} color={colors.destructive} />
             <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
           </View>
         )}
 
         {/* Create account */}
-        <Pressable
-          accessibilityLabel="Create account"
-          accessibilityRole="button"
-          onPress={handleSignUp}
-          disabled={loading}
-          style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.primaryForeground} />
-          ) : (
-            <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Create account</Text>
-          )}
+        <Pressable accessibilityLabel="Create account" accessibilityRole="button" onPress={handleSignUp} disabled={loading} accessibilityState={{ disabled: loading, busy: loading }} style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}>
+          {loading ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Create account</Text>}
         </Pressable>
 
         {/* Terms note */}
@@ -235,16 +252,20 @@ export default function SignUpScreen() {
           <Text
             accessibilityRole="link"
             accessibilityLabel="Open Terms of Use"
-            onPress={() => { void handleLegalLink(URLS.terms, 'Terms of Use'); }}
+            onPress={() => {
+              void handleLegalLink(URLS.terms, 'Terms of Use');
+            }}
             style={[styles.termsLink, { color: colors.primary }]}
           >
             Terms of Use
-          </Text>
-          {' '}and{' '}
+          </Text>{' '}
+          and{' '}
           <Text
             accessibilityRole="link"
             accessibilityLabel="Open Privacy Policy"
-            onPress={() => { void handleLegalLink(URLS.privacy, 'Privacy Policy'); }}
+            onPress={() => {
+              void handleLegalLink(URLS.privacy, 'Privacy Policy');
+            }}
             style={[styles.termsLink, { color: colors.primary }]}
           >
             Privacy Policy
@@ -255,7 +276,7 @@ export default function SignUpScreen() {
         {/* Sign in link */}
         <View style={styles.footerRow}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Already have an account?{'  '}</Text>
-          <Pressable onPress={() => router.back()} accessibilityLabel="Sign in">
+          <Pressable accessibilityRole="button" onPress={() => router.replace('/auth/sign-in' as any)} accessibilityLabel="Sign in">
             <Text style={[styles.footerLink, { color: colors.primary }]}>Sign in</Text>
           </Pressable>
         </View>
@@ -268,28 +289,132 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24 },
   backButton: { marginBottom: 24, alignSelf: 'flex-start' },
-  brandMark: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  heading: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7, marginBottom: 8 },
-  subheading: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginBottom: 32 },
-  fieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 7 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, fontFamily: 'Inter_400Regular', fontSize: 15, marginBottom: 16 },
+  brandMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  heading: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 28,
+    letterSpacing: -0.7,
+    marginBottom: 8,
+  },
+  subheading: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 32,
+  },
+  fieldLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 7,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    marginBottom: 16,
+  },
   passwordWrap: { position: 'relative', marginBottom: 16 },
   passwordInput: { paddingRight: 48, marginBottom: 0 },
-  eyeButton: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
-  inviteNotice: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
-  inviteNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1, lineHeight: 18 },
-  ageConfirmRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 20 },
-  checkbox: { width: 22, height: 22, borderWidth: 1.5, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  eyeButton: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  inviteNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 20,
+  },
+  inviteNoticeText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  ageConfirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 1.5,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ageConfirmText: { fontFamily: 'Inter_500Medium', fontSize: 13, flex: 1 },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 20,
+  },
   hintText: { fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
   errorText: { fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1 },
-  primaryButton: { borderRadius: 14, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', minHeight: 52, marginBottom: 16 },
+  primaryButton: {
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    marginBottom: 16,
+  },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
-  termsText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginBottom: 24 },
-  termsLink: { fontFamily: 'Inter_600SemiBold', textDecorationLine: 'underline' },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  termsText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  termsLink: {
+    fontFamily: 'Inter_600SemiBold',
+    textDecorationLine: 'underline',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   footerText: { fontFamily: 'Inter_400Regular', fontSize: 14 },
   footerLink: { fontFamily: 'Inter_700Bold', fontSize: 14 },
 });

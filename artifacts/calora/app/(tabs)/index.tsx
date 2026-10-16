@@ -426,13 +426,14 @@ function LivingRhythmCard({
 }
 
 function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void }) {
-  const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
+  const { width } = useWindowDimensions();
+  const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
   const autoScrollFrameRef = React.useRef<number | null>(null);
   const [activeRecipe, setActiveRecipe] = useState(0);
   const [carouselInteractionActive, setCarouselInteractionActive] = useState(false);
-  const pageWidth = 322;
+  const pageWidth = Math.max(240, Math.min(360, width - 72));
   const stopCarouselAnimation = () => {
     if (autoScrollFrameRef.current !== null) {
       cancelAnimationFrame(autoScrollFrameRef.current);
@@ -487,8 +488,6 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
     return () => clearTimeout(timer);
   }, [activeRecipe, carouselInteractionActive, recipes.length]);
 
-  if (isError || (!isLoading && recipes.length === 0)) return null;
-
   return (
     <View style={[styles.recipeWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.recipeWidgetHeader}>
@@ -504,6 +503,18 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
       </View>
       {isLoading ? (
         <View style={styles.recipeWidgetLoading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View>
+      ) : isError ? (
+        <View accessible accessibilityRole="alert" accessibilityLabel="Recipes could not be loaded" style={styles.recipeWidgetLoading}>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Recipes are unavailable right now.</Text>
+          <ScalePressable accessibilityLabel="Retry dashboard recipes" accessibilityState={{ busy: isFetching }} disabled={isFetching} onPress={() => { void refetch(); }} haptic="none" style={[styles.recipeWidgetRetry, { borderColor: colors.border, opacity: isFetching ? 0.65 : 1 }]}>
+            <Feather name="refresh-cw" size={14} color={colors.foreground} />
+            <Text style={[styles.recipeWidgetRetryText, { color: colors.foreground }]}>{isFetching ? 'Retrying…' : 'Retry recipes'}</Text>
+          </ScalePressable>
+        </View>
+      ) : recipes.length === 0 ? (
+        <View accessible accessibilityLiveRegion="polite" accessibilityLabel="No recipe suggestions are available" style={styles.recipeWidgetLoading}>
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>No recipe suggestions are available yet.</Text>
+        </View>
       ) : (
         <FlatList
           ref={carouselRef}
@@ -536,7 +547,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
             }
           }}
           renderItem={({ item: recipe }) => (
-            <View style={[styles.recipeWidgetCard, { backgroundColor: colors.hero }]}>
+            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: colors.hero }]}>
               <RecipeWidgetImage recipe={recipe} />
               <LinearGradient colors={['rgba(18,34,24,0.08)', 'rgba(18,34,24,0.88)']} style={StyleSheet.absoluteFillObject} />
               <View style={styles.recipeWidgetCopy}>
@@ -2139,9 +2150,9 @@ function makeStyles(f: number) {
   recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 13 },
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 8 },
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
-  recipeWidgetNavButton: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  recipeWidgetNavButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
-  recipeWidgetCard: { width: 322, height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
+  recipeWidgetCard: { height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
   recipeWidgetImageFrame: { ...StyleSheet.absoluteFillObject },
   recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
   recipeWidgetImageNotice: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: 'rgba(18,34,24,0.72)' },
@@ -2154,6 +2165,8 @@ function makeStyles(f: number) {
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   recipeWidgetLoading: { height: 146, alignItems: 'center', justifyContent: 'center', gap: 9 },
+  recipeWidgetRetry: { minHeight: 44, minWidth: 144, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 12 },
+  recipeWidgetRetryText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   loadingText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
   wellnessSection: { gap: 14, marginBottom: 28 },
   wellnessRow: { flexDirection: 'row', gap: 12 },

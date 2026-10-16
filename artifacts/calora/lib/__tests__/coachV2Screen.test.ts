@@ -101,6 +101,15 @@ describe("clean-room Coach screen", () => {
     expect(source).toContain("testID={`coach-saved-chat-${conversation.id}`}");
   });
 
+  it("clears the previous transcript before loading a selected saved chat", () => {
+    const openStart = source.indexOf("const openSavedChat = async");
+    const requestStart = source.indexOf("const conversation = await openCoachV2Conversation", openStart);
+    expect(openStart).toBeGreaterThan(-1);
+    expect(requestStart).toBeGreaterThan(openStart);
+    expect(source.slice(openStart, requestStart)).toContain("setTurns([]);");
+    expect(source).toContain("Loading your conversation…");
+  });
+
   it("lets an account delete one archived saved chat without clearing others or the active chat", () => {
     expect(source).toContain("const deleteSavedChat = async");
     expect(source).toContain("await deleteCoachV2Conversation(conversationId)");

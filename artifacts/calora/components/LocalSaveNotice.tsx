@@ -9,6 +9,7 @@ type SaveNoticeColors = {
   foreground: string;
   mutedForeground: string;
   success: string;
+  destructive?: string;
 };
 
 export function LocalSaveNotice({
@@ -20,6 +21,9 @@ export function LocalSaveNotice({
   countdownDuration,
   noMotion = false,
   bottomOffset = 91,
+  tone = 'success',
+  title,
+  actionBusy = false,
 }: {
   visible: boolean;
   message: string;
@@ -32,6 +36,12 @@ export function LocalSaveNotice({
   noMotion?: boolean;
   /** Distance above the native tab bar and system navigation area. */
   bottomOffset?: number;
+  /** Error notices remain actionable and must never claim that data is saved. */
+  tone?: 'success' | 'error';
+  /** Overrides the default save-success title for a truthful terminal state. */
+  title?: string;
+  /** Prevents duplicate execution while an asynchronous recovery is running. */
+  actionBusy?: boolean;
 }) {
   const progress = useSharedValue(0);
   const countdown = useSharedValue(1);
@@ -79,19 +89,26 @@ export function LocalSaveNotice({
   }));
 
   const showCountdown = !!countdownDuration && !noMotion;
+  const isError = tone === 'error';
+  const noticeColor = isError ? (colors.destructive ?? '#b42318') : colors.success;
 
   return (
-    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, { bottom: bottomOffset }, animatedStyle]}>
+    <Animated.View
+      pointerEvents={actionLabel && onAction ? 'auto' : 'none'}
+      accessibilityRole={isError ? 'alert' : undefined}
+      accessibilityLiveRegion="polite"
+      style={[styles.host, { bottom: bottomOffset }, animatedStyle]}
+    >
       <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={[styles.icon, { backgroundColor: colors.success }]}>
-          <Feather name="check" size={12} color="#ffffff" />
+        <View style={[styles.icon, { backgroundColor: noticeColor }]}>
+          <Feather name={isError ? 'alert-triangle' : 'check'} size={12} color="#ffffff" />
         </View>
         <View style={styles.copy}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Saved locally</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{title ?? (isError ? 'Changes need saving' : 'Saved locally')}</Text>
           <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
           {showCountdown && (
             <View style={[styles.countdownTrack, { backgroundColor: colors.border }]}>
-              <Animated.View style={[styles.countdownFill, { backgroundColor: colors.success }, countdownBarStyle]} />
+              <Animated.View style={[styles.countdownFill, { backgroundColor: noticeColor }, countdownBarStyle]} />
             </View>
           )}
         </View>
@@ -99,8 +116,10 @@ export function LocalSaveNotice({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
+            accessibilityState={{ disabled: actionBusy, busy: actionBusy }}
+            disabled={actionBusy}
             onPress={onAction}
-            style={[styles.action, { borderColor: colors.border }]}
+            style={[styles.action, { borderColor: colors.border, opacity: actionBusy ? 0.65 : 1 }]}
           >
             <Text style={[styles.actionText, { color: colors.foreground }]}>{actionLabel}</Text>
           </Pressable>

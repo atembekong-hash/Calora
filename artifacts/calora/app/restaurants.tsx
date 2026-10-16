@@ -216,6 +216,7 @@ export default function RestaurantsScreen() {
             onChangeText={setQuery}
             returnKeyType="search"
             autoCapitalize="words"
+            onSubmitEditing={() => setSearchQuery(query.trim())}
             style={[styles.searchInput, { color: colors.foreground }]}
           />
           {query ? (
@@ -256,6 +257,10 @@ export default function RestaurantsScreen() {
           <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.stateTitle, { color: colors.foreground }]}>Search could not connect</Text>
             <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>Check your connection, then try again.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry restaurant search" accessibilityState={{ busy: searchResult.isFetching }} disabled={searchResult.isFetching} onPress={() => { void searchResult.refetch(); }} style={[styles.retryButton, { borderColor: colors.border, opacity: searchResult.isFetching ? 0.65 : 1 }]}>
+              <Feather name="refresh-cw" size={14} color={colors.foreground} />
+              <Text style={[styles.retryButtonText, { color: colors.foreground }]}>{searchResult.isFetching ? 'Retrying…' : 'Retry search'}</Text>
+            </Pressable>
           </View>
         ) : statusMessage ? (
           <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -304,7 +309,6 @@ export default function RestaurantsScreen() {
       </KeyboardAwareScrollViewCompat>
 
       <BottomSheet visible={selectedFood !== null} onRequestClose={() => setSelectedFood(null)} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
-            <View style={styles.sheetHandle} />
             {detail ? (
               <KeyboardAwareScrollViewCompat
                 style={styles.detailScroll}
@@ -443,7 +447,6 @@ const styles = StyleSheet.create({
   detailSheet: { paddingHorizontal: 20, paddingTop: 10 },
   detailScroll: { flexShrink: 1, minHeight: 0 },
   detailScrollContent: { paddingBottom: 34 },
-  sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: '#c7cec8', alignSelf: 'center', marginBottom: 17 },
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },

@@ -24,6 +24,7 @@ describe('BottomSheet dismissal policy', () => {
 
     fireEvent.click(screen.getByLabelText('Close sheet'));
     expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Close sheet' })).toBeTruthy();
   });
 
   it('supports an explicit opt-out for non-dismissible pending flows', () => {
@@ -54,6 +55,7 @@ describe('BottomSheet dismissal policy', () => {
 
     fireEvent.click(screen.getByLabelText('Swipe down or activate to close sheet'));
     expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Swipe down or activate to close sheet' })).toBeTruthy();
   });
 
   it('preserves a caller-specific guarded backdrop handler', () => {

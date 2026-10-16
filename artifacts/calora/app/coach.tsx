@@ -197,6 +197,8 @@ export default function CoachScreen() {
       if (requestId !== requestIdRef.current) return;
       setTurns((current) => [...current, userTurn]);
       setComposer("");
+      // Coach intentionally uses a complete request/response exchange. Do not
+      // imply token streaming until the server contract supports it.
       const response = await sendCoachV2Message({
         message: userTurn.content,
         // `dateKey` intentionally uses the device's local calendar date rather
@@ -312,6 +314,10 @@ export default function CoachScreen() {
     const requestId = ++requestIdRef.current;
     setIsManagingChat(true);
     setIsLoadingHistory(true);
+    // A saved-chat switch is a replacement, never a continuation. Clear the
+    // prior transcript before awaiting the new request so chat A cannot be
+    // read as chat B during loading or after B fails to load.
+    setTurns([]);
     setNotice(null);
     try {
       const conversation = await openCoachV2Conversation(conversationId);
@@ -370,6 +376,7 @@ export default function CoachScreen() {
               testID="coach-new-chat"
               onPress={startNewChat}
               hitSlop={10}
+              style={styles.headerAction}
             >
               <Feather name="edit-3" size={20} color={colors.foreground} />
             </Pressable>
@@ -378,6 +385,7 @@ export default function CoachScreen() {
               testID="coach-main-menu"
               onPress={() => setMenuVisible(true)}
               hitSlop={10}
+              style={styles.headerAction}
             >
               <Feather name="menu" size={23} color={colors.foreground} />
             </Pressable>
@@ -1257,6 +1265,7 @@ const styles = StyleSheet.create({
   messageText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
   responseActions: { flexDirection: "row", gap: 8 },
   copyResponseButton: {
+    minHeight: 44,
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
@@ -1268,8 +1277,10 @@ const styles = StyleSheet.create({
   },
   copyResponseText: { fontFamily: "Inter_600SemiBold", fontSize: 10 },
   reportReasonButton: {
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 8,
   },
@@ -1338,7 +1349,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerAction: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   menuOverlay: { flex: 1, flexDirection: "row" },
   menuBackdrop: { flex: 1, backgroundColor: "rgba(8,22,15,0.46)" },
   menuSheet: {
@@ -1361,9 +1379,9 @@ const styles = StyleSheet.create({
   menuSubtitle: { fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 3 },
   menuScrollContent: { paddingBottom: 4 },
   menuClose: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1398,8 +1416,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   deleteSavedChatButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -1455,7 +1473,7 @@ const styles = StyleSheet.create({
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 20 },
   confirmButton: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",

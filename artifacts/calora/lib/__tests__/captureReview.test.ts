@@ -660,7 +660,7 @@ describe('accessibility labels — static invariants', () => {
 
   it('auto-starts Voice when opened from the Add Food card and falls back to editable text', () => {
     expect(scanSource).toContain("capture?: string");
-    expect(scanSource).toContain("params.capture === 'voice'");
+    expect(scanSource).toContain("params.capture !== 'voice'");
     expect(scanSource).toContain("setTextEntryKind('voice')");
     expect(scanSource).toContain("setShowTextEntry(true)");
     expect(scanSource).toContain('voicePendingAfterCameraPermission');

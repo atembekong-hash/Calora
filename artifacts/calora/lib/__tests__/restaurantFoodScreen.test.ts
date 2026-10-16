@@ -20,4 +20,12 @@ describe('restaurant category illustration screen integration', () => {
     expect(restaurantsScreen).toContain("imageSource: 'restaurant_representative'");
     expect(restaurantsScreen).toContain('RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL');
   });
+
+  it('keeps transient search failures actionable without duplicating the shared sheet handle', () => {
+    expect(restaurantsScreen).toContain('accessibilityLabel="Retry restaurant search"');
+    expect(restaurantsScreen).toContain('void searchResult.refetch();');
+    expect(restaurantsScreen).toContain('onSubmitEditing={() => setSearchQuery(query.trim())}');
+    expect(restaurantsScreen).not.toContain('styles.sheetHandle');
+    expect(restaurantsScreen).not.toContain('sheetHandle:');
+  });
 });
