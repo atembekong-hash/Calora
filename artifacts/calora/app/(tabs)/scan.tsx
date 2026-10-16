@@ -177,10 +177,6 @@ export default function ScanScreen() {
   const barcodeLaunchRequested = useRef(false);
   const barcodeSequenceRef = useRef(0);
   const barcodeLockRef = useRef<{ barcode: string; sequence: number } | null>(null);
-  // Auto uses camera barcode detection as a hint, not as a terminal result.
-  // A false/partial barcode must not prevent the captured image from reaching
-  // the working food-vision path.
-  const autoBarcodeHintRef = useRef<string | null>(null);
   // Set before native calls so synchronous Android lifecycle and barcode
   // callbacks cannot race React state commits for a manual photo flow.
   const manualPhotoCaptureRef = useRef(false);
@@ -189,7 +185,6 @@ export default function ScanScreen() {
   const resetBarcodeCapture = () => {
     barcodeSequenceRef.current += 1;
     barcodeLockRef.current = null;
-    autoBarcodeHintRef.current = null;
     setHasScanned(false);
   };
 
@@ -568,35 +563,33 @@ export default function ScanScreen() {
     if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy || mode === 'food' || mode === 'label') return;
     const barcode = result.data?.trim();
     if (!barcode) return;
-    if (mode === 'auto') {
-      // Do not submit from the preview callback. Auto must retain the image so
-      // an unmatched barcode can fall through to food-photo analysis.
-      autoBarcodeHintRef.current = barcode;
-      return;
-    }
     const sequence = ++barcodeSequenceRef.current;
     // Camera callbacks can repeat synchronously before React commits state.
-    // Claim the sequence in a ref first, then update visible state.
+    // Claim the sequence first. In Auto, retain a native photo so unmatched
+    // codes can fall through to the existing reviewed photo-estimate path.
     barcodeLockRef.current = { barcode, sequence };
+    if (mode === 'auto') {
+      void takePhoto(barcode, sequence);
+      return;
+    }
     setHasScanned(true);
     void submitAnalysis({ mode, barcode }, undefined, sequence);
   };
 
-  const takePhoto = async () => {
+  const takePhoto = async (detectedBarcode?: string, barcodeSequence?: number) => {
     if (captureBusy) return;
     manualPhotoCaptureRef.current = true;
-    // A previous Auto frame may have produced an unmatched hint. It must not
-    // be reused for this new deliberate photo capture.
-    autoBarcodeHintRef.current = null;
     if (!permission?.granted) {
       const operationId = beginCaptureOperation('preparing');
       failCaptureOperation(operationId, cameraError('Camera permission is required before taking a photo.'));
+      if (barcodeSequence !== undefined) resetBarcodeCapture();
       manualPhotoCaptureRef.current = false;
       return;
     }
     if (!cameraRef.current || !cameraReady) {
       const operationId = beginCaptureOperation('preparing');
       failCaptureOperation(operationId, cameraError('The camera is still starting. Wait for the preview, then try again.'));
+      if (barcodeSequence !== undefined) resetBarcodeCapture();
       manualPhotoCaptureRef.current = false;
       return;
     }
@@ -636,12 +629,13 @@ export default function ScanScreen() {
       const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' || mode === 'barcode' ? 'auto' : 'food';
       await submitAnalysis({
         mode: captureMode,
-        ...(captureMode === 'auto' && autoBarcodeHintRef.current ? { barcode: autoBarcodeHintRef.current } : {}),
+        ...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),
         imageBase64: prepared.base64,
         imageMimeType: prepared.mimeType,
-      }, operationId);
+      }, operationId, barcodeSequence);
     } catch (error) {
       failCaptureOperation(operationId, error);
+      if (barcodeSequence !== undefined) resetBarcodeCapture();
     } finally {
       manualPhotoCaptureRef.current = false;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
@@ -686,7 +680,6 @@ export default function ScanScreen() {
       const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : mode === 'auto' ? 'auto' : 'food');
       await submitAnalysis({
         mode: captureMode,
-        ...(captureMode === 'auto' && autoBarcodeHintRef.current ? { barcode: autoBarcodeHintRef.current } : {}),
         imageBase64: prepared.base64,
         imageMimeType: prepared.mimeType,
       }, operationId);
