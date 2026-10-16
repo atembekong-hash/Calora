@@ -390,11 +390,38 @@ export async function deleteCoachV2Conversation(
   }
 }
 
-export async function clearCoachV2Conversation(userId: string): Promise<void> {
-  await pool.query(
-    `DELETE FROM calora_coach_v2_conversations WHERE user_id = $1::uuid`,
-    [userId],
-  );
+export async function clearCoachV2Conversation(userId: string): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await lockCoachV2ConversationUser(client, userId);
+    const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+           FROM calora_coach_v2_turns AS turns
+           INNER JOIN calora_coach_v2_conversations AS conversations
+             ON conversations.id = turns.conversation_id
+          WHERE conversations.user_id = $1::uuid
+            AND turns.assistant_message IS NULL
+       ) AS has_pending_turn`,
+      [userId],
+    );
+    if (pendingTurn.rows[0]?.has_pending_turn) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    await client.query(
+      `DELETE FROM calora_coach_v2_conversations WHERE user_id = $1::uuid`,
+      [userId],
+    );
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function startCoachV2Turn(

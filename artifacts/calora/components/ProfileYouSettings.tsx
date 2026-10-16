@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View, StyleSheet } from 'react-native';
 import type { ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -41,9 +41,27 @@ export function ProfileYouSettings({
   const [pendingPersonal, setPendingPersonal] = useState<Pick<Profile, 'age' | 'heightCm' | 'weightKg' | 'targetWeightKg' | 'activity' | 'diet' | 'goal'> | null>(null);
   const [personal, setPersonal] = useState<PersonalForm>({ age: '', height: '', weight: '', targetWeight: '', activity: 'moderate', diet: 'Everything', goal: 'maintain' });
   const [macro, setMacro] = useState<MacroGoalInput>({ calories: '', protein: '', carbs: '', fat: '' });
+  const saveInFlightRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const units = profile?.units ?? 'metric';
   const automaticTargetsAllowed = canUseAutomaticTargets(profile);
   const targetMode = automaticTargetsAllowed ? profileTargetMode(profile) : 'custom';
+
+  const saveProfileUpdate = async (operation: () => Promise<void>) => {
+    if (saveInFlightRef.current) return false;
+    saveInFlightRef.current = true;
+    setIsSaving(true);
+    try {
+      await operation();
+      return true;
+    } catch {
+      setError('Your changes are waiting to be saved. Check device storage and retry.');
+      return false;
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSaving(false);
+    }
+  };
 
   const openPersonal = () => {
     if (!profile) return;
@@ -66,7 +84,7 @@ export function ProfileYouSettings({
     setChoiceOpen(true);
   };
   const finishPersonal = async (applyRecommendation: boolean) => {
-    if (!pendingPersonal) return;
+    if (!pendingPersonal || saveInFlightRef.current) return;
     // Keeping targets freezes them as custom values; otherwise a later
     // recommendation refresh could change a target the person chose to keep.
     const patch: Partial<Profile> = { ...pendingPersonal, targetMode: 'custom' };
@@ -77,45 +95,37 @@ export function ProfileYouSettings({
       patch.carbsTargetGrams = undefined;
       patch.fatTargetGrams = undefined;
     }
-    try {
-      await updateProfile(patch);
-    } catch {
-      setError('Your changes are waiting to be saved. Check device storage and retry.');
-      return;
-    }
+    if (!(await saveProfileUpdate(() => updateProfile(patch)))) return;
     setPendingPersonal(null); setChoiceOpen(false);
   };
   const saveCustomTargets = async () => {
+    if (saveInFlightRef.current) return;
     const result = validateMacroGoalInput(macro);
     if (!result.ok) { setError(result.message); return; }
-    try {
-      await updateProfile({
+    if (!(await saveProfileUpdate(() => updateProfile({
         calorieTarget: result.values.calories, proteinTargetGrams: result.values.protein,
         carbsTargetGrams: result.values.carbs, fatTargetGrams: result.values.fat, targetMode: 'custom',
-      });
-    } catch {
-      setError('Your changes are waiting to be saved. Check device storage and retry.');
-      return;
-    }
+      })))) return;
     setNutritionOpen(false);
   };
   const resetRecommendations = async () => {
-    if (!profile) return;
-    try {
+    if (!profile || saveInFlightRef.current) return;
+    const saved = await saveProfileUpdate(async () => {
       if (!canUseAutomaticTargets(profile)) {
         await updateProfile({ targetMode: 'custom' });
-        setNutritionOpen(false);
         return;
       }
       await updateProfile({
         calorieTarget: recommendationForProfile(profile), targetMode: 'automatic',
         proteinTargetGrams: undefined, carbsTargetGrams: undefined, fatTargetGrams: undefined,
       });
-    } catch {
-      setError('Your changes are waiting to be saved. Check device storage and retry.');
-      return;
-    }
+    });
+    if (!saved) return;
     setNutritionOpen(false);
+  };
+
+  const setCustomMode = () => {
+    void saveProfileUpdate(() => updateProfile({ targetMode: 'custom' }));
   };
 
   return (
@@ -148,8 +158,8 @@ export function ProfileYouSettings({
           <OptionGroup label="Activity level" items={activities} value={personal.activity} onChange={(activity) => setPersonal({ ...personal, activity })} colors={themeColors} />
           <OptionGroup label="Goal" items={goals} value={personal.goal} onChange={(goal) => setPersonal({ ...personal, goal })} colors={themeColors} />
           <OptionGroup label="Diet" items={diets.map((key) => ({ key, label: key }))} value={personal.diet} onChange={(diet) => setPersonal({ ...personal, diet })} colors={themeColors} />
-          {!!error && <Text style={[styles.error, { color: themeColors.destructive }]}>{error}</Text>}
-          <Pressable onPress={continuePersonal} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Continue</Text></Pressable>
+          {!!error && <Text accessibilityRole="alert" style={[styles.error, { color: themeColors.destructive }]}>{error}</Text>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Continue personal details" accessibilityState={{ disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={continuePersonal} style={[styles.primary, { backgroundColor: themeColors.primary, opacity: isSaving ? 0.65 : 1 }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>{isSaving ? 'Saving…' : 'Continue'}</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
       </BottomSheet>
 
@@ -157,8 +167,8 @@ export function ProfileYouSettings({
         <View style={styles.sheet}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Update nutrition targets?</Text>
           <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{pendingPersonal && !canUseAutomaticTargets(pendingPersonal) ? 'For users under 18, Calora does not calculate automatic calorie targets. Keep the current targets or set custom targets in Nutrition goals.' : `Your details changed. Keep your existing targets, or apply a new starting estimate of ${pendingPersonal ? `${formatWhole(recommendationForProfile(pendingPersonal))} kcal/day` : ''}.`}</Text>
-          {pendingPersonal && canUseAutomaticTargets(pendingPersonal) && <Pressable testID="apply-updated-recommendations" onPress={() => { void finishPersonal(true); }} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Apply updated recommendations</Text></Pressable>}
-          <Pressable testID="keep-current-targets" onPress={() => { void finishPersonal(false); }} style={styles.secondary}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>Keep current targets</Text></Pressable>
+          {pendingPersonal && canUseAutomaticTargets(pendingPersonal) && <Pressable testID="apply-updated-recommendations" accessibilityRole="button" accessibilityState={{ disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={() => { void finishPersonal(true); }} style={[styles.primary, { backgroundColor: themeColors.primary, opacity: isSaving ? 0.65 : 1 }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>{isSaving ? 'Saving…' : 'Apply updated recommendations'}</Text></Pressable>}
+          <Pressable testID="keep-current-targets" accessibilityRole="button" accessibilityState={{ disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={() => { void finishPersonal(false); }} style={[styles.secondary, { opacity: isSaving ? 0.65 : 1 }]}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>{isSaving ? 'Saving…' : 'Keep current targets'}</Text></Pressable>
         </View>
       </BottomSheet>
 
@@ -166,7 +176,7 @@ export function ProfileYouSettings({
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheet} bottomOffset={72}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Nutrition goals</Text>
           <View style={[styles.mode, { backgroundColor: themeColors.muted }]}>
-            {(['automatic', 'custom'] as const).filter((mode) => mode === 'custom' || automaticTargetsAllowed).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => { if (mode === 'automatic') void resetRecommendations(); else void updateProfile({ targetMode: 'custom' }).catch(() => setError('Your changes are waiting to be saved. Check device storage and retry.')); }} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
+            {(['automatic', 'custom'] as const).filter((mode) => mode === 'custom' || automaticTargetsAllowed).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode, disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={() => { if (mode === 'automatic') void resetRecommendations(); else setCustomMode(); }} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }, isSaving && { opacity: 0.65 }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
           </View>
           <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? `Based on your details: ${profile ? formatWhole(recommendationForProfile(profile)) : 2000} kcal/day.` : automaticTargetsAllowed ? 'Set each target independently; grams do not need to match calories.' : 'Automatic calorie recommendations are unavailable for users under 18. Set targets with a parent, guardian, or qualified professional.'}</Text>
           {targetMode === 'custom' && <><View style={styles.fields}>
@@ -174,8 +184,8 @@ export function ProfileYouSettings({
             <Field label="Protein (g)" value={macro.protein} setValue={(protein) => setMacro({ ...macro, protein })} colors={themeColors} />
             <Field label="Carbs (g)" value={macro.carbs} setValue={(carbs) => setMacro({ ...macro, carbs })} colors={themeColors} />
             <Field label="Fat (g)" value={macro.fat} setValue={(fat) => setMacro({ ...macro, fat })} colors={themeColors} />
-          </View>{!!error && <Text style={[styles.error, { color: themeColors.destructive }]}>{error}</Text>}<Pressable onPress={saveCustomTargets} style={[styles.primary, { backgroundColor: themeColors.primary }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>Save custom targets</Text></Pressable></>}
-          <Pressable testID="reset-nutrition-recommendations" onPress={resetRecommendations} style={styles.secondary}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>Reset to recommendations</Text></Pressable>
+          </View>{!!error && <Text accessibilityRole="alert" style={[styles.error, { color: themeColors.destructive }]}>{error}</Text>}<Pressable accessibilityRole="button" accessibilityState={{ disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={saveCustomTargets} style={[styles.primary, { backgroundColor: themeColors.primary, opacity: isSaving ? 0.65 : 1 }]}><Text style={[styles.primaryText, { color: themeColors.primaryForeground }]}>{isSaving ? 'Saving…' : 'Save custom targets'}</Text></Pressable></>}
+          <Pressable testID="reset-nutrition-recommendations" accessibilityRole="button" accessibilityState={{ disabled: isSaving, busy: isSaving }} disabled={isSaving} onPress={resetRecommendations} style={[styles.secondary, { opacity: isSaving ? 0.65 : 1 }]}><Text style={[styles.secondaryText, { color: themeColors.foreground }]}>{isSaving ? 'Saving…' : 'Reset to recommendations'}</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
       </BottomSheet>
     </>

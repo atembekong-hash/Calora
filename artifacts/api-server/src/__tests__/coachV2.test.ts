@@ -125,7 +125,7 @@ describe("clean-room Coach V2", () => {
     listCoachV2Conversations.mockResolvedValue([]);
     openCoachV2Conversation.mockResolvedValue(true);
     setCoachV2Settings.mockResolvedValue({ personalizationEnabled: false });
-    clearCoachV2Conversation.mockResolvedValue(undefined);
+    clearCoachV2Conversation.mockResolvedValue(true);
     deleteCoachV2Conversation.mockResolvedValue("deleted");
     startNewCoachV2Conversation.mockResolvedValue(true);
     startCoachV2Turn.mockResolvedValue({
@@ -436,6 +436,19 @@ describe("clean-room Coach V2", () => {
     expect(history.status).toBe(200);
     expect(history.body.turns).toHaveLength(1);
     expect(cleared.status).toBe(204);
+    expect(clearCoachV2Conversation).toHaveBeenCalledWith("internal-user-id");
+  });
+
+  it("does not clear an account conversation while a Coach reply is pending", async () => {
+    verifyBearerToken.mockResolvedValue({ id: "external-user", email: null });
+    clearCoachV2Conversation.mockResolvedValueOnce(false);
+
+    const cleared = await request(app())
+      .delete("/v1/coach/v2/conversation")
+      .set("Authorization", "Bearer valid");
+
+    expect(cleared.status).toBe(409);
+    expect(cleared.body.message).toMatch(/wait for Coach to finish replying/i);
     expect(clearCoachV2Conversation).toHaveBeenCalledWith("internal-user-id");
   });
 

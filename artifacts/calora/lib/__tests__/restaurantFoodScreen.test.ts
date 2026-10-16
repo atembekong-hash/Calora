@@ -28,4 +28,10 @@ describe('restaurant category illustration screen integration', () => {
     expect(restaurantsScreen).not.toContain('styles.sheetHandle');
     expect(restaurantsScreen).not.toContain('sheetHandle:');
   });
+
+  it('keeps an unavailable Restaurant provider retryable without changing the current search', () => {
+    expect(restaurantsScreen).toContain('accessibilityLabel="Retry restaurant provider"');
+    expect(restaurantsScreen).toContain("statusMessage ? (");
+    expect(restaurantsScreen).toContain("Retry provider");
+  });
 });

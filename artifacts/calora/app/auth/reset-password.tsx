@@ -165,7 +165,7 @@ export default function ResetPasswordScreen() {
             />
 
             {error && (
-              <View style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <View accessibilityRole="alert" style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <Feather name="alert-circle" size={14} color={colors.destructive} />
                 <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
               </View>
@@ -176,6 +176,7 @@ export default function ResetPasswordScreen() {
               accessibilityRole="button"
               onPress={handleUpdate}
               disabled={loading}
+              accessibilityState={{ disabled: loading, busy: loading }}
               style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
             >
               {loading

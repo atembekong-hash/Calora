@@ -90,9 +90,12 @@ export default function ForgotPasswordScreen() {
               </Text>
             </View>
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.replace('/auth/sign-in' as any)}
               style={[styles.primaryButton, { backgroundColor: colors.primary }]}
               accessibilityLabel="Back to sign in"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loading, busy: loading }}
+              disabled={loading}
             >
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Back to sign in</Text>
             </Pressable>
@@ -101,6 +104,8 @@ export default function ForgotPasswordScreen() {
               disabled={loading}
               style={styles.resendButton}
               accessibilityLabel="Resend reset email"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loading, busy: loading }}
             >
               {loading
                 ? <ActivityIndicator size="small" color={colors.primary} />
@@ -136,7 +141,7 @@ export default function ForgotPasswordScreen() {
             />
 
             {error && (
-              <View style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <View accessibilityRole="alert" style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 <Feather name="alert-circle" size={14} color={colors.destructive} />
                 <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
               </View>
@@ -147,6 +152,7 @@ export default function ForgotPasswordScreen() {
               accessibilityRole="button"
               onPress={handleSend}
               disabled={loading}
+              accessibilityState={{ disabled: loading, busy: loading }}
               style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
             >
               {loading
@@ -156,7 +162,13 @@ export default function ForgotPasswordScreen() {
 
             <View style={styles.footerRow}>
                <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Remembered it?{'  '}</Text>
-              <Pressable onPress={() => router.back()} accessibilityLabel="Back to sign in">
+              <Pressable
+                onPress={() => router.replace('/auth/sign-in' as any)}
+                accessibilityLabel="Back to sign in"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: loading, busy: loading }}
+                disabled={loading}
+              >
                 <Text style={[styles.footerLink, { color: colors.primary }]}>Sign in</Text>
               </Pressable>
             </View>
