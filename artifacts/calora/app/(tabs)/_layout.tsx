@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { motion } from '@/constants/tokens';
 import { getRootAccessGateState } from '@/lib/rootAccessGate';
 
@@ -26,9 +27,16 @@ function AnimatedTabIcon({ focused, children }: { focused: boolean; children: Re
 
 function ClassicTabLayout() {
   const { colors, mode } = useCalora();
+  const insets = useSafeAreaInsets();
   const isDark = mode === 'dark';
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+  // The raised Scan button contains both a 62dp circle and a text label.
+  // Android's default 56dp bar cannot contain that layout, which pushed the
+  // label below the system navigation area on edge-to-edge devices. Keep a
+  // single, inset-aware native bar height so every sibling label and the
+  // custom Scan label remain in the touchable, visible application viewport.
+  const tabBarHeight = isWeb ? 84 : Math.max(88, 56 + insets.bottom);
 
   return (
     <Tabs
@@ -43,8 +51,11 @@ function ClassicTabLayout() {
           borderTopWidth: isWeb ? 1 : 0,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: tabBarHeight,
+          paddingTop: isWeb ? 0 : 4,
+          paddingBottom: isWeb ? 0 : Math.max(insets.bottom, 4),
         },
+        tabBarItemStyle: styles.tabBarItem,
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
@@ -100,7 +111,10 @@ function ClassicTabLayout() {
               testID={props.testID}
               onPress={props.onPress}
               onLongPress={props.onLongPress}
-              style={[styles.scanTabButton, props.style]}
+              // Navigator item styles may include the platform's compact
+              // default height. Apply the Scan geometry last so it cannot be
+              // compressed into the Android system-navigation area.
+              style={[props.style, styles.scanTabButton]}
             >
               <View style={[styles.scanTabCircle, { backgroundColor: colors.primary, borderColor: colors.background }]}>
                 <Feather name="camera" size={24} color={colors.primaryForeground} />
@@ -141,12 +155,15 @@ const styles = StyleSheet.create({
   bootstrap: {
     flex: 1,
   },
+  tabBarItem: {
+    minHeight: 44,
+  },
   scanTabButton: {
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 72,
-    height: 84,
-    marginTop: -18,
+    height: 88,
+    marginTop: -24,
   },
   scanTabCircle: {
     width: 62,
