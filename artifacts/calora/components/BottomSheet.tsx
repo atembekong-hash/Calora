@@ -65,6 +65,7 @@ export function BottomSheetFrame({
     <View style={[styles.backdrop, { backgroundColor: overlayColor }]}>
       {onBackdropPress ? (
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Close sheet"
           onPress={onBackdropPress}
           style={StyleSheet.absoluteFill}
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'stretch',
     justifyContent: 'center',
-    minHeight: 28,
+    minHeight: 44,
   },
   handle: {
     backgroundColor: 'rgba(90, 102, 94, 0.48)',

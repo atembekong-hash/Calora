@@ -28,4 +28,13 @@ describe('Plan diary logging contract', () => {
     expect(acceptanceBlock.indexOf('setPlannerReviewDraftId(null)')).toBeGreaterThan(acceptanceBlock.indexOf('if (!acceptedLog)'));
     expect(acceptanceBlock.indexOf("acknowledge('Added to diary.')")).toBeGreaterThan(acceptanceBlock.indexOf('setPlannerReviewDraftId(null)'));
   });
+
+  it('shows an actionable error instead of save success when local persistence fails', () => {
+    expect(plannerSource).toContain('persistenceError, retryPersistence');
+    expect(plannerSource).toContain("title={persistenceError ? 'Plan changes not saved' : undefined}");
+    expect(plannerSource).toContain("tone={persistenceError ? 'error' : 'success'}");
+    expect(plannerSource).toContain("actionLabel={persistenceError ? (retryingPersistence ? 'Retrying…' : 'Retry')");
+    expect(plannerSource).toContain('await retryPersistence();');
+    expect(plannerSource).toContain("acknowledge('Your Plan is saved on this device.')");
+  });
 });

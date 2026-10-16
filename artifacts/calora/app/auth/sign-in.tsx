@@ -16,18 +16,7 @@
 
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
@@ -45,11 +34,10 @@ export default function SignInScreen() {
   // Read an explicit authError param passed by the OAuth callback (non-cancelled
   // failures only). A cancelled redirect arrives with no params, so this will be
   // undefined and the screen renders clean.
-  const { authError: authErrorParam } = useLocalSearchParams<{ authError?: string }>();
-  const initialError =
-    authErrorParam && authErrorParam !== 'cancelled'
-      ? getSafeAuthErrorMessage(authErrorParam)
-      : null;
+  const { authError: authErrorParam } = useLocalSearchParams<{
+    authError?: string;
+  }>();
+  const initialError = authErrorParam && authErrorParam !== 'cancelled' ? getSafeAuthErrorMessage(authErrorParam) : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,28 +93,16 @@ export default function SignInScreen() {
   const isDisabled = loading !== null;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader back title="Sign in" />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingTop: 24, paddingBottom: insets.bottom + 32 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 24, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {/* Brand mark */}
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
           <Feather name="sun" size={22} color={colors.primaryForeground} />
         </View>
 
         <Text style={[styles.heading, { color: colors.foreground }]}>Welcome back</Text>
-        <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Sign in to sync your progress.
-        </Text>
+        <Text style={[styles.subheading, { color: colors.mutedForeground }]}>Sign in to sync your progress.</Text>
 
         {/* ── Google ── */}
         <Pressable
@@ -134,9 +110,17 @@ export default function SignInScreen() {
           accessibilityRole="button"
           onPress={handleGoogle}
           disabled={isDisabled}
+          accessibilityState={{
+            disabled: isDisabled,
+            busy: loading === 'google',
+          }}
           style={[
             styles.googleButton,
-            { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.7 : 1 },
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: isDisabled ? 0.7 : 1,
+            },
           ]}
         >
           {loading === 'google' ? (
@@ -144,9 +128,7 @@ export default function SignInScreen() {
           ) : (
             <>
               <GoogleLogo />
-              <Text style={[styles.googleButtonText, { color: colors.foreground }]}>
-                Continue with Google
-              </Text>
+              <Text style={[styles.googleButtonText, { color: colors.foreground }]}>Continue with Google</Text>
             </>
           )}
         </Pressable>
@@ -163,7 +145,10 @@ export default function SignInScreen() {
         <TextInput
           accessibilityLabel="Email address"
           value={email}
-          onChangeText={(v) => { setEmail(v); setError(null); }}
+          onChangeText={(v) => {
+            setEmail(v);
+            setError(null);
+          }}
           placeholder="you@example.com"
           placeholderTextColor={colors.mutedForeground}
           keyboardType="email-address"
@@ -174,7 +159,11 @@ export default function SignInScreen() {
           editable={!isDisabled}
           style={[
             styles.input,
-            { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input },
+            {
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.input,
+            },
           ]}
         />
 
@@ -183,7 +172,10 @@ export default function SignInScreen() {
           <TextInput
             accessibilityLabel="Password"
             value={password}
-            onChangeText={(v) => { setPassword(v); setError(null); }}
+            onChangeText={(v) => {
+              setPassword(v);
+              setError(null);
+            }}
             placeholder="Your password"
             placeholderTextColor={colors.mutedForeground}
             secureTextEntry={!showPassword}
@@ -194,31 +186,26 @@ export default function SignInScreen() {
             style={[
               styles.input,
               styles.passwordInput,
-              { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input },
+              {
+                color: colors.foreground,
+                backgroundColor: colors.card,
+                borderColor: colors.input,
+              },
             ]}
           />
-          <Pressable
-            onPress={() => setShowPassword((v) => !v)}
-            style={styles.eyeButton}
-            hitSlop={8}
-            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-          >
+          <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton} hitSlop={8} accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
             <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
           </Pressable>
         </View>
 
         {/* Forgot password */}
-        <Pressable
-          onPress={() => router.push('/auth/forgot-password' as any)}
-          style={styles.forgotRow}
-          accessibilityLabel="Forgot password"
-        >
+        <Pressable onPress={() => router.push('/auth/forgot-password' as any)} style={styles.forgotRow} accessibilityLabel="Forgot password">
           <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
         </Pressable>
 
         {/* Error */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          <View accessibilityRole="alert" style={[styles.errorBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
             <Feather name="alert-circle" size={14} color={colors.destructive} />
             <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
           </View>
@@ -230,27 +217,19 @@ export default function SignInScreen() {
           accessibilityRole="button"
           onPress={handleEmailSignIn}
           disabled={isDisabled}
-          style={[
-            styles.primaryButton,
-            { backgroundColor: colors.primary, opacity: isDisabled ? 0.7 : 1 },
-          ]}
+          accessibilityState={{
+            disabled: isDisabled,
+            busy: loading === 'email',
+          }}
+          style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: isDisabled ? 0.7 : 1 }]}
         >
-          {loading === 'email' ? (
-            <ActivityIndicator size="small" color={colors.primaryForeground} />
-          ) : (
-            <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in</Text>
-          )}
+          {loading === 'email' ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in</Text>}
         </Pressable>
 
         {/* Create account */}
         <View style={styles.footerRow}>
-          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-            New here?{'  '}
-          </Text>
-          <Pressable
-            onPress={() => router.push('/auth/sign-up' as any)}
-            accessibilityLabel="Create a new account"
-          >
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>New here?{'  '}</Text>
+          <Pressable onPress={() => router.push('/auth/sign-up' as any)} accessibilityLabel="Create a new account">
             <Text style={[styles.footerLink, { color: colors.primary }]}>Create account</Text>
           </Pressable>
         </View>
@@ -270,7 +249,16 @@ function GoogleLogo() {
 }
 
 const googleStyles = StyleSheet.create({
-  container: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e0e0e0' },
+  container: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
   g: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#4285F4' },
 });
 
@@ -282,61 +270,103 @@ const styles = StyleSheet.create({
   backButton: { marginBottom: 24, alignSelf: 'flex-start' },
 
   brandMark: {
-    width: 52, height: 52, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
   },
-  heading: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7, marginBottom: 8 },
-  subheading: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginBottom: 32 },
+  heading: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 28,
+    letterSpacing: -0.7,
+    marginBottom: 8,
+  },
+  subheading: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 32,
+  },
 
   googleButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, borderWidth: 1, borderRadius: 14,
-    paddingVertical: 15, marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 24,
     minHeight: 52,
   },
   googleButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontFamily: 'Inter_400Regular', fontSize: 13 },
 
   fieldLabel: {
-    fontFamily: 'Inter_700Bold', fontSize: 9,
-    letterSpacing: 1.2, textTransform: 'uppercase',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
     marginBottom: 7,
   },
   input: {
-    borderWidth: 1, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
-    fontFamily: 'Inter_400Regular', fontSize: 15,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
     marginBottom: 16,
   },
   passwordWrap: { position: 'relative', marginBottom: 4 },
   passwordInput: { paddingRight: 48, marginBottom: 0 },
   eyeButton: {
-    position: 'absolute', right: 14, top: 0, bottom: 0,
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
   },
   forgotRow: { alignSelf: 'flex-end', marginBottom: 20, marginTop: 10 },
   forgotText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
 
   errorBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 16,
   },
   errorText: { fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1 },
 
   primaryButton: {
-    borderRadius: 14, paddingVertical: 15,
-    alignItems: 'center', justifyContent: 'center',
-    minHeight: 52, marginBottom: 28,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    marginBottom: 28,
   },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
 
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   footerText: { fontFamily: 'Inter_400Regular', fontSize: 14 },
   footerLink: { fontFamily: 'Inter_700Bold', fontSize: 14 },
 });

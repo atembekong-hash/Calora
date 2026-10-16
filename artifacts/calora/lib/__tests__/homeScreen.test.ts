@@ -596,4 +596,23 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).not.toContain('Meals logged');
     expect(source).not.toContain('wellness-add-meal-button');
   });
+
+  it('keeps dashboard recipe failures and empty results visible and recoverable', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const widget = source.slice(
+      source.indexOf('function RecipeSwipeWidget'),
+      source.indexOf('const moodOptions'),
+    );
+
+    expect(widget).not.toContain('if (isError || (!isLoading && recipes.length === 0)) return null;');
+    expect(widget).toContain('accessibilityLabel="Retry dashboard recipes"');
+    expect(widget).toContain('accessibilityRole="alert"');
+    expect(widget).toContain('const pageWidth = Math.max(240, Math.min(360, width - 72));');
+    expect(widget).toContain('width: pageWidth');
+  });
 });

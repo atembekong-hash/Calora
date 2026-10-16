@@ -279,7 +279,8 @@ describe('planner identity', () => {
     expect(source).toContain('PROGRAM UNAVAILABLE');
     expect(source).toContain('planner-program-detail-${programDetail.id}-${plannerDiet}-${meal.id}');
     expect(source).toContain('planner-program-selector-${pt.id}-${plannerDiet}-${heroMeal.id}');
-    expect(source).toContain("disabled={detailPreview?.status === 'unavailable'}");
+    expect(source).toContain("disabled={detailPreview?.status === 'unavailable' || generating}");
+    expect(source).toContain('busy: generating');
   });
 
   it('preserves local calendar week dates', () => {

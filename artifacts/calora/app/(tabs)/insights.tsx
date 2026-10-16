@@ -2432,6 +2432,8 @@ export default function InsightsScreen() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
+              accessibilityLabel={`Target weight in ${weightUnitLabel(weightUnit)}`}
+              accessibilityHint={`Enter a positive target weight in ${weightUnitLabel(weightUnit)}`}
               value={goalInput}
               onChangeText={(value) => { setGoalInput(normalizeWholeNumberInput(value)); if (goalError) setGoalError(''); }}
               keyboardType="number-pad"
@@ -2475,6 +2477,8 @@ export default function InsightsScreen() {
               {editEntry ? `${new Date(editEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · fix the value below.` : ''}
             </Text>
             <TextInput
+              accessibilityLabel={`Edit weight in ${weightUnitLabel(weightUnit)}`}
+              accessibilityHint={`Enter a valid ${weightUnitLabel(weightUnit)} measurement`}
               value={editInput}
               onChangeText={(text) => {
                 setEditInput(normalizeWholeNumberInput(text));

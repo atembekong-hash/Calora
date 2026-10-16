@@ -243,6 +243,7 @@ export default function ScanScreen() {
   const mountedRef = useRef(true);
   const retryInputRef = useRef<{ input: CaptureAnalyzeInput; previewUri: string | null } | null>(null);
   const voiceCaptureInFlight = useRef(false);
+  const voicePermissionRequestInFlight = useRef(false);
   const voiceRecordingRef = useRef<Audio.Recording | null>(null);
   const voiceStopResolverRef = useRef<(() => void) | null>(null);
   const voiceStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -267,6 +268,8 @@ export default function ScanScreen() {
       void voiceRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined).finally(() => voiceStopResolverRef.current?.());
       voiceStopResolverRef.current = null;
       voiceRecordingRef.current = null;
+      voicePendingAfterCameraPermission.current = false;
+      voicePermissionRequestInFlight.current = false;
       void deleteOwnedCaptureArtifacts(FileSystem, ownedCaptureArtifactsRef.current);
       ownedCaptureArtifactsRef.current.clear();
     };
@@ -487,14 +490,29 @@ export default function ScanScreen() {
     void recordVoice();
   }, [voiceRecording]);
 
-  const startVoiceCapture = async () => {
+  const startVoiceCapture = async (fromRoute = false) => {
     if (Platform.OS === 'web') {
+      voicePendingAfterCameraPermission.current = false;
       setAltCaptureBanner('Voice recording is available in the mobile app. Type your meal instead.');
       setTextEntryKind('voice');
       setShowTextEntry(true);
       return;
     }
-    const granted = microphonePermission?.granted || (await requestMicrophonePermission()).granted;
+    if (voicePermissionRequestInFlight.current || voiceRecording || voiceCaptureInFlight.current) return;
+    voicePendingAfterCameraPermission.current = fromRoute;
+    let granted = microphonePermission?.granted ?? false;
+    if (!granted) {
+      voicePermissionRequestInFlight.current = true;
+      try {
+        granted = (await requestMicrophonePermission()).granted;
+      } finally {
+        voicePermissionRequestInFlight.current = false;
+      }
+    }
+    // A route change or unmount while Android owns the system permission sheet
+    // cancels this intent. Never begin an unexpected recording afterwards.
+    if (!mountedRef.current || (fromRoute && !voicePendingAfterCameraPermission.current)) return;
+    voicePendingAfterCameraPermission.current = false;
     if (!granted) {
       setAltCaptureBanner('Microphone access was not allowed. Enable it in settings or type your meal.');
       setTextEntryKind('voice');
@@ -512,13 +530,14 @@ export default function ScanScreen() {
   };
 
   useEffect(() => {
-    const routeRequested = params.capture === 'voice' && !voiceLaunchRequested.current;
-    const permissionRequested = voicePendingAfterCameraPermission.current && microphonePermission?.granted;
-    if ((!routeRequested && !permissionRequested) || voiceRecording || captureBusy) return;
-    if (Platform.OS !== 'web' && !microphonePermission?.granted) return;
-    voiceLaunchRequested.current = routeRequested ? true : voiceLaunchRequested.current;
-    voicePendingAfterCameraPermission.current = false;
-    void startVoiceCapture();
+    if (params.capture !== 'voice') {
+      voicePendingAfterCameraPermission.current = false;
+      voiceLaunchRequested.current = false;
+      return;
+    }
+    if (voiceLaunchRequested.current || voiceRecording || captureBusy) return;
+    voiceLaunchRequested.current = true;
+    void startVoiceCapture(true);
   }, [captureBusy, microphonePermission?.granted, params.capture, voiceRecording]);
 
   const onVoicePress = () => {

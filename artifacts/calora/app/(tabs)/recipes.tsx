@@ -71,12 +71,20 @@ type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
 
 function appendDiscoverFeedPage(current: readonly DiscoverFeedRecipe[], page: readonly Recipe[], offset: number): DiscoverFeedRecipe[] {
-  const entries = page.map((recipe, index) => ({ ...recipe, feedEntryKey: `${recipe.id}:${offset + index}` }));
+  const entries = page.map((recipe, index) => ({
+    ...recipe,
+    feedEntryKey: `${recipe.id}:${offset + index}`,
+  }));
   return offset === 0 ? entries : [...current, ...entries];
 }
 
 function orderDiscoverFeedRecipes(recipes: readonly DiscoverFeedRecipe[], session: ReturnType<typeof getRecipeFreshnessSession>, visit: number): DiscoverFeedRecipe[] {
-  return session.order(recipes.map((recipe) => ({ id: recipe.feedEntryKey, recipe })), visit).map((entry) => entry.recipe);
+  return session
+    .order(
+      recipes.map((recipe) => ({ id: recipe.feedEntryKey, recipe })),
+      visit,
+    )
+    .map((entry) => entry.recipe);
 }
 
 function discoverFeedEntryKey(recipe: BrowseRecipe): string {
@@ -117,14 +125,15 @@ function isLocalRecipe(recipe: BrowseRecipe): recipe is CaloraRecipe {
   return 'isLocal' in recipe && recipe.isLocal === true;
 }
 
-
 function recipeFallbackImage(recipe: BrowseRecipe) {
-  return RECIPE_FALLBACK_IMAGES[recipeImageRole({
-    name: recipe.name,
-    category: recipe.category,
-    mealType: recipeMealType(recipe),
-    tags: recipe.tags,
-  })];
+  return RECIPE_FALLBACK_IMAGES[
+    recipeImageRole({
+      name: recipe.name,
+      category: recipe.category,
+      mealType: recipeMealType(recipe),
+      tags: recipe.tags,
+    })
+  ];
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
@@ -139,80 +148,104 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
   // generic fallback photo can impersonate that recipe's pending image.
   const generatedImage = Boolean(localRecipe && isGeneratedRecipeImageCandidate(localRecipe));
   const acceptedGeneratedImage = generatedImage && localRecipe?.imageReviewState === 'accepted';
-  const state = localRecipe?.imageStatus === 'pending' ? 'generating'
-    : localRecipe?.imageStatus === 'ready' ? 'url_ready'
-      : localRecipe?.imageStatus === 'failed' ? 'retryable_error'
-        : localRecipe?.imageStatus ?? 'not_requested';
+  const state = localRecipe?.imageStatus === 'pending' ? 'generating' : localRecipe?.imageStatus === 'ready' ? 'url_ready' : localRecipe?.imageStatus === 'failed' ? 'retryable_error' : (localRecipe?.imageStatus ?? 'not_requested');
   const photoPending = generatedImage && ['generating', 'stored'].includes(state);
-  const recipeImageUrl = acceptedGeneratedImage
-    ? normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)
-    : generatedImage ? undefined : normalizeFoodImageUrl(recipe.image);
+  const recipeImageUrl = acceptedGeneratedImage ? normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id) : generatedImage ? undefined : normalizeFoodImageUrl(recipe.image);
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => { setImageFailed(false); }, [recipe.id, recipe.image, recipeImageUrl, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imageUrlExpiresAt, user?.id]);
-  const retry = localRecipe ? () => { setImageFailed(false); void retryOrRegenerateRecipeImage({
-    accountId: user?.id, recipe: localRecipe, updateRecipe,
-    isAccountActive: (id) => activeAccountIdRef.current === id,
-  }).catch(() => undefined); } : undefined;
-  return <View style={{ height }}>
-    {recipeImageUrl && !imageFailed ? (
-      <Image
-        source={{ uri: recipeImageUrl }}
-        accessibilityLabel={`${recipe.name} recipe image`}
-        contentFit="cover"
-        transition={0}
-        cachePolicy="memory-disk"
-        onLoad={() => { setImageFailed(false); if (localRecipe) markGeneratedRecipeImageRendered(localRecipe, updateRecipe); }}
-        onError={() => {
-          if (!localRecipe || !acceptedGeneratedImage) { setImageFailed(true); return; }
-          void handleGeneratedRecipeImageError({ accountId: user?.id, recipe: localRecipe, updateRecipe, isAccountActive: (id) => activeAccountIdRef.current === id })
-            .then((renewed) => { if (!renewed) setImageFailed(true); });
-        }}
-        placeholder={require('../../assets/images/calora-recipes-header.jpg')}
-        recyclingKey={`${recipe.id}:${recipeImageUrl}`}
-        style={[styles.recipeImage, { height }]}
-      />
-    ) : generatedImage ? (
-    <View
-      accessible
-      accessibilityLabel={state === 'retryable_error' ? `${recipe.name} recipe photo is unavailable` : `${recipe.name} recipe photo is being created`}
-      style={[styles.recipeImage, styles.generatedImageState, { height }]}
-    >
-      {state === 'retryable_error' ? (
-        <Pressable accessibilityLabel={`Retry ${recipe.name} recipe photo`} onPress={retry} style={styles.imageFallbackCopy}>
-          <Feather name="refresh-cw" size={22} color="#d4eadc" />
-          <Text style={styles.imageFallbackText}>Retry recipe photo</Text>
-        </Pressable>
+  useEffect(() => {
+    setImageFailed(false);
+  }, [recipe.id, recipe.image, recipeImageUrl, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imageUrlExpiresAt, user?.id]);
+  const retry = localRecipe
+    ? () => {
+        setImageFailed(false);
+        void retryOrRegenerateRecipeImage({
+          accountId: user?.id,
+          recipe: localRecipe,
+          updateRecipe,
+          isAccountActive: (id) => activeAccountIdRef.current === id,
+        }).catch(() => undefined);
+      }
+    : undefined;
+  return (
+    <View style={{ height }}>
+      {recipeImageUrl && !imageFailed ? (
+        <Image
+          source={{ uri: recipeImageUrl }}
+          accessibilityLabel={`${recipe.name} recipe image`}
+          contentFit="cover"
+          transition={0}
+          cachePolicy="memory-disk"
+          onLoad={() => {
+            setImageFailed(false);
+            if (localRecipe) markGeneratedRecipeImageRendered(localRecipe, updateRecipe);
+          }}
+          onError={() => {
+            if (!localRecipe || !acceptedGeneratedImage) { setImageFailed(true); return; }
+            void handleGeneratedRecipeImageError({
+              accountId: user?.id,
+              recipe: localRecipe,
+              updateRecipe,
+              isAccountActive: (id) => activeAccountIdRef.current === id,
+            }).then((renewed) => {
+              if (!renewed) setImageFailed(true);
+            });
+          }}
+          placeholder={require('../../assets/images/calora-recipes-header.jpg')}
+          recyclingKey={`${recipe.id}:${recipeImageUrl}`}
+          style={[styles.recipeImage, { height }]}
+        />
+      ) : generatedImage ? (
+        <View accessible accessibilityLabel={state === 'retryable_error' ? `${recipe.name} recipe photo is unavailable` : `${recipe.name} recipe photo is being created`} style={[styles.recipeImage, styles.generatedImageState, { height }]}>
+          {state === 'retryable_error' ? (
+            <Pressable accessibilityLabel={`Retry ${recipe.name} recipe photo`} onPress={retry} style={styles.imageFallbackCopy}>
+              <Feather name="refresh-cw" size={22} color="#d4eadc" />
+              <Text style={styles.imageFallbackText}>Retry recipe photo</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.imageFallbackCopy}>
+              <ActivityIndicator size="small" color="#d4eadc" />
+              <Text style={styles.imageFallbackText}>{localRecipe?.imageReviewState === 'needs_review' ? 'Recipe photo awaiting review' : 'Creating recipe photo…'}</Text>
+            </View>
+          )}
+        </View>
       ) : (
-        <View style={styles.imageFallbackCopy}>
-          <ActivityIndicator size="small" color="#d4eadc" />
-          <Text style={styles.imageFallbackText}>{localRecipe?.imageReviewState === 'needs_review' ? 'Recipe photo awaiting review' : 'Creating recipe photo…'}</Text>
+        <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
+          <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
+        </View>
+      )}
+      {acceptedGeneratedImage && recipeImageUrl && !imageFailed && !photoPending && (
+        <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image${localRecipe?.imageReviewState === 'needs_review' ? ' that needs review' : ''}`} pointerEvents="none" style={styles.generatedImageBadge}>
+          <Text style={styles.generatedImageBadgeText}>{localRecipe?.imageReviewState === 'needs_review' ? 'AI-generated · needs review' : 'AI-generated image'}</Text>
         </View>
       )}
     </View>
-    ) : (
-    <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
-       <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-      <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
-    </View>)}
-    {acceptedGeneratedImage && recipeImageUrl && !imageFailed && !photoPending && (
-      <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image${localRecipe?.imageReviewState === 'needs_review' ? ' that needs review' : ''}`} pointerEvents="none" style={styles.generatedImageBadge}>
-        <Text style={styles.generatedImageBadgeText}>{localRecipe?.imageReviewState === 'needs_review' ? 'AI-generated · needs review' : 'AI-generated image'}</Text>
-      </View>
-    )}
-  </View>;
+  );
 }
 
 function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; compact?: boolean }) {
   const estimated = recipeProvenance(recipe).nutritionConfidence === 'estimated';
   // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
   // the user knows it is approximate. Local recipes have user-entered values.
-  const nutrition = isFiniteNutritionValue(recipe.calories)
-    ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}`
-    : recipeNutritionLabel(recipe);
+  const nutrition = isFiniteNutritionValue(recipe.calories) ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}` : recipeNutritionLabel(recipe);
   return (
     <View style={[styles.recipeMeta, compact && styles.compactRecipeMeta]}>
-      <Text style={[styles.recipeKcal, { color: isFiniteNutritionValue(recipe.calories) ? colors.foreground : colors.warning }]}>{nutrition}</Text>
-      {isFiniteNutritionValue(recipe.proteinG) ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{estimated ? '~' : ''}{formatGrams(recipe.proteinG)} P</Text> : null}
+      <Text
+        style={[
+          styles.recipeKcal,
+          {
+            color: isFiniteNutritionValue(recipe.calories) ? colors.foreground : colors.warning,
+          },
+        ]}
+      >
+        {nutrition}
+      </Text>
+      {isFiniteNutritionValue(recipe.proteinG) ? (
+        <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>
+          {estimated ? '~' : ''}
+          {formatGrams(recipe.proteinG)} P
+        </Text>
+      ) : null}
       {recipe.prepMinutes ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{recipe.prepMinutes} min</Text> : null}
     </View>
   );
@@ -222,24 +255,21 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
   return (
     <Surface tier="flat" radius="lg" style={[styles.recipeCard, fixedHeight ? { height: fixedHeight } : null]}>
       <View style={fixedHeight ? styles.recipeCardInner : undefined}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${recipe.name}`}
-          onPress={onPress}
-          style={({ pressed }) => [fixedHeight ? styles.recipeCardPressable : null, { opacity: pressed ? 0.96 : 1 }]}
-        >
+        <Pressable accessibilityRole="button" accessibilityLabel={`Open ${recipe.name}`} onPress={onPress} style={({ pressed }) => [fixedHeight ? styles.recipeCardPressable : null, { opacity: pressed ? 0.96 : 1 }]}>
           <View style={styles.cardImageFrame}>
             <RecipeImage recipe={recipe} height={imageHeight} />
           </View>
           <View style={[styles.cardContent, compact && styles.compactCardContent]}>
-            <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
+            <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>
+              {recipe.name}
+            </Text>
             <RecipeMeta recipe={recipe} colors={colors} compact={compact} />
             <View style={[styles.cardFooter, compact && styles.compactCardFooter]}>
               <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
             </View>
           </View>
         </Pressable>
-        <Pressable accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
           <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
         </Pressable>
       </View>
@@ -249,20 +279,10 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
 
 type RecipeSection = 'discover' | 'premium' | 'create';
 
-function UpcomingRecipeSection({
-  section,
-  colors,
-  onDiscover,
-}: {
-  section: Exclude<RecipeSection, 'discover'>;
-  colors: ReturnType<typeof useCalora>['colors'];
-  onDiscover: () => void;
-}) {
+function UpcomingRecipeSection({ section, colors, onDiscover }: { section: Exclude<RecipeSection, 'discover'>; colors: ReturnType<typeof useCalora>['colors']; onDiscover: () => void }) {
   const premium = section === 'premium';
   const title = premium ? 'Plus recipes are coming.' : 'Create with Calora is coming.';
-  const body = premium
-    ? 'More recipe sources, in one place.'
-    : 'Turn ingredients and goals into recipe ideas.';
+  const body = premium ? 'More recipe sources, in one place.' : 'Turn ingredients and goals into recipe ideas.';
   return (
     <Surface tier="raised" radius="xl" style={styles.upcomingCard}>
       <View style={[styles.upcomingIcon, { backgroundColor: colors.accent }]}>
@@ -279,7 +299,13 @@ function UpcomingRecipeSection({
   );
 }
 
-type RecipeConcept = { title: string; summary: string; whyItFits: string; keyIngredients: string[]; estimatedMinutes: number | null };
+type RecipeConcept = {
+  title: string;
+  summary: string;
+  whyItFits: string;
+  keyIngredients: string[];
+  estimatedMinutes: number | null;
+};
 type CreatorMode = 'pantry' | 'goals' | 'tell' | 'surprise';
 
 /** A local, clearly labeled fallback so temporary recipe-service failures do not dead-end creation. */
@@ -289,9 +315,27 @@ function createOfflineRecipeConcepts(ingredients: string[], mealType: string, re
   const detail = selected.slice(1).join(', ');
   const prefix = request.trim() ? request.trim().split(/\s+/).slice(0, 5).join(' ') : `${mealType} idea`;
   return [
-    { title: `${main} skillet`, summary: `${prefix} with ${selected.join(', ')}.`, whyItFits: 'Built locally while recipe suggestions reconnect.', keyIngredients: selected, estimatedMinutes: minutes },
-    { title: `${main} bowl`, summary: `A flexible ${mealType.toLowerCase()} bowl with ${detail || main}.`, whyItFits: 'Easy to adapt to what is already available.', keyIngredients: selected, estimatedMinutes: Math.max(10, minutes - 5) },
-    { title: `Quick ${main} plate`, summary: `A simple, balanced plate centered on ${main}.`, whyItFits: 'Keeps the next step useful even without a recipe connection.', keyIngredients: selected, estimatedMinutes: Math.min(45, minutes + 5) },
+    {
+      title: `${main} skillet`,
+      summary: `${prefix} with ${selected.join(', ')}.`,
+      whyItFits: 'Built locally while recipe suggestions reconnect.',
+      keyIngredients: selected,
+      estimatedMinutes: minutes,
+    },
+    {
+      title: `${main} bowl`,
+      summary: `A flexible ${mealType.toLowerCase()} bowl with ${detail || main}.`,
+      whyItFits: 'Easy to adapt to what is already available.',
+      keyIngredients: selected,
+      estimatedMinutes: Math.max(10, minutes - 5),
+    },
+    {
+      title: `Quick ${main} plate`,
+      summary: `A simple, balanced plate centered on ${main}.`,
+      whyItFits: 'Keeps the next step useful even without a recipe connection.',
+      keyIngredients: selected,
+      estimatedMinutes: Math.min(45, minutes + 5),
+    },
   ];
 }
 
@@ -328,25 +372,41 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     };
   }, []);
   const availableIngredients = useMemo(
-    () => session
-      ? shoppingItems.filter((item) => !item.checked).slice(0, 10).map((item) => item.name)
-      : GUEST_INGREDIENT_OPTIONS,
+    () =>
+      session
+        ? shoppingItems
+            .filter((item) => !item.checked)
+            .slice(0, 10)
+            .map((item) => item.name)
+        : GUEST_INGREDIENT_OPTIONS,
     [session, shoppingItems],
   );
-  const selectedIngredients = ingredients.split(',').map((item) => item.trim()).filter(Boolean);
+  const selectedIngredients = ingredients
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
   const isIngredientSelected = (ingredient: string) => selectedIngredients.some((item) => item.toLowerCase() === ingredient.toLowerCase());
   const addIngredient = (value: string) => {
-    const additions = value.split(',').map((item) => item.trim()).filter(Boolean);
+    const additions = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
     if (!additions.length) return;
     setIngredients((current) => {
-      const existing = current.split(',').map((item) => item.trim()).filter(Boolean);
+      const existing = current
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
       return [...existing, ...additions.filter((item) => !existing.some((existingItem) => existingItem.toLowerCase() === item.toLowerCase()))].join(', ');
     });
     setIngredientDraft('');
   };
   const toggleIngredient = (ingredient: string) => {
     setIngredients((current) => {
-      const currentItems = current.split(',').map((item) => item.trim()).filter(Boolean);
+      const currentItems = current
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
       const exists = currentItems.some((item) => item.toLowerCase() === ingredient.toLowerCase());
       return (exists ? currentItems.filter((item) => item.toLowerCase() !== ingredient.toLowerCase()) : [...currentItems, ingredient]).join(', ');
     });
@@ -354,11 +414,19 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   const start = (next: CreatorMode) => {
     setMode(next);
   };
-  const generatedRequest = mode === 'goals'
-    ? `A ${styleChoice.toLowerCase()} ${mealType.toLowerCase()} that supports ${session ? `my ${profile?.goal ?? 'wellness'} goal` : 'a balanced day'}`
-    : mode === 'surprise'
-      ? `A ${surpriseChoice.toLowerCase()} ${mealType.toLowerCase()} idea${session && plannerMeals.length ? ` inspired by ${plannerMeals.slice(0, 2).map((meal) => meal.name).join(' and ')}` : ''}`
-      : tellRequest.trim();
+  const generatedRequest =
+    mode === 'goals'
+      ? `A ${styleChoice.toLowerCase()} ${mealType.toLowerCase()} that supports ${session ? `my ${profile?.goal ?? 'wellness'} goal` : 'a balanced day'}`
+      : mode === 'surprise'
+        ? `A ${surpriseChoice.toLowerCase()} ${mealType.toLowerCase()} idea${
+            session && plannerMeals.length
+              ? ` inspired by ${plannerMeals
+                  .slice(0, 2)
+                  .map((meal) => meal.name)
+                  .join(' and ')}`
+              : ''
+          }`
+        : tellRequest.trim();
   const activePreferences = mode === 'goals' ? [styleChoice] : mode === 'surprise' ? [surpriseChoice] : [];
   const generate = async () => {
     if (finishingRef.current) return;
@@ -369,37 +437,48 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       setError('Enter whole-number servings and minutes above zero.');
       return;
     }
-    abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
-    setStatus('loading'); setError(''); setConcepts([]); setNeedsRecipeSignIn(false);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setStatus('loading');
+    setError('');
+    setConcepts([]);
+    setNeedsRecipeSignIn(false);
     try {
       // A draft ingredient is visible input, so include it directly in this
       // request even if the user did not tap the adjacent add button first.
       // Pantry picks belong only to pantry mode; never carry them invisibly
       // into an unrelated style, prompt, or surprise request.
       const pantryIngredients = [ingredients, ingredientDraft].filter(Boolean).join(', ');
-      const contextIngredients = mode === 'pantry'
-        ? pantryIngredients
-        : session
-          ? logs.slice(0, 3).map((log) => log.name).join(', ')
-          : '';
+      const contextIngredients =
+        mode === 'pantry'
+          ? pantryIngredients
+          : session
+            ? logs
+                .slice(0, 3)
+                .map((log) => log.name)
+                .join(', ')
+            : '';
       // The generated request is optional in the API contract, but an empty
       // string is not valid when a pantry-based request supplies ingredients.
       // Omit it instead of turning a valid pantry submission into a local-only
       // fallback before the authenticated API is ever called.
       const optionalRequest = generatedRequest.trim();
       const payload = {
-        ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean),
+        ingredients: contextIngredients
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
         mealType,
         servings: servingCount,
         maxMinutes: maximumMinutes,
         preferences: [...activePreferences, ...(session && profile ? [profile.diet, `${profile.goal} goal`] : [])],
         ...(optionalRequest ? { request: optionalRequest } : {}),
       };
-      const data = session
-        ? await requestRecipeConcepts(payload, controller.signal)
-        : await requestGuestRecipeConcepts(payload, controller.signal);
+      const data = session ? await requestRecipeConcepts(payload, controller.signal) : await requestGuestRecipeConcepts(payload, controller.signal);
       if (!mountedRef.current || controller.signal.aborted) return;
-      setConcepts(data.concepts ?? []); setStatus('idle');
+      setConcepts(data.concepts ?? []);
+      setStatus('idle');
     } catch (cause) {
       if (!mountedRef.current) return;
       if ((cause as Error).name === 'AbortError') {
@@ -421,7 +500,11 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       }
     }
   };
-  const constraints = [{ label: 'Meal', value: mealType, setter: setMealType }, { label: 'Serves', value: servings, setter: setServings }, { label: 'Minutes', value: minutes, setter: setMinutes }];
+  const constraints = [
+    { label: 'Meal', value: mealType, setter: setMealType },
+    { label: 'Serves', value: servings, setter: setServings },
+    { label: 'Minutes', value: minutes, setter: setMinutes },
+  ];
   const finishConcept = async (concept: RecipeConcept) => {
     if (finishingRef.current) return;
     if (!session) {
@@ -434,12 +517,35 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       return;
     }
     finishingRef.current = true;
-    setFinishingTitle(concept.title); setError('');
+    setFinishingTitle(concept.title);
+    setError('');
     let recipe: Omit<CaloraRecipe, 'id'>;
     let usedLocalFallback = false;
     try {
-      const generated = await requestGeneratedRecipe({ title: concept.title, summary: concept.summary, servings: servingCount });
-      recipe = { name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, ...generated.nutrition, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', nutritionNote: generated.nutritionNote, createdAt: new Date().toISOString() };
+      const generated = await requestGeneratedRecipe({
+        title: concept.title,
+        summary: concept.summary,
+        servings: servingCount,
+      });
+      recipe = {
+        name: generated.name,
+        description: generated.description,
+        ingredients: generated.ingredients,
+        instructions: generated.instructions.join('\n'),
+        tags: ['Calora AI', ...(generated.allergens ?? [])],
+        prepMinutes: generated.prepMinutes,
+        servings: generated.servings,
+        ...generated.nutrition,
+        source: 'Calora AI',
+        sourceUrl: '',
+        isLocal: true,
+        sourceType: 'calora_ai',
+        sourceProvider: 'Calora AI',
+        nutritionConfidence: 'estimated',
+        nutritionSource: 'AI estimate',
+        nutritionNote: generated.nutritionNote,
+        createdAt: new Date().toISOString(),
+      };
     } catch {
       // Creating a local draft preserves the user's chosen concept without
       // pretending that unavailable AI output was received.
@@ -470,104 +576,330 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       }
     } catch {
       setError('Recipe could not be saved on this device. Check storage and try again.');
-    } finally { finishingRef.current = false; setFinishingTitle(null); }
+    } finally {
+      finishingRef.current = false;
+      setFinishingTitle(null);
+    }
   };
-  return <View>
-    <View style={[styles.createHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.createHeroIcon, { backgroundColor: colors.accent }]}><Feather name="star" size={20} color={colors.accentForeground} /></View>
-      <View style={{ flex: 1 }}><Text style={[styles.createHeroTitle, { color: colors.foreground }]}>AI Recipe Creator</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{session ? 'Add ingredients and choose preferences for ideas made around you.' : 'Add ingredients and preferences to generate a few recipe ideas—no account needed.'}</Text></View>
-    </View>
-    <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>Choose a starting point, then select the options that fit.</Text>
-    <View style={styles.createModeGrid}>{([['pantry', session ? 'Use my pantry' : 'Add my ingredients', 'shopping-bag'], ['goals', session ? 'Match my goals' : 'Choose a style', 'target'], ['tell', 'Tell Calora', 'message-circle'], ['surprise', 'Surprise me', 'shuffle']] as const).map(([key, label, icon]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: mode === key }} onPress={() => start(key)} style={[styles.createModeCard, { backgroundColor: mode === key ? colors.accent : colors.card, borderColor: mode === key ? colors.primary : colors.border }]}><Feather name={icon} size={17} color={colors.primary} /><Text style={[styles.createModeText, { color: colors.foreground }]}>{label}</Text></Pressable>)}</View>
-    <View style={[styles.createSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.createOptionPanel, { backgroundColor: colors.accent, borderColor: colors.border }]}>
-        {mode === 'pantry' && <>
-          <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>{session ? 'Choose from your shopping list' : 'Choose ingredients'}</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Select any that you have, then add anything else below.</Text>
-          <View style={styles.createOptionList}>{availableIngredients.length ? availableIngredients.map((ingredient) => {
-            const selected = isIngredientSelected(ingredient);
-            return <Pressable key={ingredient} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={`Use ${ingredient}`} onPress={() => toggleIngredient(ingredient)} style={[styles.createOptionChip, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.createOptionChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{ingredient}</Text>{selected && <Feather name="check" size={13} color={colors.primaryForeground} />}</Pressable>;
-          }) : <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shopping list is empty. Add ingredients below.</Text>}</View>
-          <View style={styles.createIngredientDraftRow}><TextInput accessibilityLabel="Add another ingredient" value={ingredientDraft} onChangeText={setIngredientDraft} onSubmitEditing={() => addIngredient(ingredientDraft)} placeholder="Add an ingredient" placeholderTextColor={colors.mutedForeground} style={[styles.createIngredientDraftInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} /><Pressable accessibilityLabel="Add ingredient" onPress={() => addIngredient(ingredientDraft)} style={[styles.createAddIngredient, { backgroundColor: colors.primary }]}><Feather name="plus" size={17} color={colors.primaryForeground} /></Pressable></View>
-        </>}
-        {mode === 'goals' && <>
-          <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>{session ? 'Choose your recipe style' : 'Choose a style'}</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>This guides the kinds of ideas Calora returns.</Text>
-          <View style={styles.createOptionList}>{CREATOR_STYLE_OPTIONS.map((option) => {
-            const selected = option === styleChoice;
-            return <Pressable key={option} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Choose ${option} style`} onPress={() => setStyleChoice(option)} style={[styles.createOptionChip, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.createOptionChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{option}</Text>{selected && <Feather name="check" size={13} color={colors.primaryForeground} />}</Pressable>;
-          })}</View>
-        </>}
-        {mode === 'tell' && <>
-          <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>Start with a prompt</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Choose one or write your own request below.</Text>
-          <View style={styles.createOptionList}>{['Use leftovers', 'Comfort food', 'No-cook', 'Budget-friendly'].map((option) => {
-            const selected = tellRequest === option;
-            return <Pressable key={option} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Choose ${option} prompt`} onPress={() => setTellRequest(option)} style={[styles.createOptionChip, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.createOptionChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{option}</Text>{selected && <Feather name="check" size={13} color={colors.primaryForeground} />}</Pressable>;
-          })}</View>
-        </>}
-        {mode === 'surprise' && <>
-          <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>Pick the kind of surprise</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Calora will take it from there.</Text>
-          <View style={styles.createOptionList}>{CREATOR_SURPRISE_OPTIONS.map((option) => {
-            const selected = option === surpriseChoice;
-            return <Pressable key={option} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Choose ${option} surprise`} onPress={() => setSurpriseChoice(option)} style={[styles.createOptionChip, { backgroundColor: selected ? colors.primary : colors.card, borderColor: selected ? colors.primary : colors.border }]}><Text style={[styles.createOptionChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{option}</Text>{selected && <Feather name="check" size={13} color={colors.primaryForeground} />}</Pressable>;
-          })}</View>
-        </>}
+  return (
+    <View>
+      <View style={[styles.createHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.createHeroIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="star" size={20} color={colors.accentForeground} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.createHeroTitle, { color: colors.foreground }]}>AI Recipe Creator</Text>
+          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{session ? 'Add ingredients and choose preferences for ideas made around you.' : 'Add ingredients and preferences to generate a few recipe ideas—no account needed.'}</Text>
+        </View>
       </View>
-      {mode === 'pantry' ? <><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Selected ingredients</Text><TextInput accessibilityLabel="Selected ingredients" value={ingredients} onChangeText={setIngredients} placeholder="e.g. lentils, spinach, lemon" placeholderTextColor={colors.mutedForeground} multiline style={[styles.ingredientsInput, { color: colors.foreground, borderColor: colors.border }]} /></> : mode === 'tell' ? <><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Tell Calora what you want</Text><TextInput accessibilityLabel="Recipe request" value={tellRequest} onChangeText={setTellRequest} placeholder="e.g. cozy vegetarian dinner with lentils" placeholderTextColor={colors.mutedForeground} multiline style={[styles.ingredientsInput, { color: colors.foreground, borderColor: colors.border }]} /></> : <View style={[styles.createSelectionSummary, { backgroundColor: colors.muted }]}><Feather name="star" size={15} color={colors.primary} /><Text style={[styles.sectionCaption, { color: colors.foreground }]}>{generatedRequest}</Text></View>}
-      <View style={styles.createConstraintRow}>{constraints.map((item) => <View key={item.label} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{item.label}</Text><TextInput value={item.value} onChangeText={item.label === 'Meal' ? item.setter : (value) => item.setter(normalizeWholeNumberInput(value))} keyboardType={item.label === 'Meal' ? 'default' : 'number-pad'} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /></View>)}</View>
-      {!session && <Text style={[styles.guestBoundary, { color: colors.mutedForeground }]}>Guest ideas are generic. Sign in to use your pantry and turn an idea into a saved recipe.</Text>}
-      <Pressable accessibilityLabel="Generate five recipe ideas" onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="star" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating ideas…' : 'Generate 5 ideas'}</Text></Pressable>
-      {status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
-      {error && status !== 'loading' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable accessibilityLabel={needsRecipeSignIn ? 'Sign in to generate recipe ideas' : 'Retry recipe idea generation'} onPress={() => needsRecipeSignIn ? router.push('/auth/sign-in') : generate()}><Text style={[styles.shopActionText, { color: colors.primary }]}>{needsRecipeSignIn ? 'Sign in' : 'Retry'}</Text></Pressable></View>}
+      <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>Choose a starting point, then select the options that fit.</Text>
+      <View style={styles.createModeGrid}>
+        {(
+          [
+            ['pantry', session ? 'Use my pantry' : 'Add my ingredients', 'shopping-bag'],
+            ['goals', session ? 'Match my goals' : 'Choose a style', 'target'],
+            ['tell', 'Tell Calora', 'message-circle'],
+            ['surprise', 'Surprise me', 'shuffle'],
+          ] as const
+        ).map(([key, label, icon]) => (
+          <Pressable
+            key={key}
+            accessibilityRole="button"
+            accessibilityState={{ selected: mode === key }}
+            onPress={() => start(key)}
+            style={[
+              styles.createModeCard,
+              {
+                backgroundColor: mode === key ? colors.accent : colors.card,
+                borderColor: mode === key ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Feather name={icon} size={17} color={colors.primary} />
+            <Text style={[styles.createModeText, { color: colors.foreground }]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={[styles.createSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.createOptionPanel, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+          {mode === 'pantry' && (
+            <>
+              <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>{session ? 'Choose from your shopping list' : 'Choose ingredients'}</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Select any that you have, then add anything else below.</Text>
+              <View style={styles.createOptionList}>
+                {availableIngredients.length ? (
+                  availableIngredients.map((ingredient) => {
+                    const selected = isIngredientSelected(ingredient);
+                    return (
+                      <Pressable
+                        key={ingredient}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        accessibilityLabel={`Use ${ingredient}`}
+                        onPress={() => toggleIngredient(ingredient)}
+                        style={[
+                          styles.createOptionChip,
+                          {
+                            backgroundColor: selected ? colors.primary : colors.card,
+                            borderColor: selected ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.createOptionChipText,
+                            {
+                              color: selected ? colors.primaryForeground : colors.foreground,
+                            },
+                          ]}
+                        >
+                          {ingredient}
+                        </Text>
+                        {selected && <Feather name="check" size={13} color={colors.primaryForeground} />}
+                      </Pressable>
+                    );
+                  })
+                ) : (
+                  <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shopping list is empty. Add ingredients below.</Text>
+                )}
+              </View>
+              <View style={styles.createIngredientDraftRow}>
+                <TextInput
+                  accessibilityLabel="Add another ingredient"
+                  value={ingredientDraft}
+                  onChangeText={setIngredientDraft}
+                  onSubmitEditing={() => addIngredient(ingredientDraft)}
+                  placeholder="Add an ingredient"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[
+                    styles.createIngredientDraftInput,
+                    {
+                      color: colors.foreground,
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                />
+                <Pressable accessibilityLabel="Add ingredient" onPress={() => addIngredient(ingredientDraft)} style={[styles.createAddIngredient, { backgroundColor: colors.primary }]}>
+                  <Feather name="plus" size={17} color={colors.primaryForeground} />
+                </Pressable>
+              </View>
+            </>
+          )}
+          {mode === 'goals' && (
+            <>
+              <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>{session ? 'Choose your recipe style' : 'Choose a style'}</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>This guides the kinds of ideas Calora returns.</Text>
+              <View style={styles.createOptionList}>
+                {CREATOR_STYLE_OPTIONS.map((option) => {
+                  const selected = option === styleChoice;
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Choose ${option} style`}
+                      onPress={() => setStyleChoice(option)}
+                      style={[
+                        styles.createOptionChip,
+                        {
+                          backgroundColor: selected ? colors.primary : colors.card,
+                          borderColor: selected ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.createOptionChipText,
+                          {
+                            color: selected ? colors.primaryForeground : colors.foreground,
+                          },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                      {selected && <Feather name="check" size={13} color={colors.primaryForeground} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+          {mode === 'tell' && (
+            <>
+              <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>Start with a prompt</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Choose one or write your own request below.</Text>
+              <View style={styles.createOptionList}>
+                {['Use leftovers', 'Comfort food', 'No-cook', 'Budget-friendly'].map((option) => {
+                  const selected = tellRequest === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Choose ${option} prompt`}
+                      onPress={() => setTellRequest(option)}
+                      style={[
+                        styles.createOptionChip,
+                        {
+                          backgroundColor: selected ? colors.primary : colors.card,
+                          borderColor: selected ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.createOptionChipText,
+                          {
+                            color: selected ? colors.primaryForeground : colors.foreground,
+                          },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                      {selected && <Feather name="check" size={13} color={colors.primaryForeground} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+          {mode === 'surprise' && (
+            <>
+              <Text style={[styles.createOptionHeading, { color: colors.foreground }]}>Pick the kind of surprise</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Calora will take it from there.</Text>
+              <View style={styles.createOptionList}>
+                {CREATOR_SURPRISE_OPTIONS.map((option) => {
+                  const selected = option === surpriseChoice;
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Choose ${option} surprise`}
+                      onPress={() => setSurpriseChoice(option)}
+                      style={[
+                        styles.createOptionChip,
+                        {
+                          backgroundColor: selected ? colors.primary : colors.card,
+                          borderColor: selected ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.createOptionChipText,
+                          {
+                            color: selected ? colors.primaryForeground : colors.foreground,
+                          },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                      {selected && <Feather name="check" size={13} color={colors.primaryForeground} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+        {mode === 'pantry' ? (
+          <>
+            <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Selected ingredients</Text>
+            <TextInput accessibilityLabel="Selected ingredients" value={ingredients} onChangeText={setIngredients} placeholder="e.g. lentils, spinach, lemon" placeholderTextColor={colors.mutedForeground} multiline style={[styles.ingredientsInput, { color: colors.foreground, borderColor: colors.border }]} />
+          </>
+        ) : mode === 'tell' ? (
+          <>
+            <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Tell Calora what you want</Text>
+            <TextInput accessibilityLabel="Recipe request" value={tellRequest} onChangeText={setTellRequest} placeholder="e.g. cozy vegetarian dinner with lentils" placeholderTextColor={colors.mutedForeground} multiline style={[styles.ingredientsInput, { color: colors.foreground, borderColor: colors.border }]} />
+          </>
+        ) : (
+          <View style={[styles.createSelectionSummary, { backgroundColor: colors.muted }]}>
+            <Feather name="star" size={15} color={colors.primary} />
+            <Text style={[styles.sectionCaption, { color: colors.foreground }]}>{generatedRequest}</Text>
+          </View>
+        )}
+        <View style={styles.createConstraintRow}>
+          {constraints.map((item) => (
+            <View key={item.label} style={{ flex: 1 }}>
+              <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
+              <TextInput value={item.value} onChangeText={item.label === 'Meal' ? item.setter : (value) => item.setter(normalizeWholeNumberInput(value))} keyboardType={item.label === 'Meal' ? 'default' : 'number-pad'} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} />
+            </View>
+          ))}
+        </View>
+        {!session && <Text style={[styles.guestBoundary, { color: colors.mutedForeground }]}>Guest ideas are generic. Sign in to use your pantry and turn an idea into a saved recipe.</Text>}
+        <Pressable accessibilityLabel="Generate five recipe ideas" onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+          <Feather name="star" size={16} color={colors.primaryForeground} />
+          <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating ideas…' : 'Generate 5 ideas'}</Text>
+        </Pressable>
+        {status === 'loading' && (
+          <Pressable onPress={() => abortRef.current?.abort()}>
+            <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text>
+          </Pressable>
+        )}
+        {error && status !== 'loading' && (
+          <View style={[styles.notice, { backgroundColor: colors.accent }]}>
+            <Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text>
+            <Pressable accessibilityLabel={needsRecipeSignIn ? 'Sign in to generate recipe ideas' : 'Retry recipe idea generation'} onPress={() => (needsRecipeSignIn ? router.push('/auth/sign-in') : generate())}>
+              <Text style={[styles.shopActionText, { color: colors.primary }]}>{needsRecipeSignIn ? 'Sign in' : 'Retry'}</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+      {concepts.length > 0 && (
+        <View style={styles.conceptsSection}>
+          <View style={styles.conceptsHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.conceptsEyebrow, { color: colors.primary }]}>YOUR GENERATED IDEAS</Text>
+              <Text style={[styles.conceptsTitle, { color: colors.foreground }]}>Choose one to continue</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Each idea is based on the choices above.</Text>
+            </View>
+            <View style={[styles.conceptsCount, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+              <Text style={[styles.conceptsCountValue, { color: colors.foreground }]}>{concepts.length}</Text>
+              <Text style={[styles.conceptsCountLabel, { color: colors.mutedForeground }]}>ideas</Text>
+            </View>
+          </View>
+          <View style={styles.conceptList}>
+            {concepts.map((concept, index) => (
+              <Pressable key={`${concept.title}-${index}`} accessibilityLabel={`${session ? 'Open' : 'Preview'} ${concept.title}`} disabled={Boolean(finishingTitle)} onPress={() => finishConcept(concept)} style={[styles.conceptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.conceptCardHeader}>
+                  <View style={[styles.conceptNumber, { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.conceptNumberText, { color: colors.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.conceptsEyebrow, { color: colors.mutedForeground }]}>CONCEPT {index + 1}</Text>
+                    <Text style={[styles.conceptTitle, { color: colors.foreground }]} numberOfLines={2}>
+                      {concept.title}
+                    </Text>
+                  </View>
+                  {concept.estimatedMinutes ? (
+                    <View style={[styles.conceptTime, { backgroundColor: colors.muted }]}>
+                      <Feather name="clock" size={12} color={colors.mutedForeground} />
+                      <Text style={[styles.conceptTimeText, { color: colors.mutedForeground }]}>{concept.estimatedMinutes} min</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.conceptSummary, { color: colors.mutedForeground }]} numberOfLines={3}>
+                  {concept.summary}
+                </Text>
+                <View style={[styles.conceptFitRow, { backgroundColor: colors.accent }]}>
+                  <Feather name="check-circle" size={14} color={colors.primary} />
+                  <Text style={[styles.conceptFitText, { color: colors.foreground }]} numberOfLines={2}>
+                    {concept.whyItFits}
+                  </Text>
+                </View>
+                <View style={[styles.conceptAction, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.conceptActionText, { color: colors.primary }]}>{finishingTitle === concept.title ? 'Building your recipe…' : !session ? 'Preview idea' : 'Build full recipe'}</Text>
+                  <Feather name="arrow-right" size={15} color={colors.primary} />
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
-     {concepts.length > 0 && <View style={styles.conceptsSection}>
-       <View style={styles.conceptsHeader}>
-         <View style={{ flex: 1 }}>
-           <Text style={[styles.conceptsEyebrow, { color: colors.primary }]}>YOUR GENERATED IDEAS</Text>
-           <Text style={[styles.conceptsTitle, { color: colors.foreground }]}>Choose one to continue</Text>
-           <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Each idea is based on the choices above.</Text>
-         </View>
-         <View style={[styles.conceptsCount, { backgroundColor: colors.accent, borderColor: colors.border }]}>
-           <Text style={[styles.conceptsCountValue, { color: colors.foreground }]}>{concepts.length}</Text>
-           <Text style={[styles.conceptsCountLabel, { color: colors.mutedForeground }]}>ideas</Text>
-         </View>
-       </View>
-       <View style={styles.conceptList}>
-         {concepts.map((concept, index) => <Pressable
-           key={`${concept.title}-${index}`}
-           accessibilityLabel={`${session ? 'Open' : 'Preview'} ${concept.title}`}
-           disabled={Boolean(finishingTitle)}
-           onPress={() => finishConcept(concept)}
-           style={[styles.conceptCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-         >
-           <View style={styles.conceptCardHeader}>
-             <View style={[styles.conceptNumber, { backgroundColor: colors.accent }]}>
-               <Text style={[styles.conceptNumberText, { color: colors.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
-             </View>
-             <View style={{ flex: 1 }}>
-               <Text style={[styles.conceptsEyebrow, { color: colors.mutedForeground }]}>CONCEPT {index + 1}</Text>
-               <Text style={[styles.conceptTitle, { color: colors.foreground }]} numberOfLines={2}>{concept.title}</Text>
-             </View>
-             {concept.estimatedMinutes ? <View style={[styles.conceptTime, { backgroundColor: colors.muted }]}>
-               <Feather name="clock" size={12} color={colors.mutedForeground} />
-               <Text style={[styles.conceptTimeText, { color: colors.mutedForeground }]}>{concept.estimatedMinutes} min</Text>
-             </View> : null}
-           </View>
-           <Text style={[styles.conceptSummary, { color: colors.mutedForeground }]} numberOfLines={3}>{concept.summary}</Text>
-           <View style={[styles.conceptFitRow, { backgroundColor: colors.accent }]}>
-             <Feather name="check-circle" size={14} color={colors.primary} />
-             <Text style={[styles.conceptFitText, { color: colors.foreground }]} numberOfLines={2}>{concept.whyItFits}</Text>
-           </View>
-           <View style={[styles.conceptAction, { borderTopColor: colors.border }]}>
-             <Text style={[styles.conceptActionText, { color: colors.primary }]}>{finishingTitle === concept.title ? 'Building your recipe…' : !session ? 'Preview idea' : 'Build full recipe'}</Text>
-             <Feather name="arrow-right" size={15} color={colors.primary} />
-           </View>
-         </Pressable>)}
-       </View>
-     </View>}
-  </View>;
+  );
 }
 
 function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
@@ -586,7 +918,13 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const loadingMoreRef = useRef(false);
   const hasMountedFiltersRef = useRef(false);
   const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined;
-  const premiumParams = { query: search || undefined, category: category || undefined, ...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {}), limit: RECIPE_PAGE_SIZE, offset };
+  const premiumParams = {
+    query: search || undefined,
+    category: category || undefined,
+    ...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {}),
+    limit: RECIPE_PAGE_SIZE,
+    offset,
+  };
   const userId = session?.user.id ?? null;
   const freshnessSession = useMemo(() => getRecipeFreshnessSession(`plus:${userId ?? 'signed-out'}:${search}:${category}:${unfilteredFreshnessDay ?? 'filtered'}`), [category, search, unfilteredFreshnessDay, userId]);
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
@@ -608,7 +946,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const accessDenied = accessDeniedStatus !== null;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
-  const currentAccess = hasCurrentPremiumAccess({ ...query, isStale: query.isStale });
+  const currentAccess = hasCurrentPremiumAccess({
+    ...query,
+    isStale: query.isStale,
+  });
   const hasVerifiedCurrentAccount = loadedForUserId === userId;
   const canDisplayCatalogue = canDisplayPremiumCatalogue({
     hasCurrentAccess: currentAccess,
@@ -645,7 +986,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [category, freshnessDay, query.refetch, search]);
   useEffect(() => {
     if (!data?.recipes) return;
-    setLoadedRecipes((current) => offset === 0 || loadedForUserId !== userId ? mergeRecipePages([], data.recipes) : mergeRecipePages(current, data.recipes));
+    setLoadedRecipes((current) => (offset === 0 || loadedForUserId !== userId ? mergeRecipePages([], data.recipes) : mergeRecipePages(current, data.recipes)));
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);
@@ -654,17 +995,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     // effect are asynchronous, so looking only at loadedRecipes could schedule
     // one unnecessary page after the second row is already filled.
     const availableRecipeCount = mergeRecipePages(loadedRecipes, data?.recipes ?? []).length;
-    if (
-      suggestionMinimumRecipeCount <= 0 ||
-      !visible ||
-      !userId ||
-      accessDenied ||
-      data?.status !== 'available' ||
-      data.nextOffset == null ||
-      availableRecipeCount >= suggestionMinimumRecipeCount ||
-      query.isFetching ||
-      loadingMoreRef.current
-    ) return;
+    if (suggestionMinimumRecipeCount <= 0 || !visible || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null || availableRecipeCount >= suggestionMinimumRecipeCount || query.isFetching || loadingMoreRef.current) return;
 
     // A person opened a Plus recipe and asked to browse related choices. Load
     // only the additional provider pages needed to fill both suggestion rows;
@@ -693,15 +1024,23 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [loadedRecipes, onLoadedRecipesChange]);
   useEffect(() => {
     if (!visible || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
-    const nextParams = { query: search || undefined, category: category || undefined, ...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {}), limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
+    const nextParams = {
+      query: search || undefined,
+      category: category || undefined,
+      ...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {}),
+      limit: RECIPE_PAGE_SIZE,
+      offset: data.nextOffset,
+    };
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
-    void queryClient.prefetchQuery({
-      queryKey: nextQueryKey,
-      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
-      staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-      retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
-      retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
-    }).catch(() => undefined);
+    void queryClient
+      .prefetchQuery({
+        queryKey: nextQueryKey,
+        queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
+        staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
+        retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
+        retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
+      })
+      .catch(() => undefined);
   }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId, visible]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
@@ -713,7 +1052,9 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       loadingMoreRef.current = true;
       setOffset(data.nextOffset);
     };
-    return () => { onLoadMoreRef.current = null; };
+    return () => {
+      onLoadMoreRef.current = null;
+    };
   }, [data?.nextOffset, loadedRecipes.length, onLoadMoreRef, query.isFetching]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
@@ -729,27 +1070,23 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     loadingMoreRef.current = false;
   }, [search, category, unfilteredFreshnessDay]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
-  const knownSavedRecipes = useMemo(
-    () => [...savedPremiumRecipes, ...loadedRecipes, ...(data?.status === 'available' ? data.recipes : [])],
-    [data, loadedRecipes, savedPremiumRecipes],
-  );
-  const missingSavedIds = useMemo(
-    () => missingSavedPremiumRecipeIds(savedRecipeIds, knownSavedRecipes),
-    [knownSavedRecipes, savedRecipeIds],
-  );
+  const knownSavedRecipes = useMemo(() => [...savedPremiumRecipes, ...loadedRecipes, ...(data?.status === 'available' ? data.recipes : [])], [data, loadedRecipes, savedPremiumRecipes]);
+  const missingSavedIds = useMemo(() => missingSavedPremiumRecipeIds(savedRecipeIds, knownSavedRecipes), [knownSavedRecipes, savedRecipeIds]);
   const missingSavedQueries = useQueries({
     queries: missingSavedIds.map((sourceId) => ({
       queryKey: premiumRecipeDetailQueryKey(userId, getGetPremiumRecipeQueryKey(sourceId)),
-      queryFn: ({ signal }: { signal: AbortSignal }) => getPremiumRecipe(sourceId, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        getPremiumRecipe(sourceId, {
+          ...PREMIUM_RECIPE_REQUEST_OPTIONS,
+          signal,
+        }),
       enabled: Boolean(visible && userId && data?.status === 'available' && !accessDenied),
       staleTime: 1000 * 60 * 10,
       retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
       retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
     })),
   });
-  const fetchedSavedRecipes = missingSavedQueries
-    .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
-    .map((savedQuery) => savedQuery.data as PremiumRecipe);
+  const fetchedSavedRecipes = missingSavedQueries.filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data).map((savedQuery) => savedQuery.data as PremiumRecipe);
   const savedRestorationState = premiumSavedRecipeRestorationState(missingSavedQueries);
   const retrySavedRecipeRestoration = () => {
     void Promise.all(missingSavedQueries.filter((savedQuery) => savedQuery.isError).map((savedQuery) => savedQuery.refetch()));
@@ -757,7 +1094,13 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
   const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
   const continuousCatalogueEntries = useMemo(
-    () => Array.from({ length: catalogueCycle + 1 }, (_, cycle) => displayRecipes.map((recipe) => ({ recipe, feedEntryKey: `${recipe.id}:${cycle}` }))).flat(),
+    () =>
+      Array.from({ length: catalogueCycle + 1 }, (_, cycle) =>
+        displayRecipes.map((recipe) => ({
+          recipe,
+          feedEntryKey: `${recipe.id}:${cycle}`,
+        })),
+      ).flat(),
     [catalogueCycle, displayRecipes],
   );
   useEffect(() => {
@@ -765,51 +1108,103 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     freshnessSession.remember(displayRecipes.slice(0, RECIPE_PAGE_SIZE));
   }, [displayRecipes, freshnessSession, freshnessVisit, recipes.length, userId, visible]);
   if (!visible) return null;
-  if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
-  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="log-in" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
+  if (!session)
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="lock" size={22} color={colors.primary} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text>
+        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
+        </Pressable>
+      </View>
+    );
+  if (accessDenied)
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="log-in" size={22} color={colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text>
+        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
+        </Pressable>
+      </View>
+    );
   // A new offset has its own React Query key. Do not replace an existing grid
   // with the initial loader/error state while that page is resolving: collapsing
   // the parent ScrollView content makes React Native clamp its scroll offset.
-  if (query.isError && !accessDenied && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again. Discover is still available.</Text><Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
-  if (!canDisplayCatalogue && !hasLoadedRecipes) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading Plus recipes…</Text></View>;
-  if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again. Discover is still available.'}</Text><Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
-   if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus recipe source unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'The connected recipe provider cannot serve this catalogue right now. Discover remains available.'}</Text></View>;
-   if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
+  if (query.isError && !accessDenied && !hasLoadedRecipes)
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="wifi-off" size={22} color={colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again. Discover is still available.</Text>
+        <Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  if (!canDisplayCatalogue && !hasLoadedRecipes)
+    return (
+      <View style={styles.loadingState}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading Plus recipes…</Text>
+      </View>
+    );
+  if (data?.status === 'error' && !hasLoadedRecipes)
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="wifi-off" size={22} color={colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again. Discover is still available.'}</Text>
+        <Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  if (data?.status === 'restricted')
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="wifi-off" size={22} color={colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus recipe source unavailable</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'The connected recipe provider cannot serve this catalogue right now. Discover remains available.'}</Text>
+      </View>
+    );
+  if (data?.status === 'unavailable')
+    return (
+      <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Feather name="link-2" size={22} color={colors.primary} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text>
+      </View>
+    );
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
     <View testID="plus-recipe-content">
       <View testID="plus-recipe-catalogue">
         <View style={styles.premiumToolbar}>
-          <View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}>
-            <Feather name="search" size={17} color={colors.mutedForeground} />
-            <TextInput
-              accessibilityLabel="Search Plus recipes"
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search Plus recipes"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.searchInput, { color: colors.foreground }]}
-            />
-          </View>
-          <Pressable
-            accessibilityLabel="Open Plus recipe filters"
-            onPress={() => setFilterVisible(true)}
-            style={[styles.filterButton, { backgroundColor: colors.muted }]}
+          <View
+            style={[
+              styles.searchBox,
+              {
+                flex: 1,
+                backgroundColor: colors.card,
+                borderColor: colors.input,
+              },
+            ]}
           >
+            <Feather name="search" size={17} color={colors.mutedForeground} />
+            <TextInput accessibilityLabel="Search Plus recipes" value={search} onChangeText={setSearch} placeholder="Search Plus recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
+          </View>
+          <Pressable accessibilityLabel="Open Plus recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}>
             <Feather name="sliders" size={17} color={colors.foreground} />
           </Pressable>
         </View>
-        <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>
-          {data?.provider} · provider-supplied recipe information
-        </Text>
+        <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>
         {savedRestorationState !== 'ready' && (
           <View testID="plus-saved-restoration-state" style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name={savedRestorationState === 'authentication' ? 'log-in' : 'wifi-off'} size={14} color={colors.warning} />
-            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>
-              {savedRestorationState === 'authentication'
-                ? 'Sign in again to restore your saved Plus recipes.'
-                : 'Some saved Plus recipes are temporarily unavailable.'}
-            </Text>
+            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>{savedRestorationState === 'authentication' ? 'Sign in again to restore your saved Plus recipes.' : 'Some saved Plus recipes are temporarily unavailable.'}</Text>
             <Pressable
               accessibilityLabel={savedRestorationState === 'authentication' ? 'Sign in to restore Plus recipes' : 'Retry restoring saved Plus recipes'}
               onPress={() => {
@@ -843,7 +1238,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
                       saved
                       imageHeight={160}
                       onPress={() => onOpen(recipe)}
-                      onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }}
+                      onSave={() => {
+                        toggleSavedRecipe(recipe.id);
+                        onSave(recipe);
+                      }}
                     />
                   </View>
                 ))}
@@ -859,21 +1257,12 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
         ) : displayRecipes.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}
-            </Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}</Text>
           </View>
         ) : (
-          <View
-            testID="plus-recipe-grid"
-            style={styles.recipeGrid}
-          >
+          <View testID="plus-recipe-grid" style={styles.recipeGrid}>
             {continuousCatalogueEntries.map(({ recipe, feedEntryKey }) => (
-              <View
-                key={feedEntryKey}
-                testID={`plus-recipe-card-${recipe.sourceId}`}
-                style={styles.recipeGridCard}
-              >
+              <View key={feedEntryKey} testID={`plus-recipe-card-${recipe.sourceId}`} style={styles.recipeGridCard}>
                 <RecipeCard
                   recipe={recipe}
                   colors={colors}
@@ -882,27 +1271,20 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
                   fixedHeight={GRID_RECIPE_CARD_HEIGHT}
                   compact
                   onPress={() => onOpen(recipe)}
-                  onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }}
+                  onSave={() => {
+                    toggleSavedRecipe(recipe.id);
+                    onSave(recipe);
+                  }}
                 />
               </View>
             ))}
           </View>
         )}
         {query.isError && recipes.length > 0 && (
-          <View
-            testID="plus-recipe-pagination-error"
-            style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
+          <View testID="plus-recipe-pagination-error" style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="wifi-off" size={14} color={colors.warning} />
-            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>
-              Plus recipes are still available. Try loading the next page again.
-            </Text>
-            <Pressable
-              testID="plus-recipe-pagination-retry"
-              accessibilityLabel="Retry loading Plus recipes"
-              onPress={() => query.refetch()}
-              style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}
-            >
+            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Plus recipes are still available. Try loading the next page again.</Text>
+            <Pressable testID="plus-recipe-pagination-retry" accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}>
               <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text>
             </Pressable>
           </View>
@@ -913,27 +1295,11 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text>
           </View>
         )}
-        <BottomSheet
-          animationType="none"
-          visible={filterVisible}
-          onRequestClose={() => setFilterVisible(false)}
-          sheetStyle={[styles.bottomSheetContent, { backgroundColor: colors.background }]}
-        >
+        <BottomSheet animationType="none" visible={filterVisible} onRequestClose={() => setFilterVisible(false)} sheetStyle={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
           <Text style={[styles.detailTitle, { color: colors.foreground }]}>Plus filters</Text>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text>
-          <TextInput
-            accessibilityLabel="Plus recipe category filter"
-            value={category}
-            onChangeText={setCategory}
-            placeholder="e.g. Dinner"
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]}
-          />
-          <Pressable
-            accessibilityLabel="Apply Plus recipe filters"
-            onPress={() => setFilterVisible(false)}
-            style={[styles.primaryAction, { backgroundColor: colors.primary }]}
-          >
+          <TextInput accessibilityLabel="Plus recipe category filter" value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} />
+          <Pressable accessibilityLabel="Apply Plus recipe filters" onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
             <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text>
           </Pressable>
         </BottomSheet>
@@ -946,25 +1312,68 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   return (
     <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.reviewCardHeader}>
-        <View style={[styles.reviewCardIcon, { backgroundColor: component.provenance === 'recipe_personal' ? colors.hero : colors.accent }]}>
+        <View
+          style={[
+            styles.reviewCardIcon,
+            {
+              backgroundColor: component.provenance === 'recipe_personal' ? colors.hero : colors.accent,
+            },
+          ]}
+        >
           <Feather name={component.provenance === 'recipe_personal' ? 'book-open' : 'book'} size={15} color={component.provenance === 'recipe_personal' ? colors.heroMuted : colors.accentForeground} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.reviewCardName, { color: colors.foreground }]}>{component.name}</Text>
-          <Text style={[styles.reviewCardSource, { color: colors.mutedForeground }]}>{component.sourceLabel} · {component.confidence}% confidence</Text>
+          <Text style={[styles.reviewCardSource, { color: colors.mutedForeground }]}>
+            {component.sourceLabel} · {component.confidence}% confidence
+          </Text>
         </View>
       </View>
       <View style={styles.reviewNutritionRow}>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+        <View>
+          <Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * component.eatenFraction)}</Text>
+          <Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text>
+        </View>
+        <View>
+          <Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * component.eatenFraction)}</Text>
+          <Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text>
+        </View>
+        <View>
+          <Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * component.eatenFraction)}</Text>
+          <Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text>
+        </View>
+        <View>
+          <Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * component.eatenFraction)}</Text>
+          <Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text>
+        </View>
       </View>
       <Text style={[styles.reviewFieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
       <View style={styles.reviewFractionRow}>
-        <Pressable accessibilityLabel="Decrease portion" onPress={() => onChange({ ...component, eatenFraction: Math.max(0.25, component.eatenFraction - 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+        <Pressable
+          accessibilityLabel="Decrease portion"
+          onPress={() =>
+            onChange({
+              ...component,
+              eatenFraction: Math.max(0.25, component.eatenFraction - 0.25),
+            })
+          }
+          style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}
+        >
+          <Feather name="minus" size={14} color={colors.foreground} />
+        </Pressable>
         <Text style={[styles.reviewFractionValue, { color: colors.foreground }]}>{Math.round(component.eatenFraction * 100)}%</Text>
-        <Pressable accessibilityLabel="Increase portion" onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+        <Pressable
+          accessibilityLabel="Increase portion"
+          onPress={() =>
+            onChange({
+              ...component,
+              eatenFraction: Math.min(1, component.eatenFraction + 0.25),
+            })
+          }
+          style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}
+        >
+          <Feather name="plus" size={14} color={colors.foreground} />
+        </Pressable>
       </View>
       {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text>}
     </View>
@@ -989,7 +1398,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY }, request: PREMIUM_RECIPE_REQUEST_OPTIONS });
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, {
+    query: {
+      queryKey: premiumDetailKey,
+      enabled: Boolean(premiumSourceId && session?.user.id),
+      ...PREMIUM_RECIPE_REFRESH_POLICY,
+    },
+    request: PREMIUM_RECIPE_REQUEST_OPTIONS,
+  });
   const premiumDetailErrorStatus = premiumRecipeErrorStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
@@ -1002,13 +1418,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     });
     return () => subscription.remove();
   }, [premium, premiumDetailQuery.refetch, session?.user.id]);
-  const detail = premium
-    ? hasCurrentPremiumAccess(premiumDetailQuery)
-      ? premiumDetailQuery.data
-        ? resolvePremiumRecipeDetailImage(premiumDetailQuery.data, selectedPremiumRecipe)
-        : null
-      : null
-    : detailQuery.data ?? recipe;
+  const detail = premium ? (hasCurrentPremiumAccess(premiumDetailQuery) ? (premiumDetailQuery.data ? resolvePremiumRecipeDetailImage(premiumDetailQuery.data, selectedPremiumRecipe) : null) : null) : (detailQuery.data ?? recipe);
 
   // Existing review state (used for local recipes)
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
@@ -1040,19 +1450,33 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     const requiresSignIn = !session?.user.id || premiumDetailDenied;
     return (
       <Modal visible transparent animationType="none" onRequestClose={onClose}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
-          <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22 }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            {
+              backgroundColor: 'rgba(0,0,0,0.52)',
+              justifyContent: 'center',
+              padding: 24,
+            },
+          ]}
+        >
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.createSheet,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: 22,
+              },
+            ]}
+          >
             <View style={[styles.accessMessageIcon, { backgroundColor: colors.accent }]}>
               <Feather name={requiresSignIn ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.detailTitle, { color: colors.foreground }]}>
-              {requiresSignIn ? 'Sign in again' : 'Plus recipe unavailable'}
-            </Text>
-            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>
-              {requiresSignIn
-                ? 'Sign in to reopen this protected Plus recipe.'
-                : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}
-            </Text>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{requiresSignIn ? 'Sign in again' : 'Plus recipe unavailable'}</Text>
+            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>{requiresSignIn ? 'Sign in to reopen this protected Plus recipe.' : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={requiresSignIn ? 'Sign in again' : 'Retry Plus recipe'}
@@ -1068,12 +1492,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
             >
               <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{requiresSignIn ? 'Sign in' : 'Retry'}</Text>
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close Plus recipe message"
-              onPress={onClose}
-              style={[styles.secondaryAction, { borderColor: colors.border }]}
-            >
+            <Pressable accessibilityRole="button" accessibilityLabel="Close Plus recipe message" onPress={onClose} style={[styles.secondaryAction, { borderColor: colors.border }]}>
               <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
             </Pressable>
           </View>
@@ -1084,8 +1503,29 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   if (premium && !detail) {
     return (
       <Modal visible transparent animationType="none" onRequestClose={onClose}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
-          <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+        <View
+          style={[
+            styles.modalBackdrop,
+            {
+              backgroundColor: 'rgba(0,0,0,0.52)',
+              justifyContent: 'center',
+              padding: 24,
+            },
+          ]}
+        >
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.createSheet,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: 22,
+                alignItems: 'center',
+              },
+            ]}
+          >
             <ActivityIndicator color={colors.primary} />
             <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>Loading Plus recipe…</Text>
           </View>
@@ -1098,31 +1538,28 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   // True when the server explicitly flagged that AI estimation failed for this recipe.
   const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
   const premiumNutritionUnavailable = premium && recipeProvenance(detail).nutritionConfidence === 'unavailable';
-  const isFetchingDetail = premium ? (premiumDetailQuery.isLoading || premiumDetailQuery.isFetching) : (detailQuery.isLoading || detailQuery.isFetching);
-  const premiumFields = premium ? detail as PremiumRecipe : null;
+  const isFetchingDetail = premium ? premiumDetailQuery.isLoading || premiumDetailQuery.isFetching : detailQuery.isLoading || detailQuery.isFetching;
+  const premiumFields = premium ? (detail as PremiumRecipe) : null;
   const provenance = recipeProvenance(detail);
-  const aiNutritionNote = isLocalRecipe(detail)
-    && provenance.sourceType === 'calora_ai'
-    && provenance.nutritionConfidence === 'estimated'
-    ? (typeof detail.nutritionNote === 'string' && detail.nutritionNote.trim()
-      ? detail.nutritionNote.trim()
-      : RECIPE_GENERATION_NUTRITION_NOTE)
-    : null;
+  const aiNutritionNote = isLocalRecipe(detail) && provenance.sourceType === 'calora_ai' && provenance.nutritionConfidence === 'estimated' ? (typeof detail.nutritionNote === 'string' && detail.nutritionNote.trim() ? detail.nutritionNote.trim() : RECIPE_GENERATION_NUTRITION_NOTE) : null;
   const editablePersonalRecipe = isEditablePersonalRecipe(detail);
   const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
   const sourceName = detail.source.trim() || provenance.sourceProvider;
   const sourceUrl = normalizeExternalHttpsUrl(detail.sourceUrl);
-  const suggestionRows = useMemo(() => Array.from(
-    { length: RECIPE_SUGGESTION_ROW_COUNT },
-    (_, rowIndex) => suggestedRecipes.slice(
-      rowIndex * RECIPE_SUGGESTIONS_PER_ROW,
-      (rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW,
-    ),
-  ).filter((row) => row.length > 0), [suggestedRecipes]);
+  const suggestionRows = useMemo(() => Array.from({ length: RECIPE_SUGGESTION_ROW_COUNT }, (_, rowIndex) => suggestedRecipes.slice(rowIndex * RECIPE_SUGGESTIONS_PER_ROW, (rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW)).filter((row) => row.length > 0), [suggestedRecipes]);
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
-  const nutritionState = getRecipeNutritionState({ calories: detail.calories, proteinG: detail.proteinG, carbsG: detail.carbsG, fatG: detail.fatG, loading: isFetchingDetail, pending: false, unavailable: nutritionUnavailable || premiumNutritionUnavailable, error: premium ? premiumDetailQuery.isError : detailQuery.isError });
+  const nutritionState = getRecipeNutritionState({
+    calories: detail.calories,
+    proteinG: detail.proteinG,
+    carbsG: detail.carbsG,
+    fatG: detail.fatG,
+    loading: isFetchingDetail,
+    pending: false,
+    unavailable: nutritionUnavailable || premiumNutritionUnavailable,
+    error: premium ? premiumDetailQuery.isError : detailQuery.isError,
+  });
   const scaledKcal = isFiniteNutritionValue(detail.calories) ? detail.calories * servingCount : null;
   const scaledProtein = isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * servingCount : null;
   const scaledCarbs = isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * servingCount : null;
@@ -1138,17 +1575,24 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     // The review draft is the diary snapshot. Scale its macros to the same
     // selected portion count shown in the detail sheet, so accepting the
     // draft cannot silently log only one serving of a local/AI recipe.
-    const draft = createRecipeDraft({
-      ...detail,
-      ...scaleRecipeNutritionForDiary(detail, servingCount),
-      servingLabel: `${servingLabel} ${recipePortionLabel(servingCount)}`,
-    }, dateKey(), 'Dinner');
+    const draft = createRecipeDraft(
+      {
+        ...detail,
+        ...scaleRecipeNutritionForDiary(detail, servingCount),
+        servingLabel: `${servingLabel} ${recipePortionLabel(servingCount)}`,
+      },
+      dateKey(),
+      'Dinner',
+    );
     if (!draft) return;
     setReviewDraftId(draft.id);
   };
   const updateComponent = (component: FoodMemoryComponent) => {
     if (!reviewDraft) return;
-    updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
+    updateFoodMemoryDraft(
+      reviewDraft.id,
+      reviewDraft.components.map((item) => (item.id === component.id ? component : item)),
+    );
   };
   const acceptDraft = async () => {
     if (!reviewDraft) return;
@@ -1200,7 +1644,11 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
       return;
     }
     setDiaryLogged(true);
-    setTimeout(() => { setDiaryVisible(false); setDiaryLogged(false); onClose(); }, 900);
+    setTimeout(() => {
+      setDiaryVisible(false);
+      setDiaryLogged(false);
+      onClose();
+    }, 900);
   };
 
   // --- Feature 4: shopping list ---
@@ -1245,14 +1693,19 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
       recipeSource,
       name: detail.name,
       image: detail.image ?? '',
-      ...(isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail) ? {
-        generatedMediaId: detail.imageMediaId ?? undefined,
-        generatedImageId: detail.imageId ?? undefined,
-        generatedImageUrlExpiresAt: detail.imageUrlExpiresAt ?? undefined,
-        generatedImageReviewState: detail.imageReviewState,
-      } : {}),
+      ...(isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail)
+        ? {
+            generatedMediaId: detail.imageMediaId ?? undefined,
+            generatedImageId: detail.imageId ?? undefined,
+            generatedImageUrlExpiresAt: detail.imageUrlExpiresAt ?? undefined,
+            generatedImageReviewState: detail.imageReviewState,
+          }
+        : {}),
       serving: `${servingLabel} ${recipePortionLabel(servingCount)}`,
-      calories, proteinG, carbsG, fatG,
+      calories,
+      proteinG,
+      carbsG,
+      fatG,
       ingredients: detail.ingredients ?? [],
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
@@ -1264,7 +1717,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
       setPendingUndoSwap({ newMeal: plannedMeal, originalMeal: displacedMeal });
     } else {
       // Slot was empty — signal the Planner to show a plain save acknowledgment
-      setPendingPlannerAck({ message: `${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`, mealId: plannedMeal.id });
+      setPendingPlannerAck({
+        message: `${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`,
+        mealId: plannedMeal.id,
+      });
     }
     setRecipeSlotTarget(null);
     setPlanVisible(false);
@@ -1274,152 +1730,417 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
 
   return (
     <>
-    <BottomSheet animationType="none" visible={recipe !== null} onRequestClose={handleClose} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
-          {reviewDraft ? (
-            /* Local recipe review flow — full portion/fraction editor */
-            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
-              <View style={styles.reviewHeader}>
-                <View>
-                  <Text style={[styles.detailEyebrow, { color: colors.primary }]}>RECIPE REVIEW</Text>
-                  <Text style={[styles.detailTitle, { color: colors.foreground }]}>{reviewDraft.title}</Text>
-                </View>
-                <Pressable accessibilityLabel="Cancel review" onPress={dismissReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+      <BottomSheet animationType="none" visible={recipe !== null} onRequestClose={handleClose} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
+        {reviewDraft ? (
+          /* Local recipe review flow — full portion/fraction editor */
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
+            <View style={styles.reviewHeader}>
+              <View>
+                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>RECIPE REVIEW</Text>
+                <Text style={[styles.detailTitle, { color: colors.foreground }]}>{reviewDraft.title}</Text>
               </View>
-              <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Adjust your portion before logging.</Text>
-              {reviewDraft.assumptions.length > 0 && (
-                <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}>
-                  <Feather name="info" size={14} color={colors.accentForeground} />
-                  <Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text>
+              <Pressable accessibilityLabel="Cancel review" onPress={dismissReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Adjust your portion before logging.</Text>
+            {reviewDraft.assumptions.length > 0 && (
+              <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}>
+                <Feather name="info" size={14} color={colors.accentForeground} />
+                <Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text>
+              </View>
+            )}
+            {reviewDraft.components.map((component) => (
+              <ReviewComponent key={component.id} component={component} colors={colors} onChange={updateComponent} />
+            ))}
+            <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero }]}>
+              <View>
+                <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text>
+                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(reviewDraft.nutrition.calories)} kcal</Text>
+              </View>
+              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>
+                P {Math.round(reviewDraft.nutrition.proteinG)}g · C {Math.round(reviewDraft.nutrition.carbsG)}g · F {Math.round(reviewDraft.nutrition.fatG)}g
+              </Text>
+            </View>
+            <Pressable accessibilityLabel="Approve and add recipe to diary" onPress={acceptDraft} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+              <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Cancel recipe log" onPress={dismissReview} style={styles.sourceAction}>
+              <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Not this meal</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+          /* Main recipe detail view */
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 34 }}>
+            <View style={styles.detailTop}>
+              <Pressable accessibilityLabel="Close recipe details" onPress={handleClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </Pressable>
+              <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} />
+              </Pressable>
+            </View>
+            <RecipeImage recipe={detail} height={210} />
+            <View style={styles.detailCopy}>
+              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{local ? 'YOUR RECIPE' : `${detail.source.toUpperCase()} RECIPE`}</Text>
+              <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
+              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>
+                {detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}
+                {detail.category ? ` · ${detail.category}` : ''}
+              </Text>
+
+              {/* Nutrition strip — values scale with servingCount */}
+              <Surface tier="flat" radius="lg" style={styles.nutritionStrip}>
+                {nutritionState === 'loading' ? (
+                  <View style={styles.nutritionLoading}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text>
+                  </View>
+                ) : nutritionState === 'unavailable' || nutritionState === 'error' ? (
+                  <View style={styles.nutritionLoading}>
+                    <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
+                    <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionState === 'error' ? 'Nutrition could not load' : 'Nutrition unavailable'}</Text>
+                    <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => (premium ? premiumDetailQuery.refetch() : detailQuery.refetch())} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}>
+                      <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.nutritionCell}>
+                      <Text
+                        style={[
+                          styles.nutritionValue,
+                          {
+                            color: isFiniteNutritionValue(scaledKcal) ? colors.foreground : colors.mutedForeground,
+                          },
+                        ]}
+                      >
+                        {formatRecipeNutrition(scaledKcal, '', approxPrefix === '~')}
+                      </Text>
+                      <Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text>
+                    </View>
+                    <View style={styles.nutritionCell}>
+                      <Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledProtein, 'g', approxPrefix === '~')}</Text>
+                      <Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text>
+                    </View>
+                    <View style={styles.nutritionCell}>
+                      <Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledCarbs, 'g', approxPrefix === '~')}</Text>
+                      <Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text>
+                    </View>
+                    <View style={styles.nutritionCell}>
+                      <Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledFat, 'g', approxPrefix === '~')}</Text>
+                      <Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text>
+                    </View>
+                  </>
+                )}
+              </Surface>
+
+              <RecipeAiNutritionWidget recipeId={detail.id} title={detail.name} ingredients={detail.ingredients ?? []} sourceYield={sourceYield} servingCount={servingCount} colors={colors} />
+
+              {/* Portions affect this detail view, shopping selection, and the plan draft. */}
+              <View
+                style={[
+                  styles.servingRow,
+                  {
+                    borderTopColor: colors.border,
+                    borderBottomColor: colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Portions</Text>
+                <View style={styles.servingStepper}>
+                  <Pressable
+                    accessibilityLabel="Decrease recipe portions"
+                    onPress={() => setServingCount((current) => nextRecipePortions(current, -1))}
+                    style={[
+                      styles.stepperButton,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Feather name="minus" size={14} color={colors.foreground} />
+                  </Pressable>
+                  <Text style={[styles.stepperValue, { color: colors.foreground }]}>{servingLabel}</Text>
+                  <Pressable
+                    accessibilityLabel="Increase recipe portions"
+                    onPress={() => setServingCount((current) => nextRecipePortions(current, 1))}
+                    style={[
+                      styles.stepperButton,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Feather name="plus" size={14} color={colors.foreground} />
+                  </Pressable>
+                </View>
+              </View>
+              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{sourceYield ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities are listed as supplied; adjust them for your portions.` : 'Source recipe yield is unavailable. Ingredient quantities are listed as supplied; adjust them for your portions.'}</Text>
+
+              {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
+              {detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType ? (
+                <View style={styles.infoChips}>
+                  {detail.prepMinutes ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Feather name="clock" size={11} color={colors.mutedForeground} />
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(detail.prepMinutes)} min prep</Text>
+                    </View>
+                  ) : null}
+                  {(detail as CaloraRecipe).servings ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Feather name="users" size={11} color={colors.mutedForeground} />
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole((detail as CaloraRecipe).servings)} servings</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.cookMinutes ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Feather name="clock" size={11} color={colors.mutedForeground} />
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.cookMinutes)} min cook</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.totalMinutes ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.totalMinutes)} min total</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.servings ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.servings)} servings</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.difficulty ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.difficulty}</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.cuisine ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.cuisine}</Text>
+                    </View>
+                  ) : null}
+                  {premiumFields?.mealType ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.mealType}</Text>
+                    </View>
+                  ) : null}
+                  {detail.area ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.area}</Text>
+                    </View>
+                  ) : null}
+                  {detail.category ? (
+                    <View
+                      style={[
+                        styles.infoChip,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.category}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {/* Notices */}
+              {aiNutritionNote && (
+                <View style={[styles.notice, { backgroundColor: colors.muted }]} accessibilityLabel="Estimated nutrition disclosure">
+                  <Feather name="cpu" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>{aiNutritionNote}</Text>
                 </View>
               )}
-              {reviewDraft.components.map((component) => (
-                <ReviewComponent key={component.id} component={component} colors={colors} onChange={updateComponent} />
-              ))}
-              <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero }]}>
-                <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(reviewDraft.nutrition.calories)} kcal</Text></View>
-                <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(reviewDraft.nutrition.proteinG)}g · C {Math.round(reviewDraft.nutrition.carbsG)}g · F {Math.round(reviewDraft.nutrition.fatG)}g</Text>
-              </View>
-              <Pressable accessibilityLabel="Approve and add recipe to diary" onPress={acceptDraft} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
-                <Feather name="check-circle" size={16} color={colors.primaryForeground} />
-                <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
-              </Pressable>
-              <Pressable accessibilityLabel="Cancel recipe log" onPress={dismissReview} style={styles.sourceAction}>
-                <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Not this meal</Text>
-              </Pressable>
-            </ScrollView>
-          ) : (
-            /* Main recipe detail view */
-            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 34 }}>
-              <View style={styles.detailTop}>
-                <Pressable accessibilityLabel="Close recipe details" onPress={handleClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
-                <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} /></Pressable>
-              </View>
-              <RecipeImage recipe={detail} height={210} />
-              <View style={styles.detailCopy}>
-                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{local ? 'YOUR RECIPE' : `${detail.source.toUpperCase()} RECIPE`}</Text>
-                <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
-                <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
-
-                {/* Nutrition strip — values scale with servingCount */}
-                <Surface tier="flat" radius="lg" style={styles.nutritionStrip}>
-                  {nutritionState === 'loading' ? (
-                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
-                  ) : nutritionState === 'unavailable' || nutritionState === 'error' ? (
-                    <View style={styles.nutritionLoading}>
-                      <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
-                      <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionState === 'error' ? 'Nutrition could not load' : 'Nutrition unavailable'}</Text>
-                      <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => premium ? premiumDetailQuery.refetch() : detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: isFiniteNutritionValue(scaledKcal) ? colors.foreground : colors.mutedForeground }]}>{formatRecipeNutrition(scaledKcal, '', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledProtein, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledCarbs, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledFat, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
-                    </>
-                  )}
-                </Surface>
-
-                <RecipeAiNutritionWidget
-                  recipeId={detail.id}
-                  title={detail.name}
-                  ingredients={detail.ingredients ?? []}
-                  sourceYield={sourceYield}
-                  servingCount={servingCount}
-                  colors={colors}
-                />
-
-                {/* Portions affect this detail view, shopping selection, and the plan draft. */}
-                <View style={[styles.servingRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
-                  <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Portions</Text>
-                  <View style={styles.servingStepper}>
-                    <Pressable accessibilityLabel="Decrease recipe portions" onPress={() => setServingCount((current) => nextRecipePortions(current, -1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
-                    <Text style={[styles.stepperValue, { color: colors.foreground }]}>{servingLabel}</Text>
-                    <Pressable accessibilityLabel="Increase recipe portions" onPress={() => setServingCount((current) => nextRecipePortions(current, 1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
-                  </View>
+              {!local && canLog && recipeProvenance(detail).nutritionConfidence === 'estimated' && (
+                <View style={[styles.notice, { backgroundColor: colors.muted }]}>
+                  <Feather name="cpu" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Estimated per serving; values may vary.</Text>
                 </View>
-                <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>
-                  {sourceYield
-                    ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities are listed as supplied; adjust them for your portions.`
-                    : 'Source recipe yield is unavailable. Ingredient quantities are listed as supplied; adjust them for your portions.'}
-                </Text>
+              )}
+              {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && (
+                <View style={[styles.notice, { backgroundColor: colors.muted }]}>
+                  <Feather name="check-circle" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Verified nutrition: {recipeProvenance(detail).nutritionSource}</Text>
+                </View>
+              )}
+              {nutritionUnavailable && !isFetchingDetail && (
+                <View style={[styles.notice, { backgroundColor: colors.accent }]}>
+                  <Feather name="alert-circle" size={14} color={colors.accentForeground} />
+                  <Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text>
+                </View>
+              )}
+              {nutritionIncomplete && (
+                <View style={[styles.notice, { backgroundColor: colors.muted }]}>
+                  <Feather name="info" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Some nutrition values are unavailable from this recipe source.</Text>
+                </View>
+              )}
+              {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && ['failed', 'retryable_error'].includes(detail.imageStatus ?? '') && (
+                <View style={[styles.notice, { backgroundColor: colors.accent }]}>
+                  <Feather name="image" size={14} color={colors.accentForeground} />
+                  <Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo is temporarily unavailable.</Text>
+                  <Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}>
+                    <Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text>
+                  </Pressable>
+                </View>
+              )}
+              {isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail) && detail.imageReviewState === 'needs_review' && (
+                <View style={[styles.notice, { backgroundColor: colors.muted }]}>
+                  <Feather name="eye" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.noticeText, { color: colors.foreground }]}>AI-generated preview. Check that it matches your recipe.</Text>
+                  <Pressable accessibilityLabel="Recipe photo matches" onPress={() => void reviewRecipeImage(detail, 'accepted', updateRecipe)}>
+                    <Text style={[styles.shopActionText, { color: colors.primary }]}>Looks right</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityLabel="Regenerate mismatched recipe photo"
+                    onPress={() => {
+                      void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail));
+                    }}
+                  >
+                    <Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text>
+                  </Pressable>
+                </View>
+              )}
+              {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && (
+                <View style={[styles.notice, { backgroundColor: colors.accent }]}>
+                  <Feather name="info" size={16} color={colors.accentForeground} />
+                  <Text style={[styles.noticeText, { color: colors.foreground }]}>No verified nutrition. Save it, then add nutrition before logging.</Text>
+                </View>
+              )}
+              {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? (
+                <View
+                  style={[
+                    styles.notice,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.noticeText, { color: colors.foreground }]}>
+                    {premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}
+                    {premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}
+                    {premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}
+                    {premiumFields.fiberG ? `Fiber ${formatGrams(premiumFields.fiberG)}. ` : ''}
+                    {premiumFields.sodiumMg ? `Sodium ${formatWhole(premiumFields.sodiumMg)} mg.` : ''}
+                  </Text>
+                </View>
+              ) : null}
 
-                {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
-                {(detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType) ? (
-                  <View style={styles.infoChips}>
-                    {detail.prepMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="clock" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(detail.prepMinutes)} min prep</Text></View> : null}
-                    {(detail as CaloraRecipe).servings ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="users" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole((detail as CaloraRecipe).servings)} servings</Text></View> : null}
-                    {premiumFields?.cookMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="clock" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.cookMinutes)} min cook</Text></View> : null}
-                    {premiumFields?.totalMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.totalMinutes)} min total</Text></View> : null}
-                    {premiumFields?.servings ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{formatWhole(premiumFields.servings)} servings</Text></View> : null}
-                    {premiumFields?.difficulty ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.difficulty}</Text></View> : null}
-                    {premiumFields?.cuisine ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.cuisine}</Text></View> : null}
-                    {premiumFields?.mealType ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.mealType}</Text></View> : null}
-                    {detail.area ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="map-pin" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.area}</Text></View> : null}
-                    {detail.category ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.category}</Text></View> : null}
+              {/* Feature 4: Ingredients with shopping list action */}
+              {detail.ingredients?.length ? (
+                <>
+                  <View style={styles.ingredientsHeader}>
+                    <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>
+                    <Pressable
+                      accessibilityLabel="Add ingredients to shopping list"
+                      onPress={() => {
+                        setSelectedIngredients(new Set(detail.ingredients?.map((_, i) => i) ?? []));
+                        setShopVisible(true);
+                      }}
+                      style={styles.shopAction}
+                    >
+                      <Feather name="shopping-cart" size={13} color={colors.primary} />
+                      <Text style={[styles.shopActionText, { color: colors.primary }]}>Add to list</Text>
+                    </Pressable>
                   </View>
-                ) : null}
-
-                {/* Notices */}
-                {aiNutritionNote && <View style={[styles.notice, { backgroundColor: colors.muted }]} accessibilityLabel="Estimated nutrition disclosure"><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>{aiNutritionNote}</Text></View>}
-                {!local && canLog && recipeProvenance(detail).nutritionConfidence === 'estimated' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Estimated per serving; values may vary.</Text></View>}
-                {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="check-circle" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Verified nutrition: {recipeProvenance(detail).nutritionSource}</Text></View>}
-                {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text></View>}
-                {nutritionIncomplete && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="info" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Some nutrition values are unavailable from this recipe source.</Text></View>}
-                 {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && ['failed', 'retryable_error'].includes(detail.imageStatus ?? '') && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="image" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo is temporarily unavailable.</Text><Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
-                 {isLocalRecipe(detail) && isGeneratedRecipeImageCandidate(detail) && detail.imageReviewState === 'needs_review' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="eye" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>AI-generated preview. Check that it matches your recipe.</Text><Pressable accessibilityLabel="Recipe photo matches" onPress={() => void reviewRecipeImage(detail, 'accepted', updateRecipe)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Looks right</Text></Pressable><Pressable accessibilityLabel="Regenerate mismatched recipe photo" onPress={() => { void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail)); }}><Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text></Pressable></View>}
-                {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>No verified nutrition. Save it, then add nutrition before logging.</Text></View>}
-                {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}{premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}{premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}{premiumFields.fiberG ? `Fiber ${formatGrams(premiumFields.fiberG)}. ` : ''}{premiumFields.sodiumMg ? `Sodium ${formatWhole(premiumFields.sodiumMg)} mg.` : ''}</Text></View> : null}
-
-                {/* Feature 4: Ingredients with shopping list action */}
-                {detail.ingredients?.length ? (
-                  <>
-                    <View style={styles.ingredientsHeader}>
-                      <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>
-                      <Pressable accessibilityLabel="Add ingredients to shopping list" onPress={() => { setSelectedIngredients(new Set(detail.ingredients?.map((_, i) => i) ?? [])); setShopVisible(true); }} style={styles.shopAction}>
-                        <Feather name="shopping-cart" size={13} color={colors.primary} />
-                        <Text style={[styles.shopActionText, { color: colors.primary }]}>Add to list</Text>
-                      </Pressable>
+                  {detail.ingredients.map((ingredient, idx) => (
+                    <View key={idx} style={styles.ingredientRow}>
+                      <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
+                      <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text>
                     </View>
-                    {detail.ingredients.map((ingredient, idx) => (
-                      <View key={idx} style={styles.ingredientRow}>
-                        <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
-                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text>
-                      </View>
-                    ))}
-                  </>
-                ) : null}
+                  ))}
+                </>
+              ) : null}
 
-                {/* Feature 3: Numbered cooking steps — shown immediately; skeleton while fetching */}
-                {(detail.instructions || isFetchingDetail) ? (
-                  <>
-                    <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text>
-                    {isFetchingDetail && !detail.instructions ? (
-                      <View style={styles.methodLoading}>
-                        <ActivityIndicator size="small" color={colors.primary} />
-                        <Text style={[styles.methodLoadingText, { color: colors.mutedForeground }]}>Loading steps…</Text>
-                      </View>
-                    ) : detail.instructions ? (() => {
+              {/* Feature 3: Numbered cooking steps — shown immediately; skeleton while fetching */}
+              {detail.instructions || isFetchingDetail ? (
+                <>
+                  <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text>
+                  {isFetchingDetail && !detail.instructions ? (
+                    <View style={styles.methodLoading}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={[styles.methodLoadingText, { color: colors.mutedForeground }]}>Loading steps…</Text>
+                    </View>
+                  ) : detail.instructions ? (
+                    (() => {
                       const steps = parseRecipeInstructionSteps(detail.instructions);
                       if (steps.length === 1) {
                         return <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>;
@@ -1430,216 +2151,423 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                           <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step}</Text>
                         </View>
                       ));
-                    })() : null}
-                  </>
-                ) : null}
+                    })()
+                  ) : null}
+                </>
+              ) : null}
 
-                {hasThirdPartySource && sourceName ? <View style={styles.sourceAttributionRow}>
+              {hasThirdPartySource && sourceName ? (
+                <View style={styles.sourceAttributionRow}>
                   <Text style={[styles.sourceAttributionText, { color: colors.mutedForeground }]}>Source: {sourceName}</Text>
-                  {sourceUrl && provenance.sourceType !== 'open' ? <><Text style={[styles.sourceAttributionText, { color: colors.mutedForeground }]}>·</Text><Pressable accessibilityRole="link" accessibilityLabel={`View original recipe on ${sourceName}`} onPress={() => Linking.openURL(sourceUrl)} style={styles.sourceAttributionLink}><Text style={[styles.sourceAttributionLinkText, { color: colors.primary }]}>View original</Text><Feather name="external-link" size={12} color={colors.primary} /></Pressable></> : null}
-                </View> : null}
-                <Pressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></Pressable>
-
-                {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
-                <Pressable
-                  accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'}
-                  onPress={canLog ? (local ? openReview : openDiary) : () => { toggleSavedRecipe(detail.id); onClose(); }}
-                  style={[styles.primaryAction, { backgroundColor: colors.primary }]}
-                >
-                  <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
-                  <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
-                </Pressable>
-                {editablePersonalRecipe ? (
-                  <View style={[styles.personalRecipeActions, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.personalRecipeActionsLabel, { color: colors.mutedForeground }]}>PERSONAL RECIPE</Text>
-                    <Pressable
-                      accessibilityLabel="Edit personal recipe"
-                      onPress={() => {
-                        setConfirmingPersonalDelete(false);
-                        setPersonalRecipeActionError(null);
-                        onEditPersonalRecipe(detail);
-                      }}
-                      style={[styles.secondaryAction, { borderColor: colors.border }]}
-                    >
-                      <Feather name="edit-2" size={16} color={colors.foreground} />
-                      <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Edit recipe</Text>
-                    </Pressable>
-                    {!confirmingPersonalDelete ? (
-                      <Pressable
-                        accessibilityLabel="Delete personal recipe"
-                        onPress={() => { setPersonalRecipeActionError(null); setConfirmingPersonalDelete(true); }}
-                        style={styles.sourceAction}
-                      >
-                        <Feather name="trash-2" size={14} color={colors.destructive} />
-                        <Text style={[styles.sourceActionText, { color: colors.destructive }]}>Delete recipe</Text>
+                  {sourceUrl && provenance.sourceType !== 'open' ? (
+                    <>
+                      <Text style={[styles.sourceAttributionText, { color: colors.mutedForeground }]}>·</Text>
+                      <Pressable accessibilityRole="link" accessibilityLabel={`View original recipe on ${sourceName}`} onPress={() => Linking.openURL(sourceUrl)} style={styles.sourceAttributionLink}>
+                        <Text style={[styles.sourceAttributionLinkText, { color: colors.primary }]}>View original</Text>
+                        <Feather name="external-link" size={12} color={colors.primary} />
                       </Pressable>
-                    ) : (
-                      <View accessibilityRole="alert" accessibilityLabel="Confirm recipe deletion" style={[styles.personalRecipeDeleteConfirm, { backgroundColor: colors.destructive + '12', borderColor: colors.destructive + '40' }]}>
-                        <Text style={[styles.personalRecipeDeleteTitle, { color: colors.foreground }]}>Delete this recipe?</Text>
-                        <Text style={[styles.personalRecipeDeleteBody, { color: colors.mutedForeground }]}>This removes this personal recipe from this device. This cannot be undone.</Text>
-                        {personalRecipeActionError ? <Text accessibilityRole="alert" style={[styles.personalRecipeDeleteError, { color: colors.destructive }]}>{personalRecipeActionError}</Text> : null}
-                        <View style={styles.personalRecipeDeleteButtons}>
-                          <Pressable accessibilityLabel="Cancel recipe deletion" onPress={() => { setConfirmingPersonalDelete(false); setPersonalRecipeActionError(null); }} style={[styles.personalRecipeDeleteCancel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                            <Text style={[styles.personalRecipeDeleteCancelText, { color: colors.foreground }]}>Keep recipe</Text>
-                          </Pressable>
-                          <Pressable accessibilityLabel="Confirm recipe deletion" onPress={() => { void deletePersonalRecipeFromDetail(); }} style={[styles.personalRecipeDeleteButton, { backgroundColor: colors.destructive }]}>
-                            <Text style={styles.personalRecipeDeleteButtonText}>Delete</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                ) : null}
-              </View>
-              {suggestionRows.length > 0 && onSelectSuggestion ? (
-                <View style={styles.suggestionsSection}>
-                  <View style={styles.suggestionsHeader}>
-                    <View>
-                      <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
-                      <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Swipe either row to keep exploring.</Text>
-                    </View>
-                    <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 20 per row</Text>
-                  </View>
-                  <View style={styles.suggestionRows}>
-                    {suggestionRows.map((row, rowIndex) => (
-                      <SwipeGestureExclusion key={`suggestion-row-${rowIndex + 1}`}>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`}
-                          testID={`recipe-suggestions-row-${rowIndex + 1}`}
-                          contentContainerStyle={styles.suggestionCards}
-                        >
-                          {row.map((suggestion) => (
-                            <View key={suggestion.id} style={styles.suggestionCard}>
-                              <RecipeCard
-                                recipe={suggestion}
-                                colors={colors}
-                                saved={savedRecipeIds.includes(suggestion.id)}
-                                imageHeight={112}
-                                onPress={() => onSelectSuggestion(suggestion)}
-                                onSave={() => toggleSavedRecipe(suggestion.id)}
-                              />
-                            </View>
-                          ))}
-                        </ScrollView>
-                      </SwipeGestureExclusion>
-                    ))}
-                  </View>
+                    </>
+                  ) : null}
                 </View>
               ) : null}
-            </ScrollView>
-          )}
-    </BottomSheet>
+              <Pressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} style={[styles.secondaryAction, { borderColor: colors.primary }]}>
+                <Feather name="calendar" size={16} color={colors.primary} />
+                <Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text>
+              </Pressable>
+
+              {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
+              <Pressable
+                accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'}
+                onPress={
+                  canLog
+                    ? local
+                      ? openReview
+                      : openDiary
+                    : () => {
+                        toggleSavedRecipe(detail.id);
+                        onClose();
+                      }
+                }
+                style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+              >
+                <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
+                <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? "today's diary" : 'diary'}` : 'Save for later'}</Text>
+              </Pressable>
+              {editablePersonalRecipe ? (
+                <View style={[styles.personalRecipeActions, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.personalRecipeActionsLabel, { color: colors.mutedForeground }]}>PERSONAL RECIPE</Text>
+                  <Pressable
+                    accessibilityLabel="Edit personal recipe"
+                    onPress={() => {
+                      setConfirmingPersonalDelete(false);
+                      setPersonalRecipeActionError(null);
+                      onEditPersonalRecipe(detail);
+                    }}
+                    style={[styles.secondaryAction, { borderColor: colors.border }]}
+                  >
+                    <Feather name="edit-2" size={16} color={colors.foreground} />
+                    <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Edit recipe</Text>
+                  </Pressable>
+                  {!confirmingPersonalDelete ? (
+                    <Pressable
+                      accessibilityLabel="Delete personal recipe"
+                      onPress={() => {
+                        setPersonalRecipeActionError(null);
+                        setConfirmingPersonalDelete(true);
+                      }}
+                      style={styles.sourceAction}
+                    >
+                      <Feather name="trash-2" size={14} color={colors.destructive} />
+                      <Text style={[styles.sourceActionText, { color: colors.destructive }]}>Delete recipe</Text>
+                    </Pressable>
+                  ) : (
+                    <View
+                      accessibilityRole="alert"
+                      accessibilityLabel="Confirm recipe deletion"
+                      style={[
+                        styles.personalRecipeDeleteConfirm,
+                        {
+                          backgroundColor: colors.destructive + '12',
+                          borderColor: colors.destructive + '40',
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.personalRecipeDeleteTitle, { color: colors.foreground }]}>Delete this recipe?</Text>
+                      <Text style={[styles.personalRecipeDeleteBody, { color: colors.mutedForeground }]}>This removes this personal recipe from this device. This cannot be undone.</Text>
+                      {personalRecipeActionError ? (
+                        <Text accessibilityRole="alert" style={[styles.personalRecipeDeleteError, { color: colors.destructive }]}>
+                          {personalRecipeActionError}
+                        </Text>
+                      ) : null}
+                      <View style={styles.personalRecipeDeleteButtons}>
+                        <Pressable
+                          accessibilityLabel="Cancel recipe deletion"
+                          onPress={() => {
+                            setConfirmingPersonalDelete(false);
+                            setPersonalRecipeActionError(null);
+                          }}
+                          style={[
+                            styles.personalRecipeDeleteCancel,
+                            {
+                              backgroundColor: colors.card,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.personalRecipeDeleteCancelText, { color: colors.foreground }]}>Keep recipe</Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel="Confirm recipe deletion"
+                          onPress={() => {
+                            void deletePersonalRecipeFromDetail();
+                          }}
+                          style={[styles.personalRecipeDeleteButton, { backgroundColor: colors.destructive }]}
+                        >
+                          <Text style={styles.personalRecipeDeleteButtonText}>Delete</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+            </View>
+            {suggestionRows.length > 0 && onSelectSuggestion ? (
+              <View style={styles.suggestionsSection}>
+                <View style={styles.suggestionsHeader}>
+                  <View>
+                    <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
+                    <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Swipe either row to keep exploring.</Text>
+                  </View>
+                  <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 20 per row</Text>
+                </View>
+                <View style={styles.suggestionRows}>
+                  {suggestionRows.map((row, rowIndex) => (
+                    <SwipeGestureExclusion key={`suggestion-row-${rowIndex + 1}`}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`} testID={`recipe-suggestions-row-${rowIndex + 1}`} contentContainerStyle={styles.suggestionCards}>
+                        {row.map((suggestion) => (
+                          <View key={suggestion.id} style={styles.suggestionCard}>
+                            <RecipeCard recipe={suggestion} colors={colors} saved={savedRecipeIds.includes(suggestion.id)} imageHeight={112} onPress={() => onSelectSuggestion(suggestion)} onSave={() => toggleSavedRecipe(suggestion.id)} />
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </SwipeGestureExclusion>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </ScrollView>
+        )}
+      </BottomSheet>
 
       {/* Plan picker sheet */}
       <BottomSheet animationType="none" visible={planVisible} onRequestClose={() => setPlanVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
-            <View style={styles.sheetHandle} />
-            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
-            <View style={styles.reviewHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO PLAN</Text>
-                <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
-              </View>
-              <Pressable accessibilityLabel="Close add to plan" onPress={() => setPlanVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+        <View style={styles.sheetHandle} />
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
+          <View style={styles.reviewHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO PLAN</Text>
+              <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
             </View>
-            <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>Choose a day and meal. Replacing a slot leaves the rest of your week unchanged.</Text>
-            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>DAY</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.planDayRow}>
-              {planPickerDays.map((day) => {
-                const selectedDay = day === planDay;
-                const date = new Date(`${day}T12:00:00`);
-                return <Pressable key={day} accessibilityLabel={`Plan for ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.getDate()}`} onPress={() => setPlanDay(day)} style={[styles.planDayChip, { backgroundColor: selectedDay ? colors.primary : colors.card, borderColor: selectedDay ? colors.primary : colors.border }]}><Text style={[styles.planDayName, { color: selectedDay ? colors.primaryForeground : colors.mutedForeground }]}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</Text><Text style={[styles.planDayNumber, { color: selectedDay ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text></Pressable>;
-              })}
-            </ScrollView>
-            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
-            <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
-            <Pressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></Pressable>
-            <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-            </ScrollView>
+            <Pressable accessibilityLabel="Close add to plan" onPress={() => setPlanVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={18} color={colors.foreground} />
+            </Pressable>
+          </View>
+          <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>Choose a day and meal. Replacing a slot leaves the rest of your week unchanged.</Text>
+          <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>DAY</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.planDayRow}>
+            {planPickerDays.map((day) => {
+              const selectedDay = day === planDay;
+              const date = new Date(`${day}T12:00:00`);
+              return (
+                <Pressable
+                  key={day}
+                  accessibilityLabel={`Plan for ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.getDate()}`}
+                  onPress={() => setPlanDay(day)}
+                  style={[
+                    styles.planDayChip,
+                    {
+                      backgroundColor: selectedDay ? colors.primary : colors.card,
+                      borderColor: selectedDay ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.planDayName,
+                      {
+                        color: selectedDay ? colors.primaryForeground : colors.mutedForeground,
+                      },
+                    ]}
+                  >
+                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.planDayNumber,
+                      {
+                        color: selectedDay ? colors.primaryForeground : colors.foreground,
+                      },
+                    ]}
+                  >
+                    {date.getDate()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
+          <View style={styles.planMealRow}>
+            {plannerMealTypes.map((type) => (
+              <Pressable
+                key={type}
+                accessibilityLabel={`Plan as ${type}`}
+                onPress={() => setPlanMealType(type)}
+                style={[
+                  styles.planMealChip,
+                  {
+                    backgroundColor: planMealType === type ? colors.accent : colors.card,
+                    borderColor: planMealType === type ? colors.accent : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.planMealText,
+                    {
+                      color: planMealType === type ? colors.accentForeground : colors.foreground,
+                    },
+                  ]}
+                >
+                  {type}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+            <Feather name="calendar" size={16} color={colors.primaryForeground} />
+            <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}>
+            <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text>
+          </Pressable>
+        </ScrollView>
       </BottomSheet>
 
       {/* Feature 6: Smart diary sheet — meal type + serving count + live macro preview */}
-      <BottomSheet animationType="none" visible={diaryVisible} onRequestClose={() => { if (!diaryLogged) setDiaryVisible(false); }} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
-            <View style={styles.sheetHandle} />
-            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
-            <View style={styles.reviewHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO DIARY</Text>
-                <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
-              </View>
-              {!diaryLogged && <Pressable accessibilityLabel="Close diary sheet" onPress={() => setDiaryVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>}
+      <BottomSheet
+        animationType="none"
+        visible={diaryVisible}
+        onRequestClose={() => {
+          if (!diaryLogged) setDiaryVisible(false);
+        }}
+        sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}
+      >
+        <View style={styles.sheetHandle} />
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
+          <View style={styles.reviewHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO DIARY</Text>
+              <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>
+                {detail.name}
+              </Text>
             </View>
-            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
-            <View style={styles.planMealRow}>
-              {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
-                <Pressable key={type} accessibilityLabel={`Log as ${type}`} onPress={() => setDiaryMealType(type)} style={[styles.planMealChip, { backgroundColor: diaryMealType === type ? colors.accent : colors.card, borderColor: diaryMealType === type ? colors.accent : colors.border }]}>
-                  <Text style={[styles.planMealText, { color: diaryMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>SERVINGS</Text>
-            <View style={styles.diaryServingRow}>
-              <Pressable accessibilityLabel="Fewer diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, -1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
-              <Text style={[styles.stepperValue, { color: colors.foreground, fontSize: 20, minWidth: 52 }]}>{formatRecipePortions(diaryServings)}</Text>
-              <Pressable accessibilityLabel="More diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, 1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
-              <Text style={[styles.servingLabel, { color: colors.mutedForeground, marginLeft: 8 }]}>{recipePortionLabel(diaryServings)}</Text>
-            </View>
-            <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero, marginTop: 14 }]}>
-              <View>
-                <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>YOU'RE LOGGING</Text>
-                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{formatRecipeNutrition(diaryNutrition.calories, ' kcal')}</Text>
-              </View>
-              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {formatRecipeNutrition(diaryNutrition.proteinG, 'g')}{'\n'}C {formatRecipeNutrition(diaryNutrition.carbsG, 'g')}{'\n'}F {formatRecipeNutrition(diaryNutrition.fatG, 'g')}</Text>
-            </View>
-            <Pressable accessibilityLabel="Confirm diary entry" onPress={logToDiary} style={[styles.primaryAction, { backgroundColor: diaryLogged ? colors.accent : colors.primary }]}>
-              <Feather name={diaryLogged ? 'check-circle' : 'plus-circle'} size={16} color={diaryLogged ? colors.accentForeground : colors.primaryForeground} />
-              <Text style={[styles.primaryActionText, { color: diaryLogged ? colors.accentForeground : colors.primaryForeground }]}>{diaryLogged ? 'Added to diary!' : `Add to ${diaryMealType.toLowerCase()}`}</Text>
+            {!diaryLogged && (
+              <Pressable accessibilityLabel="Close diary sheet" onPress={() => setDiaryVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </Pressable>
+            )}
+          </View>
+          <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
+          <View style={styles.planMealRow}>
+            {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
+              <Pressable
+                key={type}
+                accessibilityLabel={`Log as ${type}`}
+                onPress={() => setDiaryMealType(type)}
+                style={[
+                  styles.planMealChip,
+                  {
+                    backgroundColor: diaryMealType === type ? colors.accent : colors.card,
+                    borderColor: diaryMealType === type ? colors.accent : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.planMealText,
+                    {
+                      color: diaryMealType === type ? colors.accentForeground : colors.foreground,
+                    },
+                  ]}
+                >
+                  {type}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>SERVINGS</Text>
+          <View style={styles.diaryServingRow}>
+            <Pressable accessibilityLabel="Fewer diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, -1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="minus" size={14} color={colors.foreground} />
             </Pressable>
-            {!diaryLogged && <Pressable accessibilityLabel="Cancel diary entry" onPress={() => setDiaryVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
-            </ScrollView>
+            <Text style={[styles.stepperValue, { color: colors.foreground, fontSize: 20, minWidth: 52 }]}>{formatRecipePortions(diaryServings)}</Text>
+            <Pressable accessibilityLabel="More diary portions" onPress={() => setDiaryServings((current) => nextRecipePortions(current, 1))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="plus" size={14} color={colors.foreground} />
+            </Pressable>
+            <Text style={[styles.servingLabel, { color: colors.mutedForeground, marginLeft: 8 }]}>{recipePortionLabel(diaryServings)}</Text>
+          </View>
+          <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero, marginTop: 14 }]}>
+            <View>
+              <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>YOU'RE LOGGING</Text>
+              <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{formatRecipeNutrition(diaryNutrition.calories, ' kcal')}</Text>
+            </View>
+            <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>
+              P {formatRecipeNutrition(diaryNutrition.proteinG, 'g')}
+              {'\n'}C {formatRecipeNutrition(diaryNutrition.carbsG, 'g')}
+              {'\n'}F {formatRecipeNutrition(diaryNutrition.fatG, 'g')}
+            </Text>
+          </View>
+          <Pressable accessibilityLabel="Confirm diary entry" onPress={logToDiary} style={[styles.primaryAction, { backgroundColor: diaryLogged ? colors.accent : colors.primary }]}>
+            <Feather name={diaryLogged ? 'check-circle' : 'plus-circle'} size={16} color={diaryLogged ? colors.accentForeground : colors.primaryForeground} />
+            <Text
+              style={[
+                styles.primaryActionText,
+                {
+                  color: diaryLogged ? colors.accentForeground : colors.primaryForeground,
+                },
+              ]}
+            >
+              {diaryLogged ? 'Added to diary!' : `Add to ${diaryMealType.toLowerCase()}`}
+            </Text>
+          </Pressable>
+          {!diaryLogged && (
+            <Pressable accessibilityLabel="Cancel diary entry" onPress={() => setDiaryVisible(false)} style={styles.sourceAction}>
+              <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+          )}
+        </ScrollView>
       </BottomSheet>
-    {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
+      {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
         to avoid React Native Web portal stacking issues. When nested inside the
         outer Modal, the outer modal's backdrop View creates a stacking context
         that intercepts all pointer events for the inner modal's buttons. */}
-    <BottomSheet visible={shopVisible} animationType="none" onRequestClose={() => setShopVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.reviewHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>SHOPPING LIST</Text>
-              <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
-            </View>
-            <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+      <BottomSheet visible={shopVisible} animationType="none" onRequestClose={() => setShopVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
+        <View style={styles.sheetHandle} />
+        <View style={styles.reviewHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.detailEyebrow, { color: colors.primary }]}>SHOPPING LIST</Text>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>
+              {detail.name}
+            </Text>
           </View>
-          <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients for {servingLabel} {recipePortionLabel(servingCount)}. Listed items won’t duplicate.</Text>
-          {/* Use fixed height (not maxHeight) so RNW respects the constraint —
+          <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+            <Feather name="x" size={18} color={colors.foreground} />
+          </Pressable>
+        </View>
+        <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>
+          Select ingredients for {servingLabel} {recipePortionLabel(servingCount)}. Listed items won’t duplicate.
+        </Text>
+        {/* Use fixed height (not maxHeight) so RNW respects the constraint —
               maxHeight on ScrollView grows to full content on web, pushing
               Add/Cancel buttons past the planSheet's clipping boundary. */}
-          <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-            {detail.ingredients?.map((ingredient, idx) => (
-              <Pressable key={idx}
-                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
-                onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
-                style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
+        <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+          {detail.ingredients?.map((ingredient, idx) => (
+            <Pressable
+              key={idx}
+              accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
+              onPress={() =>
+                setSelectedIngredients((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(idx)) next.delete(idx);
+                  else next.add(idx);
+                  return next;
+                })
+              }
+              style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
+            >
+              <View
+                style={[
+                  styles.shopCheckbox,
+                  {
+                    backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card,
+                    borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border,
+                  },
+                ]}
               >
-                <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
-                  {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
-                </View>
-                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <Pressable
-            accessibilityLabel={`Add ${selectedIngredients.size} ingredient${selectedIngredients.size !== 1 ? 's' : ''} to shopping list`}
-            onPress={addToShoppingList}
-            style={[styles.primaryAction, { backgroundColor: selectedIngredients.size > 0 ? colors.primary : colors.muted, opacity: selectedIngredients.size > 0 ? 1 : 0.5 }]}
+                {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
+              </View>
+              <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+        <Pressable
+          accessibilityLabel={`Add ${selectedIngredients.size} ingredient${selectedIngredients.size !== 1 ? 's' : ''} to shopping list`}
+          onPress={addToShoppingList}
+          style={[
+            styles.primaryAction,
+            {
+              backgroundColor: selectedIngredients.size > 0 ? colors.primary : colors.muted,
+              opacity: selectedIngredients.size > 0 ? 1 : 0.5,
+            },
+          ]}
+        >
+          <Feather name="shopping-cart" size={16} color={selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground} />
+          <Text
+            style={[
+              styles.primaryActionText,
+              {
+                color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground,
+              },
+            ]}
           >
-            <Feather name="shopping-cart" size={16} color={selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground} />
-            <Text style={[styles.primaryActionText, { color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground }]}>Add {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-    </BottomSheet>
+            Add {selectedIngredients.size} ingredient
+            {selectedIngredients.size !== 1 ? 's' : ''}
+          </Text>
+        </Pressable>
+        <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}>
+          <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text>
+        </Pressable>
+      </BottomSheet>
     </>
   );
 }
@@ -1695,38 +2623,47 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
     try {
       const patch = {
         name: name.trim(),
-        ingredients: ingredients.split('\n').map((item) => item.trim()).filter(Boolean),
+        ingredients: ingredients
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean),
         calories: parsedCalories,
         proteinG: parseWholeNumberInput(protein),
         carbsG: parseWholeNumberInput(carbs),
         fatG: parseWholeNumberInput(fat),
       };
-      const saved = editing && recipe
-        ? await updatePersonalRecipe(recipe.id, patch)
-          ? { ...recipe, ...patch }
-          : null
-        : await saveRecipe({
-          ...patch,
-          tags: ['My recipes'],
-          source: `Created in ${BRAND.name}`,
-          sourceUrl: URLS.main,
-          category: 'Personal',
-          area: null,
-          image: null,
-          imageStatus: 'not_requested',
-          sourceType: 'user_created',
-          sourceProvider: BRAND.name,
-          nutritionConfidence: 'user_entered',
-          nutritionSource: 'User entered',
-          instructions: null,
-          description: null,
-          prepMinutes: null,
-        });
+      const saved =
+        editing && recipe
+          ? (await updatePersonalRecipe(recipe.id, patch))
+            ? { ...recipe, ...patch }
+            : null
+          : await saveRecipe({
+              ...patch,
+              tags: ['My recipes'],
+              source: `Created in ${BRAND.name}`,
+              sourceUrl: URLS.main,
+              category: 'Personal',
+              area: null,
+              image: null,
+              imageStatus: 'not_requested',
+              sourceType: 'user_created',
+              sourceProvider: BRAND.name,
+              nutritionConfidence: 'user_entered',
+              nutritionSource: 'User entered',
+              instructions: null,
+              description: null,
+              prepMinutes: null,
+            });
       if (!saved) {
         setError('Recipe could not be saved on this device. Check storage and try again.');
         return;
       }
-      setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); setIngredients('');
+      setName('');
+      setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
+      setIngredients('');
       setError('');
       onClose();
       onSaved(saved);
@@ -1738,22 +2675,100 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
   };
   return (
     <BottomSheet animationType="none" visible={visible} onRequestClose={onClose} sheetStyle={{ backgroundColor: colors.background }}>
-        <KeyboardAwareScrollViewCompat
-          style={styles.bottomSheetContent}
-          contentContainerStyle={styles.createFormContent}
-          bottomOffset={24}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
+      <KeyboardAwareScrollViewCompat style={styles.bottomSheetContent} contentContainerStyle={styles.createFormContent} bottomOffset={24} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">
+        <Text style={[styles.detailTitle, { color: colors.foreground }]}>{editing ? 'Edit your recipe' : 'Create your recipe'}</Text>
+        <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{editing ? 'Update your personal recipe. Changes stay on this device.' : 'Personal recipes stay separate from source recipes and can be edited later.'}</Text>
+        <TextInput
+          accessibilityLabel="Recipe name"
+          returnKeyType="next"
+          value={name}
+          onChangeText={(value) => {
+            setName(value);
+            setError('');
+          }}
+          placeholder="Recipe name"
+          placeholderTextColor={colors.mutedForeground}
+          style={[
+            styles.createInput,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.input,
+            },
+          ]}
+        />
+        <View style={styles.numberGrid}>
+          {[
+            ['Calories', calories, setCalories],
+            ['Protein g', protein, setProtein],
+            ['Carbs g', carbs, setCarbs],
+            ['Fat g', fat, setFat],
+          ].map(([label, value, setter]) => (
+            <View key={label as string} style={{ flex: 1 }}>
+              <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label as string}</Text>
+              <TextInput
+                accessibilityLabel={label as string}
+                value={value as string}
+                onChangeText={(text) => {
+                  (setter as (next: string) => void)(normalizeWholeNumberInput(text));
+                  setError('');
+                }}
+                keyboardType="number-pad"
+                returnKeyType="next"
+                placeholder="0"
+                placeholderTextColor={colors.mutedForeground}
+                style={[
+                  styles.createInput,
+                  {
+                    color: colors.foreground,
+                    backgroundColor: colors.card,
+                    borderColor: colors.input,
+                  },
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+        <TextInput
+          accessibilityLabel="Recipe ingredients"
+          value={ingredients}
+          onChangeText={(value) => {
+            setIngredients(value);
+            setError('');
+          }}
+          multiline
+          placeholder="Ingredients, one per line"
+          placeholderTextColor={colors.mutedForeground}
+          style={[
+            styles.ingredientsInput,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.input,
+            },
+          ]}
+        />
+        {error ? (
+          <View style={[styles.formError, { backgroundColor: colors.destructive + '18' }]}>
+            <Feather name="alert-circle" size={15} color={colors.destructive} />
+            <Text style={[styles.formErrorText, { color: colors.destructive }]}>{error}</Text>
+          </View>
+        ) : null}
+        <Pressable
+          accessibilityLabel={editing ? 'Save personal recipe changes' : 'Save your recipe'}
+          disabled={saving}
+          onPress={() => {
+            void save();
+          }}
+          style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 }]}
         >
-          <Text style={[styles.detailTitle, { color: colors.foreground }]}>{editing ? 'Edit your recipe' : 'Create your recipe'}</Text>
-          <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{editing ? 'Update your personal recipe. Changes stay on this device.' : 'Personal recipes stay separate from source recipes and can be edited later.'}</Text>
-          <TextInput accessibilityLabel="Recipe name" returnKeyType="next" value={name} onChangeText={(value) => { setName(value); setError(''); }} placeholder="Recipe name" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
-          <View style={styles.numberGrid}>{[['Calories', calories, setCalories], ['Protein g', protein, setProtein], ['Carbs g', carbs, setCarbs], ['Fat g', fat, setFat]].map(([label, value, setter]) => <View key={label as string} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput accessibilityLabel={label as string} value={value as string} onChangeText={(text) => { (setter as (next: string) => void)(normalizeWholeNumberInput(text)); setError(''); }} keyboardType="number-pad" returnKeyType="next" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}</View>
-          <TextInput accessibilityLabel="Recipe ingredients" value={ingredients} onChangeText={(value) => { setIngredients(value); setError(''); }} multiline placeholder="Ingredients, one per line" placeholderTextColor={colors.mutedForeground} style={[styles.ingredientsInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
-          {error ? <View style={[styles.formError, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={15} color={colors.destructive} /><Text style={[styles.formErrorText, { color: colors.destructive }]}>{error}</Text></View> : null}
-          <Pressable accessibilityLabel={editing ? 'Save personal recipe changes' : 'Save your recipe'} disabled={saving} onPress={() => { void save(); }} style={[styles.primaryAction, { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{saving ? 'Saving recipe…' : editing ? 'Save changes' : 'Save recipe'}</Text></Pressable>
-          <Pressable accessibilityLabel={editing ? 'Cancel personal recipe editing' : 'Cancel recipe creation'} onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-        </KeyboardAwareScrollViewCompat>
+          <Feather name="check" size={16} color={colors.primaryForeground} />
+          <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{saving ? 'Saving recipe…' : editing ? 'Save changes' : 'Save recipe'}</Text>
+        </Pressable>
+        <Pressable accessibilityLabel={editing ? 'Cancel personal recipe editing' : 'Cancel recipe creation'} onPress={onClose} style={styles.sourceAction}>
+          <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text>
+        </Pressable>
+      </KeyboardAwareScrollViewCompat>
     </BottomSheet>
   );
 }
@@ -1781,7 +2796,9 @@ export default function RecipesScreen() {
   const [category, setCategory] = useState('For you');
   const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
   const [sectionPreview, setSectionPreview] = useState<RecipeSection | null>(null);
-  useEffect(() => { setSectionPreview(null); }, [activeSection]);
+  useEffect(() => {
+    setSectionPreview(null);
+  }, [activeSection]);
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -1802,21 +2819,37 @@ export default function RecipesScreen() {
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
   const discoverScrollYRef = useRef(0);
-  const discoverRecipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
+  const discoverRecipeScrollMetricsRef = useRef({
+    offsetY: 0,
+    viewportHeight: 0,
+    contentHeight: 0,
+  });
   const premiumScrollYRef = useRef(0);
-  const premiumRecipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
-  const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
+  const premiumRecipeScrollMetricsRef = useRef({
+    offsetY: 0,
+    viewportHeight: 0,
+    contentHeight: 0,
+  });
+  const {
+    recipeId: routeRecipeId,
+    recipeSource: routeRecipeSource,
+    recipeName: routeRecipeName,
+  } = useLocalSearchParams<{
+    recipeId?: string;
+    recipeSource?: PlannerRecipeSource;
+    recipeName?: string;
+  }>();
   const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
   const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
   const recipeName = Array.isArray(routeRecipeName) ? routeRecipeName[0] : routeRecipeName;
-  const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? recipeId ?? '' : '', {
+  const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? (recipeId ?? '') : '', {
     query: {
       queryKey: ['recipe', recipeId ?? ''],
       enabled: recipeSource === 'discover' && Boolean(recipeId),
       staleTime: 1000 * 60 * 30,
     },
   });
-  const linkedPremiumRecipeQuery = useGetPremiumRecipe(recipeSource === 'plus' ? recipeId ?? '' : '', {
+  const linkedPremiumRecipeQuery = useGetPremiumRecipe(recipeSource === 'plus' ? (recipeId ?? '') : '', {
     query: {
       queryKey: premiumRecipeDetailQueryKey(user?.id, getGetPremiumRecipeQueryKey(recipeId ?? '')),
       enabled: recipeSource === 'plus' && Boolean(recipeId && user?.id),
@@ -1833,21 +2866,24 @@ export default function RecipesScreen() {
     error: linkedPremiumRecipeQuery.error,
   });
   useEffect(() => {
-    setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
+    setSelected((current) => (current && recipeProvenance(current).sourceType === 'premium' ? null : current));
   }, [user?.id]);
-  const localMatches = useMemo(() => category !== 'My recipes' ? [] : localRecipes.filter((recipe) => {
-    const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
-    const matchesSearch = haystack.includes(search.toLowerCase());
-    return matchesSearch;
-  }), [category, localRecipes, search]);
+  const localMatches = useMemo(
+    () =>
+      category !== 'My recipes'
+        ? []
+        : localRecipes.filter((recipe) => {
+            const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
+            const matchesSearch = haystack.includes(search.toLowerCase());
+            return matchesSearch;
+          }),
+    [category, localRecipes, search],
+  );
   const caloraOriginalMatches = useMemo(() => {
     if (category === 'My recipes') return [];
     const normalizedSearch = search.trim().toLowerCase();
     return caloraOriginalRecipes.filter((recipe) => {
-      const categoryMatch = category === 'For you'
-        || (category === 'Quick' && (recipe.prepMinutes ?? Number.MAX_SAFE_INTEGER) <= 30)
-        || (category === 'Supper' && recipe.category === 'Dinner')
-        || recipe.category?.toLowerCase() === category.toLowerCase();
+      const categoryMatch = category === 'For you' || (category === 'Quick' && (recipe.prepMinutes ?? Number.MAX_SAFE_INTEGER) <= 30) || (category === 'Supper' && recipe.category === 'Dinner') || recipe.category?.toLowerCase() === category.toLowerCase();
       if (!categoryMatch) return false;
       if (!normalizedSearch) return true;
       const haystack = `${recipe.name} ${recipe.description ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
@@ -1859,7 +2895,22 @@ export default function RecipesScreen() {
   // A newly created recipe opens from the Create pane. While its detail sheet
   // is open, keep the open catalogue available to fill both related rows.
   const discoverPaneMounted = activeSection !== 'create' || Boolean(selected && isLocalRecipe(selected));
-  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], enabled: discoverRemoteEnabled && discoverPaneMounted, staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
+  const recipesQuery = useListRecipes(
+    {
+      query: search || undefined,
+      category: category === 'For you' ? undefined : category,
+      limit: RECIPE_PAGE_SIZE,
+      offset: remoteOffset,
+    },
+    {
+      query: {
+        queryKey: ['recipes', search, category, remoteOffset],
+        enabled: discoverRemoteEnabled && discoverPaneMounted,
+        staleTime: 1000 * 60 * 10,
+        refetchInterval: (query) => ((query.state.data as { warmupPending?: boolean } | undefined)?.warmupPending ? 15_000 : false),
+      },
+    },
+  );
   useEffect(() => {
     setRemoteOffset(0);
     setRemoteNextOffset(0);
@@ -1890,11 +2941,13 @@ export default function RecipesScreen() {
       limit: RECIPE_PAGE_SIZE,
       offset: nextOffset,
     };
-    void queryClient.prefetchQuery({
-      queryKey: ['recipes', search, category, nextOffset],
-      queryFn: ({ signal }) => listRecipes(params, { signal }),
-      staleTime: 1000 * 60 * 10,
-    }).catch(() => undefined);
+    void queryClient
+      .prefetchQuery({
+        queryKey: ['recipes', search, category, nextOffset],
+        queryFn: ({ signal }) => listRecipes(params, { signal }),
+        staleTime: 1000 * 60 * 10,
+      })
+      .catch(() => undefined);
   }, [category, discoverRemoteEnabled, queryClient, recipesQuery.data?.nextOffset, recipesQuery.data?.recipes, search]);
   useEffect(() => {
     if (!recipeId) return;
@@ -1959,25 +3012,18 @@ export default function RecipesScreen() {
     router.setParams({ recipeName: undefined });
   }, [recipeId, recipeName, remoteRecipes]);
   useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe, restoreRecipe });
-  const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
+  const selectedRecipe = selected && isLocalRecipe(selected) ? (localRecipes.find((recipe) => recipe.id === selected.id) ?? selected) : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
   const freshRemoteRecipes = useMemo(() => orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
   useEffect(() => {
     if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
     discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE).map((recipe) => ({ id: recipe.feedEntryKey })));
   }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
-  const visibleRemote: BrowseRecipe[] = category === 'My recipes'
-    ? []
-    : [...caloraOriginalMatches, ...(category === 'Quick' ? [] : freshRemoteRecipes)];
-  const allOpenRecipeSuggestions = useMemo(
-    () => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes],
-    [freshRemoteRecipes, localRecipes],
-  );
+  const visibleRemote: BrowseRecipe[] = category === 'My recipes' ? [] : [...caloraOriginalMatches, ...(category === 'Quick' ? [] : freshRemoteRecipes)];
+  const allOpenRecipeSuggestions = useMemo(() => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes], [freshRemoteRecipes, localRecipes]);
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
-    const pool: BrowseRecipe[] = premiumSelected
-      ? premiumCatalogueRecipes
-      : allOpenRecipeSuggestions;
+    const pool: BrowseRecipe[] = premiumSelected ? premiumCatalogueRecipes : allOpenRecipeSuggestions;
     return getRecipeSuggestions(pool, selectedRecipe);
   }, [allOpenRecipeSuggestions, premiumCatalogueRecipes, selectedRecipe]);
   const savedRecipes = [...localRecipes, ...caloraOriginalRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
@@ -1990,17 +3036,19 @@ export default function RecipesScreen() {
   const loadMoreDiscoverRecipesIfAtEnd = (section: RecipeSection) => {
     if (section !== 'discover' || activeSection !== 'discover') return;
     const { offsetY, viewportHeight, contentHeight } = discoverRecipeScrollMetricsRef.current;
-    if (shouldLoadMoreRecipePage({
-      section,
-      activeSection,
-      offsetY,
-      viewportHeight,
-      contentHeight,
-      nextOffset: remoteNextOffset,
-      isFetching: recipesQuery.isFetching,
-      isLoadingMore: loadingMoreRef.current,
-      prefetchDistance: RECIPE_PREFETCH_DISTANCE,
-    })) {
+    if (
+      shouldLoadMoreRecipePage({
+        section,
+        activeSection,
+        offsetY,
+        viewportHeight,
+        contentHeight,
+        nextOffset: remoteNextOffset,
+        isFetching: recipesQuery.isFetching,
+        isLoadingMore: loadingMoreRef.current,
+        prefetchDistance: RECIPE_PREFETCH_DISTANCE,
+      })
+    ) {
       loadMoreRecipes();
     }
   };
@@ -2037,52 +3085,216 @@ export default function RecipesScreen() {
   // A retained adjacent pane is rendered from its own section identity so the
   // outgoing and incoming sections stay visible throughout the direct drag.
   const renderRecipeSection = (section: RecipeSection) => (
-      <ScrollView
-        style={styles.recipeScroll}
-        contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
-        overScrollMode="never"
-        onLayout={(event) => {
-          if (section === 'premium') {
-            premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-            loadMorePremiumRecipesIfAtEnd(section);
-            return;
-          }
-          if (section === 'discover') {
-            discoverRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-            loadMoreDiscoverRecipesIfAtEnd(section);
-          }
-        }}
-        onContentSizeChange={(_, contentHeight) => {
-          if (section === 'premium') {
-            premiumRecipeScrollMetricsRef.current.contentHeight = contentHeight;
-            loadMorePremiumRecipesIfAtEnd(section);
-            return;
-          }
-          if (section === 'discover') {
-            discoverRecipeScrollMetricsRef.current.contentHeight = contentHeight;
-            loadMoreDiscoverRecipesIfAtEnd(section);
-          }
-        }}
-        onScroll={(event) => handleRecipeScroll(section, event)}
-        onScrollEndDrag={(event) => handleRecipeScroll(section, event)}
-        onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-      >
-         <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0} />
-         {section === 'discover' ? <>
-        <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search recipes" value={search} onChangeText={setSearch} placeholder="Search recipes, or 2–4 ingredients" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />{search ? <Pressable accessibilityLabel="Clear recipe search" onPress={() => setSearch('')}><Feather name="x-circle" size={16} color={colors.mutedForeground} /></Pressable> : null}</View>
-        <SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{categories.map((item) => <Pressable key={item} accessibilityLabel={`Recipe category ${item}`} onPress={() => setCategory(item)} style={[styles.categoryChip, { backgroundColor: category === item ? colors.primary : colors.card, borderColor: category === item ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}<Pressable accessibilityLabel="Recipe category My recipes" onPress={() => setCategory('My recipes')} style={[styles.categoryChip, { backgroundColor: category === 'My recipes' ? colors.primary : colors.card, borderColor: category === 'My recipes' ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === 'My recipes' ? colors.primaryForeground : colors.mutedForeground }]}>My recipes</Text></Pressable></ScrollView></SwipeGestureExclusion>
+    <ScrollView
+      style={styles.recipeScroll}
+      contentContainerStyle={{
+        paddingTop: 14,
+        paddingHorizontal: 20,
+        paddingBottom: insets.bottom + 104,
+      }}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+      overScrollMode="never"
+      onLayout={(event) => {
+        if (section === 'premium') {
+          premiumRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+          loadMorePremiumRecipesIfAtEnd(section);
+          return;
+        }
+        if (section === 'discover') {
+          discoverRecipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+          loadMoreDiscoverRecipesIfAtEnd(section);
+        }
+      }}
+      onContentSizeChange={(_, contentHeight) => {
+        if (section === 'premium') {
+          premiumRecipeScrollMetricsRef.current.contentHeight = contentHeight;
+          loadMorePremiumRecipesIfAtEnd(section);
+          return;
+        }
+        if (section === 'discover') {
+          discoverRecipeScrollMetricsRef.current.contentHeight = contentHeight;
+          loadMoreDiscoverRecipesIfAtEnd(section);
+        }
+      }}
+      onScroll={(event) => handleRecipeScroll(section, event)}
+      onScrollEndDrag={(event) => handleRecipeScroll(section, event)}
+      onMomentumScrollEnd={(event) => handleRecipeScroll(section, event)}
+      scrollEventThrottle={16}
+      decelerationRate="normal"
+    >
+      <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => (current.some((item) => item.id === recipe.id) ? current : [...current, recipe]))} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0} />
+      {section === 'discover' ? (
+        <>
+          <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
+            <Feather name="search" size={17} color={colors.mutedForeground} />
+            <TextInput accessibilityLabel="Search recipes" value={search} onChangeText={setSearch} placeholder="Search recipes, or 2–4 ingredients" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
+            {search ? (
+              <Pressable accessibilityLabel="Clear recipe search" onPress={() => setSearch('')}>
+                <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            ) : null}
+          </View>
+          <SwipeGestureExclusion>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {categories.map((item) => (
+                <Pressable
+                  key={item}
+                  accessibilityLabel={`Recipe category ${item}`}
+                  onPress={() => setCategory(item)}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: category === item ? colors.primary : colors.card,
+                      borderColor: category === item ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      {
+                        color: category === item ? colors.primaryForeground : colors.mutedForeground,
+                      },
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                accessibilityLabel="Recipe category My recipes"
+                onPress={() => setCategory('My recipes')}
+                style={[
+                  styles.categoryChip,
+                  {
+                    backgroundColor: category === 'My recipes' ? colors.primary : colors.card,
+                    borderColor: category === 'My recipes' ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    {
+                      color: category === 'My recipes' ? colors.primaryForeground : colors.mutedForeground,
+                    },
+                  ]}
+                >
+                  My recipes
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </SwipeGestureExclusion>
 
-         {savedDiscoverRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedDiscoverRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></SwipeGestureExclusion></>}
+          {savedDiscoverRecipes.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text>
+                  <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text>
+                </View>
+              </View>
+              <SwipeGestureExclusion>
+                <ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>
+                  {savedDiscoverRecipes.map((recipe) => (
+                    <View key={recipeKey(recipe)} style={{ width: 220 }}>
+                      <RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} />
+                    </View>
+                  ))}
+                </ScrollView>
+              </SwipeGestureExclusion>
+            </>
+          )}
 
-         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={discoverFeedEntryKey(recipe)} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
-        <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
-          </> : section === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} /> : null}
-      </ScrollView>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text>
+            </View>
+            <Feather name="book-open" size={18} color={colors.mutedForeground} />
+          </View>
+          {recipesQuery.isLoading && remoteRecipes.length === 0 ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text>
+            </View>
+          ) : recipesQuery.isError && remoteRecipes.length === 0 ? (
+            <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="wifi-off" size={20} color={colors.warning} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text>
+            </View>
+          ) : (
+            <>
+              {category === 'My recipes' && localMatches.length === 0 && (
+                <View
+                  style={[
+                    styles.emptyState,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Feather name="book-open" size={22} color={colors.primary} />
+                  <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text>
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text>
+                  <Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+                    <Feather name="plus" size={14} color={colors.primaryForeground} />
+                    <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text>
+                  </Pressable>
+                </View>
+              )}
+              <View style={styles.recipeGrid}>
+                {localMatches.map((recipe) => (
+                  <View key={recipe.id} style={styles.recipeGridCard}>
+                    <RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} />
+                  </View>
+                ))}
+                {visibleRemote.map((recipe) => (
+                  <View key={discoverFeedEntryKey(recipe)} style={styles.recipeGridCard}>
+                    <RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} />
+                  </View>
+                ))}
+              </View>
+              {recipesQuery.isError && remoteRecipes.length > 0 && (
+                <View
+                  style={[
+                    styles.offlineRetryRow,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Feather name="wifi-off" size={14} color={colors.warning} />
+                  <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text>
+                  <Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}>
+                    <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text>
+                  </Pressable>
+                </View>
+              )}
+              {recipesQuery.isFetching && remoteRecipes.length > 0 && (
+                <View style={styles.loadMoreState}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text>
+                </View>
+              )}
+            </>
+          )}
+          <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
+        </>
+      ) : section === 'create' ? (
+        <CreateConcepts
+          colors={colors}
+          onOpenRecipe={(recipe) => {
+            setSelected(recipe);
+          }}
+        />
+      ) : null}
+    </ScrollView>
   );
 
   return (
@@ -2090,14 +3302,8 @@ export default function RecipesScreen() {
       <AppHeader
         leftAlignTitle
         title="Recipes"
-        action={(
-          <Pressable
-            accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`}
-            testID="saved-recipes-header-button"
-            onPress={() => router.push('/saved-recipes')}
-            hitSlop={8}
-            style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}
-          >
+        action={
+          <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}>
             <Feather name="bookmark" size={17} color={colors.accentForeground} />
             {savedRecipeIds.length > 0 && (
               <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
@@ -2105,28 +3311,48 @@ export default function RecipesScreen() {
               </View>
             )}
           </Pressable>
-        )}
+        }
       />
-      <View
-        accessibilityRole="tablist"
-        accessibilityLabel="Recipe sections"
-        accessibilityHint="Select Discover, Plus, or Create"
-        testID="recipes-section-tabs"
-        style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
-      >
+      <View accessibilityRole="tablist" accessibilityLabel="Recipe sections" accessibilityHint="Select Discover, Plus, or Create" testID="recipes-section-tabs" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
         {RECIPE_SECTIONS.map((section) => {
           const selectedSection = (sectionPreview ?? activeSection) === section;
           const previewSelected = sectionPreview === section;
-          return <Pressable key={section} accessibilityRole="tab" accessibilityState={{ selected: selectedSection }} accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`} onPress={() => changeSection(section)} style={[styles.sectionTab, selectedSection && { backgroundColor: previewSelected ? colors.accent : colors.card }]}>
-            <Text style={[styles.sectionTabText, { color: previewSelected ? colors.accentForeground : selectedSection ? colors.foreground : colors.mutedForeground }]}>{section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}</Text>
-          </Pressable>;
+          return (
+            <Pressable
+              key={section}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: selectedSection }}
+              accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`}
+              onPress={() => changeSection(section)}
+              style={[
+                styles.sectionTab,
+                selectedSection && {
+                  backgroundColor: previewSelected ? colors.accent : colors.card,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.sectionTabText,
+                  {
+                    color: previewSelected ? colors.accentForeground : selectedSection ? colors.foreground : colors.mutedForeground,
+                  },
+                ]}
+              >
+                {section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}
+              </Text>
+            </Pressable>
+          );
         })}
       </View>
       <SwipeableSectionPager
         items={RECIPE_SECTIONS}
         activeItem={activeSection}
         onPreviewChange={setSectionPreview}
-        onChange={(next) => { setSectionPreview(null); changeSection(next); }}
+        onChange={(next) => {
+          setSectionPreview(null);
+          changeSection(next);
+        }}
         renderItem={renderRecipeSection}
         renderWindow={1}
         nativePaging
@@ -2137,12 +3363,31 @@ export default function RecipesScreen() {
       />
       {linkedPremiumRouteState !== 'idle' && (
         <Modal visible transparent animationType="none" onRequestClose={() => router.setParams({ recipeId: undefined, recipeSource: undefined })}>
-          <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
-            <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+          <View
+            style={[
+              styles.modalBackdrop,
+              {
+                backgroundColor: 'rgba(0,0,0,0.52)',
+                justifyContent: 'center',
+                padding: 24,
+              },
+            ]}
+          >
+            <View
+              accessibilityViewIsModal
+              style={[
+                styles.createSheet,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                },
+              ]}
+            >
               {linkedPremiumRouteState === 'loading' ? <ActivityIndicator color={colors.primary} /> : <Feather name={linkedPremiumRouteState === 'authentication' ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />}
-              <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>
-                {linkedPremiumRouteState === 'loading' ? 'Loading Plus recipe…' : linkedPremiumRouteState === 'authentication' ? 'Sign in to open this recipe' : 'Plus recipe unavailable'}
-              </Text>
+              <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>{linkedPremiumRouteState === 'loading' ? 'Loading Plus recipe…' : linkedPremiumRouteState === 'authentication' ? 'Sign in to open this recipe' : 'Plus recipe unavailable'}</Text>
               {linkedPremiumRouteState !== 'loading' && (
                 <Pressable
                   accessibilityLabel={linkedPremiumRouteState === 'authentication' ? 'Sign in to open Plus recipe' : 'Retry opening Plus recipe'}
@@ -2158,7 +3403,16 @@ export default function RecipesScreen() {
                   <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{linkedPremiumRouteState === 'authentication' ? 'Sign in' : 'Retry'}</Text>
                 </Pressable>
               )}
-              <Pressable accessibilityLabel="Close Plus recipe route" onPress={() => router.setParams({ recipeId: undefined, recipeSource: undefined })} style={[styles.secondaryAction, { borderColor: colors.border }]}>
+              <Pressable
+                accessibilityLabel="Close Plus recipe route"
+                onPress={() =>
+                  router.setParams({
+                    recipeId: undefined,
+                    recipeSource: undefined,
+                  })
+                }
+                style={[styles.secondaryAction, { borderColor: colors.border }]}
+              >
                 <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
               </Pressable>
             </View>
@@ -2166,16 +3420,62 @@ export default function RecipesScreen() {
         </Modal>
       )}
       {linkedDiscoverRouteError && (
-        <Modal visible transparent animationType="none" onRequestClose={() => { setLinkedDiscoverRouteError(false); router.setParams({ recipeId: undefined, recipeSource: undefined }); }}>
-          <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
-            <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22, alignItems: 'center' }]}>
+        <Modal
+          visible
+          transparent
+          animationType="none"
+          onRequestClose={() => {
+            setLinkedDiscoverRouteError(false);
+            router.setParams({ recipeId: undefined, recipeSource: undefined });
+          }}
+        >
+          <View
+            style={[
+              styles.modalBackdrop,
+              {
+                backgroundColor: 'rgba(0,0,0,0.52)',
+                justifyContent: 'center',
+                padding: 24,
+              },
+            ]}
+          >
+            <View
+              accessibilityViewIsModal
+              style={[
+                styles.createSheet,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                },
+              ]}
+            >
               <Feather name="wifi-off" size={20} color={colors.primary} />
               <Text style={[styles.detailTitle, { color: colors.foreground, marginTop: 12 }]}>Recipe unavailable</Text>
               <Text style={[styles.detailSubtitle, { color: colors.mutedForeground, textAlign: 'center' }]}>We could not open that recipe. Check your connection and try again.</Text>
-              <Pressable accessibilityLabel="Retry opening Discover recipe" onPress={() => { setLinkedDiscoverRouteError(false); void linkedDiscoverRecipeQuery.refetch(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+              <Pressable
+                accessibilityLabel="Retry opening Discover recipe"
+                onPress={() => {
+                  setLinkedDiscoverRouteError(false);
+                  void linkedDiscoverRecipeQuery.refetch();
+                }}
+                style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+              >
                 <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Retry</Text>
               </Pressable>
-              <Pressable accessibilityLabel="Close Discover recipe route" onPress={() => { setLinkedDiscoverRouteError(false); router.setParams({ recipeId: undefined, recipeSource: undefined }); }} style={[styles.secondaryAction, { borderColor: colors.border }]}>
+              <Pressable
+                accessibilityLabel="Close Discover recipe route"
+                onPress={() => {
+                  setLinkedDiscoverRouteError(false);
+                  router.setParams({
+                    recipeId: undefined,
+                    recipeSource: undefined,
+                  });
+                }}
+                style={[styles.secondaryAction, { borderColor: colors.border }]}
+              >
                 <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
               </Pressable>
             </View>
@@ -2233,241 +3533,1135 @@ export default function RecipesScreen() {
 
 function makeStyles(f: number) {
   return StyleSheet.create({
-  page: { flex: 1 },
-   sectionTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, marginHorizontal: 20, marginTop: 7, padding: 3, gap: 2 },
-   recipeScroll: { flex: 1, minHeight: 0 },
-   sectionTab: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-   sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-   headerSavedButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-   headerSavedBadge: { position: 'absolute', top: -4, right: -5, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff' },
-   headerSavedBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, lineHeight: 9 * f },
-   upcomingCard: { padding: 21, alignItems: 'center', marginTop: 13 },
-   upcomingIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
-   upcomingEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, textAlign: 'center' },
-   upcomingTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f, letterSpacing: -0.4, textAlign: 'center', marginTop: 7 },
-   upcomingBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 * f, textAlign: 'center', marginTop: 9, maxWidth: 290 },
-   upcomingAction: { minHeight: 42, borderRadius: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 19 },
-   upcomingActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-   premiumToolbar: { flexDirection: 'row', gap: 9, marginTop: 4, marginBottom: 10 },
-   filterButton: { width: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  recipeTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
-  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
-  eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 29 * f, letterSpacing: -0.8 },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 13 * f, lineHeight: 19, marginTop: 7, maxWidth: 235 },
-  createButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginTop: 6 },
-  createButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  searchBox: { height: 48, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 9 },
-  searchInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
-  categoryRow: { gap: 8, paddingVertical: 14, paddingRight: 20 },
-  categoryChip: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 8 },
-  categoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  fitCard: { borderRadius: 24, padding: 18, marginBottom: 25 },
-  fitIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  fitEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 6 },
-  fitTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.3 },
-  fitBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 17, marginTop: 7 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 11 },
-  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
-  sectionCaption: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
-  horizontalCards: { gap: 11, paddingBottom: 25 },
-  recipeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
-   recipeGridCard: { width: '48.35%' },
-   recipeCard: { overflow: 'hidden', flex: 1 },
-   recipeCardInner: { flex: 1 },
-   recipeCardPressable: { flex: 1 },
-  cardImageFrame: { position: 'relative' },
-  recipeImage: { width: '100%', backgroundColor: '#1d4539' },
-  imageFallback: { alignItems: 'center', justifyContent: 'center' },
-  generatedImageState: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#18382f' },
-  imageFallbackCopy: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  imageFallbackText: { color: '#9dd7bd', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 6 },
-  photoPendingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,34,24,0.58)', gap: 7 },
-  photoPendingText: { color: '#ffffff', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  generatedImageBadge: { position: 'absolute', bottom: 8, left: 8, borderRadius: 999, backgroundColor: 'rgba(18,34,24,0.78)', paddingHorizontal: 9, paddingVertical: 5 },
-  generatedImageBadgeText: { color: '#ffffff', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  cardContent: { padding: 10, flex: 1, justifyContent: 'space-between' },
-   compactCardContent: { paddingHorizontal: 8, paddingTop: 7, paddingBottom: 6 },
-   compactRecipeMeta: { marginTop: 4 },
-  recipeName: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 },
-  recipeMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
-  recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
-  recipeMetaText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
-   compactCardFooter: { marginTop: 5, paddingTop: 5 },
-  loadingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
-  loadMoreState: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 },
-  loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
-  emptyState: { borderWidth: 1, borderRadius: 18, padding: 18, alignItems: 'center' },
-  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, marginTop: 10 },
-  emptyText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, textAlign: 'center', marginTop: 6 },
-  footerNote: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 14, textAlign: 'center', marginTop: 22 },
-  reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 },
-  reviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 14 },
-  assumptionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginBottom: 12 },
-  assumptionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
-  reviewCard: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 11 },
-  reviewCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  reviewCardIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  reviewCardName: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
-  reviewCardSource: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },
-  reviewNutritionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 13, paddingVertical: 11, borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(120,120,120,0.15)' },
-  reviewNutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
-  reviewNutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
-  reviewFieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 11, marginBottom: 6 },
-  reviewFractionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  reviewFractionButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  reviewFractionValue: { width: 42, textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  reviewQuestion: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, lineHeight: 15, marginTop: 9 },
-  reviewTotalCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 4 },
-  reviewTotalLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1 },
-  reviewTotalValue: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, marginTop: 3 },
-  reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textAlign: 'right' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  detailSheet: { overflow: 'hidden' },
-  planSheet: { padding: 20 },
-  planSheetContent: { paddingBottom: 24 },
-  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 12 },
-  secondaryAction: { minHeight: 46, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  secondaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  planLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginTop: 14, marginBottom: 7 },
-  planDayRow: { gap: 8, paddingBottom: 2 },
-  planDayChip: { width: 48, height: 58, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  planDayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
-  planDayNumber: { fontFamily: 'Inter_700Bold', fontSize: 17 * f, marginTop: 3 },
-  planMealRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  planMealChip: { minHeight: 35, borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
-  planMealText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  detailTop: { position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
-  closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  detailCopy: { padding: 20 },
-  suggestionsSection: { marginTop: 4, paddingBottom: 4 },
-  suggestionsHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
-  suggestionsTitle: { marginTop: 0, marginBottom: 3 },
-  suggestionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
-  suggestionsCount: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 3 },
-  suggestionRows: { gap: 12 },
-  suggestionCards: { gap: 11, paddingHorizontal: 20, paddingBottom: 4 },
-  suggestionCard: { width: 190 },
-  detailEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 17 },
-  detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 25 * f, letterSpacing: -0.6, marginTop: 6 },
-  detailSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 6 },
-  accessMessageIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  accessMessageBody: { fontFamily: 'Inter_400Regular', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 8 },
-  nutritionStrip: { flexDirection: 'row', justifyContent: 'space-between', padding: 13, marginTop: 17 },
-  nutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
-  nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },
-  notice: { flexDirection: 'row', gap: 9, borderRadius: 14, padding: 12, marginTop: 12 },
-  noticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
-  detailSectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 * f, marginTop: 23, marginBottom: 9 },
-  ingredientRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 8 },
-  ingredientDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
-  ingredientText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 },
-  instructions: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 19 },
-  sourceAttributionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, marginTop: 22, marginBottom: 2 },
-  sourceAttributionText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
-  sourceAttributionLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, marginVertical: -4 },
-  sourceAttributionLinkText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 },
-  primaryAction: { minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, marginTop: 17 },
-  primaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  sourceAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 13 },
-  sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  personalRecipeActions: { borderTopWidth: 1, marginTop: 22, paddingTop: 16 },
-  personalRecipeActionsLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 1 },
-  personalRecipeDeleteConfirm: { borderWidth: 1, borderRadius: 14, marginTop: 8, padding: 14 },
-  personalRecipeDeleteTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
-  personalRecipeDeleteBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 4 },
-  personalRecipeDeleteError: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 8 },
-  personalRecipeDeleteButtons: { flexDirection: 'row', gap: 8, marginTop: 13 },
-  personalRecipeDeleteCancel: { flex: 1, minHeight: 40, borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  personalRecipeDeleteCancelText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  personalRecipeDeleteButton: { flex: 1, minHeight: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  personalRecipeDeleteButtonText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  createSheet: { borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20, paddingBottom: 28 },
-  bottomSheetContent: { padding: 20 },
-  sheetScroll: { flexShrink: 1, minHeight: 0 },
-  shopIngredientScroll: { height: 200, flexGrow: 0, flexShrink: 1, minHeight: 90 },
-  createHero: { borderWidth: 1, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  createHeroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  createHeroTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },
-  guestBoundary: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 12 },
-  createOptionPanel: { borderWidth: 1, borderRadius: 15, padding: 13, marginBottom: 14 },
-  createOptionHeading: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginBottom: 3 },
-  createOptionList: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10 },
-  createOptionChip: { minHeight: 34, borderWidth: 1, borderRadius: 11, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7 },
-  createOptionChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  createIngredientDraftRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
-  createIngredientDraftInput: { flex: 1, height: 42, borderWidth: 1, borderRadius: 11, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
-  createAddIngredient: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  createSelectionSummary: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, padding: 11, marginBottom: 2 },
-  createFormContent: { paddingBottom: 30 },
-  conceptsSection: { marginTop: 22 },
-  conceptsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-  conceptsEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  conceptsTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.25, marginTop: 4 },
-  conceptsCount: { minWidth: 52, borderWidth: 1, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 9, alignItems: 'center' },
-  conceptsCountValue: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, lineHeight: 20 * f },
-  conceptsCountLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 2 },
-  conceptList: { gap: 10 },
-  conceptCard: { borderWidth: 1, borderRadius: 18, padding: 14 },
-  conceptCardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  conceptNumber: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  conceptNumberText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  conceptTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 18 * f, marginTop: 3 },
-  conceptTime: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 5 },
-  conceptTimeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
-  conceptSummary: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 12 },
-  conceptFitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, borderRadius: 11, padding: 9, marginTop: 11 },
-  conceptFitText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 * f },
-  conceptAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10 },
-  conceptActionText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  formError: { flexDirection: 'row', gap: 8, alignItems: 'center', borderRadius: 11, padding: 10, marginTop: 10 },
-  formErrorText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },
-  numberGrid: { flexDirection: 'row', gap: 7, marginTop: 11 },
-  inputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },
-  createModeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 12 },
-  createModeCard: { width: '48%', minHeight: 80, borderRadius: 15, borderWidth: 1, padding: 13, justifyContent: 'space-between' },
-  createModeText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, marginTop: 9 },
-  createConstraintRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
-  createInput: { height: 45, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
-  ingredientsInput: { height: 100, borderWidth: 1, borderRadius: 12, padding: 11, textAlignVertical: 'top', fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 11 },
-  nutritionCell: { alignItems: 'center' },
-  nutritionLoading: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 4 },
-  nutritionLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
-  emptyAction: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
-  emptyActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  offlineRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 8 },
-  offlineRetryText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },
-  offlineRetryButton: { borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 },
-  offlineRetryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  // Feature 1: serving stepper
-  servingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
-  servingLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
-  servingStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepperButton: { width: 32, height: 32, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  stepperValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f, textAlign: 'center', minWidth: 38 },
-  // Feature 2: recipe info chips
-  infoChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
-  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  infoChipText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
-  // Feature 3: numbered steps
-  stepRow: { flexDirection: 'row', gap: 12, marginBottom: 14, alignItems: 'flex-start' },
-  stepNumber: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, width: 24, paddingTop: 1 },
-  stepText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 19 },
-  // Feature 4: shopping list
-  ingredientsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 23, marginBottom: 9 },
-  shopAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  shopActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  shopIngredientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  shopCheckbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  // Feature 6: diary serving row
-  diaryServingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 2 },
-  // Method loading skeleton
-  methodLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 14 },
-  methodLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+    page: { flex: 1 },
+    sectionTabs: {
+      flexDirection: 'row',
+      borderWidth: 1,
+      borderRadius: 14,
+      marginHorizontal: 20,
+      marginTop: 7,
+      padding: 3,
+      gap: 2,
+    },
+    recipeScroll: { flex: 1, minHeight: 0 },
+    sectionTab: {
+      flex: 1,
+      minHeight: 44,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+    headerSavedButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    headerSavedBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -5,
+      minWidth: 17,
+      height: 17,
+      paddingHorizontal: 3,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#ffffff',
+    },
+    headerSavedBadgeText: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 7 * f,
+      lineHeight: 9 * f,
+    },
+    upcomingCard: { padding: 21, alignItems: 'center', marginTop: 13 },
+    upcomingIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 15,
+    },
+    upcomingEyebrow: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 9 * f,
+      letterSpacing: 1.1,
+      textAlign: 'center',
+    },
+    upcomingTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 21 * f,
+      letterSpacing: -0.4,
+      textAlign: 'center',
+      marginTop: 7,
+    },
+    upcomingBody: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      lineHeight: 18 * f,
+      textAlign: 'center',
+      marginTop: 9,
+      maxWidth: 290,
+    },
+    upcomingAction: {
+      minHeight: 42,
+      borderRadius: 13,
+      paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      marginTop: 19,
+    },
+    upcomingActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+    premiumToolbar: {
+      flexDirection: 'row',
+      gap: 9,
+      marginTop: 4,
+      marginBottom: 10,
+    },
+    filterButton: {
+      width: 48,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    recipeTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      marginBottom: 2,
+    },
+    coachHeaderButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 13,
+      paddingHorizontal: 11,
+      paddingVertical: 9,
+      borderWidth: 1,
+      shadowOpacity: 0.22,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 4,
+    },
+    coachHeaderButtonText: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 10 * f,
+      letterSpacing: 0.1,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 18,
+    },
+    eyebrow: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      letterSpacing: 1.4,
+      marginBottom: 7,
+    },
+    title: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 29 * f,
+      letterSpacing: -0.8,
+    },
+    subtitle: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 13 * f,
+      lineHeight: 19,
+      marginTop: 7,
+      maxWidth: 235,
+    },
+    createButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      borderRadius: 12,
+      paddingHorizontal: 11,
+      paddingVertical: 9,
+      marginTop: 6,
+    },
+    createButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+    searchBox: {
+      height: 48,
+      borderWidth: 1,
+      borderRadius: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 13,
+      gap: 9,
+    },
+    searchInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+    categoryRow: { gap: 8, paddingVertical: 14, paddingRight: 20 },
+    categoryChip: {
+      minHeight: 44,
+      borderWidth: 1,
+      borderRadius: 18,
+      paddingHorizontal: 13,
+      paddingVertical: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+    fitCard: { borderRadius: 24, padding: 18, marginBottom: 25 },
+    fitIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    fitEyebrow: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      letterSpacing: 1.2,
+      marginBottom: 6,
+    },
+    fitTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 19 * f,
+      letterSpacing: -0.3,
+    },
+    fitBody: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 17,
+      marginTop: 7,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      marginBottom: 11,
+    },
+    sectionTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 18 * f,
+      letterSpacing: -0.3,
+    },
+    sectionCaption: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      marginTop: 4,
+    },
+    horizontalCards: { gap: 11, paddingBottom: 25 },
+    recipeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: 12,
+    },
+    recipeGridCard: { width: '48.35%' },
+    recipeCard: { overflow: 'hidden', flex: 1 },
+    recipeCardInner: { flex: 1 },
+    recipeCardPressable: { flex: 1 },
+    cardImageFrame: { position: 'relative' },
+    recipeImage: { width: '100%', backgroundColor: '#1d4539' },
+    imageFallback: { alignItems: 'center', justifyContent: 'center' },
+    generatedImageState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#18382f',
+    },
+    imageFallbackCopy: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    imageFallbackText: {
+      color: '#9dd7bd',
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      marginTop: 6,
+    },
+    photoPendingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(18,34,24,0.58)',
+      gap: 7,
+    },
+    photoPendingText: {
+      color: '#ffffff',
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 11 * f,
+    },
+    generatedImageBadge: {
+      position: 'absolute',
+      bottom: 8,
+      left: 8,
+      borderRadius: 999,
+      backgroundColor: 'rgba(18,34,24,0.78)',
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+    },
+    generatedImageBadgeText: {
+      color: '#ffffff',
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+    },
+    saveButton: {
+      position: 'absolute',
+      right: 8,
+      top: 8,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardContent: { padding: 10, flex: 1, justifyContent: 'space-between' },
+    compactCardContent: {
+      paddingHorizontal: 8,
+      paddingTop: 7,
+      paddingBottom: 6,
+    },
+    compactRecipeMeta: { marginTop: 4 },
+    recipeName: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 12 * f,
+      lineHeight: 16,
+    },
+    recipeMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 7,
+    },
+    recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+    recipeMetaText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f },
+    cardFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      marginTop: 9,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(120,120,120,0.12)',
+    },
+    compactCardFooter: { marginTop: 5, paddingTop: 5 },
+    loadingState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+      gap: 10,
+    },
+    loadMoreState: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 18,
+    },
+    loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+    emptyState: {
+      borderWidth: 1,
+      borderRadius: 18,
+      padding: 18,
+      alignItems: 'center',
+    },
+    emptyTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 14 * f,
+      marginTop: 10,
+    },
+    emptyText: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16,
+      textAlign: 'center',
+      marginTop: 6,
+    },
+    footerNote: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 9 * f,
+      lineHeight: 14,
+      textAlign: 'center',
+      marginTop: 22,
+    },
+    reviewHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+    },
+    reviewSubtitle: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16,
+      marginBottom: 14,
+    },
+    assumptionCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      padding: 11,
+      borderRadius: 13,
+      marginBottom: 12,
+    },
+    assumptionText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 10 * f,
+      lineHeight: 15,
+    },
+    reviewCard: {
+      borderWidth: 1,
+      borderRadius: 18,
+      padding: 14,
+      marginBottom: 11,
+    },
+    reviewCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+    reviewCardIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reviewCardName: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+    reviewCardSource: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 9 * f,
+      marginTop: 3,
+    },
+    reviewNutritionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 13,
+      paddingVertical: 11,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: 'rgba(120,120,120,0.15)',
+    },
+    reviewNutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+    reviewNutritionLabel: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 9 * f,
+      marginTop: 2,
+    },
+    reviewFieldLabel: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      marginTop: 11,
+      marginBottom: 6,
+    },
+    reviewFractionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    reviewFractionButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reviewFractionValue: {
+      width: 42,
+      textAlign: 'center',
+      fontFamily: 'Inter_700Bold',
+      fontSize: 12 * f,
+    },
+    reviewQuestion: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      lineHeight: 15,
+      marginTop: 9,
+    },
+    reviewTotalCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      borderRadius: 16,
+      padding: 14,
+      marginTop: 4,
+      marginBottom: 4,
+    },
+    reviewTotalLabel: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 9 * f,
+      letterSpacing: 1,
+    },
+    reviewTotalValue: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 20 * f,
+      marginTop: 3,
+    },
+    reviewTotalMacros: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 10 * f,
+      textAlign: 'right',
+    },
+    modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
+    detailSheet: { overflow: 'hidden' },
+    planSheet: { padding: 20 },
+    planSheetContent: { paddingBottom: 24 },
+    sheetHandle: {
+      width: 38,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: '#b7c5bc',
+      alignSelf: 'center',
+      marginBottom: 12,
+    },
+    secondaryAction: {
+      minHeight: 46,
+      borderRadius: 14,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 10,
+    },
+    secondaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+    planLabel: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 9 * f,
+      letterSpacing: 1.1,
+      marginTop: 14,
+      marginBottom: 7,
+    },
+    planDayRow: { gap: 8, paddingBottom: 2 },
+    planDayChip: {
+      width: 48,
+      height: 58,
+      borderRadius: 14,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    planDayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+    planDayNumber: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 17 * f,
+      marginTop: 3,
+    },
+    planMealRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    planMealChip: {
+      minHeight: 35,
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    planMealText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+    detailTop: {
+      position: 'absolute',
+      zIndex: 2,
+      top: 12,
+      left: 12,
+      right: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    detailCopy: { padding: 20 },
+    suggestionsSection: { marginTop: 4, paddingBottom: 4 },
+    suggestionsHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingHorizontal: 20,
+      marginBottom: 10,
+    },
+    suggestionsTitle: { marginTop: 0, marginBottom: 3 },
+    suggestionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+    suggestionsCount: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 9 * f,
+      marginBottom: 3,
+    },
+    suggestionRows: { gap: 12 },
+    suggestionCards: { gap: 11, paddingHorizontal: 20, paddingBottom: 4 },
+    suggestionCard: { width: 190 },
+    detailEyebrow: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 10 * f,
+      letterSpacing: 1.2,
+      marginTop: 17,
+    },
+    detailTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 25 * f,
+      letterSpacing: -0.6,
+      marginTop: 6,
+    },
+    detailSubtitle: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      marginTop: 6,
+    },
+    accessMessageIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    accessMessageBody: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 13 * f,
+      lineHeight: 19 * f,
+      marginTop: 8,
+    },
+    nutritionStrip: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      padding: 13,
+      marginTop: 17,
+    },
+    nutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
+    nutritionLabel: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 9 * f,
+      marginTop: 3,
+    },
+    notice: {
+      flexDirection: 'row',
+      gap: 9,
+      borderRadius: 14,
+      padding: 12,
+      marginTop: 12,
+    },
+    noticeText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 10 * f,
+      lineHeight: 15,
+    },
+    detailSectionTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 17 * f,
+      marginTop: 23,
+      marginBottom: 9,
+    },
+    ingredientRow: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    ingredientDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
+    ingredientText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      lineHeight: 17,
+    },
+    instructions: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      lineHeight: 19,
+    },
+    sourceAttributionRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 22,
+      marginBottom: 2,
+    },
+    sourceAttributionText: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16,
+    },
+    sourceAttributionLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 4,
+      marginVertical: -4,
+    },
+    sourceAttributionLinkText: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 11 * f,
+      lineHeight: 16,
+    },
+    primaryAction: {
+      minHeight: 48,
+      borderRadius: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingHorizontal: 16,
+      marginTop: 17,
+    },
+    primaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+    sourceAction: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 13,
+    },
+    sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+    personalRecipeActions: { borderTopWidth: 1, marginTop: 22, paddingTop: 16 },
+    personalRecipeActionsLabel: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 9 * f,
+      letterSpacing: 1.1,
+      marginBottom: 1,
+    },
+    personalRecipeDeleteConfirm: {
+      borderWidth: 1,
+      borderRadius: 14,
+      marginTop: 8,
+      padding: 14,
+    },
+    personalRecipeDeleteTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 13 * f,
+    },
+    personalRecipeDeleteBody: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16 * f,
+      marginTop: 4,
+    },
+    personalRecipeDeleteError: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 11 * f,
+      lineHeight: 16 * f,
+      marginTop: 8,
+    },
+    personalRecipeDeleteButtons: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 13,
+    },
+    personalRecipeDeleteCancel: {
+      flex: 1,
+      minHeight: 40,
+      borderWidth: 1,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    personalRecipeDeleteCancelText: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 11 * f,
+    },
+    personalRecipeDeleteButton: {
+      flex: 1,
+      minHeight: 40,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    personalRecipeDeleteButtonText: {
+      color: '#fff',
+      fontFamily: 'Inter_700Bold',
+      fontSize: 11 * f,
+    },
+    createSheet: {
+      borderTopLeftRadius: 27,
+      borderTopRightRadius: 27,
+      padding: 20,
+      paddingBottom: 28,
+    },
+    bottomSheetContent: { padding: 20 },
+    sheetScroll: { flexShrink: 1, minHeight: 0 },
+    shopIngredientScroll: {
+      height: 200,
+      flexGrow: 0,
+      flexShrink: 1,
+      minHeight: 90,
+    },
+    createHero: {
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+    },
+    createHeroIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    createHeroTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },
+    guestBoundary: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16 * f,
+      marginTop: 12,
+    },
+    createOptionPanel: {
+      borderWidth: 1,
+      borderRadius: 15,
+      padding: 13,
+      marginBottom: 14,
+    },
+    createOptionHeading: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 13 * f,
+      marginBottom: 3,
+    },
+    createOptionList: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 7,
+      marginTop: 10,
+    },
+    createOptionChip: {
+      minHeight: 34,
+      borderWidth: 1,
+      borderRadius: 11,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    },
+    createOptionChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+    createIngredientDraftRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
+    createIngredientDraftInput: {
+      flex: 1,
+      height: 42,
+      borderWidth: 1,
+      borderRadius: 11,
+      paddingHorizontal: 11,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+    },
+    createAddIngredient: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    createSelectionSummary: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      borderRadius: 12,
+      padding: 11,
+      marginBottom: 2,
+    },
+    createFormContent: { paddingBottom: 30 },
+    conceptsSection: { marginTop: 22 },
+    conceptsHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      marginBottom: 12,
+    },
+    conceptsEyebrow: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 9 * f,
+      letterSpacing: 1.1,
+    },
+    conceptsTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 18 * f,
+      letterSpacing: -0.25,
+      marginTop: 4,
+    },
+    conceptsCount: {
+      minWidth: 52,
+      borderWidth: 1,
+      borderRadius: 14,
+      paddingVertical: 8,
+      paddingHorizontal: 9,
+      alignItems: 'center',
+    },
+    conceptsCountValue: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 18 * f,
+      lineHeight: 20 * f,
+    },
+    conceptsCountLabel: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 9 * f,
+      marginTop: 2,
+    },
+    conceptList: { gap: 10 },
+    conceptCard: { borderWidth: 1, borderRadius: 18, padding: 14 },
+    conceptCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    conceptNumber: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    conceptNumberText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+    conceptTitle: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 14 * f,
+      lineHeight: 18 * f,
+      marginTop: 3,
+    },
+    conceptTime: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      borderRadius: 10,
+      paddingHorizontal: 7,
+      paddingVertical: 5,
+    },
+    conceptTimeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+    conceptSummary: {
+      fontFamily: 'Inter_400Regular',
+      fontSize: 11 * f,
+      lineHeight: 16 * f,
+      marginTop: 12,
+    },
+    conceptFitRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 7,
+      borderRadius: 11,
+      padding: 9,
+      marginTop: 11,
+    },
+    conceptFitText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 10 * f,
+      lineHeight: 14 * f,
+    },
+    conceptAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      marginTop: 12,
+      paddingTop: 10,
+    },
+    conceptActionText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+    formError: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+      borderRadius: 11,
+      padding: 10,
+      marginTop: 10,
+    },
+    formErrorText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 10 * f,
+      lineHeight: 14,
+    },
+    numberGrid: { flexDirection: 'row', gap: 7, marginTop: 11 },
+    inputLabel: {
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: 9 * f,
+      marginBottom: 5,
+    },
+    createModeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 9,
+      marginBottom: 12,
+    },
+    createModeCard: {
+      width: '48%',
+      minHeight: 80,
+      borderRadius: 15,
+      borderWidth: 1,
+      padding: 13,
+      justifyContent: 'space-between',
+    },
+    createModeText: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 12 * f,
+      marginTop: 9,
+    },
+    createConstraintRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
+    createInput: {
+      height: 45,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 11,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+    },
+    ingredientsInput: {
+      height: 100,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 11,
+      textAlignVertical: 'top',
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      marginTop: 11,
+    },
+    nutritionCell: { alignItems: 'center' },
+    nutritionLoading: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 4,
+    },
+    nutritionLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+    emptyAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 13,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginTop: 14,
+    },
+    emptyActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+    offlineRetryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderRadius: 14,
+      padding: 12,
+      marginTop: 8,
+    },
+    offlineRetryText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 10 * f,
+      lineHeight: 14,
+    },
+    offlineRetryButton: {
+      borderRadius: 10,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+    },
+    offlineRetryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+    // Feature 1: serving stepper
+    servingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 11,
+      paddingVertical: 9,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    servingLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+    servingStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    stepperButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperValue: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 16 * f,
+      textAlign: 'center',
+      minWidth: 38,
+    },
+    // Feature 2: recipe info chips
+    infoChips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 12,
+    },
+    infoChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      borderWidth: 1,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    infoChipText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+    // Feature 3: numbered steps
+    stepRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 14,
+      alignItems: 'flex-start',
+    },
+    stepNumber: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 13 * f,
+      width: 24,
+      paddingTop: 1,
+    },
+    stepText: {
+      flex: 1,
+      fontFamily: 'Inter_400Regular',
+      fontSize: 12 * f,
+      lineHeight: 19,
+    },
+    // Feature 4: shopping list
+    ingredientsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 23,
+      marginBottom: 9,
+    },
+    shopAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    shopActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+    shopIngredientRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    shopCheckbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    // Feature 6: diary serving row
+    diaryServingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 6,
+      marginBottom: 2,
+    },
+    // Method loading skeleton
+    methodLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      paddingVertical: 14,
+    },
+    methodLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   });
 }
 const styles = makeStyles(1.0);

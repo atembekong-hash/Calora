@@ -68,4 +68,20 @@ describe("Scan screen recovery contracts", () => {
   it("does not invite a futile retry when an installed build targets a stale endpoint", () => {
     expect(source).toContain("captureFlow.failure.kind === 'endpoint' ? null");
   });
+
+  it("retains a Voice deep-link intent through an undetermined microphone permission", () => {
+    expect(source).toContain("const startVoiceCapture = async (fromRoute = false)");
+    expect(source).toContain("voicePendingAfterCameraPermission.current = fromRoute;");
+    expect(source).toContain("await requestMicrophonePermission()");
+    expect(source).toContain("fromRoute && !voicePendingAfterCameraPermission.current");
+    expect(source).toContain("if (params.capture !== 'voice') {");
+    expect(source).toContain("void startVoiceCapture(true);");
+  });
+
+  it("does not start duplicate Voice permission prompts or recordings", () => {
+    expect(source).toContain("const voicePermissionRequestInFlight = useRef(false);");
+    expect(source).toContain("voicePermissionRequestInFlight.current || voiceRecording || voiceCaptureInFlight.current");
+    expect(source).toContain("voicePermissionRequestInFlight.current = true;");
+    expect(source).toContain("voicePermissionRequestInFlight.current = false;");
+  });
 });
