@@ -31,4 +31,13 @@ describe('native recipe pager contract', () => {
     expect(nativePager).toContain('onScroll={nativePagerScrollHandler}');
     expect(nativePager).not.toContain('<GestureDetector');
   });
+
+  it('uses the Fabric-safe ScrollView ref method when synchronizing a native pager tab press', () => {
+    // Samsung logcat captured a TypeError at SwipeableSectionPager followed by a
+    // Fabric "View already has a parent" mount failure. The failing effect used
+    // the legacy getNode bridge, which is absent from the mounted Animated
+    // ScrollView ref in the React Native 0.81 / Fabric runtime.
+    expect(source).not.toContain('.getNode().scrollTo(');
+    expect(source).toContain('nativePagerRef.current?.scrollTo({ x: activeIndex * surfaceWidth, animated: false });');
+  });
 });
