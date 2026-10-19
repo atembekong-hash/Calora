@@ -235,6 +235,33 @@ describe("foreground live-step lifecycle", () => {
     expect(handle.result.current.liveStepTracking.status).toBe("syncing");
   });
 
+  it("contains a native listener teardown failure when Dashboard loses focus", async () => {
+    const handle = await renderAndAwaitHydration();
+    await focusDashboard(handle);
+    motion.remove.mockImplementationOnce(() => {
+      throw new Error("native pedometer teardown failed");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      expect(() => {
+        act(() => {
+          handle.result.current.setLiveStepsDashboardFocused(false);
+        });
+      }).not.toThrow();
+      expect(motion.remove).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "[Calora][steps] Native Pedometer listener teardown failed.",
+      );
+      expect(handle.result.current.liveStepTracking.status).toBe("syncing");
+
+      await focusDashboard(handle);
+      expect(motion.service.watchSteps).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("subscribes to native movement before a slow provider aggregate resolves", async () => {
     health.connection = {
       provider: "healthkit",
