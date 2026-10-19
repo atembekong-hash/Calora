@@ -235,31 +235,56 @@ describe("foreground live-step lifecycle", () => {
     expect(handle.result.current.liveStepTracking.status).toBe("syncing");
   });
 
-  it("contains a native listener teardown failure when Dashboard loses focus", async () => {
+  it("never tears down the native Pedometer across repeated Dashboard tab blurs", async () => {
     const handle = await renderAndAwaitHydration();
     await focusDashboard(handle);
-    motion.remove.mockImplementationOnce(() => {
-      throw new Error("native pedometer teardown failed");
+
+    await act(async () => {
+      motion.emit(5);
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(5);
 
-    try {
-      expect(() => {
-        act(() => {
-          handle.result.current.setLiveStepsDashboardFocused(false);
-        });
-      }).not.toThrow();
-      expect(motion.remove).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith(
-        "[Calora][steps] Native Pedometer listener teardown failed.",
-      );
-      expect(handle.result.current.liveStepTracking.status).toBe("syncing");
-
+    // Every ordinary bottom-tab transition blurs Today. A native crash inside
+    // Android's unsubscribe bridge cannot be contained by JavaScript, so that
+    // bridge must never be exercised per tab tap.
+    for (let transition = 0; transition < 100; transition += 1) {
+      await act(async () => {
+        handle.result.current.setLiveStepsDashboardFocused(false);
+      });
       await focusDashboard(handle);
-      expect(motion.service.watchSteps).toHaveBeenCalledTimes(2);
-    } finally {
-      warn.mockRestore();
     }
+
+    expect(motion.remove).not.toHaveBeenCalled();
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      handle.result.current.setLiveStepsDashboardFocused(false);
+      motion.emit(500);
+    });
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(5);
+
+    await focusDashboard(handle);
+    await act(async () => {
+      motion.emit(501);
+    });
+    expect(motion.service.watchSteps).toHaveBeenCalledTimes(1);
+    expect(handle.result.current.liveStepTracking.displayedSteps).toBe(501);
+  });
+
+  it("disposes a retained hidden-Dashboard listener when the app backgrounds", async () => {
+    const handle = await renderAndAwaitHydration();
+    await focusDashboard(handle);
+
+    await act(async () => {
+      handle.result.current.setLiveStepsDashboardFocused(false);
+    });
+    expect(motion.remove).not.toHaveBeenCalled();
+
+    await act(async () => {
+      native.emit("background");
+    });
+    expect(motion.remove).toHaveBeenCalledTimes(1);
+    expect(handle.result.current.liveStepTracking.status).toBe("syncing");
   });
 
   it("subscribes to native movement before a slow provider aggregate resolves", async () => {
