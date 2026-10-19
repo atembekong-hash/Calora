@@ -118,6 +118,22 @@ import { reconcileRemoteProfile, saveRemoteProfile, type LocalProfile } from '@/
 import { removeExactLegacyStarterFixtures } from '@/lib/legacyStarterFixtures';
 import { isEditablePersonalRecipe } from '@/lib/recipeModel';
 
+/**
+ * Native listener cleanup runs during navigation blur, app backgrounding, and
+ * account changes. A vendor bridge must never be able to abort that lifecycle
+ * when its best-effort unsubscribe throws.
+ */
+function safelyRemoveLiveStepSubscription(subscription: MotionStepSubscription | null | undefined) {
+  if (!subscription) return;
+  try {
+    subscription.remove();
+  } catch {
+    // The epoch guard has already made this listener stale. Keep navigation and
+    // app lifecycle transitions alive even if Android rejects its cleanup call.
+    console.warn('[Calora][steps] Native Pedometer listener teardown failed.');
+  }
+}
+
 export type HealthSyncOutcome =
   | { status: 'synced'; syncedAt: string }
   | { status: 'skipped'; message: string }
@@ -816,7 +832,7 @@ export function CaloraProvider({
       healthSyncPromiseRef.current = null;
       liveStepEpochRef.current += 1;
       liveStepsDashboardFocusedRef.current = false;
-      liveStepSubscriptionRef.current?.remove();
+      safelyRemoveLiveStepSubscription(liveStepSubscriptionRef.current);
       liveStepSubscriptionRef.current = null;
       CoachFactRequestLifecycle.invalidateAll();
       invalidateAllCoachLifecycleEpochs('account_switch');
@@ -1325,8 +1341,9 @@ export function CaloraProvider({
   const stopLiveStepSubscription = useCallback(() => {
     liveStepEpochRef.current += 1;
     clearLiveStepReconciliationRetries();
-    liveStepSubscriptionRef.current?.remove();
+    const subscription = liveStepSubscriptionRef.current;
     liveStepSubscriptionRef.current = null;
+    safelyRemoveLiveStepSubscription(subscription);
     setLiveStepMilestones([]);
     commitLiveStepTracking(suspendLiveStepSession(liveStepTrackingRef.current));
   }, [clearLiveStepReconciliationRetries, commitLiveStepTracking]);
@@ -1702,8 +1719,9 @@ export function CaloraProvider({
     lastHealthRefreshDayRef.current = currentDay;
     liveStepEpochRef.current += 1;
     clearLiveStepReconciliationRetries();
-    liveStepSubscriptionRef.current?.remove();
+    const subscription = liveStepSubscriptionRef.current;
     liveStepSubscriptionRef.current = null;
+    safelyRemoveLiveStepSubscription(subscription);
     commitLiveStepTracking(createLiveStepTrackingState(currentDay));
     void reconcileLiveStepSubscription();
   }, [clearLiveStepReconciliationRetries, clockNow, commitLiveStepTracking, hydrated, reconcileLiveStepSubscription]);
@@ -2623,7 +2641,7 @@ export function CaloraProvider({
       liveStepEpochRef.current += 1;
       liveStepsDashboardFocusedRef.current = false;
       clearLiveStepReconciliationRetries();
-      liveStepSubscriptionRef.current?.remove();
+      safelyRemoveLiveStepSubscription(liveStepSubscriptionRef.current);
       liveStepSubscriptionRef.current = null;
        // Invalidate any planner generation before the destructive work starts,
        // not after its async photo/storage operations complete.
