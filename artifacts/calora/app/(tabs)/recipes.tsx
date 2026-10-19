@@ -924,7 +924,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
   const queryErrorStatus = premiumRecipeErrorStatus(query.error);
-  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
+  const accessDeniedStatus = queryErrorStatus === 401 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.

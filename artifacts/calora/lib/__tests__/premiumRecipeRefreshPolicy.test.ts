@@ -42,9 +42,9 @@ describe("PREMIUM_RECIPE_REFRESH_POLICY", () => {
     expect(premiumRecipeRetryDelay()).toBe(600);
   });
 
-  it("recognizes only authentication and authorization failures as access recovery states", () => {
+  it("treats only an expired authentication token as Plus access recovery", () => {
     expect(isPremiumRecipeAuthenticationError({ status: 401 })).toBe(true);
-    expect(isPremiumRecipeAuthenticationError({ status: 403 })).toBe(true);
+    expect(isPremiumRecipeAuthenticationError({ status: 403 })).toBe(false);
     expect(isPremiumRecipeAuthenticationError({ status: 429 })).toBe(false);
     expect(isPremiumRecipeAuthenticationError({ status: 502 })).toBe(false);
   });

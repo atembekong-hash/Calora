@@ -86,6 +86,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('Plus required');
     expect(source).not.toContain('active Calora Plus membership');
     expect(source).not.toContain('View membership');
+    expect(source).not.toContain('Plus membership needed');
+    expect(source).not.toContain('membershipRequired');
   });
 
   it('removes goal-fit and Calora-original badges without leaving badge containers', () => {
