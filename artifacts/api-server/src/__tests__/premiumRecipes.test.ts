@@ -226,7 +226,7 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   }, 15_000);
 
-  it("denies a signed-in account without a paid entitlement before provider work", async () => {
+  it("allows every signed-in account to browse Plus recipes without a RevenueCat entitlement check", async () => {
     hasActivePremiumEntitlementMock.mockResolvedValue(false);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -246,15 +246,13 @@ describe("Premium recipe routes", () => {
 
     const res = await request(app).get("/v1/premium-recipes");
 
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({
-      message: "An active Premium subscription is required for Plus recipes.",
-    });
-    expect(hasActivePremiumEntitlementMock).toHaveBeenCalledWith(
-      "premium-user",
-    );
+    expect(res.status).toBe(200);
+    expect(res.body.recipes).toEqual([
+      expect.objectContaining({ name: "Registered user bowl" }),
+    ]);
+    expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
     expect(checkRateLimitMock).toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("marks account-scoped Plus responses private and non-storable", async () => {
@@ -274,53 +272,6 @@ describe("Premium recipe routes", () => {
     expect(initial.headers["cache-control"]).toBe("private, no-store");
     expect(conditional.status).toBe(200);
     expect(conditional.body).toEqual(expect.objectContaining({ recipes: [] }));
-  });
-
-  it("fails closed when RevenueCat entitlement verification is unavailable", async () => {
-    hasActivePremiumEntitlementMock.mockRejectedValue(
-      new Error("RevenueCat unavailable"),
-    );
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ recipes: [], nextOffset: null }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const app = await appWithProvider("https://provider.example");
-
-    const res = await request(app).get("/v1/premium-recipes");
-
-    expect(res.status).toBe(503);
-    expect(res.body).toEqual({
-      message:
-        "Premium recipes are temporarily unavailable. Please try again shortly.",
-    });
-    expect(hasActivePremiumEntitlementMock).toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("uses a recent positive verification during a transient RevenueCat outage", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ recipes: [], nextOffset: null }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const app = await appWithProvider("https://provider.example");
-
-    const initial = await request(app).get("/v1/premium-recipes");
-    expect(initial.status).toBe(200);
-
-    hasActivePremiumEntitlementMock.mockRejectedValueOnce(
-      new Error("RevenueCat temporarily unavailable"),
-    );
-    const duringOutage = await request(app).get("/v1/premium-recipes");
-
-    expect(duringOutage.status).toBe(200);
-    expect(duringOutage.body).toMatchObject({ recipes: [] });
-    expect(loggerWarnMock).toHaveBeenCalledWith(
-      expect.objectContaining({ cachedAccess: true }),
-      "Premium entitlement verification unavailable",
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("returns an honest unavailable state with no provider configuration", async () => {

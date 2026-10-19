@@ -11,11 +11,12 @@ describe('Plus caller reliability decisions', () => {
     expect(premiumRecipeRouteState({ active: true, signedIn: true, isLoading: true, isFetching: true, isError: false, error: null })).toBe('loading');
     expect(premiumRecipeRouteState({ active: true, signedIn: true, isLoading: false, isFetching: false, isError: true, error: { status: 502 } })).toBe('unavailable');
     expect(premiumRecipeRouteState({ active: true, signedIn: true, isLoading: false, isFetching: false, isError: true, error: { status: 401 } })).toBe('authentication');
+    expect(premiumRecipeRouteState({ active: true, signedIn: true, isLoading: false, isFetching: false, isError: true, error: { status: 403 } })).toBe('unavailable');
   });
 
   it('distinguishes protected saved recipe restoration from a provider outage', () => {
     expect(premiumSavedRecipeRestorationState([{ isError: true, error: { status: 401 } }])).toBe('authentication');
-    expect(premiumSavedRecipeRestorationState([{ isError: true, error: { status: 403 } }])).toBe('authentication');
+    expect(premiumSavedRecipeRestorationState([{ isError: true, error: { status: 403 } }])).toBe('unavailable');
     expect(premiumSavedRecipeRestorationState([{ isError: true, error: { status: 502 } }])).toBe('unavailable');
     expect(premiumSavedRecipeRestorationState([{ isError: false, error: null }])).toBe('ready');
   });

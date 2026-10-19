@@ -30,12 +30,10 @@ function requestStatus(error: unknown): number | null {
 export function premiumRecipeErrorStatus(error: unknown): number | null {
   return requestStatus(error);
 }
-
 export function isPremiumRecipeAuthenticationError(error: unknown): boolean {
   const status = requestStatus(error);
-  return status === 401 || status === 403;
+  return status === 401;
 }
-
 /**
  * Retry one transient connection, deadline, or server failure. Auth, input,
  * rate-limit, and provider-policy responses are deliberately never retried.

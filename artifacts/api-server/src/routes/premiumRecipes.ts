@@ -8,7 +8,6 @@ import {
 import { logger, safeErrorDetails } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { checkRateLimit } from "../lib/rate-limit";
-import { hasActivePremiumEntitlement } from "../lib/revenuecat";
 import { parseRecipeListFilters } from "../lib/recipeQuery";
 import {
   accountDeletionFenceSignal,
@@ -19,8 +18,6 @@ const router: IRouter = Router();
 const RATE_WINDOW_SECONDS = 60 * 60;
 const ACCOUNT_RATE_LIMIT = 60;
 const IP_RATE_LIMIT = 120;
-const PREMIUM_ENTITLEMENT_CACHE_TTL_MS = 5 * 60 * 1000;
-const verifiedPremiumEntitlements = new Map<string, number>();
 
 // These authenticated, provider-backed results are account-scoped. Prevent
 // conditional response reuse from producing a bodyless 304 on native clients.
@@ -35,27 +32,13 @@ type PremiumAccess =
   | { allowed: true; userId: string }
   | {
       allowed: false;
-      status: 401 | 403 | 429 | 503;
+      status: 401 | 429 | 503;
       message: string;
       retryAfterSecs?: number;
     };
 
 function requestIp(req: Request): string {
   return req.ip ?? req.socket?.remoteAddress ?? "unknown";
-}
-
-function hasFreshVerifiedPremiumEntitlement(userId: string): boolean {
-  const verifiedAt = verifiedPremiumEntitlements.get(userId);
-  if (verifiedAt === undefined) return false;
-  if (Date.now() - verifiedAt > PREMIUM_ENTITLEMENT_CACHE_TTL_MS) {
-    verifiedPremiumEntitlements.delete(userId);
-    return false;
-  }
-  return true;
-}
-
-function rememberVerifiedPremiumEntitlement(userId: string): void {
-  verifiedPremiumEntitlements.set(userId, Date.now());
 }
 
 async function authorizePremiumAccess(
@@ -134,30 +117,9 @@ async function authorizePremiumAccess(
       retryAfterSecs: deniedRate.retryAfterSecs,
     };
   }
-  try {
-    if (!(await hasActivePremiumEntitlement(user.id))) {
-      verifiedPremiumEntitlements.delete(user.id);
-      return {
-        allowed: false,
-        status: 403,
-        message: "An active Premium subscription is required for Plus recipes.",
-      };
-    }
-    rememberVerifiedPremiumEntitlement(user.id);
-  } catch (error) {
-    const cachedAccess = hasFreshVerifiedPremiumEntitlement(user.id);
-    logger.warn(
-      { ...safeErrorDetails(error), cachedAccess },
-      "Premium entitlement verification unavailable",
-    );
-    if (cachedAccess) return { allowed: true, userId: user.id };
-    return {
-      allowed: false,
-      status: 503,
-      message:
-        "Premium recipes are temporarily unavailable. Please try again shortly.",
-    };
-  }
+  // Plus recipes are a signed-in Calora benefit. Billing/RevenueCat remains
+  // authoritative for subscription-specific features, but must never prevent
+  // an authenticated person from browsing this recipe catalogue.
   return { allowed: true, userId: user.id };
 }
 
