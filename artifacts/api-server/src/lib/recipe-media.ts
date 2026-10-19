@@ -266,11 +266,14 @@ export async function listOwnerRecipeMedia(ownerExternalId: string): Promise<Rec
 }
 
 export async function retryOwnerRecipeMedia(ownerExternalId: string, mediaId: string): Promise<RecipeMediaRow | null> {
+  const imageId = randomUUID();
   const result = await pool.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'generating', attempts = attempts + 1,
-       last_attempt_at = NOW(), last_error_code = NULL, semantic_review_state = 'needs_review', updated_at = NOW()
+       image_id = $3, object_key = $4, last_attempt_at = NOW(), last_error_code = NULL,
+       semantic_review_state = 'needs_review', url_last_issued_at = NULL, updated_at = NOW()
      WHERE id = $1 AND owner_external_id = $2
-       AND (status IN ('retryable_error', 'stored') OR semantic_review_state = 'rejected') RETURNING *`, [mediaId, ownerExternalId],
+       AND (status = 'retryable_error' OR (status IN ('stored', 'url_ready') AND semantic_review_state = 'rejected')) RETURNING *`,
+    [mediaId, ownerExternalId, imageId, recipeMediaObjectKey(ownerExternalId, imageId)],
   );
   return result.rows[0] ?? null;
 }
@@ -278,7 +281,9 @@ export async function retryOwnerRecipeMedia(ownerExternalId: string, mediaId: st
 export async function setOwnerRecipeMediaReview(ownerExternalId: string, mediaId: string, reviewState: RecipeMediaReviewState): Promise<RecipeMediaRow | null> {
   const result = await pool.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET semantic_review_state = $3, updated_at = NOW()
-      WHERE id = $1 AND owner_external_id = $2 RETURNING *`, [mediaId, ownerExternalId, reviewState],
+      WHERE id = $1 AND owner_external_id = $2
+        AND status = 'stored' AND semantic_review_state = 'needs_review'
+        AND $3 IN ('accepted', 'rejected') RETURNING *`, [mediaId, ownerExternalId, reviewState],
   );
   return result.rows[0] ?? null;
 }

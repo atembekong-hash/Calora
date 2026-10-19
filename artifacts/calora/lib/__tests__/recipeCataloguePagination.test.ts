@@ -181,6 +181,116 @@ describe('Discover catalogue page ledger', () => {
     expect(state.nextOffset).toBeNull();
     expect(state.terminalReason).toMatch(/advancing/i);
   });
+
+  it('keeps a server-declared continuous browse cycle advancing after the finite provider pool wraps', () => {
+    let state = createDiscoverCatalogueState<Recipe>('for-you');
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 0,
+      recipes: [recipe('a'), recipe('b')],
+      nextOffset: 2,
+      continuousBrowse: true,
+      browseCycle: 0,
+    });
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 2,
+      recipes: [recipe('a'), recipe('b')],
+      nextOffset: 4,
+      continuousBrowse: true,
+      browseCycle: 1,
+    });
+
+    expect(state.nextOffset).toBe(4);
+    expect(discoverCatalogueEntries(state).map((entry) => entry.feedEntryKey)).toEqual([
+      'cycle:0:a', 'cycle:0:b', 'cycle:1:a', 'cycle:1:b',
+    ]);
+  });
+
+  it('assigns each card its actual cycle when one continuous page crosses the provider-pool boundary', () => {
+    let state = createDiscoverCatalogueState<Recipe>('for-you');
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 0,
+      recipes: [recipe('a')],
+      nextOffset: 1,
+      continuousBrowse: true,
+      browseCycle: 0,
+      browsePoolSize: 2,
+    });
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 1,
+      recipes: [recipe('b'), recipe('a')],
+      nextOffset: 3,
+      continuousBrowse: true,
+      browseCycle: 0,
+      browsePoolSize: 2,
+    });
+
+    expect(discoverCatalogueEntries(state).map((entry) => entry.feedEntryKey)).toEqual([
+      'cycle:0:a', 'cycle:0:b', 'cycle:1:a',
+    ]);
+  });
+
+  it('accepts one hundred server-declared provider wraps with one claimed cursor and one distinct feed key per deliberate card', () => {
+    let state = createDiscoverCatalogueState<Recipe>('for-you');
+    const requestedOffsets: number[] = [];
+    for (let cycle = 0; cycle < 100; cycle += 1) {
+      const offset = cycle * 2;
+      const claimed = nextDiscoverPaginationOffset({
+        activeSection: 'discover',
+        nextOffset: state.nextOffset,
+        isFetching: false,
+        isLoadingMore: false,
+      });
+      expect(claimed).toBe(offset);
+      requestedOffsets.push(claimed!);
+      state = applyDiscoverCataloguePage(state, {
+        generation: state.generation,
+        filterKey: 'for-you',
+        offset,
+        recipes: [recipe('a'), recipe('b')],
+        nextOffset: offset + 2,
+        continuousBrowse: true,
+        browseCycle: cycle,
+      });
+    }
+
+    const entries = discoverCatalogueEntries(state);
+    expect(requestedOffsets).toHaveLength(100);
+    expect(new Set(requestedOffsets).size).toBe(100);
+    expect(entries).toHaveLength(200);
+    expect(new Set(entries.map((entry) => entry.feedEntryKey)).size).toBe(200);
+    expect(entries.at(-1)?.feedEntryKey).toBe('cycle:99:b');
+    expect(state.nextOffset).toBe(200);
+  });
+
+  it('promotes a later valid provider thumbnail for the same stable recipe without creating a duplicate card', () => {
+    let state = createDiscoverCatalogueState<Recipe>('for-you');
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 0,
+      recipes: [recipe('a')],
+      nextOffset: 1,
+    });
+    state = applyDiscoverCataloguePage(state, {
+      generation: state.generation,
+      filterKey: 'for-you',
+      offset: 1,
+      recipes: [{ ...recipe('a'), image: 'https://www.themealdb.com/images/media/meals/a.jpg' }],
+      nextOffset: null,
+    });
+
+    const entries = discoverCatalogueEntries(state);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.recipe.image).toBe('https://www.themealdb.com/images/media/meals/a.jpg');
+  });
 });
 
 describe('Plus pagination ownership and terminal contract', () => {

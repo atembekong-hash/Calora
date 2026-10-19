@@ -1444,6 +1444,83 @@ export function useListRecipeMedia<TData = Awaited<ReturnType<typeof listRecipeM
 
 
 
+export const getGetRecipeMediaReviewPreviewUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/media/${mediaId}/review-preview`
+}
+
+/**
+ * @summary Get an owner-only temporary locator for semantic image review without publishing the image
+ */
+export const getRecipeMediaReviewPreview = async (mediaId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
+
+  return customFetch<RecipeMedia>(getGetRecipeMediaReviewPreviewUrl(mediaId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecipeMediaReviewPreviewQueryKey = (mediaId: string,) => {
+    return [
+    `/api/v1/recipes/media/${mediaId}/review-preview`
+    ] as const;
+    }
+
+
+export const getGetRecipeMediaReviewPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>, TError = ErrorType<void>>(mediaId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecipeMediaReviewPreviewQueryKey(mediaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>> = ({ signal }) => getRecipeMediaReviewPreview(mediaId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: mediaId !== null && mediaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRecipeMediaReviewPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>>
+export type GetRecipeMediaReviewPreviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an owner-only temporary locator for semantic image review without publishing the image
+ */
+
+export function useGetRecipeMediaReviewPreview<TData = Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>, TError = ErrorType<void>>(
+ mediaId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipeMediaReviewPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRecipeMediaReviewPreviewQueryOptions(mediaId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetRecipeMediaUrl = (mediaId: string,) => {
 
 

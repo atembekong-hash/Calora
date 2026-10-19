@@ -1283,9 +1283,9 @@
     {
       "id": "recipes-remote-photo",
       "path": "artifacts/calora/app/(tabs)/recipes.tsx",
-      "anchor": "source={{ uri: recipeImageUrl }}",
+      "anchor": "source={recipeImageSource}",
       "classification": "content",
-      "role": "recipe photo from runtime recipe data",
+      "role": "recipe photo from strict canonical or trusted runtime source",
       "owner": "Calora product team",
       "reviewStatus": "reviewed renderer registration"
     },

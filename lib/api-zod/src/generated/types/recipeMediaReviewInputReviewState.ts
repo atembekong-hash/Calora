@@ -10,7 +10,6 @@ export type RecipeMediaReviewInputReviewState = typeof RecipeMediaReviewInputRev
 
 
 export const RecipeMediaReviewInputReviewState = {
-  needs_review: 'needs_review',
   accepted: 'accepted',
   rejected: 'rejected',
 } as const;

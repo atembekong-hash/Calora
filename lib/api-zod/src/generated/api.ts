@@ -845,6 +845,11 @@ export const ListRecipesQueryParams = zod.object({
   "offset": zod.coerce.number().int().min(listRecipesQueryOffsetMin).default(listRecipesQueryOffsetDefault)
 })
 
+export const listRecipesResponseBrowseCycleMin = 0;
+
+
+
+
 export const ListRecipesResponse = zod.object({
   "source": zod.string(),
   "recipes": zod.array(zod.object({
@@ -898,6 +903,9 @@ export const ListRecipesResponse = zod.object({
 })),
   "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n'),
   "nextOffset": zod.number().int().nullish().describe('Offset for the next page, or null when this is the terminal page.'),
+  "continuousBrowse": zod.boolean().optional().describe('True only for the unfiltered open browse feed, whose finite provider pool intentionally wraps.'),
+  "browseCycle": zod.number().int().min(listRecipesResponseBrowseCycleMin).optional().describe('Server-owned provider-pool cycle number used to distinguish intentional repeats from duplicate refetches.'),
+  "browsePoolSize": zod.number().int().min(1).nullish().describe('Server-owned finite pool cardinality for exact per-card cycle identity when a page spans a wrap.'),
   "terminalReason": zod.string().nullish().describe('Stable human-readable reason included when no next page exists.')
 })
 
@@ -1514,6 +1522,70 @@ export const ListRecipeMediaResponse = zod.object({
 
 
 /**
+ * @summary Get an owner-only temporary locator for semantic image review without publishing the image
+ */
+export const GetRecipeMediaReviewPreviewParams = zod.object({
+  "mediaId": zod.coerce.string().uuid()
+})
+
+export const getRecipeMediaReviewPreviewResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRecipeMediaReviewPreviewResponseRecipePayloadClientRecipeIdMax = 128;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadTitleMax = 120;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadDescriptionMax = 600;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadIngredientsItemMax = 160;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadIngredientsMax = 30;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadInstructionsItemMax = 500;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadInstructionsMax = 20;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadCuisineMax = 80;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadCategoryMax = 80;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadMealTypeMax = 40;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextItemMax = 80;
+
+export const getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextMax = 16;
+
+
+
+
+export const GetRecipeMediaReviewPreviewResponse = zod.object({
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(getRecipeMediaReviewPreviewResponseContentHashRegExp),
+  "recipePayload": zod.object({
+  "clientRecipeId": zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadClientRecipeIdMax).optional(),
+  "title": zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadTitleMax),
+  "description": zod.string().max(getRecipeMediaReviewPreviewResponseRecipePayloadDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadIngredientsItemMax)).min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadInstructionsItemMax)).min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadInstructionsMax).optional(),
+  "cuisine": zod.string().max(getRecipeMediaReviewPreviewResponseRecipePayloadCuisineMax).optional(),
+  "category": zod.string().max(getRecipeMediaReviewPreviewResponseRecipePayloadCategoryMax).optional(),
+  "mealType": zod.string().max(getRecipeMediaReviewPreviewResponseRecipePayloadMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextItemMax)).max(getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get owner-scoped generated recipe media status and a fresh locator when available
  */
 export const GetRecipeMediaParams = zod.object({
@@ -1649,7 +1721,7 @@ export const ReviewRecipeMediaParams = zod.object({
 })
 
 export const ReviewRecipeMediaBody = zod.object({
-  "reviewState": zod.enum(['needs_review', 'accepted', 'rejected'])
+  "reviewState": zod.enum(['accepted', 'rejected'])
 })
 
 export const reviewRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');

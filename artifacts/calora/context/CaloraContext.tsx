@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
+import { sanitizeGeneratedRecipeMediaForPersistence, sanitizeRecipeMediaStateForPersistence } from '@/lib/generatedRecipeImagePersistence';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import {
@@ -203,6 +204,11 @@ export type CaloraRecipe = {
   imageModelVersion?: string | null;
   imagePromptVersion?: string | null;
   imageUrlExpiresAt?: string | null;
+  /** Owner-only short-lived locator used while an AI photo awaits semantic review. */
+  imagePreviewUrl?: string | null;
+  imagePreviewUrlExpiresAt?: string | null;
+  imagePreviewErrorCode?: string | null;
+  imagePreviewAttemptedAt?: string | null;
   imageStatus?: import('@/lib/generatedRecipeImageLifecycle').GeneratedRecipeClientState | 'pending' | 'ready' | 'failed';
   imageReviewState?: import('@/lib/recipeGeneration').RecipeMediaReviewState;
   imageErrorCode?: string | null;
@@ -860,7 +866,7 @@ export function CaloraProvider({
   }, []);
   const commitSnapshot = useCallback(async (snapshot: CaloraExportState): Promise<void> => {
     try {
-      await enqueueAutosave(pm.current, snapshot);
+      await enqueueAutosave(pm.current, sanitizeRecipeMediaStateForPersistence(snapshot));
       setPersistenceError(null);
     } catch (error) {
       reportPersistenceError();
@@ -1014,7 +1020,7 @@ export function CaloraProvider({
       if (saved.activityLogs) setActivityLogs(saved.activityLogs);
       if (saved.activityMinutesLogs) setActivityMinutesLogs(saved.activityMinutesLogs);
     if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
-    if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
+    if (saved.localRecipes) setLocalRecipes(sanitizeGeneratedRecipeMediaForPersistence(saved.localRecipes));
     if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
     if (saved.themePreference) setThemePreference(saved.themePreference);
     if (saved.healthConnection) setHealthConnection(normalizeHealthConnection(saved.healthConnection));
@@ -1079,7 +1085,7 @@ export function CaloraProvider({
          activityLogs: saved.activityLogs ?? base.activityLogs,
          activityMinutesLogs: saved.activityMinutesLogs ?? base.activityMinutesLogs,
          savedMeals: saved.savedMeals?.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })) ?? base.savedMeals,
-         localRecipes: saved.localRecipes ?? base.localRecipes,
+         localRecipes: saved.localRecipes ? sanitizeGeneratedRecipeMediaForPersistence(saved.localRecipes) : base.localRecipes,
          savedRecipeIds: saved.savedRecipeIds ?? base.savedRecipeIds,
          themePreference: saved.themePreference ?? base.themePreference,
          healthConnected: canSyncHealthConnection(hydratedHealthConnection),
@@ -1785,7 +1791,7 @@ export function CaloraProvider({
       fontSizeScale,
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
-     void enqueueAutosave(pm.current, state).catch(() => reportPersistenceError());
+     void enqueueAutosave(pm.current, sanitizeRecipeMediaStateForPersistence(state)).catch(() => reportPersistenceError());
   }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;

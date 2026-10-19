@@ -134,6 +134,66 @@ describe("GET /v1/recipes — query and provider metadata boundaries", () => {
     expect(result.status).toBe(200);
     expect(result.body.recipes[0]).toMatchObject({ id: "unsafe-thumb", image: null });
   });
+
+  it("marks a wrapped unfiltered provider page with explicit continuous-browse cycle metadata", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ meals: [
+        { idMeal: "cycle-a", strMeal: "Cycle A", strMealThumb: null },
+        { idMeal: "cycle-b", strMeal: "Cycle B", strMealThumb: null },
+      ] }),
+    }));
+    const app = buildApp();
+
+    const first = await request(app).get("/v1/recipes?limit=2&offset=0");
+    const crossing = await request(app).get("/v1/recipes?limit=2&offset=1");
+    const wrapped = await request(app).get("/v1/recipes?limit=2&offset=2");
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ continuousBrowse: true, browseCycle: 0, browsePoolSize: 2, nextOffset: 2 });
+    expect(crossing.status).toBe(200);
+    expect(crossing.body).toMatchObject({ continuousBrowse: true, browseCycle: 0, browsePoolSize: 2, nextOffset: 3 });
+    expect(crossing.body.recipes.map((recipe: { id: string }) => recipe.id)).toEqual(["cycle-b", "cycle-a"]);
+    expect(wrapped.status).toBe(200);
+    expect(wrapped.body).toMatchObject({ continuousBrowse: true, browseCycle: 1, browsePoolSize: 2, nextOffset: 4 });
+    expect(wrapped.body.recipes.map((recipe: { id: string }) => recipe.id)).toEqual(["cycle-a", "cycle-b"]);
+  });
+
+  it("normalizes a decimal Discover limit before deriving the returned-card cursor", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ meals: [
+        { idMeal: "decimal-a", strMeal: "Decimal A", strMealThumb: null },
+        { idMeal: "decimal-b", strMeal: "Decimal B", strMealThumb: null },
+      ] }),
+    }));
+    const app = buildApp();
+
+    const result = await request(app).get("/v1/recipes?limit=1.9&offset=0");
+
+    expect(result.status).toBe(200);
+    expect(result.body.recipes).toHaveLength(1);
+    expect(result.body.nextOffset).toBe(1);
+  });
+
+  it("keeps category-filtered results finite instead of recycling them as unfiltered browse cycles", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ meals: [
+        { idMeal: "category-a", strMeal: "Category A", strMealThumb: null },
+        { idMeal: "category-b", strMeal: "Category B", strMealThumb: null },
+      ] }),
+    }));
+    const app = buildApp();
+
+    const first = await request(app).get("/v1/recipes?category=Seafood&limit=2&offset=0");
+    const exhausted = await request(app).get("/v1/recipes?category=Seafood&limit=2&offset=2");
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ continuousBrowse: false, browseCycle: 0, nextOffset: null });
+    expect(exhausted.status).toBe(200);
+    expect(exhausted.body).toMatchObject({ continuousBrowse: false, browseCycle: 0, nextOffset: null, recipes: [] });
+  });
 });
 
 describe("AI nutrition estimate parsing", () => {
