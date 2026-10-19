@@ -119,9 +119,9 @@ import { removeExactLegacyStarterFixtures } from '@/lib/legacyStarterFixtures';
 import { isEditablePersonalRecipe } from '@/lib/recipeModel';
 
 /**
- * Native listener cleanup runs during navigation blur, app backgrounding, and
- * account changes. A vendor bridge must never be able to abort that lifecycle
- * when its best-effort unsubscribe throws.
+ * Native listener disposal is reserved for app backgrounding, account changes,
+ * and provider disposal. Ordinary tab blur only gates callback delivery: a
+ * native Android unsubscribe cannot be made safe by a JavaScript catch block.
  */
 function safelyRemoveLiveStepSubscription(subscription: MotionStepSubscription | null | undefined) {
   if (!subscription) return;
@@ -1338,7 +1338,17 @@ export function CaloraProvider({
     liveStepRetryTimersRef.current = [];
   }, []);
 
-  const stopLiveStepSubscription = useCallback(() => {
+  const pauseLiveStepSubscription = useCallback(() => {
+    // A retained foreground listener stays registered while the user moves
+    // between tabs. Its focus guard rejects events outside Today, avoiding an
+    // Android native unsubscribe for every bottom-tab press while preserving
+    // immediate movement updates when Today regains focus.
+    clearLiveStepReconciliationRetries();
+    setLiveStepMilestones([]);
+    commitLiveStepTracking(suspendLiveStepSession(liveStepTrackingRef.current));
+  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking]);
+
+  const disposeLiveStepSubscription = useCallback(() => {
     liveStepEpochRef.current += 1;
     clearLiveStepReconciliationRetries();
     const subscription = liveStepSubscriptionRef.current;
@@ -1471,7 +1481,7 @@ export function CaloraProvider({
       && appStateRef.current === 'active'
       && liveStepsDashboardFocusedRef.current;
     if (!eligible) {
-      if (liveStepSubscriptionRef.current) stopLiveStepSubscription();
+      pauseLiveStepSubscription();
       return;
     }
 
@@ -1593,7 +1603,7 @@ export function CaloraProvider({
         ),
       );
     }
-  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking, hydrated, scheduleLiveStepReconciliationRetries, stopLiveStepSubscription, syncHealth]);
+  }, [clearLiveStepReconciliationRetries, commitLiveStepTracking, hydrated, pauseLiveStepSubscription, scheduleLiveStepReconciliationRetries, syncHealth]);
 
   const setLiveStepsDashboardFocused = useCallback((focused: boolean) => {
     if (liveStepsDashboardFocusedRef.current === focused) return;
@@ -1601,17 +1611,20 @@ export function CaloraProvider({
     if (focused) {
       void reconcileLiveStepSubscription();
     } else {
-      stopLiveStepSubscription();
+      pauseLiveStepSubscription();
     }
-  }, [reconcileLiveStepSubscription, stopLiveStepSubscription]);
+  }, [pauseLiveStepSubscription, reconcileLiveStepSubscription]);
 
   const startLiveStepTracking = useCallback(async (requestPermission = false) => {
     await reconcileLiveStepSubscription(requestPermission);
   }, [reconcileLiveStepSubscription]);
 
   const stopLiveStepTracking = useCallback(() => {
-    setLiveStepsDashboardFocused(false);
-  }, [setLiveStepsDashboardFocused]);
+    // This public action is an explicit stop, unlike the ordinary Dashboard
+    // blur above. It retains the historical full-disposal semantics.
+    liveStepsDashboardFocusedRef.current = false;
+    disposeLiveStepSubscription();
+  }, [disposeLiveStepSubscription]);
 
   const dismissLiveStepMilestone = useCallback((milestone: number) => {
     setLiveStepMilestones((queued) =>
@@ -1623,7 +1636,7 @@ export function CaloraProvider({
 
   restartLiveStepTrackingRef.current = () => {
     if (!liveStepsDashboardFocusedRef.current) return;
-    stopLiveStepSubscription();
+    disposeLiveStepSubscription();
     void reconcileLiveStepSubscription();
   };
 
@@ -1648,13 +1661,13 @@ export function CaloraProvider({
         void reconcileLiveStepSubscription();
         return;
       }
-      stopLiveStepSubscription();
+      disposeLiveStepSubscription();
     });
     return () => {
       subscription.remove();
-      stopLiveStepSubscription();
+      disposeLiveStepSubscription();
     };
-  }, [hydrated, reconcileLiveStepSubscription, stopLiveStepSubscription, syncHealth]);
+  }, [disposeLiveStepSubscription, hydrated, reconcileLiveStepSubscription, syncHealth]);
 
   const clockNow = useClock();
   const healthDayKey = dateKey(clockNow);
