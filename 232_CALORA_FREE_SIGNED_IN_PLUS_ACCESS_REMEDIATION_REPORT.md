@@ -1,7 +1,7 @@
 # 232 — Calora Free Signed-In Plus Access Remediation Report
 
 **Date:** 2026-10-19
-**Status:** Implemented and locally validated; not yet merged or deployed at the time of this report
+**Status:** Merged, production-attested, and awaiting authenticated native/browser confirmation
 **Scope:** Authenticated access to the Recipes → Plus catalogue and its protected recipe-detail endpoints
 
 ## Trigger and policy decision
@@ -54,6 +54,28 @@ The complete API suite initially loaded two test modules without their required 
 3. Open a Plus recipe detail and verify it loads while signed in.
 4. Sign out and verify that Plus remains protected by the existing `401` sign-in recovery state.
 5. Verify that account/IP throttling, provider-unavailable messaging, and image fail-closed behavior remain accurate.
+
+## Release completion and final attestation
+
+- **Protected pull request:** [#195](https://github.com/atembekong-hash/Calora/pull/195), squash-merged after required checks passed.
+- **Merged source commit:** `9681662a27e63aa01a12e0d07075c8abcc95fc42`.
+- **GitHub main validation:** Release validation and account-deletion fence validation passed. The PR-only release-attestation job was skipped as designed; the same-SHA main release validation subsequently passed with its attestation job completed.
+- **Railway:** Calora web, API, and static-client services are Online, with no pending production work or recent service failures at attestation time.
+- **Public health:** `https://mycaloraapp.com/health` and `https://mycaloraapp.com/api/healthz` both returned `{"status":"ok"}`.
+- **Deployed identity:** `https://mycaloraapp.com/api/version` reported commit `9681662a27e63aa01a12e0d07075c8abcc95fc42`, matching the merged source.
+- **Anonymous guard:** a read-only production request to `/api/v1/premium-recipes` returned `401` and `{"message":"Sign in to access Plus recipes."}`, proving the free-catalogue policy did not remove authentication.
+- **Native-build policy:** no Android, iOS, EAS, APK, AAB, IPA, TestFlight, App Store, or Google Play workflow was triggered by this remediation. The most recent Android internal-build workflow predates this commit.
+
+## Infinite-scroll double check
+
+The Plus catalogue retains its native-specific continuous-feed controller:
+
+1. `onScroll`, `onScrollEndDrag`, `onMomentumScrollEnd`, layout, and content-size events all submit current native ScrollView measurements.
+2. Only the active Plus pane can drive Plus pagination; retained Discover/Create pane measurements are rejected.
+3. Reaching the configured near-end threshold requests `data.nextOffset` while the provider has another page, with duplicate request suppression while a page is in flight.
+4. When the provider reaches its terminal page, `catalogueCycle` increments and the displayed, image-deduplicated recipe collection is rendered again with unique feed-entry keys. Scrolling therefore continues rather than ending at a terminal blank.
+
+Focused Recipes source-contract coverage passed (36 tests), including Plus terminal-cycle, active-pane ownership, native measurement, and continuation triggers. Full client validation also passed. This is strong source and automated evidence; a signed-in physical-device scroll run remains pending because the authorized Windows-to-Galaxy bridge is unavailable, and the installed Android bundle predates this JavaScript release.
 
 ## Boundaries
 
