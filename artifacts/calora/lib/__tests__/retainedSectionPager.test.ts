@@ -23,7 +23,8 @@ describe('retained section pager contracts', () => {
     expect(pagerSource).toContain('if (useNativePaging && hasAdjacentPages && renderItem)');
     expect(pagerSource).toContain('if (!useNativePaging || surfaceWidth <= 0) return;');
     expect(pagerSource).toContain('onPreviewChange?: (item: T | null) => void;');
-    expect(pagerSource).toContain('onScroll={(event) => {');
+    expect(pagerSource).toContain('const nativePagerScrollHandler = useAnimatedScrollHandler');
+    expect(pagerSource).toContain('onScroll={nativePagerScrollHandler}');
     expect(pagerSource).toContain('runOnJS(previewIndex)');
   });
 
@@ -49,19 +50,25 @@ describe('retained section pager contracts', () => {
     expect(profilePaneSource).not.toContain('profileTab ===');
   });
 
-  it('highlights the destination menu item during direct-manipulation swipes', () => {
-    expect(profileSource).toContain('const [profilePreview, setProfilePreview]');
-    expect(profileSource).toContain('previewSelected ? colors.primary : colors.card');
-    expect(profileSource).toContain('previewSelected\n                          ? colors.primaryForeground');
-    expect(insightsSource).toContain('const [progressPreview, setProgressPreview]');
-    expect(insightsSource).toContain('previewSelected ? colors.primary : colors.card');
-    expect(insightsSource).toContain('previewSelected ? colors.primaryForeground');
-    expect(recipesSource).toContain('const [sectionPreview, setSectionPreview]');
-    expect(recipesSource).toContain('previewSelected ? colors.primary : colors.card');
-    expect(recipesSource).toContain('previewSelected ? colors.primaryForeground');
-    expect(plannerSource).toContain('const [selectedDayPreview, setSelectedDayPreview]');
-    expect(plannerSource).toContain('onPreviewChange={setSelectedDayPreview}');
-    expect(plannerSource).toContain('previewActive ? colors.primary : colors.accent');
+  it('uses a non-obscuring lower rail instead of an orange fill during direct-manipulation swipes', () => {
+    expect(pagerSource).toContain('export function SwipeMenuHighlightProvider');
+    expect(pagerSource).toContain('export function SwipeMenuHighlight');
+    expect(pagerSource).toContain('pointerEvents="none"');
+    expect(pagerSource).toContain('menuHighlightRail');
+    expect(pagerSource).toContain('menuVisualIndex.value = clampSwipeMenuIndex');
+
+    expect(profileSource).toContain('SwipeMenuHighlightProvider items={PROFILE_TABS}');
+    expect(profileSource).toContain('testID="profile-section-swipe-indicator"');
+    expect(profileSource).not.toContain('previewSelected ? colors.primary');
+    expect(insightsSource).toContain('SwipeMenuHighlightProvider items={PROGRESS_VIEWS}');
+    expect(insightsSource).toContain('testID="progress-section-swipe-indicator"');
+    expect(insightsSource).not.toContain('previewSelected ? colors.primary');
+    expect(recipesSource).toContain('SwipeMenuHighlightProvider items={RECIPE_SECTIONS}');
+    expect(recipesSource).toContain('testID="recipes-section-swipe-indicator"');
+    expect(recipesSource).not.toContain('previewSelected ? colors.primary');
+    expect(plannerSource).toContain('SwipeMenuHighlightProvider items={weekDays}');
+    expect(plannerSource).toContain('testID="planner-day-swipe-indicator"');
+    expect(plannerSource).not.toContain('previewActive ? colors.primary');
   });
 
   it('previews the destination immediately while retaining release-only page commits', () => {
@@ -69,12 +76,14 @@ describe('retained section pager contracts', () => {
     expect(pagerSource).not.toContain('Math.abs(offset) / width < 0.2');
     expect(pagerSource).toContain('onPanResponderMove');
     expect(pagerSource).toContain('onPanResponderTerminate');
+    expect(pagerSource).toContain('menuHighlightRef.current?.setTabStripPreview(index);');
+    expect(pagerSource).toContain('menuVisualIndex.value = nextVisualIndex;');
     expect(pagerSource).toContain('runOnJS(previewIndex)(null);');
     expect(pagerSource).toContain('onScrollEndDrag={commitNativePagerPosition}');
     expect(pagerSource).toContain('onMomentumScrollEnd={commitNativePagerPosition}');
   });
 
-  it('shares preview state between every swipeable menu strip and its page surface', () => {
+  it('shares one UI-thread indicator state between every menu strip and page surface', () => {
     const profileTabList = profileSource.slice(
       profileSource.indexOf('<SwipeableTabList'),
       profileSource.indexOf('</SwipeableTabList>'),
@@ -84,9 +93,13 @@ describe('retained section pager contracts', () => {
       insightsSource.indexOf('</SwipeableTabList>'),
     );
 
-    expect(profileTabList).toContain('onPreviewChange={setProfilePreview}');
-    expect(progressTabList).toContain('onPreviewChange={setProgressPreview}');
-    expect(recipesSource).toContain('onPreviewChange={setSectionPreview}');
-    expect(plannerSource).toContain('onPreviewChange={setSelectedDayPreview}');
+    expect(profileTabList).toContain('onChange={setProfileTab}');
+    expect(progressTabList).toContain('onChange={setProgressView}');
+    expect(recipesSource).toContain('onChange={changeSection}');
+    expect(plannerSource).toContain('onChange={setSelectedDay}');
+    expect(profileSource).toContain('<SwipeMenuHighlightProvider');
+    expect(insightsSource).toContain('<SwipeMenuHighlightProvider');
+    expect(recipesSource).toContain('<SwipeMenuHighlightProvider');
+    expect(plannerSource).toContain('<SwipeMenuHighlightProvider');
   });
 });

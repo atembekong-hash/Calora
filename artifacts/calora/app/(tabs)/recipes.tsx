@@ -22,7 +22,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
 import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
-import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList';
+import { SwipeGestureExclusion, SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, requestRecipeConcepts } from '@/lib/recipeGeneration';
@@ -2777,10 +2777,6 @@ export default function RecipesScreen() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('For you');
   const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
-  const [sectionPreview, setSectionPreview] = useState<RecipeSection | null>(null);
-  useEffect(() => {
-    setSectionPreview(null);
-  }, [activeSection]);
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -3295,54 +3291,40 @@ export default function RecipesScreen() {
           </Pressable>
         }
       />
-      <View accessibilityRole="tablist" accessibilityLabel="Recipe sections" accessibilityHint="Select Discover, Plus, or Create" testID="recipes-section-tabs" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-        {RECIPE_SECTIONS.map((section) => {
-          const selectedSection = (sectionPreview ?? activeSection) === section;
-          const previewSelected = sectionPreview === section;
-          return (
-            <Pressable
-              key={section}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: selectedSection }}
-              accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`}
-              onPress={() => changeSection(section)}
-              style={[
-                styles.sectionTab,
-                selectedSection && {
-                  backgroundColor: previewSelected ? colors.primary : colors.card,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.sectionTabText,
-                  {
-                    color: previewSelected ? colors.primaryForeground : selectedSection ? colors.foreground : colors.mutedForeground,
-                  },
-                ]}
+      <SwipeMenuHighlightProvider items={RECIPE_SECTIONS} activeItem={activeSection}>
+        <View accessibilityRole="tablist" accessibilityLabel="Recipe sections" accessibilityHint="Select Discover, Plus, or Create" testID="recipes-section-tabs" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {RECIPE_SECTIONS.map((section) => {
+            const selectedSection = activeSection === section;
+            return (
+              <Pressable
+                key={section}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: selectedSection }}
+                accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`}
+                onPress={() => changeSection(section)}
+                style={[styles.sectionTab, selectedSection && { backgroundColor: colors.card }]}
               >
-                {section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <SwipeableSectionPager
-        items={RECIPE_SECTIONS}
-        activeItem={activeSection}
-        onPreviewChange={setSectionPreview}
-        onChange={(next) => {
-          setSectionPreview(null);
-          changeSection(next);
-        }}
-        renderItem={renderRecipeSection}
-        renderWindow={1}
-        nativePaging
-        fillViewport
-        accessibilityLabel="Recipe section content"
-        testID="recipes-section-content"
-        style={{ flex: 1 }}
-      />
+                <Text style={[styles.sectionTabText, { color: selectedSection ? colors.foreground : colors.mutedForeground }]}>
+                  {section === 'premium' ? 'Plus' : `${section[0].toUpperCase()}${section.slice(1)}`}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <SwipeMenuHighlight color={colors.accentForeground} horizontalPadding={3} gap={2} inset={10} testID="recipes-section-swipe-indicator" />
+        </View>
+        <SwipeableSectionPager
+          items={RECIPE_SECTIONS}
+          activeItem={activeSection}
+          onChange={changeSection}
+          renderItem={renderRecipeSection}
+          renderWindow={1}
+          nativePaging
+          fillViewport
+          accessibilityLabel="Recipe section content"
+          testID="recipes-section-content"
+          style={{ flex: 1 }}
+        />
+      </SwipeMenuHighlightProvider>
       {linkedPremiumRouteState !== 'idle' && (
         <Modal visible transparent animationType="none" onRequestClose={() => router.setParams({ recipeId: undefined, recipeSource: undefined })}>
           <View
@@ -3524,6 +3506,7 @@ function makeStyles(f: number) {
       marginTop: 7,
       padding: 3,
       gap: 2,
+      position: 'relative',
     },
     recipeScroll: { flex: 1, minHeight: 0 },
     sectionTab: {

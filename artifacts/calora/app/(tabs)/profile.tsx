@@ -68,6 +68,8 @@ import { AccountSection } from "@/components/auth/AccountSection";
 import { useAuth } from "@/context/AuthContext";
 import { AppHeader } from "@/components/AppChrome";
 import {
+  SwipeMenuHighlight,
+  SwipeMenuHighlightProvider,
   SwipeableSectionPager,
   SwipeableTabList,
 } from "@/components/SwipeableTabList";
@@ -364,7 +366,6 @@ export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTab>(
     tab === "membership" || tab === "account" ? tab : "you",
   );
-  const [profilePreview, setProfilePreview] = useState<ProfileTab | null>(null);
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>(
     [],
@@ -1256,12 +1257,12 @@ export default function ProfileScreen() {
         }
       />
       <View style={styles.profileViewport}>
+        <SwipeMenuHighlightProvider items={PROFILE_TABS} activeItem={profileTab}>
         <View style={styles.profileHeaderContent}>
           <SwipeableTabList
             items={PROFILE_TABS}
             activeItem={profileTab}
-            onPreviewChange={setProfilePreview}
-            onChange={(next) => { setProfilePreview(null); setProfileTab(next); }}
+            onChange={setProfileTab}
             accessibilityLabel="Profile sections"
             testID="profile-section-tabs"
             style={[
@@ -1274,29 +1275,24 @@ export default function ProfileScreen() {
               { key: "membership" as const, label: "Membership" },
               { key: "account" as const, label: "Account" },
             ].map((tab) => {
-              const selected = (profilePreview ?? profileTab) === tab.key;
-              const previewSelected = profilePreview === tab.key;
+              const selected = profileTab === tab.key;
               return (
                 <Pressable
                   key={tab.key}
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${tab.label} profile tab`}
-                  onPress={() => { setProfilePreview(null); setProfileTab(tab.key); }}
+                  onPress={() => setProfileTab(tab.key)}
                   style={[
                     styles.profileTab,
-                    selected && { backgroundColor: previewSelected ? colors.primary : colors.card },
+                    selected && { backgroundColor: colors.card },
                   ]}
                 >
                   <Text
                     style={[
                       styles.profileTabText,
                       {
-                        color: previewSelected
-                          ? colors.primaryForeground
-                          : selected
-                          ? colors.foreground
-                          : colors.mutedForeground,
+                        color: selected ? colors.foreground : colors.mutedForeground,
                       },
                     ]}
                   >
@@ -1305,13 +1301,13 @@ export default function ProfileScreen() {
                 </Pressable>
               );
             })}
+            <SwipeMenuHighlight color={colors.accentForeground} horizontalPadding={4} gap={4} inset={10} testID="profile-section-swipe-indicator" />
           </SwipeableTabList>
         </View>
         <SwipeableSectionPager
           items={PROFILE_TABS}
           activeItem={profileTab}
-          onPreviewChange={setProfilePreview}
-          onChange={(next) => { setProfilePreview(null); setProfileTab(next); }}
+          onChange={setProfileTab}
           renderItem={(tab) => (
             <ScrollView
               style={styles.profilePaneScroll}
@@ -3813,6 +3809,7 @@ export default function ProfileScreen() {
           accessibilityLabel="Profile section content"
           testID="profile-section-content"
         />
+        </SwipeMenuHighlightProvider>
       </View>
 
       {/* ── Billing modal ── */}
@@ -5551,6 +5548,7 @@ function makeStyles(f: number) {
       padding: 4,
       gap: 4,
       marginBottom: 18,
+      position: "relative",
     },
     profileTab: {
       flex: 1,

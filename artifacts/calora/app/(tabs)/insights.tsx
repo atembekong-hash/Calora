@@ -18,7 +18,7 @@ import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
-import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeGestureExclusion, SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
@@ -1521,7 +1521,6 @@ export default function InsightsScreen() {
   // so that mood, activity, water check-ins, and the local insight all use the current day.
   const [todayKey, setTodayKey] = useState(() => dateKey());
   const [progressView, setProgressView] = useState<ProgressView>('overview');
-  const [progressPreview, setProgressPreview] = useState<ProgressView | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
       const current = dateKey();
@@ -1830,12 +1829,12 @@ export default function InsightsScreen() {
         }
       />
       <View style={styles.progressViewport}>
+        <SwipeMenuHighlightProvider items={PROGRESS_VIEWS} activeItem={progressView}>
         <View style={styles.progressHeaderContent}>
         <SwipeableTabList
           items={PROGRESS_VIEWS}
           activeItem={progressView}
-          onPreviewChange={setProgressPreview}
-          onChange={(next) => { setProgressPreview(null); setProgressView(next); }}
+          onChange={setProgressView}
           accessibilityLabel="Progress sections"
           testID="progress-section-tabs"
           style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
@@ -1845,8 +1844,7 @@ export default function InsightsScreen() {
             { key: 'trends' as const, label: 'Trends' },
             { key: 'weight' as const, label: 'Weight' },
           ]).map((tab) => {
-            const selected = (progressPreview ?? progressView) === tab.key;
-            const previewSelected = progressPreview === tab.key;
+            const selected = progressView === tab.key;
             return (
               <Pressable
                 key={tab.key}
@@ -1854,19 +1852,19 @@ export default function InsightsScreen() {
                 accessibilityState={{ selected }}
                 accessibilityLabel={`${tab.label} progress tab`}
                 onPress={() => setProgressView(tab.key)}
-                style={[styles.progressTab, selected && { backgroundColor: previewSelected ? colors.primary : colors.card }]}
+                style={[styles.progressTab, selected && { backgroundColor: colors.card }]}
               >
-                <Text style={[styles.progressTabText, { color: previewSelected ? colors.primaryForeground : selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+                <Text style={[styles.progressTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
               </Pressable>
             );
           })}
+          <SwipeMenuHighlight color={colors.accentForeground} horizontalPadding={4} gap={4} inset={10} testID="progress-section-swipe-indicator" />
         </SwipeableTabList>
         </View>
         <SwipeableSectionPager
           items={PROGRESS_VIEWS}
           activeItem={progressView}
-          onPreviewChange={setProgressPreview}
-          onChange={(next) => { setProgressPreview(null); setProgressView(next); }}
+          onChange={setProgressView}
           renderItem={(view) => (
             <Animated.ScrollView
               style={styles.progressPaneScroll}
@@ -2424,6 +2422,7 @@ export default function InsightsScreen() {
           accessibilityLabel="Progress section content"
           testID="progress-section-content"
         />
+        </SwipeMenuHighlightProvider>
       </View>
       <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
@@ -2625,7 +2624,7 @@ function makeStyles(f: number) {
   progressPager: { flex: 1, minHeight: 0 },
   progressPaneScroll: { flex: 1, minHeight: 0 },
   progressPaneContent: { paddingTop: 2, paddingHorizontal: 20 },
-  progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
+  progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10, position: 'relative' },
   progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
   progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   progressTabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
