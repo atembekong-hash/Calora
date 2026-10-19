@@ -80,12 +80,15 @@ describe("AI recipe creation endpoints", () => {
     photoLockQuery.mockResolvedValue({ rows: [] });
     photoMediaQuery.mockImplementation(async (query: unknown) => {
       const sql = String(query);
-      const status = sql.includes("status = 'stored'")
+      const isRetryClaim = sql.includes("UPDATE calora_recipe_media SET status = 'generating'");
+      const status = isRetryClaim
+        ? "generating"
+        : sql.includes("status = 'stored'")
         ? "stored"
         : sql.includes("status = 'url_ready'")
           ? "url_ready"
           : "generating";
-      if (sql.includes("status = 'superseded'") || sql.includes("status = 'retryable_error'")) return { rows: [] };
+      if (!isRetryClaim && (sql.includes("status = 'superseded'") || sql.includes("status = 'retryable_error'"))) return { rows: [] };
       return {
         rows: [{
           id: "11111111-1111-4111-8111-111111111111",
@@ -242,6 +245,87 @@ describe("AI recipe creation endpoints", () => {
     [locator, collection, detail].forEach((response) => {
       expect(response.headers["cache-control"]).toBe("private, no-store");
     });
+  });
+
+  it("returns an owner-scoped non-cacheable preview for stored review media without changing it to published url_ready state", async () => {
+    photoMediaQuery.mockResolvedValueOnce({
+      rows: [{
+        id: "11111111-1111-4111-8111-111111111111",
+        owner_external_id: USER.id,
+        client_recipe_id: "legacy-test-recipe",
+        content_hash: "a".repeat(64),
+        recipe_payload: { clientRecipeId: "legacy-test-recipe", title: "Lemony lentil bowl", description: "", ingredients: ["lentils"], instructions: ["Cook."], dietaryContext: [] },
+        image_id: "22222222-2222-4222-8222-222222222222",
+        object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
+        model_version: "gpt-image-1:low:1024:v1",
+        prompt_version: "recipe-photo-semantic-v2",
+        status: "stored",
+        semantic_review_state: "needs_review",
+        attempts: 1,
+        last_error_code: null,
+        last_attempt_at: new Date("2026-09-23T00:00:00.000Z"),
+        url_last_issued_at: null,
+        created_at: new Date("2026-09-23T00:00:00.000Z"),
+        updated_at: new Date("2026-09-23T00:00:00.000Z"),
+      }],
+    });
+
+    const response = await request(app)
+      .get("/v1/recipes/media/11111111-1111-4111-8111-111111111111/review-preview");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["cache-control"]).toBe("private, no-store");
+    expect(response.body).toMatchObject({ status: "stored", semanticReviewState: "needs_review", imageUrl: expect.stringContaining(`/private/recipe-photos/${USER.id}/`) });
+    expect(photoMediaQuery.mock.calls.map(([sql]) => String(sql))).not.toContain(expect.stringContaining("status = 'url_ready'"));
+  });
+
+  it("rejects accepting a photo until its stored review state is ready, and makes the transition conditional in SQL", async () => {
+    photoMediaQuery.mockResolvedValueOnce({ rows: [] });
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/review")
+      .send({ reviewState: "accepted" });
+
+    // A non-transition is intentionally indistinguishable from missing
+    // owner-scoped media at this API boundary.
+    expect(response.status).toBe(404);
+    const reviewSql = photoMediaQuery.mock.calls.map(([sql]) => String(sql)).join("\n");
+    expect(reviewSql).toContain("status = 'stored'");
+    expect(reviewSql).toContain("semantic_review_state = 'needs_review'");
+  });
+
+  it("applies the same account photo quota to a retry before claiming or generating new pixels", async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 600 });
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/retry")
+      .send({});
+
+    expect(response.status).toBe(429);
+    expect(response.headers["retry-after"]).toBe("600");
+    expect(photoMediaQuery).not.toHaveBeenCalled();
+    expect(mockOpenAiImageGenerate).not.toHaveBeenCalled();
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      `recipes-photo:user:${USER.id}`,
+      12,
+      3600,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  });
+
+  it("rotates the private object identity before regenerating a rejected photo", async () => {
+    mockOpenAiImageGenerate.mockResolvedValueOnce({ data: [{ b64_json: Buffer.from("recipe-photo").toString("base64") }] });
+
+    const response = await request(app)
+      .post("/v1/recipes/media/11111111-1111-4111-8111-111111111111/retry")
+      .send({});
+
+    expect(response.status).toBe(200);
+    const retryCall = photoMediaQuery.mock.calls.find(([sql]) => String(sql).includes("SET status = 'generating'"));
+    expect(retryCall).toBeDefined();
+    expect(String(retryCall?.[0])).toContain("image_id = $3");
+    expect(String(retryCall?.[0])).toContain("object_key = $4");
+    expect(retryCall?.[1]?.[2]).not.toBe("22222222-2222-4222-8222-222222222222");
   });
 
   it("does not claim retryable media when the deletion read lock cannot be acquired", async () => {

@@ -1041,6 +1041,19 @@ export interface RecipeList {
      * @nullable
      */
   nextOffset?: number | null;
+  /** True only for the unfiltered open browse feed, whose finite provider pool intentionally wraps. */
+  continuousBrowse?: boolean;
+  /**
+     * Server-owned provider-pool cycle number used to distinguish intentional repeats from duplicate refetches.
+     * @minimum 0
+     */
+  browseCycle?: number;
+  /**
+     * Server-owned finite pool cardinality for exact per-card cycle identity when a page spans a wrap.
+     * @minimum 1
+     * @nullable
+     */
+  browsePoolSize?: number | null;
   /**
      * Stable human-readable reason included when no next page exists.
      * @nullable
@@ -1150,7 +1163,6 @@ export type RecipeMediaReviewInputReviewState = typeof RecipeMediaReviewInputRev
 
 
 export const RecipeMediaReviewInputReviewState = {
-  needs_review: 'needs_review',
   accepted: 'accepted',
   rejected: 'rejected',
 } as const;

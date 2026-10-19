@@ -44,7 +44,7 @@ import {
   toRecipeMediaResource,
   type RecipeMediaReviewState,
 } from "../lib/recipe-media.js";
-import { generateClaimedRecipeMedia, locatorForRecipeMedia } from "../lib/recipe-media-generation.js";
+import { generateClaimedRecipeMedia, locatorForRecipeMedia, reviewPreviewLocatorForRecipeMedia } from "../lib/recipe-media-generation.js";
 import { parseRecipeListFilters } from "../lib/recipeQuery.js";
 
 const router: IRouter = Router();
@@ -564,6 +564,21 @@ router.get("/v1/recipes/media", async (req, res) => {
   return res.json({ media });
 });
 
+router.get("/v1/recipes/media/:mediaId/review-preview", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to review your recipe photo." });
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  try {
+    const row = await findOwnerRecipeMedia(user.id, { mediaId: req.params.mediaId });
+    if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
+    return res.json(await reviewPreviewLocatorForRecipeMedia(user.id, row));
+  } catch (error) {
+    logger.warn(safeErrorDetails(error), "Recipe photo review preview failed");
+    return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo preview is unavailable." });
+  }
+});
+
 router.get("/v1/recipes/media/:mediaId", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to view recipe photo status." });
@@ -574,10 +589,43 @@ router.get("/v1/recipes/media/:mediaId", async (req, res) => {
   return res.json(await locatorForRecipeMedia(user.id, row).catch(() => toRecipeMediaResource(row)));
 });
 
+function respondRecipePhotoRetryDeletionFence(res: Response): Response {
+  logger.warn(
+    accountDeletionFenceSignal("/v1/recipes/media/:mediaId/retry"),
+    "Account deletion fence rejected recipe photo retry",
+  );
+  return res.status(503).json({ message: "Recipe photo retry is temporarily unavailable. Please try again shortly." });
+}
+
 router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to retry a recipe photo." });
   if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      `recipes-photo:user:${user.id}`,
+      RECIPE_PHOTO_RATE_LIMIT,
+      RECIPE_GEN_RATE_WINDOW_SECS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      return respondRecipePhotoRetryDeletionFence(res);
+    }
+    throw error;
+  }
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    return res.status(rate.degraded ? 503 : 429).json({
+      code: rate.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+      retryable: true,
+      message: rate.degraded
+        ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
+        : "You’ve reached the recipe photo limit. Please try again later.",
+      retryAfterSecs: rate.retryAfterSecs,
+    });
+  }
   try {
     // Claiming a retry changes persistent media state. Acquire the same
     // account-deletion read lock before that claim, not only before the
@@ -593,11 +641,7 @@ router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
     return res.json(generated);
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
-      logger.warn(
-        accountDeletionFenceSignal("/v1/recipes/media/:mediaId/retry"),
-        "Account deletion fence rejected recipe photo retry",
-      );
-      return res.status(503).json({ message: "Recipe photo retry is temporarily unavailable. Please try again shortly." });
+      return respondRecipePhotoRetryDeletionFence(res);
     }
     return res.status(502).json({ code: "recipe_photo_retryable", retryable: true, message: "Recipe photo generation is temporarily unavailable." });
   }
@@ -607,7 +651,7 @@ router.post("/v1/recipes/media/:mediaId/review", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to review a recipe photo." });
   const reviewState = requestBody(req.body).reviewState;
-  if (!isRecipeMediaUuid(req.params.mediaId) || !["needs_review", "accepted", "rejected"].includes(String(reviewState))) {
+  if (!isRecipeMediaUuid(req.params.mediaId) || !["accepted", "rejected"].includes(String(reviewState))) {
     return res.status(400).json({ message: "Choose a valid recipe photo review state." });
   }
   const row = await setOwnerRecipeMediaReview(user.id, req.params.mediaId, reviewState as RecipeMediaReviewState);
@@ -1193,7 +1237,10 @@ router.get("/v1/recipes", async (req, res) => {
     }
     const { query, category } = filters.value;
     const parsedLimit = Number(req.query.limit ?? 12);
-    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 30) : 12;
+    // A cursor is a cardinal position, never a fractional JavaScript slice
+    // index. Normalize before both page construction and `nextOffset` so a
+    // malformed decimal limit cannot make client continuation drift or repeat.
+    const limit = Number.isFinite(parsedLimit) ? Math.floor(Math.min(Math.max(parsedLimit, 1), 30)) : 12;
     const parsedOffset = Number(req.query.offset ?? 0);
     const offset = Number.isFinite(parsedOffset) ? Math.max(Math.floor(parsedOffset), 0) : 0;
 
@@ -1217,7 +1264,10 @@ router.get("/v1/recipes", async (req, res) => {
       meals = await getForYouMeals();
     }
 
-    const continuousBrowse = !query && meals.length > 0;
+    // Only the unfiltered For You catalogue is an endless browse surface.
+    // Category/search results are finite result sets; repeating those rows as
+    // a new cycle makes filtered discovery misleading and duplicates cards.
+    const continuousBrowse = !query && !category && meals.length > 0;
     const pageMeals = continuousBrowse
       ? circularBrowsePage(meals, offset, limit)
       : meals.slice(offset, offset + limit);
@@ -1237,11 +1287,19 @@ router.get("/v1/recipes", async (req, res) => {
       : continuousBrowse
         ? offset + recipes.length
         : offset + recipes.length < meals.length ? offset + recipes.length : null;
+    // TheMealDB's browse pool is finite. Unfiltered browsing deliberately
+    // wraps, but clients receive a server-owned cycle number so repeated source
+    // rows are distinguishable from duplicate refetches or provider overlap.
+    const browseCycle = continuousBrowse ? Math.floor(offset / meals.length) : 0;
+    const browsePoolSize = continuousBrowse ? meals.length : null;
     res.json({
       source: SOURCE,
       recipes,
       warmupPending,
       nextOffset,
+      continuousBrowse,
+      browseCycle,
+      browsePoolSize,
       terminalReason: nextOffset === null ? "No more recipes are available for this query." : null,
     });
   } catch {

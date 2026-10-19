@@ -1,10 +1,16 @@
-export type DiscoverRecipeIdentity = { id: string };
+export type DiscoverRecipeIdentity = { id: string; image?: string | null };
 
 export type DiscoverCataloguePage<T extends DiscoverRecipeIdentity> = {
   offset: number;
   recipes: readonly T[];
   nextOffset: number | null;
   terminalReason: string | null;
+  /** The server explicitly declares an unfiltered browse feed may repeat after one source pass. */
+  continuousBrowse: boolean;
+  /** Server-owned cycle identity. Never infer a cycle from a viewport event. */
+  browseCycle: number;
+  /** Server-owned cardinality needed when a requested page crosses a cycle boundary. */
+  browsePoolSize: number | null;
 };
 
 export type DiscoverCatalogueState<T extends DiscoverRecipeIdentity> = {
@@ -17,7 +23,7 @@ export type DiscoverCatalogueState<T extends DiscoverRecipeIdentity> = {
 
 export type DiscoverCatalogueEntry<T extends DiscoverRecipeIdentity> = {
   recipe: T;
-  /** A stable provider identity, never an offset-qualified duplicate key. */
+  /** Stable per-source identity; circular pages are intentionally distinct only across server-declared cycles. */
   feedEntryKey: string;
 };
 
@@ -81,14 +87,29 @@ function stableRecipeId(recipe: DiscoverRecipeIdentity): string {
   return recipe.id.trim();
 }
 
+function hasUsableImage(recipe: DiscoverRecipeIdentity): boolean {
+  return typeof recipe.image === 'string' && recipe.image.trim().length > 0;
+}
+
+/**
+ * Prefer the first provider position but retain a later valid thumbnail for the
+ * same stable identity. The display policy still validates the URL before use.
+ */
 function uniqueRecipes<T extends DiscoverRecipeIdentity>(recipes: readonly T[]): T[] {
-  const seen = new Set<string>();
-  return recipes.filter((recipe) => {
+  const positionById = new Map<string, number>();
+  const result: T[] = [];
+  for (const recipe of recipes) {
     const id = stableRecipeId(recipe);
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+    if (!id) continue;
+    const position = positionById.get(id);
+    if (position == null) {
+      positionById.set(id, result.length);
+      result.push(recipe);
+      continue;
+    }
+    if (!hasUsableImage(result[position]!) && hasUsableImage(recipe)) result[position] = recipe;
+  }
+  return result;
 }
 
 function pageRecipesOutsideOffset<T extends DiscoverRecipeIdentity>(
@@ -100,32 +121,48 @@ function pageRecipesOutsideOffset<T extends DiscoverRecipeIdentity>(
     .flatMap((page) => page.recipes);
 }
 
+function entryKey<T extends DiscoverRecipeIdentity>(page: DiscoverCataloguePage<T>, recipe: T, index: number): string {
+  const id = stableRecipeId(recipe);
+  const cycle = page.browsePoolSize && page.browsePoolSize > 0
+    ? Math.floor((page.offset + index) / page.browsePoolSize)
+    : page.browseCycle;
+  return page.continuousBrowse ? `cycle:${cycle}:${id}` : id;
+}
+
 /**
- * Returns every currently known card in stable offset order. A provider may
- * overlap adjacent pages; the first result keeps its position and later
- * occurrences never become visually distinct cards.
+ * Returns every currently known card in stable offset order. Provider overlap
+ * never adds a duplicate within a server-declared cycle. A deliberate circular
+ * browse cycle uses a distinct key so the catalogue can continue truthfully
+ * without pretending repeated source rows are accidental refetches.
  */
 export function discoverCatalogueEntries<T extends DiscoverRecipeIdentity>(
   state: DiscoverCatalogueState<T>,
 ): DiscoverCatalogueEntry<T>[] {
-  const seen = new Set<string>();
-  return [...state.pages]
-    .sort((left, right) => left.offset - right.offset)
-    .flatMap((page) => page.recipes)
-    .flatMap((recipe) => {
+  const positionByKey = new Map<string, number>();
+  const entries: DiscoverCatalogueEntry<T>[] = [];
+  for (const page of [...state.pages].sort((left, right) => left.offset - right.offset)) {
+    for (const [index, recipe] of page.recipes.entries()) {
       const id = stableRecipeId(recipe);
-      if (!id || seen.has(id)) return [];
-      seen.add(id);
-      return [{ recipe, feedEntryKey: id }];
-    });
+      if (!id) continue;
+      const feedEntryKey = entryKey(page, recipe, index);
+      const position = positionByKey.get(feedEntryKey);
+      if (position == null) {
+        positionByKey.set(feedEntryKey, entries.length);
+        entries.push({ recipe, feedEntryKey });
+      } else if (!hasUsableImage(entries[position]!.recipe) && hasUsableImage(recipe)) {
+        entries[position] = { recipe, feedEntryKey };
+      }
+    }
+  }
+  return entries;
 }
 
 /**
  * Reconcile one server page into the current filter generation. Re-applying an
- * offset replaces that offset's page instead of appending it. A newly seen
- * page that contains only earlier recipe identities is treated as a truthful
- * terminal condition: the client will not manufacture an endless duplicate
- * grid merely because an upstream circular cursor keeps advancing.
+ * offset replaces that offset's page instead of appending it. Ordinary finite
+ * queries stop when the provider repeats identities. Only the documented
+ * unfiltered continuous-browse response may introduce a new cycle of those
+ * source identities.
  */
 export function applyDiscoverCataloguePage<T extends DiscoverRecipeIdentity>(
   current: DiscoverCatalogueState<T>,
@@ -136,6 +173,9 @@ export function applyDiscoverCataloguePage<T extends DiscoverRecipeIdentity>(
     recipes: readonly T[];
     nextOffset?: number | null;
     terminalReason?: string | null;
+    continuousBrowse?: boolean;
+    browseCycle?: number | null;
+    browsePoolSize?: number | null;
   },
 ): DiscoverCatalogueState<T> {
   if (input.generation !== current.generation || input.filterKey !== current.filterKey) {
@@ -143,7 +183,19 @@ export function applyDiscoverCataloguePage<T extends DiscoverRecipeIdentity>(
   }
 
   const offset = Number.isFinite(input.offset) ? Math.max(0, Math.floor(input.offset)) : 0;
-  const pageRecipes = uniqueRecipes(input.recipes);
+  const continuousBrowse = input.continuousBrowse === true;
+  const browseCycle = continuousBrowse && Number.isFinite(input.browseCycle)
+    ? Math.max(0, Math.floor(input.browseCycle!))
+    : 0;
+  const browsePoolSize = continuousBrowse && Number.isFinite(input.browsePoolSize) && input.browsePoolSize! > 0
+    ? Math.floor(input.browsePoolSize!)
+    : null;
+  // A circular page can cross a provider-pool boundary. Preserve every valid
+  // position so `offset + index` can assign each deliberate repeat to its
+  // actual server-owned cycle; finite results still reconcile overlaps here.
+  const pageRecipes = continuousBrowse
+    ? input.recipes.filter((recipe) => Boolean(stableRecipeId(recipe)))
+    : uniqueRecipes(input.recipes);
   // A page-zero refresh defines the source ordering anew. Later cached pages
   // belong to the previous root response and must not survive beside it.
   const retainedPages = offset === 0
@@ -158,20 +210,23 @@ export function applyDiscoverCataloguePage<T extends DiscoverRecipeIdentity>(
       ? Math.max(0, Math.floor(input.nextOffset))
       : null;
   const invalidCursor = requestedNextOffset !== null && requestedNextOffset <= offset;
-  const repeatedCircularPage = isNewOffset && pageRecipes.length > 0 && !addsAnyNewRecipe;
+  const repeatedFinitePage = !continuousBrowse && isNewOffset && pageRecipes.length > 0 && !addsAnyNewRecipe;
   const terminalReason = invalidCursor
     ? 'Recipe source did not provide an advancing page cursor.'
-    : repeatedCircularPage
+    : repeatedFinitePage
       ? 'Every available unique recipe in this source has already been shown.'
       : requestedNextOffset == null
         ? (input.terminalReason ?? 'No more recipes are available for this query.')
         : null;
-  const nextOffset = invalidCursor || repeatedCircularPage ? null : requestedNextOffset;
+  const nextOffset = invalidCursor || repeatedFinitePage ? null : requestedNextOffset;
   const page: DiscoverCataloguePage<T> = {
     offset,
     recipes: pageRecipes,
     nextOffset,
     terminalReason,
+    continuousBrowse,
+    browseCycle,
+    browsePoolSize,
   };
 
   return {

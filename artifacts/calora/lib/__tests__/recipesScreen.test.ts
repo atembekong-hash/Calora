@@ -126,12 +126,13 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('const [imageFailed, setImageFailed] = useState(false)');
     expect(source).toContain('onError={() => {');
-    expect(source).toContain('if (!localRecipe || !acceptedGeneratedImage) { setImageFailed(true); return; }');
+    expect(source).toContain('if (!localRecipe || !acceptedGeneratedImage) {');
     expect(source).toContain('handleGeneratedRecipeImageError({');
-    expect(source).toContain("import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
+    expect(source).toContain("import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
     expect(source).toContain('normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)');
-    expect(source).toContain(': normalizeFoodImageUrl(recipe.image)');
-    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageUrl}`}');
+    expect(source).toContain('resolveDiscoverRecipeImageSource(recipe)');
+    expect(source).toContain('imagePreviewUrl: null');
+    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageKey}`}');
     expect(source).toContain('setImageFailed(false)');
   });
 
@@ -200,7 +201,9 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('const GRID_RECIPE_CARD_HEIGHT = 224');
     expect(source).toContain('const GRID_RECIPE_IMAGE_HEIGHT = 140');
-    expect(source).toContain('imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact');
+    expect(source).toContain('imageHeight={GRID_RECIPE_IMAGE_HEIGHT}');
+    expect(source).toContain('fixedHeight={GRID_RECIPE_CARD_HEIGHT}');
+    expect(source).toContain('compact');
     expect(source).toContain('compactCardContent');
     expect(source).toContain('compactCardFooter');
   });
@@ -236,7 +239,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain("if (section === 'premium') {");
-    expect(source).toContain("if (section === 'discover') {");
+    expect(source).toContain("if (section === 'discover') return renderDiscoverSection();");
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd(section);');
     expect(source).toContain('loadMoreDiscoverRecipesIfAtEnd(section);');
     expect(source).toContain('shouldLoadMorePremiumRecipes({ section, activeSection');
@@ -267,6 +270,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Retry recipe photo');
     expect(source).toContain('generatedImageState');
     expect(source).toContain('isGeneratedRecipeImageCandidate(detail)');
+  });
+
+  it('keeps owner-signed generated image capabilities in memory rather than Expo Image disk cache', () => {
+    expect(source).toContain("cachePolicy={generatedImage ? 'memory' : 'memory-disk'}");
   });
 
   it('fails closed to an explicit unavailable state when a recipe image is absent or rejected', () => {
@@ -379,12 +386,17 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('nextDiscoverPaginationOffset({');
     expect(source).not.toContain('appendDiscoverFeedPage');
     expect(source).toContain('orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit)');
-    expect(source).toContain('visibleRemote.map((recipe)');
-    expect(source).toContain('key={discoverFeedEntryKey(recipe)}');
+    expect(source).toContain('visibleRemote.map((recipe) => ({ recipe, entryKey: `discover:${discoverFeedEntryKey(recipe)}` }))');
+    expect(source).toContain('keyExtractor={(entry) => entry.entryKey}');
+    expect(source).toContain('continuousBrowse: response?.continuousBrowse === true');
+    expect(source).toContain('browseCycle: response?.browseCycle ?? 0');
   });
 
-  it('never repeats a circular Discover source invisibly and offers an explicit refresh at true exhaustion', () => {
-    expect(source).toContain('const refreshDiscoverCatalogue = () => {');
+  it('uses a virtualized feed for explicit continuous Discover browsing and retains a truthful terminal refresh for finite filters', () => {
+    expect(source).toContain('<FlatList');
+    expect(source).toContain('testID="discover-recipe-feed"');
+    expect(source).toContain('onEndReached={loadMoreRecipes}');
+    expect(source).toContain('windowSize={7}');
     expect(source).toContain('testID="discover-recipe-terminal"');
     expect(source).toContain('accessibilityLabel="Refresh Discover recipes"');
     expect(source).toContain('onPress={refreshDiscoverCatalogue}');

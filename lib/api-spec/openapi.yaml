@@ -401,6 +401,17 @@ paths:
                 properties:
                   media: { type: array, items: { $ref: "#/components/schemas/RecipeMedia" } }
         "401": { description: A signed-in Calora account is required }
+  /v1/recipes/media/{mediaId}/review-preview:
+    get:
+      operationId: getRecipeMediaReviewPreview
+      tags: [recipes]
+      summary: Get an owner-only temporary locator for semantic image review without publishing the image
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/RecipeMediaId" }]
+      responses:
+        "200": { description: Owner-scoped stored review media with a temporary preview locator, content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } } }
+        "401": { description: A signed-in Calora account is required }
+        "404": { description: No owner-scoped reviewable media exists }
   /v1/recipes/media/{mediaId}:
     get:
       operationId: getRecipeMedia
@@ -1501,6 +1512,17 @@ components:
         nextOffset:
           type: [integer, "null"]
           description: Offset for the next page, or null when this is the terminal page.
+        continuousBrowse:
+          type: boolean
+          description: True only for the unfiltered open browse feed, whose finite provider pool intentionally wraps.
+        browseCycle:
+          type: integer
+          minimum: 0
+          description: Server-owned provider-pool cycle number used to distinguish intentional repeats from duplicate refetches.
+        browsePoolSize:
+          type: [integer, "null"]
+          minimum: 1
+          description: Server-owned finite pool cardinality for exact per-card cycle identity when a page spans a wrap.
         terminalReason:
           type: [string, "null"]
           description: Stable human-readable reason included when no next page exists.
@@ -1561,7 +1583,7 @@ components:
       additionalProperties: false
       required: [reviewState]
       properties:
-        reviewState: { type: string, enum: [needs_review, accepted, rejected] }
+        reviewState: { type: string, enum: [accepted, rejected] }
     Recipe:
       type: object
       required: [id, name, source, sourceUrl]

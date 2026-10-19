@@ -15,10 +15,26 @@ import {
 export const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 
 export async function locatorForRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
-  if (!row.image_id || !["stored", "url_ready"].includes(row.status)) return toRecipeMediaResource(row);
+  // An ordinary locator is a published accepted image capability. Stored
+  // review media must not silently cross that semantic boundary.
+  if (!row.image_id || !["stored", "url_ready"].includes(row.status) || row.semantic_review_state !== "accepted") return toRecipeMediaResource(row);
   const imageUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "GET", RECIPE_MEDIA_URL_TTL_SECS);
   const updated = await issueRecipeMediaUrlState(ownerExternalId, row.id);
   return toRecipeMediaResource(updated, {
+    imageUrl,
+    imageUrlExpiresAt: new Date(Date.now() + RECIPE_MEDIA_URL_TTL_SECS * 1000).toISOString(),
+  });
+}
+
+/**
+ * A short-lived owner-only capability for human semantic review. It never
+ * writes url_ready or changes the review state, so merely opening a card
+ * cannot publish an unverified AI image into ordinary recipe rendering.
+ */
+export async function reviewPreviewLocatorForRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
+  if (!row.image_id || row.status !== "stored" || row.semantic_review_state !== "needs_review") return toRecipeMediaResource(row);
+  const imageUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "GET", RECIPE_MEDIA_URL_TTL_SECS);
+  return toRecipeMediaResource(row, {
     imageUrl,
     imageUrlExpiresAt: new Date(Date.now() + RECIPE_MEDIA_URL_TTL_SECS * 1000).toISOString(),
   });

@@ -6,6 +6,7 @@ import {
   listGeneratedRecipeMedia,
   requestGeneratedRecipePhoto,
   requestGeneratedRecipePhotoUrl,
+  requestGeneratedRecipeMediaReviewPreview,
   retryGeneratedRecipeMedia,
   reviewGeneratedRecipeMedia,
   type GeneratedRecipePhoto,
@@ -37,6 +38,11 @@ export type GeneratedRecipeImageCandidate = {
   imageModelVersion?: string | null;
   imagePromptVersion?: string | null;
   imageUrlExpiresAt?: string | null;
+  /** Short-lived owner-scoped locator displayed only while the image is awaiting semantic review. */
+  imagePreviewUrl?: string | null;
+  imagePreviewUrlExpiresAt?: string | null;
+  imagePreviewErrorCode?: string | null;
+  imagePreviewAttemptedAt?: string | null;
   imageStatus?: GeneratedRecipeClientState | 'pending' | 'ready' | 'failed';
   imageReviewState?: RecipeMediaReviewState;
   imageErrorCode?: string | null;
@@ -49,6 +55,7 @@ export type GeneratedRecipeImageCandidate = {
 export type GeneratedRecipeImagePatch = Partial<Omit<GeneratedRecipeImageCandidate, 'id' | 'name' | 'ingredients' | 'instructions' | 'isLocal' | 'sourceType'>>;
 export type UpdateGeneratedRecipe = (recipeId: string, patch: GeneratedRecipeImagePatch) => void;
 type RequestPhotoUrl = (payload: { mediaId?: string; imageId?: string }, signal?: AbortSignal) => Promise<GeneratedRecipePhoto | Pick<GeneratedRecipePhoto, 'imageUrl' | 'imageUrlExpiresAt'>>;
+type RequestReviewPreview = (mediaId: string, signal?: AbortSignal) => Promise<GeneratedRecipePhoto>;
 
 type RefreshSkipReason = 'not-generated' | 'missing-image-id' | 'generating' | 'retryable-error' | 'fresh' | 'signed-out' | 'account-changed' | 'stale-request' | 'review-required';
 export type GeneratedRecipeImageRefreshDecision = { action: 'skip'; reason: RefreshSkipReason } | { action: 'refresh'; imageId: string; mediaId?: string };
@@ -114,7 +121,10 @@ export function recipePhotoPayload(recipe: GeneratedRecipeImageCandidate): Gener
 }
 
 export function patchForRecipeMedia(photo: GeneratedRecipePhoto): GeneratedRecipeImagePatch {
-  const status: GeneratedRecipeClientState = photo.imageUrl
+  const reviewPreview = photo.semanticReviewState === 'needs_review' && photo.status === 'stored' && photo.imageUrl
+    ? { imagePreviewUrl: photo.imageUrl, imagePreviewUrlExpiresAt: photo.imageUrlExpiresAt ?? null }
+    : { imagePreviewUrl: null, imagePreviewUrlExpiresAt: null };
+  const status: GeneratedRecipeClientState = photo.semanticReviewState === 'accepted' && photo.imageUrl
     ? 'url_ready'
     : photo.status === 'stored'
       ? 'stored'
@@ -122,13 +132,16 @@ export function patchForRecipeMedia(photo: GeneratedRecipePhoto): GeneratedRecip
         ? 'retryable_error'
         : 'generating';
   return {
-    image: photo.imageUrl,
+    // A generated photo is not published into ordinary recipe rendering until
+    // the owner accepts it. Review media remains a separate short-lived field.
+    image: photo.semanticReviewState === 'accepted' ? photo.imageUrl : null,
     imageId: photo.imageId,
     imageMediaId: photo.mediaId,
     imageContentHash: photo.contentHash,
     imageModelVersion: photo.modelVersion,
     imagePromptVersion: photo.promptVersion,
     imageUrlExpiresAt: photo.imageUrlExpiresAt,
+    ...reviewPreview,
     imageStatus: status,
     imageReviewState: photo.semanticReviewState,
     imageErrorCode: photo.lastErrorCode ?? null,
@@ -192,6 +205,47 @@ function isCurrentRefreshGeneration(identity: string, generation: number) {
 }
 export function clearGeneratedRecipeImageRefreshes() { requestsInFlight.clear(); forcedLocatorRenewals.clear(); refreshGenerations.clear(); }
 
+/**
+ * Stored media has completed generation but still needs the owner's semantic
+ * approval. Fetch exactly one short-lived private review locator, rather than
+ * treating that terminal server state as an eternal generation spinner.
+ */
+export function requestGeneratedRecipeImageReviewPreview({ accountId, recipe, updateRecipe, isAccountActive, force = false, requestReviewPreview = requestGeneratedRecipeMediaReviewPreview }: {
+  accountId?: string | null; recipe: GeneratedRecipeImageCandidate; updateRecipe: UpdateGeneratedRecipe;
+  isAccountActive: (id: string) => boolean; force?: boolean; requestReviewPreview?: RequestReviewPreview;
+}): Promise<GeneratedRecipePhoto | null> {
+  if (!accountId || !isAccountActive(accountId) || !generated(recipe) || recipe.imageReviewState !== 'needs_review' || !recipe.imageMediaId) return Promise.resolve(null);
+  const previewIsFresh = Boolean(recipe.imagePreviewUrl) && !isNearExpiry(
+    recipe.imagePreviewUrlExpiresAt,
+    Date.now(),
+    GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS,
+  );
+  if (!force && (previewIsFresh || recipe.imagePreviewErrorCode)) return Promise.resolve(null);
+  const requestKey = key(accountId, 'review-preview', recipe.imageMediaId);
+  const existing = requestsInFlight.get(requestKey) as Promise<GeneratedRecipePhoto | null> | undefined;
+  if (existing) return existing;
+  updateRecipe(recipe.id, { imagePreviewErrorCode: null, imagePreviewAttemptedAt: new Date().toISOString() });
+  const request = requestReviewPreview(recipe.imageMediaId).then((photo) => {
+    if (!isAccountActive(accountId)) return null;
+    const patch = patchForRecipeMedia(photo);
+    if (!patch.imagePreviewUrl) throw new RecipeApiError('Recipe photo preview is unavailable.', 502, 'review_preview_missing');
+    updateRecipe(recipe.id, { ...patch, imagePreviewErrorCode: null });
+    return photo;
+  }).catch((error) => {
+    if (isAccountActive(accountId) && (error as Error).name !== 'AbortError') {
+      updateRecipe(recipe.id, {
+        imageStatus: 'stored',
+        imagePreviewUrl: null,
+        imagePreviewUrlExpiresAt: null,
+        imagePreviewErrorCode: error instanceof RecipeApiError ? error.code ?? `http_${error.status}` : 'preview_failed',
+      });
+    }
+    return null;
+  }).finally(() => { if (requestsInFlight.get(requestKey) === request) requestsInFlight.delete(requestKey); });
+  requestsInFlight.set(requestKey, request);
+  return request;
+}
+
 export function ensureGeneratedRecipeImage({ accountId, recipe, updateRecipe, isAccountActive, force = false, signal }: {
   accountId?: string | null; recipe: GeneratedRecipeImageCandidate; updateRecipe: UpdateGeneratedRecipe;
   isAccountActive: (id: string) => boolean; force?: boolean; signal?: AbortSignal;
@@ -207,6 +261,9 @@ export function ensureGeneratedRecipeImage({ accountId, recipe, updateRecipe, is
   updateRecipe(recipe.id, {
     image: null,
     imageUrlExpiresAt: null,
+    imagePreviewUrl: null,
+    imagePreviewUrlExpiresAt: null,
+    imagePreviewErrorCode: null,
     imageStatus: 'generating',
     imageErrorCode: null,
   });
@@ -288,6 +345,23 @@ export function reconcileGeneratedRecipeMedia(
     && patch.imageReviewState === 'accepted';
   const currentLocator = decideGeneratedRecipeImageRefresh(recipe, { renewalWindowMs });
 
+  // List reconciliation intentionally returns stored review media without a
+  // URL. Preserve an already-valid memory-only review capability rather than
+  // clearing/reissuing it on every lifecycle pass.
+  const retainedReviewPreview = photo.status === 'stored'
+    && photo.semanticReviewState === 'needs_review'
+    && Boolean(recipe.imagePreviewUrl)
+    && !isNearExpiry(recipe.imagePreviewUrlExpiresAt, Date.now(), renewalWindowMs ?? GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS);
+  if (retainedReviewPreview) {
+    return {
+      ...patch,
+      imagePreviewUrl: recipe.imagePreviewUrl,
+      imagePreviewUrlExpiresAt: recipe.imagePreviewUrlExpiresAt ?? null,
+      imagePreviewErrorCode: recipe.imagePreviewErrorCode ?? null,
+      imagePreviewAttemptedAt: recipe.imagePreviewAttemptedAt ?? null,
+    };
+  }
+
   if (renderedAndCurrent && currentLocator.action === 'skip' && currentLocator.reason === 'fresh') {
     return {
       ...patch,
@@ -323,6 +397,9 @@ export async function retryOrRegenerateRecipeImage({ accountId, recipe, updateRe
     updateRecipe(recipe.id, {
       image: null,
       imageUrlExpiresAt: null,
+      imagePreviewUrl: null,
+      imagePreviewUrlExpiresAt: null,
+      imagePreviewErrorCode: null,
       imageStatus: 'generating',
       imageErrorCode: null,
       imageReviewState: 'needs_review',
@@ -343,7 +420,7 @@ export async function reviewRecipeImage(recipe: GeneratedRecipeImageCandidate, r
   if (!recipe.imageMediaId) return null;
   const photo = await reviewGeneratedRecipeMedia(recipe.imageMediaId, reviewState);
   if (photo.semanticReviewState !== 'accepted') {
-    updateRecipe(recipe.id, { image: null, imageUrlExpiresAt: null, imageReviewState: photo.semanticReviewState, imageStatus: 'stored' });
+    updateRecipe(recipe.id, { image: null, imageUrlExpiresAt: null, imagePreviewUrl: null, imagePreviewUrlExpiresAt: null, imagePreviewErrorCode: null, imageReviewState: photo.semanticReviewState, imageStatus: 'stored' });
     return photo;
   }
   const published = await requestGeneratedRecipePhotoUrl({ mediaId: recipe.imageMediaId });
@@ -355,16 +432,18 @@ export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRe
   let delay = GENERATED_RECIPE_IMAGE_MAX_SCHEDULE_MS;
   for (const recipe of recipes) {
     if (!generated(recipe)) continue;
-    if (clientState(recipe.imageStatus) === 'generating' || clientState(recipe.imageStatus) === 'stored') delay = Math.min(delay, 30_000);
+    if (clientState(recipe.imageStatus) === 'generating') delay = Math.min(delay, 30_000);
     const expires = Date.parse(recipe.imageUrlExpiresAt ?? '');
     if (Number.isFinite(expires)) delay = Math.min(delay, Math.max(1_000, expires - renewalWindowMs - now));
+    const previewExpires = Date.parse(recipe.imagePreviewUrlExpiresAt ?? '');
+    if (Number.isFinite(previewExpires)) delay = Math.min(delay, Math.max(1_000, previewExpires - renewalWindowMs - now));
   }
   return delay;
 }
 
 export function generatedRecipeImageLifecycleKey(recipes: readonly GeneratedRecipeImageCandidate[]): string {
   return recipes
-    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? '', recipe.image ?? '', recipe.imageUrlExpiresAt ?? '', recipe.imageProvenance ?? ''].join(':'))
+    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? '', recipe.image ?? '', recipe.imageUrlExpiresAt ?? '', recipe.imagePreviewErrorCode ?? '', recipe.imageProvenance ?? ''].join(':'))
     .join('|');
 }
 
@@ -395,10 +474,19 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
           if (!media) return;
           const patch = reconcileGeneratedRecipeMedia(recipe, media, renewalWindowMs);
           if (mediaPatchChanged(recipe, patch)) updateRef.current(recipe.id, patch);
+          const reconciledRecipe = { ...recipe, ...patch };
+          if (media.status === 'stored' && media.semanticReviewState === 'needs_review') {
+            void requestGeneratedRecipeImageReviewPreview({
+              accountId: currentAccount,
+              recipe: reconciledRecipe,
+              updateRecipe: updateRef.current,
+              isAccountActive: (id) => accountRef.current === id,
+            });
+          }
           if (isStaleGeneratedRecipeMedia(media)) {
             void ensureGeneratedRecipeImage({
               accountId: currentAccount,
-              recipe: { ...recipe, ...patch },
+              recipe: reconciledRecipe,
               updateRecipe: updateRef.current,
               isAccountActive: (id) => accountRef.current === id,
               force: true,
@@ -410,6 +498,7 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
       recipesRef.current.forEach((recipe) => {
         void ensureGeneratedRecipeImage({ accountId: currentAccount, recipe, updateRecipe: updateRef.current, isAccountActive: (id) => accountRef.current === id }).catch(() => undefined);
         void refreshGeneratedRecipeImage({ accountId: currentAccount, recipe, updateRecipe: updateRef.current, isAccountActive: (id) => accountRef.current === id, renewalWindowMs });
+        void requestGeneratedRecipeImageReviewPreview({ accountId: currentAccount, recipe, updateRecipe: updateRef.current, isAccountActive: (id) => accountRef.current === id });
       });
     };
     void reconcile();

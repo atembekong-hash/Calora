@@ -8,6 +8,7 @@ import {
   isGeneratedRecipeImageCandidate,
   isStaleGeneratedRecipeMedia,
   markGeneratedRecipeImageRendered,
+  patchForRecipeMedia,
   reconcileGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
   restoredRecipeFromMedia,
@@ -163,6 +164,24 @@ describe('generated recipe image renewal service', () => {
     markGeneratedRecipeImageRendered(generatedRecipe({ imageStatus: 'rendered' }), updateRecipe);
 
     expect(updateRecipe).not.toHaveBeenCalled();
+  });
+
+  it('stores an owner-scoped review preview separately from the published image so a completed photo cannot remain on an indefinite spinner', () => {
+    const patch = patchForRecipeMedia({
+      mediaId: 'media-7', clientRecipeId: 'recipe-7', contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
+      imageUrl: 'https://storage.example/private/recipe-photos/account-a/123e4567-e89b-42d3-a456-426614174000.png?preview=1',
+      imageUrlExpiresAt: '2026-09-24T12:00:00.000Z',
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'stored', semanticReviewState: 'needs_review', attempts: 1,
+      createdAt: '2026-09-23T00:00:00.000Z', updatedAt: '2026-09-23T00:00:00.000Z',
+    });
+
+    expect(patch).toMatchObject({
+      image: null,
+      imageStatus: 'stored',
+      imageReviewState: 'needs_review',
+      imagePreviewUrl: expect.stringContaining('/private/recipe-photos/account-a/'),
+      imagePreviewUrlExpiresAt: '2026-09-24T12:00:00.000Z',
+    });
   });
 
   it('keeps a rendered accepted locator stable when reconciliation returns a fresh replacement', () => {

@@ -5,6 +5,7 @@ import {
   restoredRecipeFromMedia,
   type GeneratedRecipeImageCandidate,
 } from '../generatedRecipeImageLifecycle';
+import { sanitizeGeneratedRecipeMediaForPersistence } from '../generatedRecipeImagePersistence';
 import type { GeneratedRecipePhoto } from '../recipeGeneration';
 
 type PersistedRecipe = GeneratedRecipeImageCandidate & {
@@ -41,7 +42,7 @@ function generatedPhoto(): GeneratedRecipePhoto {
     modelVersion: 'recipe-image-model-1',
     promptVersion: 'recipe-image-prompt-1',
     status: 'url_ready',
-    semanticReviewState: 'needs_review',
+    semanticReviewState: 'accepted',
     attempts: 1,
     createdAt: '2026-10-12T22:00:00.000Z',
     updatedAt: '2026-10-12T22:00:00.000Z',
@@ -57,10 +58,11 @@ function generatedPhoto(): GeneratedRecipePhoto {
 }
 
 describe('Create recipe image persistence across session reopens', () => {
-  it('preserves the generated image URL and durable media identity after creation and every reopen', () => {
+  it('persists only durable generated-media identity and reissues an accepted signed URL after every reopen', () => {
     const created = generatedRecipe();
     const photo = generatedPhoto();
     const savedRecipe: PersistedRecipe = { ...created, ...patchForRecipeMedia(photo) };
+    const persistedRecipe = sanitizeGeneratedRecipeMediaForPersistence([savedRecipe])[0]!;
     const persistedMedia = photo;
     const firstLifecycleKey = generatedRecipeImageLifecycleKey([savedRecipe]);
 
@@ -68,6 +70,9 @@ describe('Create recipe image persistence across session reopens', () => {
     expect(savedRecipe.imageId).toBe(imageId);
     expect(savedRecipe.imageMediaId).toBe(mediaId);
     expect(firstLifecycleKey).toContain(`recipe-create-reopen-7:url_ready:${imageId}:${mediaId}`);
+    expect(persistedRecipe).toMatchObject({ imageId, imageMediaId: mediaId, imageStatus: 'url_ready', imageReviewState: 'accepted' });
+    expect(persistedRecipe).not.toHaveProperty('image');
+    expect(persistedRecipe).not.toHaveProperty('imageUrlExpiresAt');
 
     for (let reopen = 1; reopen <= 6; reopen += 1) {
       const restored = restoredRecipeFromMedia(persistedMedia);
@@ -82,6 +87,7 @@ describe('Create recipe image persistence across session reopens', () => {
       expect(generatedRecipeImageLifecycleKey([restored!])).toBe(firstLifecycleKey);
       expect(restored?.image).not.toBeNull();
       expect(restored?.image).toBe(savedRecipe.image);
+      expect(sanitizeGeneratedRecipeMediaForPersistence([restored!])[0]).not.toHaveProperty('image');
       expect(reopen).toBeGreaterThan(0);
     }
   });
