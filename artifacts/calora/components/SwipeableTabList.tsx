@@ -374,7 +374,10 @@ export function SwipeableSectionPager<T extends string>({
 
   useEffect(() => {
     if (!useNativePaging || surfaceWidth <= 0) return;
-    nativePagerRef.current?.getNode().scrollTo({ x: activeIndex * surfaceWidth, animated: false });
+    // Reanimated's TS declaration still exposes getNode(), but the mounted
+    // Animated.ScrollView ref under RN 0.81 Fabric does not implement that
+    // legacy bridge. Use the documented ScrollView ref method directly.
+    nativePagerRef.current?.scrollTo({ x: activeIndex * surfaceWidth, animated: false });
   }, [activeIndex, surfaceWidth, useNativePaging]);
 
   const nativePagerScrollHandler = useAnimatedScrollHandler({
