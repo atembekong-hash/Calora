@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
-  ScrollView,
   PanResponder,
   StyleSheet,
   useWindowDimensions,
@@ -13,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import {
   getWorkspacePagerRestingOffset,
   getWorkspaceSwipeOffset,
@@ -66,6 +65,18 @@ type SwipeableSectionPagerProps<T extends string> = {
 type SwipeGestureExclusionContextValue = { setExcluded: (excluded: boolean) => void };
 const SwipeGestureExclusionContext = React.createContext<SwipeGestureExclusionContextValue | null>(null);
 
+type SwipeMenuHighlightContextValue = {
+  items: readonly string[];
+  visualIndex: SharedValue<number>;
+  setTabStripPreview: (index: number | null) => void;
+};
+const SwipeMenuHighlightContext = React.createContext<SwipeMenuHighlightContextValue | null>(null);
+
+function clampSwipeMenuIndex(index: number, itemCount: number): number {
+  'worklet';
+  return Math.max(0, Math.min(Math.max(0, itemCount - 1), index));
+}
+
 /** Marks nested horizontal controls so the page pan can fail before capturing them. */
 export function SwipeGestureExclusion({
   children,
@@ -95,6 +106,94 @@ function getActiveIndex<T extends string>(items: readonly T[], activeItem: T) {
   return index >= 0 ? index : 0;
 }
 
+/** Shares a menu rail with its pager, so both follow the same UI-thread position. */
+export function SwipeMenuHighlightProvider<T extends string>({
+  items,
+  activeItem,
+  children,
+}: {
+  items: readonly T[];
+  activeItem: T;
+  children: React.ReactNode;
+}) {
+  const activeIndex = getActiveIndex(items, activeItem);
+  const activeIndexValue = useSharedValue(activeIndex);
+  const visualIndex = useSharedValue(activeIndex);
+
+  useEffect(() => {
+    activeIndexValue.value = activeIndex;
+    visualIndex.value = activeIndex;
+  }, [activeIndex, activeIndexValue, visualIndex]);
+
+  const setTabStripPreview = useCallback((index: number | null) => {
+    visualIndex.value = index === null
+      ? activeIndexValue.value
+      : clampSwipeMenuIndex(index, items.length);
+  }, [activeIndexValue, items.length, visualIndex]);
+
+  const value = useMemo<SwipeMenuHighlightContextValue>(() => ({
+    items,
+    visualIndex,
+    setTabStripPreview,
+  }), [items, setTabStripPreview, visualIndex]);
+
+  return <SwipeMenuHighlightContext.Provider value={value}>{children}</SwipeMenuHighlightContext.Provider>;
+}
+
+/** A single bold rail that moves beneath equal-width menu labels without obscuring them. */
+export function SwipeMenuHighlight({
+  color,
+  horizontalPadding = 0,
+  gap = 0,
+  inset = 8,
+  height = 4,
+  bottom = 3,
+  testID,
+}: {
+  color: string;
+  horizontalPadding?: number;
+  gap?: number;
+  inset?: number;
+  height?: number;
+  bottom?: number;
+  testID?: string;
+}) {
+  const highlight = React.useContext(SwipeMenuHighlightContext);
+  const fallbackVisualIndex = useSharedValue(0);
+  const visualIndex = highlight?.visualIndex ?? fallbackVisualIndex;
+  const itemCount = highlight?.items.length ?? 0;
+  const trackWidth = useSharedValue(0);
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    trackWidth.value = event.nativeEvent.layout.width;
+  }, [trackWidth]);
+  const animatedStyle = useAnimatedStyle(() => {
+    if (itemCount <= 0 || trackWidth.value <= 0) return { opacity: 0 };
+    const availableWidth = Math.max(0, trackWidth.value - horizontalPadding * 2 - gap * (itemCount - 1));
+    const itemWidth = availableWidth / itemCount;
+    const railWidth = Math.max(0, itemWidth - inset * 2);
+    return {
+      opacity: 1,
+      width: railWidth,
+      transform: [{ translateX: horizontalPadding + inset + (itemWidth + gap) * visualIndex.value }],
+    };
+  }, [gap, horizontalPadding, inset, itemCount, visualIndex]);
+
+  if (!highlight) return null;
+
+  return (
+    <View
+      pointerEvents="none"
+      onLayout={handleLayout}
+      style={[styles.menuHighlightTrack, { bottom, height }]}
+      testID={testID}
+    >
+      <Animated.View
+        style={[styles.menuHighlightRail, { backgroundColor: color, height, borderRadius: height / 2 }, animatedStyle]}
+      />
+    </View>
+  );
+}
+
 /** Keeps tab presses intact while allowing a deliberate swipe across the tab strip. */
 export function SwipeableTabList<T extends string>({
   items,
@@ -106,19 +205,23 @@ export function SwipeableTabList<T extends string>({
   accessibilityLabel,
   testID,
 }: SwipeableTabListProps<T>) {
+  const menuHighlight = React.useContext(SwipeMenuHighlightContext);
   const itemsRef = useRef(items);
   const activeItemRef = useRef(activeItem);
   const onChangeRef = useRef(onChange);
   const onPreviewChangeRef = useRef(onPreviewChange);
+  const menuHighlightRef = useRef(menuHighlight);
   const lastPreviewIndexRef = useRef<number | null>(null);
   itemsRef.current = items;
   activeItemRef.current = activeItem;
   onChangeRef.current = onChange;
   onPreviewChangeRef.current = onPreviewChange;
+  menuHighlightRef.current = menuHighlight;
 
   const previewIndex = (index: number | null) => {
     if (lastPreviewIndexRef.current === index) return;
     lastPreviewIndexRef.current = index;
+    menuHighlightRef.current?.setTabStripPreview(index);
     onPreviewChangeRef.current?.(index === null ? null : itemsRef.current[index] ?? null);
   };
 
@@ -192,6 +295,8 @@ export function SwipeableSectionPager<T extends string>({
   testID,
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
+  const menuHighlight = React.useContext(SwipeMenuHighlightContext);
+  const menuVisualIndex = menuHighlight?.visualIndex;
   const [surfaceWidth, setSurfaceWidth] = useState(windowWidth);
   const activeIndex = getActiveIndex(items, activeItem);
   const hasAdjacentPages = Boolean(renderItem);
@@ -210,7 +315,7 @@ export function SwipeableSectionPager<T extends string>({
   const onChangeRef = useRef(onChange);
   const onPreviewChangeRef = useRef(onPreviewChange);
   const lastPreviewIndexRef = useRef<number | null>(null);
-  const nativePagerRef = useRef<ScrollView>(null);
+  const nativePagerRef = useRef<React.ComponentRef<typeof Animated.ScrollView>>(null);
   itemsRef.current = items;
   onChangeRef.current = onChange;
   onPreviewChangeRef.current = onPreviewChange;
@@ -269,8 +374,19 @@ export function SwipeableSectionPager<T extends string>({
 
   useEffect(() => {
     if (!useNativePaging || surfaceWidth <= 0) return;
-    nativePagerRef.current?.scrollTo({ x: activeIndex * surfaceWidth, animated: false });
+    nativePagerRef.current?.getNode().scrollTo({ x: activeIndex * surfaceWidth, animated: false });
   }, [activeIndex, surfaceWidth, useNativePaging]);
+
+  const nativePagerScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const width = pageWidth.value;
+      if (width <= 0) return;
+      const nextVisualIndex = clampSwipeMenuIndex(event.contentOffset.x / width, itemCountValue.value);
+      if (menuVisualIndex) menuVisualIndex.value = nextVisualIndex;
+      const offset = event.contentOffset.x - activeIndexValue.value * width;
+      runOnJS(previewIndex)(getWorkspaceSwipePreviewIndex(activeIndexValue.value, itemCountValue.value, offset));
+    },
+  }, [activeIndexValue, itemCountValue, menuVisualIndex, pageWidth, previewIndex]);
 
   const pagerSwipe = useMemo(
     () => Gesture.Pan()
@@ -294,6 +410,12 @@ export function SwipeableSectionPager<T extends string>({
           pageWidth.value,
           hasAdjacentPages,
         ) + dragOffset;
+        if (menuVisualIndex) {
+          menuVisualIndex.value = clampSwipeMenuIndex(
+            activeIndexValue.value - dragOffset / pageWidth.value,
+            itemCountValue.value,
+          );
+        }
         runOnJS(previewIndex)(getPreviewIndex(activeIndexValue.value, event.translationX));
       })
       .onEnd((event) => {
@@ -309,6 +431,7 @@ export function SwipeableSectionPager<T extends string>({
         const settledIndex = targetIndex ?? currentIndex;
         activeIndexValue.value = settledIndex;
         translateX.value = getWorkspacePagerRestingOffset(settledIndex, pageWidth.value, hasAdjacentPages);
+        if (menuVisualIndex) menuVisualIndex.value = settledIndex;
         if (targetIndex !== null) runOnJS(commitIndex)(targetIndex);
         else runOnJS(previewIndex)(null);
       })
@@ -318,9 +441,10 @@ export function SwipeableSectionPager<T extends string>({
           pageWidth.value,
           hasAdjacentPages,
         );
+        if (menuVisualIndex) menuVisualIndex.value = activeIndexValue.value;
         runOnJS(previewIndex)(null);
       }),
-    [activeIndexValue, commitIndex, excluded, getPreviewIndex, hasAdjacentPages, itemCountValue, pageWidth, previewIndex, translateX],
+    [activeIndexValue, commitIndex, excluded, getPreviewIndex, hasAdjacentPages, itemCountValue, menuVisualIndex, pageWidth, previewIndex, translateX],
   );
 
   const trackStyle = useAnimatedStyle(() => ({
@@ -339,7 +463,7 @@ export function SwipeableSectionPager<T extends string>({
         style={[styles.pager, style]}
         testID={testID}
       >
-        <ScrollView
+        <Animated.ScrollView
           ref={nativePagerRef}
           horizontal
           pagingEnabled
@@ -355,13 +479,7 @@ export function SwipeableSectionPager<T extends string>({
           scrollEventThrottle={16}
           onMomentumScrollEnd={commitNativePagerPosition}
           onScrollEndDrag={commitNativePagerPosition}
-          onScroll={(event) => {
-            const nextPreviewIndex = getPreviewIndex(
-              activeIndexValue.value,
-              event.nativeEvent.contentOffset.x - activeIndexValue.value * surfaceWidth,
-            );
-            previewIndex(nextPreviewIndex);
-          }}
+          onScroll={nativePagerScrollHandler}
           style={styles.nativePager}
           contentContainerStyle={[styles.nativePagerTrack, fillViewport && styles.nativePagerTrackFill]}
         >
@@ -377,7 +495,7 @@ export function SwipeableSectionPager<T extends string>({
               </View>
             );
           })}
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
       </SwipeGestureExclusionContext.Provider>
     );
@@ -417,6 +535,8 @@ export function SwipeableSectionPager<T extends string>({
 
 const styles = StyleSheet.create({
   gestureSurface: { overflow: 'hidden', minHeight: 0, userSelect: 'none' },
+  menuHighlightTrack: { left: 0, position: 'absolute', right: 0 },
+  menuHighlightRail: { bottom: 0, position: 'absolute' },
   pager: { overflow: 'hidden', minHeight: 0, width: '100%' },
   pagerTrack: { alignItems: 'flex-start', flexDirection: 'row' },
   pagerTrackFill: { flex: 1 },

@@ -18,7 +18,7 @@ import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
-import { SwipeableSectionPager } from '@/components/SwipeableTabList';
+import { SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { parseNutritionInput } from '@/lib/recipeNutrition';
@@ -268,7 +268,6 @@ export default function PlannerScreen() {
     const persistedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index));
     return persistedWeekDays.includes(today) ? today : plannerWeekStart;
   });
-  const [selectedDayPreview, setSelectedDayPreview] = useState<string | null>(null);
   const [detail, setDetail] = useState<PlannerMeal | null>(null);
   const [plannerReviewDraftId, setPlannerReviewDraftId] = useState<string | null>(null);
   const [shoppingVisible, setShoppingVisible] = useState(false);
@@ -1176,86 +1175,58 @@ export default function PlannerScreen() {
                 </Pressable>
               </View>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.dayRail, { backgroundColor: colors.card, borderColor: colors.border }]} contentContainerStyle={styles.dayRailContent}>
-              {weekDays.map((day) => {
-                const date = parseDate(day);
-                const active = day === (selectedDayPreview ?? selectedDay);
-                const previewActive = day === selectedDayPreview;
-                const isToday = day === today;
-                const mealCount = plannerMeals.filter((meal) => meal.day === day).length;
-                const loggedCount = plannerMeals.filter((meal) => meal.day === day && logs.some((log) => log.plannerMealId === meal.id)).length;
-                return (
-                  <Pressable
-                    key={day}
-                    accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`}
-                    accessibilityState={{ selected: active }}
-                    onPress={() => {
-                      setSelectedDayPreview(null);
-                      setSelectedDay(day);
-                    }}
-                    style={[
-                      styles.dayCol,
-                      active && {
-                        backgroundColor: previewActive ? colors.primary : colors.accent,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayName,
-                        {
-                          color: active ? (previewActive ? colors.primaryForeground : colors.primary) : colors.mutedForeground,
-                        },
-                      ]}
+            <SwipeMenuHighlightProvider items={weekDays} activeItem={selectedDay}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.dayRail, { backgroundColor: colors.card, borderColor: colors.border }]} contentContainerStyle={styles.dayRailContent}>
+                {weekDays.map((day) => {
+                  const date = parseDate(day);
+                  const active = day === selectedDay;
+                  const isToday = day === today;
+                  const mealCount = plannerMeals.filter((meal) => meal.day === day).length;
+                  const loggedCount = plannerMeals.filter((meal) => meal.day === day && logs.some((log) => log.plannerMealId === meal.id)).length;
+                  return (
+                    <Pressable
+                      key={day}
+                      accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}, ${mealCount} meals planned, ${loggedCount} logged`}
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setSelectedDay(day)}
+                      style={styles.dayCol}
                     >
-                      {dayFormatter.format(date)}
-                    </Text>
-                    <Text style={[styles.dayNumber, { color: colors.foreground }]}>{date.getDate()}</Text>
-                    <View style={styles.dayCoverage}>
-                      {Array.from({ length: 4 }, (_, index) => (
-                        <View
-                          key={index}
-                          style={[
-                            styles.coverageDot,
-                            {
-                              backgroundColor: index < loggedCount ? colors.success : index < mealCount ? colors.primary : colors.border,
-                            },
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    {isToday && (
-                      <Text
-                        style={[
-                          styles.todayTag,
-                          {
-                            color: active ? colors.primary : colors.mutedForeground,
-                          },
-                        ]}
-                      >
-                        Today
+                      <Text style={[styles.dayName, { color: active ? colors.foreground : colors.mutedForeground }]}>
+                        {dayFormatter.format(date)}
                       </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <SwipeableSectionPager
-              items={weekDays}
-              activeItem={selectedDay}
-              onPreviewChange={setSelectedDayPreview}
-              onChange={(next) => {
-                setSelectedDayPreview(null);
-                setSelectedDay(next);
-              }}
-              renderItem={renderPlannerDay}
-              renderWindow={1}
-              nativePaging
-              accessibilityLabel="Planned meal days"
-              accessibilityHint="Swipe left or right to switch days"
-              testID="planner-day-pager"
-              style={styles.dayPager}
-            />
+                      <Text style={[styles.dayNumber, { color: colors.foreground }]}>{date.getDate()}</Text>
+                      <View style={styles.dayCoverage}>
+                        {Array.from({ length: 4 }, (_, index) => (
+                          <View
+                            key={index}
+                            style={[
+                              styles.coverageDot,
+                              {
+                                backgroundColor: index < loggedCount ? colors.success : index < mealCount ? colors.primary : colors.border,
+                              },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                      {isToday && <Text style={[styles.todayTag, { color: active ? colors.success : colors.mutedForeground }]}>Today</Text>}
+                    </Pressable>
+                  );
+                })}
+                <SwipeMenuHighlight color={colors.accentForeground} gap={4} inset={10} bottom={2} testID="planner-day-swipe-indicator" />
+              </ScrollView>
+              <SwipeableSectionPager
+                items={weekDays}
+                activeItem={selectedDay}
+                onChange={setSelectedDay}
+                renderItem={renderPlannerDay}
+                renderWindow={1}
+                nativePaging
+                accessibilityLabel="Planned meal days"
+                accessibilityHint="Swipe left or right to switch days"
+                testID="planner-day-pager"
+                style={styles.dayPager}
+              />
+            </SwipeMenuHighlightProvider>
             {generationMessage && (
               <View
                 accessibilityLiveRegion="polite"
@@ -2473,14 +2444,14 @@ function makeStyles(f: number) {
       marginBottom: 11,
       overflow: 'hidden',
     },
-    dayRailContent: { flexDirection: 'row', flexGrow: 1, gap: 4 },
+    dayRailContent: { flexDirection: 'row', flexGrow: 1, gap: 4, position: 'relative' },
     dayCol: {
       width: 44,
       alignItems: 'center',
-      minHeight: 50,
+      minHeight: 56,
       borderRadius: 11,
       paddingTop: 3,
-      paddingBottom: 2,
+      paddingBottom: 8,
     },
     dayName: {
       fontFamily: 'Inter_600SemiBold',

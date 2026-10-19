@@ -22,7 +22,7 @@ describe('Recipes Discover layout contracts', () => {
     const tabSurface = source.slice(Math.max(0, tabStart - 600), tabStart + 1_000);
 
     expect(tabStart).toBeGreaterThan(-1);
-    expect(source).toContain("import { SwipeGestureExclusion, SwipeableSectionPager } from '@/components/SwipeableTabList'");
+    expect(source).toContain("import { SwipeGestureExclusion, SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager } from '@/components/SwipeableTabList'");
     expect(source).not.toContain('<SwipeableTabList');
     expect(tabSurface).toContain('accessibilityRole="tablist"');
     expect(tabSurface).toContain('onPress={() => changeSection(section)}');
