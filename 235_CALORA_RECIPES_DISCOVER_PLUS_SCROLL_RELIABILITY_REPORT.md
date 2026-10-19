@@ -24,7 +24,7 @@ The repair deliberately does **not** repeat source pages just to simulate infini
 | 2026-10-16, `1e7ef9a` | Sustained feed/image work | Symptom context; not proof that the current screen had idempotent page application. |
 | 2026-10-19, `9681662` / PR #195 | Plus made free to every signed-in account | The policy is preserved. No entitlement was restored or added. |
 | 2026-10-19, `3e6a5db` / PR #198 | Current production baseline: non-obscuring swipe indicators | Baseline at investigation start and pre-merge production attestation. |
-| 2026-10-19, `343c44d` / PR #199 | This repair branch | New deterministic catalogue state, ownership, terminal, access-boundary, and recovery contracts. |
+| 2026-10-19, `63859fe` / PR #199 | This repair branch | New deterministic catalogue state, ownership, terminal, access-boundary, and recovery contracts. |
 
 The pre-remediation forensic synthesis and its five evidence tracks were preserved outside the repository in the dedicated investigation workspace. They distinguish current-lineage evidence from older non-ancestor historical material.
 
@@ -164,4 +164,4 @@ This section attests only the prior production baseline. It is **not** deploymen
 
 ## 10. Final status at authoring
 
-Commit `343c44d8506af6108c5de1878edf0e1b92b3c36d` is the validated implementation on branch `fix/recipe-catalogue-pagination-reliability`. Its protected pull request is [#199](https://github.com/atembekong-hash/Calora/pull/199). The correct status at this point is **IMPLEMENTED, VERIFICATION INCOMPLETE**, pending protected checks, merge, deployment attestation, an authorized authenticated Plus run, and native-device access.
+Implementation parent commit `63859fe1567b3a436dff42fe2661382b36402777` is the validated implementation on branch `fix/recipe-catalogue-pagination-reliability`. Its protected pull request is [#199](https://github.com/atembekong-hash/Calora/pull/199). The correct status at this point is **IMPLEMENTED, VERIFICATION INCOMPLETE**, pending protected checks, merge, deployment attestation, an authorized authenticated Plus run, and native-device access.
