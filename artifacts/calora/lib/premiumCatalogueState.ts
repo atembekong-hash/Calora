@@ -7,11 +7,38 @@ export type PremiumCatalogueState = {
   search?: string;
   category?: string;
   offset?: number;
-  cycle?: number;
   nextOffset?: number | null;
   terminalReason?: string | null;
   scrollY?: number;
 };
+
+export type RecipeCatalogueSection = 'discover' | 'premium' | 'create';
+
+/**
+ * A real Plus cursor belongs only to the mounted, active Plus catalogue.
+ * Returning null for a terminal cursor is intentional: terminal layout and
+ * scroll events must never restart or visually repeat a provider catalogue.
+ */
+export function nextPremiumPaginationOffset(input: {
+  ownerSection: RecipeCatalogueSection;
+  activeSection: RecipeCatalogueSection;
+  nextOffset: number | null | undefined;
+  isFetching: boolean;
+  isLoadingMore: boolean;
+}): number | null {
+  if (
+    input.ownerSection !== 'premium'
+    || input.activeSection !== 'premium'
+    || input.nextOffset == null
+    || !Number.isFinite(input.nextOffset)
+    || input.nextOffset < 0
+    || input.isFetching
+    || input.isLoadingMore
+  ) {
+    return null;
+  }
+  return Math.floor(input.nextOffset);
+}
 
 export function utcFreshnessDay(now = new Date()): string {
   return now.toISOString().slice(0, 10);
@@ -33,7 +60,6 @@ export function restorePremiumCatalogueSession(
     ...state,
     freshnessDay: today,
     offset: 0,
-    cycle: 0,
     nextOffset: null,
     terminalReason: null,
     scrollY: 0,
@@ -45,10 +71,9 @@ export function mergePremiumCataloguePage(
   current: PremiumRecipe[],
   page: PremiumRecipe[],
   offset: number,
-  options: { appendAtZero?: boolean; allowRepeatedCycle?: boolean } = {},
+  options: { appendAtZero?: boolean } = {},
 ): PremiumRecipe[] {
   if (offset === 0 && !options.appendAtZero) return page;
-  if (options.allowRepeatedCycle) return [...current, ...page];
   const seen = new Set(current.map((recipe) => recipe.id));
   return [...current, ...page.filter((recipe) => !seen.has(recipe.id))];
 }
@@ -99,7 +124,6 @@ export function samePremiumCatalogueSession(current: PremiumCatalogueState, next
     && (current.search ?? '') === (next.search ?? '')
     && (current.category ?? '') === (next.category ?? '')
     && (current.offset ?? 0) === (next.offset ?? 0)
-    && (current.cycle ?? 0) === (next.cycle ?? 0)
     && current.nextOffset === next.nextOffset
     && current.terminalReason === next.terminalReason;
 }
