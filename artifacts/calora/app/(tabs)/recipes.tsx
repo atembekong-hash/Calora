@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,17 +30,19 @@ import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
+import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest';
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
 import { shouldLoadMoreRecipePage } from '@/lib/recipePagination';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
-import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
+import { isPremiumRecipeId, mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { resolvePremiumRecipeDetailImage } from '@/lib/premiumRecipeDetailImage';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
-import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
+import { applyPremiumDetailDenial, canApplyPremiumPage, clearPremiumAccountBoundary as clearPremiumAccountBoundaryState, nextPremiumPaginationOffset, utcFreshnessDay } from '@/lib/premiumCatalogueState';
+import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatalogueEntries, nextDiscoverPaginationOffset, resetDiscoverCatalogueState } from '@/lib/discoverCatalogueState';
 import { handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
@@ -60,14 +62,6 @@ const RECIPE_SUGGESTIONS_PER_ROW = 20;
 const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW;
 type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
-
-function appendDiscoverFeedPage(current: readonly DiscoverFeedRecipe[], page: readonly Recipe[], offset: number): DiscoverFeedRecipe[] {
-  const entries = page.map((recipe, index) => ({
-    ...recipe,
-    feedEntryKey: `${recipe.id}:${offset + index}`,
-  }));
-  return offset === 0 ? entries : [...current, ...entries];
-}
 
 function orderDiscoverFeedRecipes(recipes: readonly DiscoverFeedRecipe[], session: ReturnType<typeof getRecipeFreshnessSession>, visit: number): DiscoverFeedRecipe[] {
   return session
@@ -884,14 +878,13 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   );
 }
 
-function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
+function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session, user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
-  const [catalogueCycle, setCatalogueCycle] = useState(0);
   const [filterVisible, setFilterVisible] = useState(false);
   const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
   const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
@@ -917,14 +910,14 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const query = useListPremiumRecipes(premiumParams, {
     query: {
       queryKey: premiumQueryKey,
-      enabled: Boolean(userId && visible),
+      enabled: Boolean(userId),
       placeholderData: offset > 0 ? (previousData) => previousData : undefined,
       ...PREMIUM_RECIPE_REFRESH_POLICY,
     },
     request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
   const queryErrorStatus = premiumRecipeErrorStatus(query.error);
-  const accessDeniedStatus = queryErrorStatus === 401 ? queryErrorStatus : null;
+  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
@@ -946,8 +939,11 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [query.isFetching]);
   useEffect(() => {
     if (!accessDenied) return;
-    queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
-  }, [accessDenied, premiumQueryKey, queryClient]);
+    setLoadedRecipes([]);
+    setLoadedForUserId(null);
+    loadingMoreRef.current = false;
+    onAccessDenied();
+  }, [accessDenied, onAccessDenied]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       const previousState = appStateRef.current;
@@ -967,45 +963,46 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     return () => subscription.remove();
   }, [category, freshnessDay, query.refetch, search]);
   useEffect(() => {
-    if (!data?.recipes) return;
+    if (!data?.recipes || !canApplyPremiumPage(query.isPlaceholderData)) return;
     setLoadedRecipes((current) => (offset === 0 || loadedForUserId !== userId ? mergeRecipePages([], data.recipes) : mergeRecipePages(current, data.recipes)));
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
-  }, [data?.recipes, loadedForUserId, offset, userId]);
+  }, [data?.recipes, loadedForUserId, offset, query.isPlaceholderData, userId]);
   useEffect(() => {
     // Include the just-arrived page here. State updates from the preceding
     // effect are asynchronous, so looking only at loadedRecipes could schedule
     // one unnecessary page after the second row is already filled.
     const availableRecipeCount = mergeRecipePages(loadedRecipes, data?.recipes ?? []).length;
-    if (suggestionMinimumRecipeCount <= 0 || !visible || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null || availableRecipeCount >= suggestionMinimumRecipeCount || query.isFetching || loadingMoreRef.current) return;
+    if (suggestionMinimumRecipeCount <= 0 || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null || availableRecipeCount >= suggestionMinimumRecipeCount || query.isFetching || loadingMoreRef.current) return;
 
     // A person opened a Plus recipe and asked to browse related choices. Load
     // only the additional provider pages needed to fill both suggestion rows;
     // never manufacture repeated cards or prefetch this volume while browsing.
     loadingMoreRef.current = true;
     setOffset(data.nextOffset);
-  }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId, visible]);
+  }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId]);
   useEffect(() => {
-    if (!visible || !userId) return;
+    if (!userId) return;
     const today = utcFreshnessDay();
     if (!search && !category && today !== freshnessDay) {
       setFreshnessDay(today);
       return;
     }
     setFreshnessVisit(freshnessSession.beginVisit());
-  }, [category, freshnessDay, freshnessSession, search, userId, visible]);
+  }, [category, freshnessDay, freshnessSession, search, userId]);
   useEffect(() => {
-    if (!visible || search || category) return;
+    if (search || category) return;
     const now = new Date();
     const nextUtcDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
     const timer = setTimeout(() => setFreshnessDay(utcFreshnessDay()), Math.max(nextUtcDay - now.getTime() + 1000, 1000));
     return () => clearTimeout(timer);
-  }, [category, freshnessDay, search, visible]);
+  }, [category, freshnessDay, search]);
   useEffect(() => {
+    if (!active) return;
     onLoadedRecipesChange(loadedRecipes);
-  }, [loadedRecipes, onLoadedRecipesChange]);
+  }, [active, loadedRecipes, onLoadedRecipesChange]);
   useEffect(() => {
-    if (!visible || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
+    if (!userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
     const nextParams = {
       query: search || undefined,
       category: category || undefined,
@@ -1023,21 +1020,25 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
         retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
       })
       .catch(() => undefined);
-  }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId, visible]);
+  }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId]);
   useEffect(() => {
+    if (!active) return;
     onLoadMoreRef.current = () => {
-      if (query.isFetching || loadingMoreRef.current) return;
-      if (data?.nextOffset == null) {
-        if (loadedRecipes.length > 0) setCatalogueCycle((current) => current + 1);
-        return;
-      }
+      const nextOffset = nextPremiumPaginationOffset({
+        ownerSection: 'premium',
+        activeSection: active ? 'premium' : 'discover',
+        nextOffset: data?.nextOffset,
+        isFetching: query.isFetching,
+        isLoadingMore: loadingMoreRef.current,
+      });
+      if (nextOffset == null) return;
       loadingMoreRef.current = true;
-      setOffset(data.nextOffset);
+      setOffset(nextOffset);
     };
     return () => {
       onLoadMoreRef.current = null;
     };
-  }, [data?.nextOffset, loadedRecipes.length, onLoadMoreRef, query.isFetching]);
+  }, [active, data?.nextOffset, onLoadMoreRef, query.isFetching]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
     // section remounts. Do not clear that restored list on the initial render;
@@ -1047,7 +1048,6 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       return;
     }
     setOffset(0);
-    setCatalogueCycle(0);
     setLoadedRecipes([]);
     loadingMoreRef.current = false;
   }, [search, category, unfilteredFreshnessDay]);
@@ -1062,7 +1062,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
           ...PREMIUM_RECIPE_REQUEST_OPTIONS,
           signal,
         }),
-      enabled: Boolean(visible && userId && data?.status === 'available' && !accessDenied),
+      enabled: Boolean(userId && data?.status === 'available' && !accessDenied),
       staleTime: 1000 * 60 * 10,
       retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
       retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
@@ -1075,21 +1075,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   };
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
   const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
-  const continuousCatalogueEntries = useMemo(
-    () =>
-      Array.from({ length: catalogueCycle + 1 }, (_, cycle) =>
-        displayRecipes.map((recipe) => ({
-          recipe,
-          feedEntryKey: `${recipe.id}:${cycle}`,
-        })),
-      ).flat(),
-    [catalogueCycle, displayRecipes],
-  );
   useEffect(() => {
-    if (!visible || !userId || freshnessVisit === 0 || recipes.length === 0) return;
+    if (!userId || freshnessVisit === 0 || recipes.length === 0) return;
     freshnessSession.remember(displayRecipes.slice(0, RECIPE_PAGE_SIZE));
-  }, [displayRecipes, freshnessSession, freshnessVisit, recipes.length, userId, visible]);
-  if (!visible) return null;
+  }, [displayRecipes, freshnessSession, freshnessVisit, recipes.length, userId]);
   if (!session)
     return (
       <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1243,8 +1232,8 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
           </View>
         ) : (
           <View testID="plus-recipe-grid" style={styles.recipeGrid}>
-            {continuousCatalogueEntries.map(({ recipe, feedEntryKey }) => (
-              <View key={feedEntryKey} testID={`plus-recipe-card-${recipe.sourceId}`} style={styles.recipeGridCard}>
+            {displayRecipes.map((recipe) => (
+              <View key={recipe.id} testID={`plus-recipe-card-${recipe.sourceId}`} style={styles.recipeGridCard}>
                 <RecipeCard
                   recipe={recipe}
                   colors={colors}
@@ -1260,6 +1249,11 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
                 />
               </View>
             ))}
+          </View>
+        )}
+        {data?.status === 'available' && data.nextOffset == null && recipes.length > 0 && !query.isFetching && !query.isError && (
+          <View testID="plus-recipe-terminal" style={styles.loadMoreState}>
+            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{data.terminalReason ?? 'All available Plus recipes are shown.'}</Text>
           </View>
         )}
         {query.isError && recipes.length > 0 && (
@@ -1362,10 +1356,9 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   );
 }
 
-export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
-  const queryClient = useQueryClient();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
   const caloraOriginal = recipe ? recipeProvenance(recipe).sourceType === 'calora_catalog' : false;
@@ -1391,9 +1384,9 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const premiumDetailErrorStatus = premiumRecipeErrorStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
-    if (!premiumDetailDenied) return;
-    queryClient.removeQueries({ queryKey: premiumDetailKey, exact: true });
-  }, [premiumDetailDenied, premiumDetailKey, queryClient]);
+    if (!premium) return;
+    applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied);
+  }, [onPremiumAccessDenied, premium, premiumDetailErrorStatus]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && premium && session?.user.id) void premiumDetailQuery.refetch();
@@ -2785,14 +2778,38 @@ export default function RecipesScreen() {
   const [planNoticeVisible, setPlanNoticeVisible] = useState(false);
   const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
-  const [remoteNextOffset, setRemoteNextOffset] = useState<number | null>(0);
-  const [remoteRecipes, setRemoteRecipes] = useState<DiscoverFeedRecipe[]>([]);
+  const discoverFilterKey = `${search}\u001f${category}`;
+  const [discoverCatalogue, setDiscoverCatalogue] = useState(() =>
+    createDiscoverCatalogueState<Recipe>('\u001fFor you'),
+  );
+  const remoteNextOffset = discoverCatalogue.nextOffset;
+  const remoteRecipes = useMemo<DiscoverFeedRecipe[]>(
+    () => discoverCatalogueEntries(discoverCatalogue).map(({ recipe, feedEntryKey }) => ({ ...recipe, feedEntryKey })),
+    [discoverCatalogue],
+  );
   const [discoverFreshnessVisit, setDiscoverFreshnessVisit] = useState(0);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
   const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
-  const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
+  const premiumBoundaryHandledForUserRef = useRef<string | null>(null);
+  const clearPremiumAccountBoundary = useCallback(() => {
+    const userId = user?.id ?? 'signed-out';
+    if (premiumBoundaryHandledForUserRef.current === userId) return;
+    premiumBoundaryHandledForUserRef.current = userId;
+    clearPremiumAccountBoundaryState({
+      removeListQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipes', userId] }),
+      removeDetailQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipe', userId] }),
+      clearSaved: () => {
+        setPremiumSavedRecipes([]);
+        savedRecipeIds.filter(isPremiumRecipeId).forEach(toggleSavedRecipe);
+      },
+      clearCatalogue: () => setPremiumCatalogueRecipes([]),
+      closePremiumDetail: () => setSelected((current) => (
+        current && recipeProvenance(current).sourceType === 'premium' ? null : current
+      )),
+    });
+  }, [queryClient, savedRecipeIds, toggleSavedRecipe, user?.id]);
   const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
@@ -2882,29 +2899,33 @@ export default function RecipesScreen() {
     },
     {
       query: {
-        queryKey: ['recipes', search, category, remoteOffset],
+        queryKey: ['recipes', discoverCatalogue.generation, search, category, remoteOffset],
         enabled: discoverRemoteEnabled && discoverPaneMounted,
-        staleTime: 1000 * 60 * 10,
+        ...DISCOVER_RECIPE_REFRESH_POLICY,
         refetchInterval: (query) => ((query.state.data as { warmupPending?: boolean } | undefined)?.warmupPending ? 15_000 : false),
       },
+      request: DISCOVER_RECIPE_REQUEST_OPTIONS,
     },
   );
   useEffect(() => {
     setRemoteOffset(0);
-    setRemoteNextOffset(0);
-    setRemoteRecipes([]);
-    setHasMoreRemote(true);
+    setDiscoverCatalogue((current) => resetDiscoverCatalogueState(current, discoverFilterKey));
     loadingMoreRef.current = false;
-  }, [search, category]);
+  }, [discoverFilterKey]);
   useEffect(() => {
     const response = recipesQuery.data;
     const page = response?.recipes;
     if (!page) return;
-    setRemoteRecipes((current) => appendDiscoverFeedPage(current, page, remoteOffset));
-    setRemoteNextOffset(response?.nextOffset ?? null);
-    setHasMoreRemote(response?.nextOffset != null);
+    setDiscoverCatalogue((current) => applyDiscoverCataloguePage(current, {
+      generation: discoverCatalogue.generation,
+      filterKey: discoverFilterKey,
+      offset: remoteOffset,
+      recipes: page,
+      nextOffset: response?.nextOffset ?? null,
+      terminalReason: response?.terminalReason ?? null,
+    }));
     loadingMoreRef.current = false;
-  }, [recipesQuery.data, remoteOffset]);
+  }, [discoverCatalogue.generation, discoverFilterKey, recipesQuery.data, remoteOffset]);
   useEffect(() => {
     if (activeSection !== 'discover') return;
     setDiscoverFreshnessVisit(discoverFreshnessSession.beginVisit());
@@ -2921,12 +2942,12 @@ export default function RecipesScreen() {
     };
     void queryClient
       .prefetchQuery({
-        queryKey: ['recipes', search, category, nextOffset],
-        queryFn: ({ signal }) => listRecipes(params, { signal }),
-        staleTime: 1000 * 60 * 10,
+        queryKey: ['recipes', discoverCatalogue.generation, search, category, nextOffset],
+        queryFn: ({ signal }) => listRecipes(params, { signal, ...DISCOVER_RECIPE_REQUEST_OPTIONS }),
+        ...DISCOVER_RECIPE_REFRESH_POLICY,
       })
       .catch(() => undefined);
-  }, [category, discoverRemoteEnabled, queryClient, recipesQuery.data?.nextOffset, recipesQuery.data?.recipes, search]);
+  }, [category, discoverCatalogue.generation, discoverRemoteEnabled, queryClient, recipesQuery.data?.nextOffset, recipesQuery.data?.recipes, search]);
   useEffect(() => {
     if (!recipeId) return;
     if (recipeSource === 'plus') {
@@ -2997,7 +3018,12 @@ export default function RecipesScreen() {
     if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
     discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE).map((recipe) => ({ id: recipe.feedEntryKey })));
   }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
-  const visibleRemote: BrowseRecipe[] = category === 'My recipes' ? [] : [...caloraOriginalMatches, ...(category === 'Quick' ? [] : freshRemoteRecipes)];
+  const visibleRemote: BrowseRecipe[] = category === 'My recipes' ? [] : [
+    ...caloraOriginalMatches,
+    ...(category === 'Quick'
+      ? []
+      : freshRemoteRecipes.filter((recipe) => !caloraOriginalMatches.some((original) => recipeKey(original) === recipeKey(recipe)))),
+  ];
   const allOpenRecipeSuggestions = useMemo(() => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes], [freshRemoteRecipes, localRecipes]);
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
@@ -3006,10 +3032,23 @@ export default function RecipesScreen() {
   }, [allOpenRecipeSuggestions, premiumCatalogueRecipes, selectedRecipe]);
   const savedRecipes = [...localRecipes, ...caloraOriginalRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
+  const refreshDiscoverCatalogue = () => {
+    setRemoteOffset(0);
+    setDiscoverCatalogue((current) => resetDiscoverCatalogueState(current, discoverFilterKey));
+    setDiscoverFreshnessVisit(discoverFreshnessSession.beginVisit());
+    loadingMoreRef.current = false;
+  };
   const loadMoreRecipes = () => {
-    if (activeSection !== 'discover' || !discoverRemoteEnabled || !hasMoreRemote || remoteNextOffset == null || recipesQuery.isFetching || loadingMoreRef.current) return;
+    if (!discoverRemoteEnabled) return;
+    const nextOffset = nextDiscoverPaginationOffset({
+      activeSection,
+      nextOffset: remoteNextOffset,
+      isFetching: recipesQuery.isFetching,
+      isLoadingMore: loadingMoreRef.current,
+    });
+    if (nextOffset == null) return;
     loadingMoreRef.current = true;
-    setRemoteOffset(remoteNextOffset);
+    setRemoteOffset(nextOffset);
   };
   const loadMoreDiscoverRecipesIfAtEnd = (section: RecipeSection) => {
     if (section !== 'discover' || activeSection !== 'discover') return;
@@ -3102,8 +3141,19 @@ export default function RecipesScreen() {
       scrollEventThrottle={16}
       decelerationRate="normal"
     >
-      <PremiumCatalogue visible={section === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => (current.some((item) => item.id === recipe.id) ? current : [...current, recipe]))} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0} />
-      {section === 'discover' ? (
+      {section === 'premium' ? (
+        <PremiumCatalogue
+          active={activeSection === 'premium'}
+          colors={colors}
+          onOpen={handleCardPress}
+          onSave={(recipe) => setPremiumSavedRecipes((current) => (current.some((item) => item.id === recipe.id) ? current : [...current, recipe]))}
+          onAccessDenied={clearPremiumAccountBoundary}
+          savedPremiumRecipes={premiumSavedRecipes}
+          onLoadMoreRef={premiumLoadMoreRef}
+          onLoadedRecipesChange={setPremiumCatalogueRecipes}
+          suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0}
+        />
+      ) : section === 'discover' ? (
         <>
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
             <Feather name="search" size={17} color={colors.mutedForeground} />
@@ -3203,6 +3253,10 @@ export default function RecipesScreen() {
               <Feather name="wifi-off" size={20} color={colors.warning} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text>
+              <Pressable testID="discover-recipe-initial-retry" accessibilityLabel="Retry loading Discover recipes" onPress={() => recipesQuery.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+                <Feather name="refresh-cw" size={14} color={colors.primaryForeground} />
+                <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text>
+              </Pressable>
             </View>
           ) : (
             <>
@@ -3258,6 +3312,14 @@ export default function RecipesScreen() {
                 <View style={styles.loadMoreState}>
                   <ActivityIndicator size="small" color={colors.primary} />
                   <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text>
+                </View>
+              )}
+              {discoverCatalogue.nextOffset == null && discoverCatalogue.terminalReason && remoteRecipes.length > 0 && !recipesQuery.isFetching && (
+                <View testID="discover-recipe-terminal" style={styles.loadMoreState}>
+                  <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>{discoverCatalogue.terminalReason}</Text>
+                  <Pressable accessibilityLabel="Refresh Discover recipes" onPress={refreshDiscoverCatalogue} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}>
+                    <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Refresh</Text>
+                  </Pressable>
                 </View>
               )}
             </>
@@ -3449,6 +3511,7 @@ export default function RecipesScreen() {
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
+        onPremiumAccessDenied={clearPremiumAccountBoundary}
         onRetryPhoto={(recipe) => retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive }).then(() => undefined)}
         onEditPersonalRecipe={(recipe) => {
           setSelected(null);

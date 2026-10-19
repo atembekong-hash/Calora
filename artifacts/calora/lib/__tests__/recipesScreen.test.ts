@@ -188,7 +188,7 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('savedRecipes.map((recipe) => (');
-    expect(source).toContain('continuousCatalogueEntries.map(({ recipe, feedEntryKey }) => (');
+    expect(source).toContain('displayRecipes.map((recipe) => (');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
@@ -229,8 +229,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
-    expect(source).toContain('if (data?.nextOffset == null) {');
-    expect(source).toContain('setCatalogueCycle((current) => current + 1);');
+    expect(source).toContain('testID="plus-recipe-terminal"');
+    expect(source).toContain("'All available Plus recipes are shown.'");
+    expect(source).not.toContain('catalogueCycle');
+    expect(source).not.toContain('continuousCatalogueEntries');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain("if (section === 'premium') {");
@@ -242,7 +244,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const premiumScrollYRef = useRef(0)');
     expect(source).toContain('premiumScrollYRef.current = contentOffset.y');
     expect(source).toContain('const premiumRecipeScrollMetricsRef = useRef');
-    expect(source).toContain("visible={section === 'premium'}");
+    expect(source).toContain("section === 'premium' ? (");
+    expect(source).not.toContain('<PremiumCatalogue visible=');
+    expect(source).toContain("active={activeSection === 'premium'}");
+    expect(premiumCatalogue).toContain('if (!active) return;');
     expect(source).toContain('renderItem={renderRecipeSection}');
     expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
@@ -365,16 +370,47 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const canLog = hasCompleteNutrition(detail);');
   });
 
-  it('keeps Discover loading after a provider page cycle with stable feed-entry keys', () => {
-    expect(source).toContain('appendDiscoverFeedPage(current, page, remoteOffset)');
+  it('reconciles Discover pages by generation, offset, and stable provider identity', () => {
+    expect(source).toContain("import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatalogueEntries, nextDiscoverPaginationOffset, resetDiscoverCatalogueState } from '@/lib/discoverCatalogueState'");
+    expect(source).toContain('createDiscoverCatalogueState<Recipe>');
+    expect(source).toContain('applyDiscoverCataloguePage(current, {');
+    expect(source).toContain('resetDiscoverCatalogueState(current, discoverFilterKey)');
+    expect(source).toContain('discoverCatalogueEntries(discoverCatalogue)');
+    expect(source).toContain('nextDiscoverPaginationOffset({');
+    expect(source).not.toContain('appendDiscoverFeedPage');
     expect(source).toContain('orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit)');
     expect(source).toContain('visibleRemote.map((recipe)');
     expect(source).toContain('key={discoverFeedEntryKey(recipe)}');
   });
 
+  it('never repeats a circular Discover source invisibly and offers an explicit refresh at true exhaustion', () => {
+    expect(source).toContain('const refreshDiscoverCatalogue = () => {');
+    expect(source).toContain('testID="discover-recipe-terminal"');
+    expect(source).toContain('accessibilityLabel="Refresh Discover recipes"');
+    expect(source).toContain('onPress={refreshDiscoverCatalogue}');
+  });
+
+  it('gives an initial Discover outage a bounded request policy and an actionable retry', () => {
+    expect(source).toContain("import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest'");
+    expect(source).toContain('...DISCOVER_RECIPE_REFRESH_POLICY');
+    expect(source).toContain('request: DISCOVER_RECIPE_REQUEST_OPTIONS');
+    expect(source).toContain('Recipes are offline');
+    expect(source).toContain('testID="discover-recipe-initial-retry"');
+    expect(source).toContain('accessibilityLabel="Retry loading Discover recipes"');
+  });
+
+  it('clears both list and detail cache boundaries for any 401 or 403 Plus denial', () => {
+    expect(source).toContain('queryErrorStatus === 401 || queryErrorStatus === 403');
+    expect(source).toContain('clearPremiumAccountBoundaryState({');
+    expect(source).toContain("queryKey: ['premium-recipes', userId]");
+    expect(source).toContain("queryKey: ['premium-recipe', userId]");
+    expect(source).toContain('applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied)');
+  });
+
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
     expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
-    expect(source).toContain("category === 'Quick' ? [] : freshRemoteRecipes");
+    expect(source).toContain("category === 'Quick'");
+    expect(source).toContain(': freshRemoteRecipes.filter((recipe) => !caloraOriginalMatches.some');
     expect(source).toContain('curated quick recipes with known preparation times');
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });

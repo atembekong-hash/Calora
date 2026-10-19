@@ -354,6 +354,10 @@ export default function SavedRecipesScreen() {
       <RecipeDetailModal
         recipe={isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected}
         onClose={() => setSelected(null)}
+        onPremiumAccessDenied={() => {
+          premiumIds.forEach(toggleSavedRecipe);
+          setSelected(null);
+        }}
         onRetryPhoto={async (recipe) => {
           await retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive });
         }}
