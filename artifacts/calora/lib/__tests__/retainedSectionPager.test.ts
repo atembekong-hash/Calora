@@ -6,6 +6,7 @@ const pagerSource = readFileSync(resolve(__dirname, '../../components/SwipeableT
 const profileSource = readFileSync(resolve(__dirname, '../../app/(tabs)/profile.tsx'), 'utf8');
 const insightsSource = readFileSync(resolve(__dirname, '../../app/(tabs)/insights.tsx'), 'utf8');
 const recipesSource = readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8');
+const plannerSource = readFileSync(resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
 
 describe('retained section pager contracts', () => {
   it('uses native paging with the active and adjacent pages retained', () => {
@@ -58,5 +59,34 @@ describe('retained section pager contracts', () => {
     expect(recipesSource).toContain('const [sectionPreview, setSectionPreview]');
     expect(recipesSource).toContain('previewSelected ? colors.primary : colors.card');
     expect(recipesSource).toContain('previewSelected ? colors.primaryForeground');
+    expect(plannerSource).toContain('const [selectedDayPreview, setSelectedDayPreview]');
+    expect(plannerSource).toContain('onPreviewChange={setSelectedDayPreview}');
+    expect(plannerSource).toContain('previewActive ? colors.primary : colors.accent');
+  });
+
+  it('previews the destination immediately while retaining release-only page commits', () => {
+    expect(pagerSource).toContain('getWorkspaceSwipePreviewIndex');
+    expect(pagerSource).not.toContain('Math.abs(offset) / width < 0.2');
+    expect(pagerSource).toContain('onPanResponderMove');
+    expect(pagerSource).toContain('onPanResponderTerminate');
+    expect(pagerSource).toContain('runOnJS(previewIndex)(null);');
+    expect(pagerSource).toContain('onScrollEndDrag={commitNativePagerPosition}');
+    expect(pagerSource).toContain('onMomentumScrollEnd={commitNativePagerPosition}');
+  });
+
+  it('shares preview state between every swipeable menu strip and its page surface', () => {
+    const profileTabList = profileSource.slice(
+      profileSource.indexOf('<SwipeableTabList'),
+      profileSource.indexOf('</SwipeableTabList>'),
+    );
+    const progressTabList = insightsSource.slice(
+      insightsSource.indexOf('<SwipeableTabList'),
+      insightsSource.indexOf('</SwipeableTabList>'),
+    );
+
+    expect(profileTabList).toContain('onPreviewChange={setProfilePreview}');
+    expect(progressTabList).toContain('onPreviewChange={setProgressPreview}');
+    expect(recipesSource).toContain('onPreviewChange={setSectionPreview}');
+    expect(plannerSource).toContain('onPreviewChange={setSelectedDayPreview}');
   });
 });

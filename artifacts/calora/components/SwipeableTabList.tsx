@@ -17,6 +17,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 import {
   getWorkspacePagerRestingOffset,
   getWorkspaceSwipeOffset,
+  getWorkspaceSwipePreviewIndex,
   getWorkspaceSwipeTargetIndex,
   isWorkspaceSwipeIntent,
   isWorkspaceSwipeVelocityIntent,
@@ -26,6 +27,7 @@ import {
 type SwipeableTabListProps<T extends string> = {
   items: readonly T[];
   activeItem: T;
+  onPreviewChange?: (item: T | null) => void;
   onChange: (item: T) => void;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -97,6 +99,7 @@ function getActiveIndex<T extends string>(items: readonly T[], activeItem: T) {
 export function SwipeableTabList<T extends string>({
   items,
   activeItem,
+  onPreviewChange,
   onChange,
   children,
   style,
@@ -106,9 +109,18 @@ export function SwipeableTabList<T extends string>({
   const itemsRef = useRef(items);
   const activeItemRef = useRef(activeItem);
   const onChangeRef = useRef(onChange);
+  const onPreviewChangeRef = useRef(onPreviewChange);
+  const lastPreviewIndexRef = useRef<number | null>(null);
   itemsRef.current = items;
   activeItemRef.current = activeItem;
   onChangeRef.current = onChange;
+  onPreviewChangeRef.current = onPreviewChange;
+
+  const previewIndex = (index: number | null) => {
+    if (lastPreviewIndexRef.current === index) return;
+    lastPreviewIndexRef.current = index;
+    onPreviewChangeRef.current?.(index === null ? null : itemsRef.current[index] ?? null);
+  };
 
   const panResponder = useMemo(
     () => PanResponder.create({
@@ -120,6 +132,11 @@ export function SwipeableTabList<T extends string>({
       onMoveShouldSetPanResponderCapture: (_event, gesture) =>
         isWorkspaceSwipeIntent(gesture.dx, gesture.dy)
         || isWorkspaceSwipeVelocityIntent(gesture.dx, gesture.dy, gesture.vx, gesture.vy),
+      onPanResponderMove: (_event, gesture) => {
+        const currentItems = itemsRef.current;
+        const currentIndex = currentItems.indexOf(activeItemRef.current);
+        previewIndex(getWorkspaceSwipePreviewIndex(currentIndex, currentItems.length, gesture.dx));
+      },
       onPanResponderRelease: (_event, gesture) => {
         const currentItems = itemsRef.current;
         const currentIndex = currentItems.indexOf(activeItemRef.current);
@@ -131,8 +148,10 @@ export function SwipeableTabList<T extends string>({
           gesture.vx,
           gesture.vy,
         );
+        previewIndex(null);
         if (targetIndex !== null) onChangeRef.current(currentItems[targetIndex]);
       },
+      onPanResponderTerminate: () => previewIndex(null),
       onPanResponderTerminationRequest: () => true,
     }),
     [],
@@ -202,25 +221,26 @@ export function SwipeableSectionPager<T extends string>({
     translateX.value = getWorkspacePagerRestingOffset(activeIndex, pageWidth.value, hasAdjacentPages);
   }, [activeIndex, activeIndexValue, hasAdjacentPages, itemCountValue, items.length, pageWidth, translateX]);
 
-  const commitIndex = useCallback((index: number) => {
-    const nextItem = itemsRef.current[index];
-    if (nextItem) {
-      lastPreviewIndexRef.current = null;
-      onPreviewChangeRef.current?.(null);
-      onChangeRef.current(nextItem);
-    }
-  }, []);
-
-  const getPreviewIndex = useCallback((index: number, offset: number, width: number) => {
-    if (!Number.isFinite(offset) || !Number.isFinite(width) || width <= 0 || Math.abs(offset) / width < 0.2) return index;
-    const direction = offset < 0 ? 1 : -1;
-    return Math.max(0, Math.min(itemsRef.current.length - 1, index + direction));
-  }, []);
-
   const previewIndex = useCallback((index: number | null) => {
     if (lastPreviewIndexRef.current === index) return;
     lastPreviewIndexRef.current = index;
     onPreviewChangeRef.current?.(index === null ? null : itemsRef.current[index] ?? null);
+  }, []);
+
+  const clearPreview = useCallback(() => {
+    previewIndex(null);
+  }, [previewIndex]);
+
+  const commitIndex = useCallback((index: number) => {
+    const nextItem = itemsRef.current[index];
+    if (nextItem) {
+      clearPreview();
+      onChangeRef.current(nextItem);
+    }
+  }, [clearPreview]);
+
+  const getPreviewIndex = useCallback((index: number, offset: number) => {
+    return getWorkspaceSwipePreviewIndex(index, itemsRef.current.length, offset);
   }, []);
 
   const setExcluded = useCallback((isExcluded: boolean) => {
@@ -240,11 +260,12 @@ export function SwipeableSectionPager<T extends string>({
     const targetIndex = Math.round(event.nativeEvent.contentOffset.x / surfaceWidth);
     const nextItem = itemsRef.current[targetIndex];
     if (nextItem && targetIndex !== getActiveIndex(itemsRef.current, activeItem)) {
-      lastPreviewIndexRef.current = null;
-      onPreviewChangeRef.current?.(null);
+      clearPreview();
       onChangeRef.current(nextItem);
+    } else {
+      clearPreview();
     }
-  }, [activeItem, surfaceWidth, useNativePaging]);
+  }, [activeItem, clearPreview, surfaceWidth, useNativePaging]);
 
   useEffect(() => {
     if (!useNativePaging || surfaceWidth <= 0) return;
@@ -273,8 +294,7 @@ export function SwipeableSectionPager<T extends string>({
           pageWidth.value,
           hasAdjacentPages,
         ) + dragOffset;
-        const nextPreviewIndex = getPreviewIndex(activeIndexValue.value, event.translationX, pageWidth.value);
-        runOnJS(previewIndex)(nextPreviewIndex === activeIndexValue.value ? null : nextPreviewIndex);
+        runOnJS(previewIndex)(getPreviewIndex(activeIndexValue.value, event.translationX));
       })
       .onEnd((event) => {
         const currentIndex = activeIndexValue.value;
@@ -298,6 +318,7 @@ export function SwipeableSectionPager<T extends string>({
           pageWidth.value,
           hasAdjacentPages,
         );
+        runOnJS(previewIndex)(null);
       }),
     [activeIndexValue, commitIndex, excluded, getPreviewIndex, hasAdjacentPages, itemCountValue, pageWidth, previewIndex, translateX],
   );
@@ -338,9 +359,8 @@ export function SwipeableSectionPager<T extends string>({
             const nextPreviewIndex = getPreviewIndex(
               activeIndexValue.value,
               event.nativeEvent.contentOffset.x - activeIndexValue.value * surfaceWidth,
-              surfaceWidth,
             );
-            previewIndex(nextPreviewIndex === activeIndexValue.value ? null : nextPreviewIndex);
+            previewIndex(nextPreviewIndex);
           }}
           style={styles.nativePager}
           contentContainerStyle={[styles.nativePagerTrack, fillViewport && styles.nativePagerTrackFill]}

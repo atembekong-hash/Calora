@@ -1260,6 +1260,7 @@ export default function ProfileScreen() {
           <SwipeableTabList
             items={PROFILE_TABS}
             activeItem={profileTab}
+            onPreviewChange={setProfilePreview}
             onChange={(next) => { setProfilePreview(null); setProfileTab(next); }}
             accessibilityLabel="Profile sections"
             testID="profile-section-tabs"

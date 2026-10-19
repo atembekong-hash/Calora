@@ -3,12 +3,14 @@ import {
   getWorkspacePagerRestingOffset,
   getWorkspaceSwipeTargetIndex,
   getWorkspaceSwipeOffset,
+  getWorkspaceSwipePreviewIndex,
   isWorkspaceSwipeIntent,
   isWorkspaceSwipeVelocityIntent,
   WORKSPACE_SWIPE_ACTIVATION_DISTANCE,
   WORKSPACE_SWIPE_COMMIT_DISTANCE,
   WORKSPACE_SWIPE_COMMIT_VELOCITY,
   WORKSPACE_SWIPE_EDGE_RESISTANCE,
+  WORKSPACE_SWIPE_PREVIEW_EPSILON,
   WORKSPACE_SWIPE_VELOCITY_MIN_DISTANCE,
 } from '@/lib/workspaceSwipe';
 
@@ -83,6 +85,33 @@ describe('workspace swipe target', () => {
     expect(getWorkspaceSwipeTargetIndex(-1, 3, -80, 0)).toBeNull();
     expect(getWorkspaceSwipeTargetIndex(3, 3, 80, 0)).toBeNull();
     expect(getWorkspaceSwipeTargetIndex(0, 0, -80, 0)).toBeNull();
+  });
+});
+
+describe('workspace swipe preview', () => {
+  it('previews the adjacent item from the first meaningful horizontal displacement', () => {
+    const firstMeaningfulOffset = WORKSPACE_SWIPE_PREVIEW_EPSILON + 0.01;
+
+    expect(getWorkspaceSwipePreviewIndex(1, 3, -firstMeaningfulOffset)).toBe(2);
+    expect(getWorkspaceSwipePreviewIndex(1, 3, firstMeaningfulOffset)).toBe(0);
+  });
+
+  it('keeps the committed menu selection while the pager is at rest', () => {
+    expect(getWorkspaceSwipePreviewIndex(1, 3, 0)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(1, 3, WORKSPACE_SWIPE_PREVIEW_EPSILON)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(1, 3, -WORKSPACE_SWIPE_PREVIEW_EPSILON)).toBeNull();
+  });
+
+  it('clears preview at the first and last edge instead of wrapping menus', () => {
+    expect(getWorkspaceSwipePreviewIndex(0, 3, 20)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(2, 3, -20)).toBeNull();
+  });
+
+  it('fails closed for invalid pager state or displacement', () => {
+    expect(getWorkspaceSwipePreviewIndex(-1, 3, -20)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(3, 3, 20)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(1, 0, -20)).toBeNull();
+    expect(getWorkspaceSwipePreviewIndex(1, 3, Number.NaN)).toBeNull();
   });
 });
 

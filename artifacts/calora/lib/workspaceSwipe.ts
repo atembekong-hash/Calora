@@ -4,6 +4,8 @@ export const WORKSPACE_SWIPE_COMMIT_VELOCITY = 0.5;
 export const WORKSPACE_SWIPE_VELOCITY_MIN_DISTANCE = 4;
 export const WORKSPACE_SWIPE_DOMINANCE_RATIO = 1.35;
 export const WORKSPACE_SWIPE_EDGE_RESISTANCE = 0.24;
+/** Ignores only sub-pixel layout noise before previewing the adjacent menu item. */
+export const WORKSPACE_SWIPE_PREVIEW_EPSILON = 0.5;
 
 /**
  * Claims only gestures that are clearly horizontal. Keeping this separate from
@@ -85,6 +87,35 @@ export function getWorkspaceSwipeTargetIndex(
 
   const direction = committedByDistance ? dx : velocityX;
   const targetIndex = direction < 0 ? currentIndex + 1 : currentIndex - 1;
+  return targetIndex >= 0 && targetIndex < itemCount ? targetIndex : null;
+}
+
+/**
+ * Resolves the adjacent item currently under a deliberate page drag.
+ *
+ * This is intentionally separate from the release-only commit calculation:
+ * the content and orange menu preview move together from the first meaningful
+ * displacement, while a cancellation leaves the committed item untouched.
+ */
+export function getWorkspaceSwipePreviewIndex(
+  currentIndex: number,
+  itemCount: number,
+  offset: number,
+): number | null {
+  'worklet';
+  if (
+    !Number.isInteger(currentIndex)
+    || !Number.isInteger(itemCount)
+    || itemCount <= 0
+    || currentIndex < 0
+    || currentIndex >= itemCount
+    || !Number.isFinite(offset)
+    || Math.abs(offset) <= WORKSPACE_SWIPE_PREVIEW_EPSILON
+  ) {
+    return null;
+  }
+
+  const targetIndex = offset < 0 ? currentIndex + 1 : currentIndex - 1;
   return targetIndex >= 0 && targetIndex < itemCount ? targetIndex : null;
 }
 

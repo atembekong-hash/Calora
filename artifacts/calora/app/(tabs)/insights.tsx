@@ -1834,6 +1834,7 @@ export default function InsightsScreen() {
         <SwipeableTabList
           items={PROGRESS_VIEWS}
           activeItem={progressView}
+          onPreviewChange={setProgressPreview}
           onChange={(next) => { setProgressPreview(null); setProgressView(next); }}
           accessibilityLabel="Progress sections"
           testID="progress-section-tabs"
