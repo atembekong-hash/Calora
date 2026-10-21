@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, AppState, FlatList, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, listPremiumRecipes, listRecipes, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
@@ -43,9 +43,10 @@ import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { applyPremiumDetailDenial, canApplyPremiumPage, clearPremiumAccountBoundary as clearPremiumAccountBoundaryState, nextPremiumPaginationOffset, utcFreshnessDay } from '@/lib/premiumCatalogueState';
 import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatalogueEntries, nextDiscoverPaginationOffset, resetDiscoverCatalogueState } from '@/lib/discoverCatalogueState';
+import { createDiscoverVisitSessionSalt, reconcileDiscoverVisitComposition, type DiscoverVisitEntry } from '@/lib/discoverRecipeMix';
 import { handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, requestGeneratedRecipeImageReviewPreview, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
-import { resolveDiscoverRecipeImageSource } from '@/lib/discoverRecipeImage';
+import { inspectDiscoverRecipeImage } from '@/lib/discoverRecipeImage';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
 import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
 
@@ -127,6 +128,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
   const state = localRecipe?.imageStatus === 'pending' ? 'generating' : localRecipe?.imageStatus === 'ready' ? 'url_ready' : localRecipe?.imageStatus === 'failed' ? 'retryable_error' : (localRecipe?.imageStatus ?? 'not_requested');
   const photoPending = generatedImage && state === 'generating';
   const reviewPreviewUrl = reviewPreviewGeneratedImage ? normalizeGeneratedRecipeImageUrl(localRecipe?.imagePreviewUrl, localRecipe?.imageId, user?.id) : undefined;
+  const discoverImageInspection = generatedImage ? null : inspectDiscoverRecipeImage(recipe);
   const recipeImageSource = acceptedGeneratedImage
     ? (() => {
         const url = normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id);
@@ -136,12 +138,16 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
       ? { uri: reviewPreviewUrl }
       : generatedImage
         ? null
-        : resolveDiscoverRecipeImageSource(recipe);
+        : discoverImageInspection?.source ?? null;
   const recipeImageKey = recipeImageSource && typeof recipeImageSource === 'object' && 'uri' in recipeImageSource ? recipeImageSource.uri : recipeImageSource ? `asset:${recipe.id}` : '';
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageFailureReason, setImageFailureReason] = useState<string | null>(null);
+  const [imageRetryNonce, setImageRetryNonce] = useState(0);
   useEffect(() => {
     setImageFailed(false);
-  }, [recipe.id, recipe.image, recipeImageKey, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imagePreviewUrl, localRecipe?.imageUrlExpiresAt, user?.id]);
+    setImageFailureReason(recipeImageSource ? null : (discoverImageInspection?.reason ?? null));
+    setImageRetryNonce(0);
+  }, [discoverImageInspection?.reason, localRecipe?.imageId, localRecipe?.imageMediaId, localRecipe?.imagePreviewUrl, localRecipe?.imageUrlExpiresAt, recipe.id, recipe.image, recipeImageKey, user?.id]);
   const retry = localRecipe
     ? () => {
         setImageFailed(false);
@@ -165,10 +171,18 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
         });
       }
     : undefined;
+  const retryRemoteImage = !localRecipe && recipeImageSource
+    ? () => {
+        setImageFailed(false);
+        setImageFailureReason(null);
+        setImageRetryNonce((current) => current + 1);
+      }
+    : undefined;
   return (
     <View style={{ height }}>
       {recipeImageSource && !imageFailed ? (
         <Image
+          key={`recipe-image:${recipeImageKey}:${imageRetryNonce}`}
           source={recipeImageSource}
           accessibilityLabel={`${recipe.name} recipe image`}
           contentFit="cover"
@@ -178,11 +192,13 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
           cachePolicy={generatedImage ? 'memory' : 'memory-disk'}
           onLoad={() => {
             setImageFailed(false);
+            setImageFailureReason(null);
             if (localRecipe && acceptedGeneratedImage) markGeneratedRecipeImageRendered(localRecipe, updateRecipe);
           }}
           onError={() => {
             if (!localRecipe || !acceptedGeneratedImage) {
               if (localRecipe && reviewPreviewGeneratedImage) updateRecipe(localRecipe.id, { imagePreviewUrl: null, imagePreviewUrlExpiresAt: null, imagePreviewErrorCode: 'preview_render_failed' });
+              setImageFailureReason(localRecipe && reviewPreviewGeneratedImage ? 'preview_delivery_failed' : 'delivery_failed');
               setImageFailed(true);
               return;
             }
@@ -196,7 +212,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
             });
           }}
           placeholder={require('../../assets/images/calora-recipes-header.jpg')}
-          recyclingKey={`${recipe.id}:${recipeImageKey}`}
+          recyclingKey={`${recipe.id}:${recipeImageKey}:${imageRetryNonce}`}
           style={[styles.recipeImage, { height }]}
         />
       ) : generatedImage ? (
@@ -224,11 +240,18 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
           )}
         </View>
       ) : (
-        <View accessible accessibilityRole="image" accessibilityLabel={`${recipe.name} photo unavailable`} style={[styles.recipeImage, styles.imageFallback, { height }]}>
-          <View style={styles.imageFallbackCopy}>
-            <Feather name="image" size={22} color="#d4eadc" />
-            <Text style={styles.imageFallbackText}>Photo unavailable</Text>
-          </View>
+        <View accessible accessibilityRole="image" accessibilityLabel={`${recipe.name} photo unavailable`} accessibilityHint={imageFailureReason ? 'This photo could not be loaded safely.' : undefined} style={[styles.recipeImage, styles.imageFallback, { height }]}>
+          {retryRemoteImage ? (
+            <Pressable accessibilityLabel={`Retry ${recipe.name} photo`} onPress={retryRemoteImage} style={styles.imageFallbackCopy}>
+              <Feather name="refresh-cw" size={22} color="#d4eadc" />
+              <Text style={styles.imageFallbackText}>Retry photo</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.imageFallbackCopy}>
+              <Feather name="image" size={22} color="#d4eadc" />
+              <Text style={styles.imageFallbackText}>Photo unavailable</Text>
+            </View>
+          )}
         </View>
       )}
       {(acceptedGeneratedImage || reviewPreviewGeneratedImage) && recipeImageSource && !imageFailed && !photoPending && (
@@ -2829,6 +2852,12 @@ export default function RecipesScreen() {
     [discoverCatalogue],
   );
   const [discoverFreshnessVisit, setDiscoverFreshnessVisit] = useState(0);
+  const [discoverVisitSessionSalt] = useState(createDiscoverVisitSessionSalt);
+  type DiscoverCompositionEntry = DiscoverVisitEntry & { recipe: BrowseRecipe };
+  const [discoverVisitComposition, setDiscoverVisitComposition] = useState<{
+    seed: string;
+    entries: DiscoverCompositionEntry[];
+  } | null>(null);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
   const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
   const loadingMoreRef = useRef(false);
@@ -2976,10 +3005,27 @@ export default function RecipesScreen() {
     // a later scroll/layout event cannot remain permanently latched.
     if (recipesQuery.isError) loadingMoreRef.current = false;
   }, [recipesQuery.isError]);
-  useEffect(() => {
+  const discoverFocusEpochRef = useRef(0);
+  const lastDiscoverVisitKeyRef = useRef('');
+  const beginDiscoverVisit = useCallback((force = false) => {
     if (activeSection !== 'discover') return;
+    const visitKey = `${discoverFocusEpochRef.current}:${discoverFilterKey}`;
+    if (!force && lastDiscoverVisitKeyRef.current === visitKey) return;
+    lastDiscoverVisitKeyRef.current = visitKey;
     setDiscoverFreshnessVisit(discoverFreshnessSession.beginVisit());
-  }, [activeSection, discoverFreshnessSession]);
+  }, [activeSection, discoverFilterKey, discoverFreshnessSession]);
+  useFocusEffect(
+    useCallback(() => {
+      discoverFocusEpochRef.current += 1;
+      beginDiscoverVisit(true);
+    }, [beginDiscoverVisit]),
+  );
+  const previousDiscoverSectionRef = useRef<RecipeSection>(activeSection);
+  useEffect(() => {
+    const returnedToDiscover = activeSection === 'discover' && previousDiscoverSectionRef.current !== 'discover';
+    previousDiscoverSectionRef.current = activeSection;
+    if (returnedToDiscover) beginDiscoverVisit(true);
+  }, [activeSection, beginDiscoverVisit]);
   useEffect(() => {
     const page = recipesQuery.data?.recipes;
     const nextOffset = recipesQuery.data?.nextOffset;
@@ -3064,16 +3110,36 @@ export default function RecipesScreen() {
   const selectedRecipe = selected && isLocalRecipe(selected) ? (localRecipes.find((recipe) => recipe.id === selected.id) ?? selected) : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
   const freshRemoteRecipes = useMemo(() => orderDiscoverFeedRecipes(remoteRecipes, discoverFreshnessSession, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
+  const discoverVisitSeed = `${discoverVisitSessionSalt}:${discoverFilterKey}:${discoverFreshnessVisit}`;
+  const discoverVisitCuratedEntries = useMemo<DiscoverCompositionEntry[]>(() => (
+    caloraOriginalMatches.map((recipe) => ({ key: `calora:${recipe.id}`, source: 'calora' as const, recipe }))
+  ), [caloraOriginalMatches]);
+  const discoverVisitRemoteEntries = useMemo<DiscoverCompositionEntry[]>(() => (
+    category === 'Quick'
+      ? []
+      : freshRemoteRecipes.map((recipe) => ({ key: `remote:${recipe.feedEntryKey}`, source: 'remote' as const, recipe }))
+  ), [category, freshRemoteRecipes]);
+  useEffect(() => {
+    if (category === 'My recipes') {
+      setDiscoverVisitComposition(null);
+      return;
+    }
+    setDiscoverVisitComposition((current) => reconcileDiscoverVisitComposition({
+      current,
+      curated: discoverVisitCuratedEntries,
+      remote: discoverVisitRemoteEntries,
+      seed: discoverVisitSeed,
+    }));
+  }, [category, discoverVisitCuratedEntries, discoverVisitRemoteEntries, discoverVisitSeed]);
   useEffect(() => {
     if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
     discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE).map((recipe) => ({ id: recipe.feedEntryKey })));
   }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
-  const visibleRemote: BrowseRecipe[] = category === 'My recipes' ? [] : [
-    ...caloraOriginalMatches,
-    ...(category === 'Quick'
-      ? []
-      : freshRemoteRecipes.filter((recipe) => !caloraOriginalMatches.some((original) => recipeKey(original) === recipeKey(recipe)))),
-  ];
+  const visibleRemote: BrowseRecipe[] = category === 'My recipes'
+    ? []
+    : discoverVisitComposition?.seed === discoverVisitSeed
+      ? discoverVisitComposition.entries.map((entry) => entry.recipe)
+      : [];
   const allOpenRecipeSuggestions = useMemo(() => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes], [freshRemoteRecipes, localRecipes]);
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
@@ -3085,7 +3151,7 @@ export default function RecipesScreen() {
   const refreshDiscoverCatalogue = () => {
     setRemoteOffset(0);
     setDiscoverCatalogue((current) => resetDiscoverCatalogueState(current, discoverFilterKey));
-    setDiscoverFreshnessVisit(discoverFreshnessSession.beginVisit());
+    beginDiscoverVisit(true);
     loadingMoreRef.current = false;
   };
   const loadMoreRecipes = () => {

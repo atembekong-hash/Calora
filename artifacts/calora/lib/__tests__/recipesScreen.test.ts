@@ -130,9 +130,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('handleGeneratedRecipeImageError({');
     expect(source).toContain("import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
     expect(source).toContain('normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)');
-    expect(source).toContain('resolveDiscoverRecipeImageSource(recipe)');
+    expect(source).toContain('inspectDiscoverRecipeImage(recipe)');
     expect(source).toContain('imagePreviewUrl: null');
-    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageKey}`}');
+    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageKey}:${imageRetryNonce}`}');
     expect(source).toContain('setImageFailed(false)');
   });
 
@@ -402,6 +402,23 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('onPress={refreshDiscoverCatalogue}');
   });
 
+  it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {
+    expect(source).toContain("import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'");
+    expect(source).toContain('useFocusEffect(');
+    expect(source).toContain('beginDiscoverVisit');
+    expect(source).toContain('reconcileDiscoverVisitComposition({');
+    expect(source).not.toContain('...caloraOriginalMatches,\n    ...(category === \'Quick\'');
+  });
+
+  it('keeps the strict image-integrity fallback but offers a retry after an individual Discover image delivery failure', () => {
+    expect(source).toContain('const [imageRetryNonce, setImageRetryNonce] = useState(0);');
+    expect(source).toContain('const retryRemoteImage =');
+    expect(source).toContain('accessibilityLabel={`Retry ${recipe.name} photo`}');
+    expect(source).toContain('Retry photo');
+    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageKey}:${imageRetryNonce}`}');
+    expect(source).toContain('setImageFailureReason(');
+  });
+
   it('gives an initial Discover outage a bounded request policy and an actionable retry', () => {
     expect(source).toContain("import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest'");
     expect(source).toContain('...DISCOVER_RECIPE_REFRESH_POLICY');
@@ -422,7 +439,7 @@ describe('Recipes Discover layout contracts', () => {
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
     expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
     expect(source).toContain("category === 'Quick'");
-    expect(source).toContain(': freshRemoteRecipes.filter((recipe) => !caloraOriginalMatches.some');
+    expect(source).toContain("category === 'Quick'\n      ? []");
     expect(source).toContain('curated quick recipes with known preparation times');
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });
