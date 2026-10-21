@@ -2,6 +2,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { logger, safeErrorDetails } from "./logger.js";
 import { createRecipePhotoSignedUrl } from "./recipe-photo-storage.js";
 import {
+  RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS,
   RECIPE_MEDIA_URL_TTL_SECS,
   buildRecipePhotoPrompt,
   issueRecipeMediaUrlState,
@@ -33,10 +34,10 @@ export async function locatorForRecipeMedia(ownerExternalId: string, row: Recipe
  */
 export async function reviewPreviewLocatorForRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
   if (!row.image_id || row.status !== "stored" || row.semantic_review_state !== "needs_review") return toRecipeMediaResource(row);
-  const imageUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "GET", RECIPE_MEDIA_URL_TTL_SECS);
+  const imageUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "GET", RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS);
   return toRecipeMediaResource(row, {
     imageUrl,
-    imageUrlExpiresAt: new Date(Date.now() + RECIPE_MEDIA_URL_TTL_SECS * 1000).toISOString(),
+    imageUrlExpiresAt: new Date(Date.now() + RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS * 1000).toISOString(),
   });
 }
 

@@ -4,6 +4,8 @@ import { pool } from "@workspace/db";
 export const RECIPE_MEDIA_MODEL_VERSION = "gpt-image-1:low:1024:v1";
 export const RECIPE_MEDIA_PROMPT_VERSION = "recipe-photo-semantic-v2";
 export const RECIPE_MEDIA_URL_TTL_SECS = 60 * 60 * 24 * 6;
+/** Review capabilities are deliberately much shorter than accepted-image locators. */
+export const RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS = 15 * 60;
 export const RECIPE_MEDIA_STALE_GENERATION_SECS = 2 * 60;
 
 export type RecipeMediaStatus = "generating" | "stored" | "url_ready" | "retryable_error" | "superseded";
