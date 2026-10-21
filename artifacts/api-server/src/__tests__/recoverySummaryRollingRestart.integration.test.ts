@@ -4,11 +4,12 @@ import { existsSync } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 const DATABASE_REQUIRED =
   process.env.RECOVERY_SUMMARY_ROLLING_RESTART_REQUIRE_DATABASE === "true";
-if (DATABASE_REQUIRED && !HAS_DB) {
+if (DATABASE_REQUIRED && !RUN_DB_INTEGRATION_TESTS) {
   throw new Error(
     "DATABASE_URL must be set when recovery-summary rolling-restart verification is required.",
   );
@@ -152,7 +153,7 @@ async function waitForHealth(port: number): Promise<void> {
   throw new Error(`API did not become healthy on port ${port}`);
 }
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "recovery summary rolling restart rehearsal",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];

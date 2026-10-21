@@ -2,11 +2,7 @@ import express from "express";
 import request from "supertest";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import {
-  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-  AccountDeletionInProgressError,
-  classifyAccountDeletionError,
-} from "../lib/account-deletion-state.js";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
 const {
   verifyBearerTokenMock,
@@ -35,10 +31,10 @@ vi.mock("../lib/logger.js", () => ({
   },
 }));
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 const DATABASE_REQUIRED =
   process.env.ACCOUNT_DELETION_FENCE_REQUIRE_DATABASE === "true";
-if (DATABASE_REQUIRED && !HAS_DB) {
+if (DATABASE_REQUIRED && !RUN_DB_INTEGRATION_TESTS) {
   throw new Error(
     "DATABASE_URL must be set when account-deletion fence database verification is required.",
   );
@@ -52,8 +48,16 @@ const EXPECTED_FENCED_TABLES = [
   "calora_users",
 ] as const;
 
-describe("account deletion fence classification", () => {
-  it("normalizes application and trigger failures without accepting arbitrary database text", () => {
+// account-deletion-state imports @workspace/db even though this assertion is
+// pure. Resolve it only in an explicitly approved integration run so an inert
+// DATABASE_URL cannot load a database client during collection.
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)("account deletion fence classification", () => {
+  it("normalizes application and trigger failures without accepting arbitrary database text", async () => {
+    const {
+      ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      AccountDeletionInProgressError,
+      classifyAccountDeletionError,
+    } = await import("../lib/account-deletion-state.js");
     expect(
       classifyAccountDeletionError(new AccountDeletionInProgressError()),
     ).toBe(ACCOUNT_DELETION_FENCE_ERROR_CLASS);
@@ -72,10 +76,12 @@ describe("account deletion fence classification", () => {
   });
 });
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "account deletion fence provider routes (real limiter and trigger)",
   () => {
     it("returns generic unavailable responses without provider calls or account details", async () => {
+      const { ACCOUNT_DELETION_FENCE_ERROR_CLASS } =
+        await import("../lib/account-deletion-state.js");
       const { pool } = await import("@workspace/db");
       const { default: premiumRecipesRouter } =
         await import("../routes/premiumRecipes.js");
@@ -195,7 +201,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   },
 );
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "account deletion database fence (real schema)",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];
@@ -399,7 +405,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   },
 );
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "account deletion fence provisioning (disposable schema)",
   () => {
     it("creates enabled INSERT/UPDATE fence triggers on every expected fresh-schema table", async () => {

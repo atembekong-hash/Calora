@@ -1,6 +1,14 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import {
+import { isDatabaseIntegrationTestEnabled } from './db-integration-gate.js';
+import type { RecipePhotoInput } from '../lib/recipe-media.js';
+
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
+
+// recipe-media imports @workspace/db. Do not load it while collecting a
+// disabled integration suite, including when DATABASE_URL is intentionally
+// absent from an offline run.
+const {
   acknowledgeOwnerRecipeMediaRendered,
   claimRecipeMedia,
   findOwnerRecipeMedia,
@@ -10,10 +18,9 @@ import {
   retryOwnerRecipeMedia,
   setOwnerRecipeMediaReview,
   updateRecipeMediaStored,
-  type RecipePhotoInput,
-} from '../lib/recipe-media.js';
-
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+} = (RUN_DB_INTEGRATION_TESTS
+  ? await import('../lib/recipe-media.js')
+  : {}) as typeof import('../lib/recipe-media.js');
 const ownerA = `recipe-media-owner-a-${randomUUID()}`;
 const ownerB = `recipe-media-owner-b-${randomUUID()}`;
 const clientRecipeId = `client-recipe-${randomUUID()}`;
@@ -29,7 +36,7 @@ const recipe: RecipePhotoInput = {
   dietaryContext: ['Vegan', 'Chickenless', 'No poultry'],
 };
 
-describe.skipIf(!HAS_DB)('recipe media persistence (real database)', () => {
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)('recipe media persistence (real database)', () => {
   afterAll(async () => {
     const { pool } = await import('@workspace/db');
     await pool.query(

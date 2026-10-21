@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { PoolClient } from "pg";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
 const { deleteUser, info, warn } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
@@ -33,10 +34,10 @@ vi.mock("../lib/logger.js", () => ({
   noteSuppressedRecoveryWarning: vi.fn(),
 }));
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 const DATABASE_REQUIRED =
   process.env.RECOVERY_WARNING_SUPPRESSION_REQUIRE_DATABASE === "true";
-if (DATABASE_REQUIRED && !HAS_DB) {
+if (DATABASE_REQUIRED && !RUN_DB_INTEGRATION_TESTS) {
   throw new Error(
     "DATABASE_URL must be set when recovery-warning suppression database verification is required.",
   );
@@ -52,7 +53,7 @@ const MIGRATION_SQL = readFileSync(
   "utf8",
 );
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "recovery warning suppression migration (disposable schema)",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];
@@ -183,7 +184,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   },
 );
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "recovery warning suppression claims (disposable schema)",
   () => {
     it(
@@ -307,7 +308,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   },
 );
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "recovery warning suppression outage (disposable schema)",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];

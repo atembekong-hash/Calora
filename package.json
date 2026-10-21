@@ -8,6 +8,7 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "test": "pnpm --filter @workspace/calora run test && pnpm --filter @workspace/api-server run test && pnpm --filter @workspace/scripts run test",
+    "test:ci": "pnpm --filter @workspace/calora run test:ci && pnpm --filter @workspace/calora run test:release:native-preflight-unit && pnpm --filter @workspace/api-server run test:offline && pnpm --filter @workspace/scripts run test && pnpm --filter @workspace/fatsecret-gateway run typecheck && pnpm --filter @workspace/fatsecret-gateway run test",
     "audit:release": "pnpm audit --audit-level high"
   },
   "private": true,

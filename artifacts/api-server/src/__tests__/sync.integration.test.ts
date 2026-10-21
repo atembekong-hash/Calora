@@ -16,8 +16,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
+import { isDatabaseIntegrationTestEnabled } from './db-integration-gate.js';
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 
 // ── Auth mock ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ function syncBody(mutations: unknown[]) {
   return { deviceId: 'test-device', mutations };
 }
 
-describe.skipIf(!HAS_DB)('diary sync idempotency (real schema)', () => {
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)('diary sync idempotency (real schema)', () => {
   let app: import('express').Express;
   let pool: typeof import('@workspace/db')['pool'];
 

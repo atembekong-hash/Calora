@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
-import { coachFactContextIdempotencyTable, db, pool, usersTable } from "@workspace/db";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: vi.fn() } } },
@@ -17,11 +17,27 @@ vi.mock("../lib/rate-limit.js", () => ({
 }));
 
 import { openai } from "@workspace/integrations-openai-ai-server";
-import coachFactContextRouter from "../routes/coachFactContext.js";
-import { acceptCoachFactConsent, revokeCoachFactConsent } from "../lib/coach-fact-consent.js";
 
 const SYNTHETIC_REHEARSAL_OPT_IN = process.env.COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL === "development-only";
-const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
+const RUN_DB_INTEGRATION_TESTS =
+  isDatabaseIntegrationTestEnabled() &&
+  process.env.NODE_ENV === "test" &&
+  SYNTHETIC_REHEARSAL_OPT_IN;
+
+// These modules load @workspace/db. Resolve them only after all explicit
+// integration and synthetic-rehearsal safeguards are present so an offline
+// run with no DATABASE_URL can collect this skipped suite.
+const { coachFactContextIdempotencyTable, db, pool, usersTable } = (
+  RUN_DB_INTEGRATION_TESTS ? await import("@workspace/db") : {}
+) as typeof import("@workspace/db");
+const { default: coachFactContextRouter } = (
+  RUN_DB_INTEGRATION_TESTS ? await import("../routes/coachFactContext.js") : {}
+) as typeof import("../routes/coachFactContext.js");
+const { acceptCoachFactConsent, revokeCoachFactConsent } = (
+  RUN_DB_INTEGRATION_TESTS
+    ? await import("../lib/coach-fact-consent.js")
+    : {}
+) as typeof import("../lib/coach-fact-consent.js");
 const VERIFIED_DEVELOPMENT_TARGET = {
   databaseName: "heliumdb",
   postgresSystemIdentifier: "7670770438921318420",
@@ -104,10 +120,10 @@ async function cleanupSyntheticState() {
 }
 
 afterEach(async () => {
-  await cleanupSyntheticState();
+  if (RUN_DB_INTEGRATION_TESTS) await cleanupSyntheticState();
 });
 
-describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context consent/account completion fences (real development state)", () => {
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS).sequential("Coach Fact Context consent/account completion fences (real development state)", () => {
   beforeEach(async () => {
     const result = await pool.query<{ database_name: string; system_identifier: string }>(
       "SELECT current_database() AS database_name, system_identifier::text AS system_identifier FROM pg_control_system()",
