@@ -54,7 +54,7 @@ catalog:
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
   tsx: ^4.21.0
-  vite: ^7.3.2
+  vite: ^7.3.7
   wouter: ^3.3.5
   zod: ^3.25.76
 
@@ -67,6 +67,8 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Vitest accepts Vite 7.3.7; force every peer-resolved copy past GHSA-587h-7wmj-h5pm.
+  vite: "7.3.7"
   # image-size has no published release beyond the vulnerable 2.0.2 line.
   # Use the narrowly patched, local-compatible package until upstream ships one.
   image-size: "file:vendor/image-size"
@@ -89,7 +91,7 @@ overrides:
   "@expo/cli@54.0.23>undici": "6.28.1"
   "@expo/cli@54.0.27>undici": "6.28.1"
   "ajv@8.20.0>fast-uri": "3.1.8"
-  "typedoc@0.28.20>markdown-it": "14.3.2"
+  "typedoc@0.28.20>markdown-it": "14.3.3"
   # Fix Express/body-parser query parsing and navigation URL decoding advisories.
   qs: "6.16.0"
   "decode-uri-component": "0.5.0"
