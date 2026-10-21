@@ -34,7 +34,6 @@ jobs:
       CALORA_QA_SUPABASE_ANON_KEY: ${{ secrets.CALORA_QA_SUPABASE_ANON_KEY }}
       CALORA_QA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY }}
       CALORA_QA_TEST_PASSWORD: ${{ secrets.CALORA_QA_TEST_PASSWORD }}
-      CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
     steps:
       - name: Check out protected main source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -61,6 +60,8 @@ jobs:
       - name: Run one bounded private review and rejection lifecycle
         id: qa
         continue-on-error: true
+        env:
+          CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
         run: |
           set -o pipefail
           node scripts/production-recipe-image-qa.mjs \
@@ -68,6 +69,8 @@ jobs:
 
       - name: Recover an interrupted disposable QA lifecycle
         if: always()
+        env:
+          CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
         run: |
           set -o pipefail
           node scripts/production-recipe-image-qa.mjs --recover \
