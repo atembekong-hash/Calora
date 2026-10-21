@@ -2,6 +2,8 @@ name: Portable PostgreSQL database integrations
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -16,6 +18,10 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/calora_integration_ci
       CALORA_RUN_DB_INTEGRATION_TESTS: "true"
+      # The rolling-restart suite boots the compiled API in a child process.
+      # Keep provider requests inert while allowing module initialization.
+      AI_INTEGRATIONS_OPENAI_BASE_URL: http://127.0.0.1:1/openai-test
+      AI_INTEGRATIONS_OPENAI_API_KEY: calora-vitest-openai-key
     services:
       postgres:
         image: postgres:16@sha256:a3b7f434b2dc57ce85a67e171163eb8ab1a1ebcb39d27484661f26b1dfbe30d6 # PostgreSQL 16 OCI index
