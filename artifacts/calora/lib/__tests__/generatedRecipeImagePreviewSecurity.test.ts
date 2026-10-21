@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sanitizeGeneratedRecipeMediaForPersistence } from '../generatedRecipeImagePersistence';
 import {
   generatedRecipeImageLifecycleKey,
@@ -8,6 +8,8 @@ import {
 
 const IMAGE_ID = '123e4567-e89b-42d3-a456-426614174000';
 const PREVIEW_URL = 'https://storage.example/private/recipe-photos/account-a/123e4567-e89b-42d3-a456-426614174000.png?preview=1';
+const NOW = new Date('2030-10-19T20:00:00.000Z');
+const PREVIEW_EXPIRES_AT = new Date(NOW.getTime() + 2 * 60 * 60 * 1000).toISOString();
 
 function reviewRecipe(overrides: Partial<GeneratedRecipeImageCandidate> = {}): GeneratedRecipeImageCandidate {
   return {
@@ -21,7 +23,7 @@ function reviewRecipe(overrides: Partial<GeneratedRecipeImageCandidate> = {}): G
     imageStatus: 'stored',
     imageReviewState: 'needs_review',
     imagePreviewUrl: PREVIEW_URL,
-    imagePreviewUrlExpiresAt: '2026-10-19T23:00:00.000Z',
+    imagePreviewUrlExpiresAt: PREVIEW_EXPIRES_AT,
     name: 'Lemony lentil bowl',
     description: 'A bright dinner.',
     ingredients: ['lentils'],
@@ -32,6 +34,15 @@ function reviewRecipe(overrides: Partial<GeneratedRecipeImageCandidate> = {}): G
 }
 
 describe('generated recipe preview security and lifecycle boundaries', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('does not make a transient preview URL rerun the reconciliation lifecycle', () => {
     const beforePreview = reviewRecipe({ imagePreviewUrl: null, imagePreviewUrlExpiresAt: null });
     const withPreview = reviewRecipe();
@@ -59,6 +70,32 @@ describe('generated recipe preview security and lifecycle boundaries', () => {
     expect(reconcileGeneratedRecipeMedia(recipe, listResource)).toMatchObject({
       imagePreviewUrl: PREVIEW_URL,
       imagePreviewUrlExpiresAt: recipe.imagePreviewUrlExpiresAt,
+      imageStatus: 'stored',
+      imageReviewState: 'needs_review',
+    });
+  });
+
+  it('clears an expired review preview so the owner can receive a fresh bounded review state', () => {
+    const recipe = reviewRecipe({
+      imagePreviewUrlExpiresAt: new Date(NOW.getTime() - 1).toISOString(),
+    });
+    const listResource = {
+      mediaId: recipe.imageMediaId!,
+      clientRecipeId: recipe.id,
+      contentHash: 'a'.repeat(64),
+      imageId: IMAGE_ID,
+      modelVersion: 'model-1',
+      promptVersion: 'prompt-1',
+      status: 'stored' as const,
+      semanticReviewState: 'needs_review' as const,
+      attempts: 1,
+      createdAt: '2026-10-19T12:00:00.000Z',
+      updatedAt: '2026-10-19T12:00:00.000Z',
+    };
+
+    expect(reconcileGeneratedRecipeMedia(recipe, listResource)).toMatchObject({
+      imagePreviewUrl: null,
+      imagePreviewUrlExpiresAt: null,
       imageStatus: 'stored',
       imageReviewState: 'needs_review',
     });
