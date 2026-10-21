@@ -21,7 +21,7 @@ test("release validation preserves the required job and emits an attested same-S
   assert.match(release, /node scripts\/ci\/validate-expo-config\.mjs artifacts\/calora\/app\.json/);
   assert.match(release, /node scripts\/ci\/validate-eas-native-profiles\.mjs artifacts\/calora\/eas\.json/);
   assert.match(release, /node scripts\/verify-db-source-provenance\.mjs/);
-  assert.match(release, /pnpm --filter @workspace\/api-server run test:offline/);
+  assert.match(release, /pnpm run test:ci/);
   assert.match(release, /name: Attest release validation gate/);
   assert.match(release, /needs: release-validation/);
   assert.match(release, /id-token: write/);
@@ -132,7 +132,7 @@ test("all active workflow actions and service images are immutable", () => {
 });
 
 test("release validation runs deterministic native preflight unit coverage", () => {
-  assert.match(release, /pnpm --filter @workspace\/calora run test:release:native-preflight-unit/);
+  assert.match(release, /pnpm run test:ci/);
 });
 
 test("iOS signing monitor maps the canonical Expo token secret without exposing it", () => {

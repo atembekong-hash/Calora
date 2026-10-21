@@ -14,8 +14,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 const verifyBearerToken = vi.fn();
 
 vi.mock("../lib/supabase-auth.js", () => ({
@@ -40,7 +41,7 @@ function syncBody(mutations: unknown[]) {
   return { deviceId: "tenant-isolation-test-device", mutations };
 }
 
-describe.skipIf(!HAS_DB)("tenant isolation (real schema)", () => {
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)("tenant isolation (real schema)", () => {
   const run = randomUUID().slice(0, 8);
   const userA = { id: `tenant-a-${run}`, email: `tenant-a-${run}@example.com` };
   const userB = { id: `tenant-b-${run}`, email: `tenant-b-${run}@example.com` };

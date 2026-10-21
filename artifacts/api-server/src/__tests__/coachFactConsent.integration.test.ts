@@ -1,20 +1,27 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
-import {
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
+
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
+
+// @workspace/db validates DATABASE_URL at import time. Keep both it and the
+// DB-backed consent module out of offline collection unless this suite is
+// explicitly enabled for a disposable PostgreSQL target.
+const {
   coachFactContextConsentsTable,
   db,
   usersTable,
-} from "@workspace/db";
-import {
+} = (RUN_DB_INTEGRATION_TESTS ? await import("@workspace/db") : {}) as typeof import("@workspace/db");
+const {
   acceptCoachFactConsent,
   getCoachFactConsent,
   hasCurrentCoachFactConsent,
   revokeCoachFactConsent,
   COACH_FACT_CONTEXT_CONSENT_PURPOSE,
   COACH_FACT_CONTEXT_CONSENT_DOCUMENT_VERSION,
-} from "../lib/coach-fact-consent.js";
-
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+} = (RUN_DB_INTEGRATION_TESTS
+  ? await import("../lib/coach-fact-consent.js")
+  : {}) as typeof import("../lib/coach-fact-consent.js");
 const createdIds: string[] = [];
 function externalId(label: string) {
   const id = `coach-consent-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -22,14 +29,14 @@ function externalId(label: string) {
   return id;
 }
 
-afterEach(async () => {
-  if (createdIds.length) {
-    await db.delete(usersTable).where(eq(usersTable.externalId, createdIds.pop()!));
-    while (createdIds.length) await db.delete(usersTable).where(eq(usersTable.externalId, createdIds.pop()!));
-  }
-});
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)("Coach Fact Context consent ledger (real schema)", () => {
+  afterEach(async () => {
+    if (createdIds.length) {
+      await db.delete(usersTable).where(eq(usersTable.externalId, createdIds.pop()!));
+      while (createdIds.length) await db.delete(usersTable).where(eq(usersTable.externalId, createdIds.pop()!));
+    }
+  });
 
-describe.skipIf(!HAS_DB)("Coach Fact Context consent ledger (real schema)", () => {
   it("does not create an internal user row when an unknown account only reads consent status", async () => {
     const account = externalId("read-only");
 

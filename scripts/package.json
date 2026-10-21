@@ -7,7 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "monitor-native-associations": "node ./monitor-native-associations.mjs",
     "provision-qa-account": "tsx ./src/provisionQaAccount.ts",
-    "test": "node --test ./*.test.mjs",
+    "test": "node --test ./*.test.mjs ./ci/test-ci-aggregate.test.mjs ./ci/validate-qa-coverage-ledger.test.mjs",
     "test:production-recipe-image-qa": "node --test ./production-recipe-image-qa.test.mjs",
     "audit:required-checks": "node ./audit-required-checks.mjs",
     "test:release:build-clean-checkout": "node --test ./release-build-clean-checkout.test.mjs",

@@ -20,6 +20,7 @@ jobs:
           - "16"
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/calora_deletion_fence_ci
+      CALORA_RUN_DB_INTEGRATION_TESTS: "true"
       ACCOUNT_DELETION_FENCE_REQUIRE_DATABASE: "true"
     services:
       postgres:

@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
+import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
 
 const {
   verifyBearerTokenMock,
@@ -59,16 +60,16 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
   },
 }));
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const RUN_DB_INTEGRATION_TESTS = isDatabaseIntegrationTestEnabled();
 const DATABASE_REQUIRED =
   process.env.CAPTURE_ROLLBACK_REQUIRE_DATABASE === "true";
-if (DATABASE_REQUIRED && !HAS_DB) {
+if (DATABASE_REQUIRED && !RUN_DB_INTEGRATION_TESTS) {
   throw new Error(
     "DATABASE_URL must be set when capture rollback database verification is required.",
   );
 }
 
-describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "capture persistence rollback (disposable PostgreSQL schema)",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];

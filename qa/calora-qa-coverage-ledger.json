@@ -1,0 +1,286 @@
+{
+  "schemaVersion": "calora.qa-coverage-ledger.v1",
+  "baselineCommit": "c04c5f1bbab734ba2a4a88c827e3a78ff6c12c51",
+  "coverageDomains": [
+    "navigation-ui",
+    "recipes-images",
+    "today-planning-progress",
+    "scan-inputs",
+    "auth-account-coach",
+    "api-data-storage",
+    "integrations-release",
+    "native-device"
+  ],
+  "entries": [
+    {
+      "id": "QA-NAV-001",
+      "domain": "navigation-ui",
+      "objective": "Primary tab navigation, route layout, and UI interaction state remain controlled.",
+      "implementationSource": ["artifacts/calora/app/(tabs)/_layout.tsx"],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/calora run test",
+        "testRefs": ["artifacts/calora/lib/__tests__/tabsLayout.test.ts"]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Exercise primary tabs and route transitions in a controlled non-production session."
+      },
+      "nativeDeviceVerification": {
+        "status": "not-required",
+        "check": "No device-only assertion is represented for this controlled navigation scope."
+      },
+      "prerequisites": ["controlled-test-account", "resettable-test-data"],
+      "evidence": {
+        "types": ["automated-test-report", "manual-checklist"],
+        "retention": "release-cycle"
+      },
+      "blockers": []
+    },
+    {
+      "id": "QA-RECIPE-001",
+      "domain": "recipes-images",
+      "objective": "Recipe presentation and image rendering preserve reviewed content and image behavior.",
+      "implementationSource": [
+        "artifacts/calora/app/(tabs)/recipes.tsx",
+        "artifacts/calora/lib/foodImageMetadata.ts"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/calora run test",
+        "testRefs": [
+          "artifacts/calora/lib/__tests__/recipeImagePresentation.test.ts"
+        ]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Review recipe list and detail image presentation in a controlled non-production session."
+      },
+      "nativeDeviceVerification": {
+        "status": "not-required",
+        "check": "Device-specific image lifecycle confirmation is not represented by this ledger entry."
+      },
+      "prerequisites": ["controlled-test-account", "seeded-recipe-data"],
+      "evidence": {
+        "types": ["automated-test-report", "manual-checklist"],
+        "retention": "release-cycle"
+      },
+      "blockers": []
+    },
+    {
+      "id": "QA-TODAY-001",
+      "domain": "today-planning-progress",
+      "objective": "Today, planning, and progress state present controlled diary and progress behavior.",
+      "implementationSource": [
+        "artifacts/calora/app/(tabs)/index.tsx",
+        "artifacts/calora/lib/foodMemory.ts"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/calora run test",
+        "testRefs": ["artifacts/calora/lib/__tests__/progressScreen.test.ts"]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Inspect today totals, planned items, and progress transitions using resettable controlled data."
+      },
+      "nativeDeviceVerification": {
+        "status": "not-required",
+        "check": "No device-only assertion is represented for this controlled planning scope."
+      },
+      "prerequisites": ["controlled-test-account", "resettable-test-data"],
+      "evidence": {
+        "types": ["automated-test-report", "manual-checklist"],
+        "retention": "release-cycle"
+      },
+      "blockers": []
+    },
+    {
+      "id": "QA-SCAN-001",
+      "domain": "scan-inputs",
+      "objective": "Scan entry points and controlled scan-screen input handling remain covered.",
+      "implementationSource": ["artifacts/calora/app/(tabs)/scan.tsx"],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/calora run test",
+        "testRefs": ["artifacts/calora/lib/__tests__/scanScreen.test.ts"]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Exercise scan entry and review states with controlled non-production input fixtures."
+      },
+      "nativeDeviceVerification": {
+        "status": "required",
+        "check": "Confirm camera permission and scan handoff on an approved physical device."
+      },
+      "prerequisites": ["controlled-test-account", "physical-device-access"],
+      "evidence": {
+        "types": [
+          "automated-test-report",
+          "manual-checklist",
+          "device-capture"
+        ],
+        "retention": "release-cycle"
+      },
+      "blockers": [
+        {
+          "name": "physical-device-access",
+          "state": "open",
+          "reason": "Camera permission and scan handoff require an approved physical device session."
+        }
+      ]
+    },
+    {
+      "id": "QA-AUTH-001",
+      "domain": "auth-account-coach",
+      "objective": "Account surfaces, access gating, and Coach presentation preserve controlled behavior.",
+      "implementationSource": [
+        "artifacts/calora/app/(tabs)/profile.tsx",
+        "artifacts/calora/app/coach.tsx"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/calora run test",
+        "testRefs": [
+          "artifacts/calora/lib/__tests__/profileScreen.test.tsx",
+          "artifacts/calora/lib/__tests__/coachV2Screen.test.ts"
+        ]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Review sign-in state, account controls, and Coach presentation with a controlled test account."
+      },
+      "nativeDeviceVerification": {
+        "status": "not-required",
+        "check": "No device-only assertion is represented for this controlled account and Coach scope."
+      },
+      "prerequisites": ["controlled-test-account"],
+      "evidence": {
+        "types": ["automated-test-report", "manual-checklist"],
+        "retention": "release-cycle"
+      },
+      "blockers": []
+    },
+    {
+      "id": "QA-DATA-001",
+      "domain": "api-data-storage",
+      "objective": "Diary API behavior and client synchronization remain controlled by source and test references.",
+      "implementationSource": [
+        "artifacts/api-server/src/routes/diary.ts",
+        "artifacts/calora/lib/diarySync.ts"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "pnpm --filter @workspace/api-server run test",
+        "testRefs": [
+          "artifacts/api-server/src/__tests__/diary.test.ts",
+          "artifacts/calora/lib/__tests__/diarySync.test.ts"
+        ]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Verify controlled diary synchronization only against an approved non-production environment."
+      },
+      "nativeDeviceVerification": {
+        "status": "not-required",
+        "check": "No device-only assertion is represented for this API and storage scope."
+      },
+      "prerequisites": ["controlled-test-account", "resettable-test-data"],
+      "evidence": {
+        "types": ["automated-test-report", "manual-checklist"],
+        "retention": "ninety-days"
+      },
+      "blockers": [
+        {
+          "name": "non-production-environment",
+          "state": "open",
+          "reason": "Live synchronization verification requires an approved non-production environment."
+        }
+      ]
+    },
+    {
+      "id": "QA-RELEASE-001",
+      "domain": "integrations-release",
+      "objective": "Release workflow contracts and integration-facing release checks remain controlled.",
+      "implementationSource": [
+        "scripts/release-workflow-provenance.mjs",
+        "scripts/ci/validate-expo-config.mjs"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "node --test scripts/release-workflow-contract.test.mjs",
+        "testRefs": ["scripts/release-workflow-contract.test.mjs"]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Perform release-candidate integration review through the approved release process."
+      },
+      "nativeDeviceVerification": {
+        "status": "required",
+        "check": "Confirm the signed release candidate through the approved distribution review."
+      },
+      "prerequisites": ["release-candidate", "approved-distribution-access"],
+      "evidence": {
+        "types": [
+          "automated-test-report",
+          "release-attestation",
+          "device-capture"
+        ],
+        "retention": "release-cycle"
+      },
+      "blockers": [
+        {
+          "name": "approved-distribution-access",
+          "state": "open",
+          "reason": "Release-candidate verification requires approved distribution access."
+        }
+      ]
+    },
+    {
+      "id": "QA-NATIVE-001",
+      "domain": "native-device",
+      "objective": "Native configuration, access gating, and encrypted recovery release controls remain covered.",
+      "implementationSource": [
+        "artifacts/calora/app.json",
+        "artifacts/calora/app/_layout.tsx"
+      ],
+      "automatedControlled": {
+        "status": "covered",
+        "command": "node --test artifacts/calora/tests/device/encrypted-recovery-release-gate.test.js",
+        "testRefs": [
+          "scripts/ci/validate-eas-native-profiles.test.mjs",
+          "artifacts/calora/tests/device/encrypted-recovery-release-gate.test.js"
+        ]
+      },
+      "liveVerification": {
+        "status": "required",
+        "check": "Review native launch, access gating, and recovery behavior on approved device builds."
+      },
+      "nativeDeviceVerification": {
+        "status": "required",
+        "check": "Execute the native verification checklist on approved physical devices."
+      },
+      "prerequisites": ["physical-device-access", "release-candidate"],
+      "evidence": {
+        "types": [
+          "automated-test-report",
+          "device-capture",
+          "release-attestation"
+        ],
+        "retention": "ninety-days"
+      },
+      "blockers": [
+        {
+          "name": "physical-device-access",
+          "state": "open",
+          "reason": "Native behavior requires approved physical device access."
+        },
+        {
+          "name": "release-signing",
+          "state": "open",
+          "reason": "Signed release-candidate verification depends on the approved signing process."
+        }
+      ]
+    }
+  ]
+}
