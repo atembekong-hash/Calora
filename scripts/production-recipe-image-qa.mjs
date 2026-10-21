@@ -1,10 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { chmod, readFile, rm, writeFile } from "node:fs/promises";
 
 const REQUIRED_CONFIRMATION = "RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA";
 const QA_RECIPE_TITLE = "QA verification lemon herb chicken bowl";
 const QA_RECIPE_DESCRIPTION =
   "Isolated production quality-assurance fixture. Do not publish.";
+const NETWORK_TIMEOUT_MS = 30_000;
+const RECOVERY_ENVELOPE_SCHEMA =
+  "calora.production-recipe-image-qa.recovery.v3";
 
 export class QaVerificationError extends Error {
   constructor(code, status = null) {
@@ -32,12 +34,27 @@ function getRequiredEnv(env, name) {
   return value;
 }
 
+function qaRunId(value) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  expect(/^[0-9]{1,20}$/.test(normalized), "invalid_qa_run_identifier");
+  return normalized;
+}
+
+function qaEmail(runId, role) {
+  expect(["owner", "other"].includes(role), "invalid_qa_role");
+  return `qa-recipe-image-${role}-${runId}@qa.invalid`;
+}
+
 function normalizeApiBaseUrl(value) {
   const url = new URL(value);
   expect(
     url.protocol === "https:" &&
       url.hostname === "mycaloraapp.com" &&
-      url.pathname === "/api",
+      url.pathname === "/api" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash,
     "invalid_api_target",
   );
   return url.toString().replace(/\/$/, "");
@@ -46,16 +63,56 @@ function normalizeApiBaseUrl(value) {
 function normalizeSupabaseUrl(value) {
   const url = new URL(value);
   expect(
-    url.protocol === "https:" && url.hostname.endsWith(".supabase.co"),
+    url.protocol === "https:" &&
+      url.hostname.endsWith(".supabase.co") &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash,
     "invalid_supabase_target",
   );
   return url.toString().replace(/\/$/, "");
+}
+
+function normalizeRecipePhotoOrigin(value) {
+  const url = new URL(value);
+  expect(
+    url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/",
+    "invalid_recipe_photo_origin",
+  );
+  return url.origin;
+}
+
+function normalizeReviewPreviewUrl(value, trustedOrigin) {
+  const url = new URL(value);
+  expect(
+    url.protocol === "https:" &&
+      url.origin === trustedOrigin &&
+      !url.username &&
+      !url.password &&
+      !url.hash,
+    "invalid_review_preview_locator",
+  );
+  return url.toString();
 }
 
 function responseCacheIsPrivateNoStore(response) {
   const cacheControl =
     response.headers.get("cache-control")?.toLowerCase() ?? "";
   return cacheControl.includes("private") && cacheControl.includes("no-store");
+}
+
+function hardenedRequestInit(init = {}) {
+  return {
+    ...init,
+    redirect: "error",
+    signal: init.signal ?? AbortSignal.timeout(NETWORK_TIMEOUT_MS),
+  };
 }
 
 async function parseJson(response, code) {
@@ -66,15 +123,19 @@ async function parseJson(response, code) {
   }
 }
 
-async function request(fetchImpl, url, init, now) {
+async function request(fetchImpl, url, init, now, networkFailureCode) {
   const startedAt = now();
-  const response = await fetchImpl(url, init);
-  return { response, latencyMs: elapsedMs(now, startedAt) };
+  try {
+    const response = await fetchImpl(url, hardenedRequestInit(init));
+    return { response, latencyMs: elapsedMs(now, startedAt) };
+  } catch {
+    throw new QaVerificationError(networkFailureCode);
+  }
 }
 
 function newReport(now) {
   return {
-    schemaVersion: "calora.production-recipe-image-qa.v1",
+    schemaVersion: "calora.production-recipe-image-qa.v3",
     startedAt: nowIso(now),
     result: "fail",
     release: {
@@ -111,11 +172,24 @@ function newReport(now) {
       accountDeleteStatus: null,
       postDeleteMediaStatus: null,
       accountDeletionTerminal: false,
-      noDirectAdminDeletionAfterMediaAttempt: true,
+      postDeletePreviewImageStatus: null,
+      postDeletePreviewImageUnavailable: false,
+      secondaryAccountDeleteStatus: null,
+      secondaryPostDeleteMediaStatus: null,
+      secondaryAccountDeletionTerminal: false,
+      noDirectAdminDeletionAfterCaloraApiUse: true,
     },
     failure: null,
     completedAt: null,
     durationMs: null,
+  };
+}
+
+function setFailure(report, error, fallbackCode = "unexpected_runner_failure") {
+  report.result = "fail";
+  report.failure ??= {
+    code: error instanceof QaVerificationError ? error.code : fallbackCode,
+    status: error instanceof QaVerificationError ? error.status : null,
   };
 }
 
@@ -125,40 +199,98 @@ async function adminRequest(
   serviceRoleKey,
   path,
   init = {},
+  now = Date.now,
 ) {
-  return fetchImpl(`${supabaseUrl}${path}`, {
-    ...init,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
+  return (
+    await request(
+      fetchImpl,
+      `${supabaseUrl}${path}`,
+      {
+        ...init,
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+          ...(init.headers ?? {}),
+        },
+      },
+      now,
+      "qa_admin_request_unavailable",
+    )
+  ).response;
 }
 
-async function deleteAuthIdentityIfNoMediaWasAttempted({
+async function deleteAuthIdentityBeforeCaloraApiUse({
   fetchImpl,
   supabaseUrl,
   serviceRoleKey,
   authUserId,
+  now,
 }) {
-  if (!authUserId) return null;
+  expect(Boolean(authUserId), "qa_cleanup_identifier_missing");
   const response = await adminRequest(
     fetchImpl,
     supabaseUrl,
     serviceRoleKey,
     `/auth/v1/admin/users/${authUserId}`,
-    {
-      method: "DELETE",
-    },
+    { method: "DELETE" },
+    now,
   );
-  return response.status;
+  expect(
+    [200, 204, 404].includes(response.status),
+    "pre_api_auth_cleanup_not_terminal",
+    response.status,
+  );
 }
 
 function cleanupFileFromEnv(env) {
   const value = env.CALORA_QA_CLEANUP_FILE?.trim();
   return value || null;
+}
+
+function emptyIdentityEnvelope() {
+  return {
+    authUserId: "",
+    provisioningMayHaveBeenCalled: false,
+    caloraApiMayHaveBeenCalled: false,
+  };
+}
+
+function recoveryEnvelope(runId, assumeProvisioningMayHaveBeenCalled = false) {
+  return {
+    schemaVersion: RECOVERY_ENVELOPE_SCHEMA,
+    runId,
+    owner: {
+      ...emptyIdentityEnvelope(),
+      provisioningMayHaveBeenCalled: assumeProvisioningMayHaveBeenCalled,
+    },
+    other: {
+      ...emptyIdentityEnvelope(),
+      provisioningMayHaveBeenCalled: assumeProvisioningMayHaveBeenCalled,
+    },
+  };
+}
+
+function validIdentityEnvelope(value) {
+  return (
+    Boolean(value) &&
+    typeof value === "object" &&
+    typeof value.authUserId === "string" &&
+    typeof value.provisioningMayHaveBeenCalled === "boolean" &&
+    typeof value.caloraApiMayHaveBeenCalled === "boolean"
+  );
+}
+
+function validEnvelope(value) {
+  return (
+    Boolean(value) &&
+    typeof value === "object" &&
+    value.schemaVersion === RECOVERY_ENVELOPE_SCHEMA &&
+    typeof value.runId === "string" &&
+    /^[0-9]{1,20}$/.test(value.runId) &&
+    validIdentityEnvelope(value.owner) &&
+    validIdentityEnvelope(value.other)
+  );
 }
 
 async function persistRecoveryEnvelope(filePath, envelope) {
@@ -174,14 +306,186 @@ async function removeRecoveryEnvelope(filePath) {
   if (filePath) await rm(filePath, { force: true });
 }
 
-function validEnvelope(value) {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof value.ownerAuthUserId === "string" &&
-    typeof value.ownerAccessToken === "string" &&
-    typeof value.ownerMediaAttempted === "boolean" &&
-    typeof value.secondAuthUserId === "string"
+async function readRecoveryEnvelope(filePath) {
+  if (!filePath) return null;
+  try {
+    const envelope = JSON.parse(await readFile(filePath, "utf8"));
+    expect(validEnvelope(envelope), "invalid_recovery_envelope");
+    return envelope;
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "ENOENT") {
+      return null;
+    }
+    if (error instanceof QaVerificationError) throw error;
+    throw new QaVerificationError("invalid_recovery_envelope");
+  }
+}
+
+async function provisionQaIdentity({
+  fetchImpl,
+  supabaseUrl,
+  serviceRoleKey,
+  testPassword,
+  runId,
+  role,
+  now,
+}) {
+  const created = await adminRequest(
+    fetchImpl,
+    supabaseUrl,
+    serviceRoleKey,
+    "/auth/v1/admin/users",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: qaEmail(runId, role),
+        password: testPassword,
+        email_confirm: true,
+        user_metadata: {
+          qa_purpose: "production_recipe_image_verification",
+          qa_role: role,
+          qa_run: runId,
+          qa_expires_at: new Date(now() + 60 * 60 * 1000).toISOString(),
+        },
+      }),
+    },
+    now,
+  );
+  expect(
+    created.status === 200 || created.status === 201,
+    "qa_account_provision_failed",
+    created.status,
+  );
+  const createdBody = await parseJson(
+    created,
+    "qa_account_provision_unparseable",
+  );
+  const authUserId = typeof createdBody.id === "string" ? createdBody.id : "";
+  expect(Boolean(authUserId), "qa_account_missing_identifier");
+  return authUserId;
+}
+
+async function signInQaIdentity({
+  fetchImpl,
+  supabaseUrl,
+  anonKey,
+  testPassword,
+  runId,
+  role,
+  now,
+  failureCode,
+}) {
+  const signIn = await request(
+    fetchImpl,
+    `${supabaseUrl}/auth/v1/token?grant_type=password`,
+    {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: qaEmail(runId, role),
+        password: testPassword,
+      }),
+    },
+    now,
+    failureCode,
+  );
+  expect(signIn.response.status === 200, failureCode, signIn.response.status);
+  const signInBody = await parseJson(signIn.response, "qa_sign_in_unparseable");
+  const token =
+    typeof signInBody.access_token === "string" ? signInBody.access_token : "";
+  expect(Boolean(token), "qa_access_token_missing");
+  return token;
+}
+
+function authorizedJson(
+  fetchImpl,
+  apiBaseUrl,
+  accessToken,
+  method,
+  path,
+  body,
+  now,
+) {
+  return request(
+    fetchImpl,
+    `${apiBaseUrl}${path}`,
+    {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    },
+    now,
+    "qa_authenticated_request_unavailable",
+  );
+}
+
+async function cancelResponseBody(response) {
+  if (response.body) await response.body.cancel().catch(() => undefined);
+}
+
+async function deleteAndVerifyQaAccount({
+  fetchImpl,
+  apiBaseUrl,
+  accessToken,
+  now,
+  previewUrl = "",
+  onDeleteStatus,
+  onPostDeleteMediaStatus,
+  onPostDeletePreviewImageStatus,
+}) {
+  const deleted = await authorizedJson(
+    fetchImpl,
+    apiBaseUrl,
+    accessToken,
+    "DELETE",
+    "/v1/account",
+    undefined,
+    now,
+  );
+  onDeleteStatus(deleted.response.status);
+  expect(
+    deleted.response.status === 200,
+    "account_cleanup_not_terminal",
+    deleted.response.status,
+  );
+
+  const postDeleteMedia = await authorizedJson(
+    fetchImpl,
+    apiBaseUrl,
+    accessToken,
+    "GET",
+    "/v1/recipes/media",
+    undefined,
+    now,
+  );
+  onPostDeleteMediaStatus(postDeleteMedia.response.status);
+  expect(
+    postDeleteMedia.response.status === 401,
+    "deleted_account_still_authorized",
+    postDeleteMedia.response.status,
+  );
+
+  if (!previewUrl) return;
+  const postDeletePreview = await request(
+    fetchImpl,
+    previewUrl,
+    { headers: { Accept: "image/*" } },
+    now,
+    "post_delete_preview_check_unavailable",
+  );
+  onPostDeletePreviewImageStatus(postDeletePreview.response.status);
+  await cancelResponseBody(postDeletePreview.response);
+  expect(
+    postDeletePreview.response.status !== 200,
+    "deleted_account_media_object_still_accessible",
+    postDeletePreview.response.status,
   );
 }
 
@@ -198,20 +502,76 @@ export async function runProductionRecipeImageQa({
 } = {}) {
   const report = newReport(now);
   const startedAt = now();
-  let authUserId = "";
-  let secondAuthUserId = "";
-  let accessToken = "";
+  let ownerAccessToken = "";
   let secondAccessToken = "";
-  let photoAttempted = false;
-  let accountDeleteAttempted = false;
+  let ownerCleanupAttempted = false;
+  let secondCleanupAttempted = false;
   let ownerCleanupTerminal = false;
   let secondCleanupTerminal = false;
+  let previewUrl = "";
   const cleanupFile = cleanupFileFromEnv(env);
-  const recoveryEnvelope = {
-    ownerAuthUserId: "",
-    ownerAccessToken: "",
-    ownerMediaAttempted: false,
-    secondAuthUserId: "",
+  let envelope;
+  let apiBaseUrl = "";
+  let supabaseUrl = "";
+  let serviceRoleKey = "";
+  let testPassword = "";
+  let anonKey = "";
+
+  const persistEnvelope = async () => {
+    await persistRecoveryEnvelope(cleanupFile, envelope);
+  };
+
+  const cleanupOwnerThroughSaga = async () => {
+    ownerCleanupAttempted = true;
+    await deleteAndVerifyQaAccount({
+      fetchImpl,
+      apiBaseUrl,
+      accessToken: ownerAccessToken,
+      now,
+      previewUrl,
+      onDeleteStatus: (status) => {
+        report.cleanup.accountDeleteStatus = status;
+      },
+      onPostDeleteMediaStatus: (status) => {
+        report.cleanup.postDeleteMediaStatus = status;
+      },
+      onPostDeletePreviewImageStatus: (status) => {
+        report.cleanup.postDeletePreviewImageStatus = status;
+        report.cleanup.postDeletePreviewImageUnavailable = status !== 200;
+      },
+    });
+    ownerCleanupTerminal = true;
+    report.cleanup.accountDeletionTerminal = true;
+  };
+
+  const cleanupSecondThroughSaga = async () => {
+    secondCleanupAttempted = true;
+    await deleteAndVerifyQaAccount({
+      fetchImpl,
+      apiBaseUrl,
+      accessToken: secondAccessToken,
+      now,
+      onDeleteStatus: (status) => {
+        report.cleanup.secondaryAccountDeleteStatus = status;
+      },
+      onPostDeleteMediaStatus: (status) => {
+        report.cleanup.secondaryPostDeleteMediaStatus = status;
+      },
+      onPostDeletePreviewImageStatus: () => undefined,
+    });
+    secondCleanupTerminal = true;
+    report.cleanup.secondaryAccountDeletionTerminal = true;
+  };
+
+  const cleanupBeforeCaloraApiUse = async (identity, setTerminal) => {
+    await deleteAuthIdentityBeforeCaloraApiUse({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      authUserId: identity.authUserId,
+      now,
+    });
+    setTerminal();
   };
 
   try {
@@ -221,22 +581,23 @@ export async function runProductionRecipeImageQa({
     );
     expect(typeof fetchImpl === "function", "fetch_unavailable");
 
-    const apiBaseUrl = normalizeApiBaseUrl(
+    apiBaseUrl = normalizeApiBaseUrl(
       getRequiredEnv(env, "CALORA_QA_API_BASE_URL"),
     );
-    const supabaseUrl = normalizeSupabaseUrl(
+    supabaseUrl = normalizeSupabaseUrl(
       getRequiredEnv(env, "CALORA_QA_SUPABASE_URL"),
     );
-    const anonKey = getRequiredEnv(env, "CALORA_QA_SUPABASE_ANON_KEY");
-    const serviceRoleKey = getRequiredEnv(
-      env,
-      "CALORA_QA_SUPABASE_SERVICE_ROLE_KEY",
+    const recipePhotoOrigin = normalizeRecipePhotoOrigin(
+      getRequiredEnv(env, "CALORA_QA_RECIPE_PHOTO_ORIGIN"),
     );
-    const testPassword = getRequiredEnv(env, "CALORA_QA_TEST_PASSWORD");
+    anonKey = getRequiredEnv(env, "CALORA_QA_SUPABASE_ANON_KEY");
+    serviceRoleKey = getRequiredEnv(env, "CALORA_QA_SUPABASE_SERVICE_ROLE_KEY");
+    testPassword = getRequiredEnv(env, "CALORA_QA_TEST_PASSWORD");
     const expectedCommit = getRequiredEnv(
       env,
       "CALORA_QA_EXPECTED_COMMIT",
     ).toLowerCase();
+    const runId = qaRunId(getRequiredEnv(env, "CALORA_QA_RUN_ID"));
     expect(/^[0-9a-f]{40}$/.test(expectedCommit), "invalid_expected_commit");
 
     const version = await request(
@@ -244,6 +605,7 @@ export async function runProductionRecipeImageQa({
       `${apiBaseUrl}/version`,
       { headers: { Accept: "application/json" } },
       now,
+      "release_version_unavailable",
     );
     report.release.versionStatus = version.response.status;
     expect(
@@ -259,100 +621,71 @@ export async function runProductionRecipeImageQa({
       String(versionBody.gitCommit ?? "").toLowerCase() === expectedCommit;
     expect(report.release.expectedCommitMatched, "unexpected_live_release");
 
-    const runId = randomUUID();
-    const provisionAndSignIn = async (role) => {
-      const email = `qa-recipe-image-${role}-${randomUUID().replaceAll("-", "")}@qa.invalid`;
-      const created = await adminRequest(
-        fetchImpl,
-        supabaseUrl,
-        serviceRoleKey,
-        "/auth/v1/admin/users",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email,
-            password: testPassword,
-            email_confirm: true,
-            user_metadata: {
-              qa_purpose: "production_recipe_image_verification",
-              qa_role: role,
-              qa_run: runId,
-              qa_expires_at: new Date(now() + 60 * 60 * 1000).toISOString(),
-            },
-          }),
-        },
-      );
-      expect(
-        created.status === 200 || created.status === 201,
-        "qa_account_provision_failed",
-        created.status,
-      );
-      const createdBody = await parseJson(
-        created,
-        "qa_account_provision_unparseable",
-      );
-      const authId = typeof createdBody.id === "string" ? createdBody.id : "";
-      expect(Boolean(authId), "qa_account_missing_identifier");
+    // The recovery envelope contains only an internal QA run identifier and
+    // internal Auth identifiers/state. It never holds a bearer token, password,
+    // service-role key, recipe payload, preview locator, or image content.
+    envelope = recoveryEnvelope(runId);
+    await persistEnvelope();
 
-      const signIn = await request(
-        fetchImpl,
-        `${supabaseUrl}/auth/v1/token?grant_type=password`,
-        {
-          method: "POST",
-          headers: {
-            apikey: anonKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password: testPassword }),
-        },
-        now,
-      );
-      expect(
-        signIn.response.status === 200,
-        "qa_sign_in_failed",
-        signIn.response.status,
-      );
-      const signInBody = await parseJson(
-        signIn.response,
-        "qa_sign_in_unparseable",
-      );
-      const token =
-        typeof signInBody.access_token === "string"
-          ? signInBody.access_token
-          : "";
-      expect(Boolean(token), "qa_access_token_missing");
-      return { authId, token };
-    };
+    envelope.owner.provisioningMayHaveBeenCalled = true;
+    await persistEnvelope();
+    envelope.owner.authUserId = await provisionQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      testPassword,
+      runId,
+      role: "owner",
+      now,
+    });
+    await persistEnvelope();
+    ownerAccessToken = await signInQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      anonKey,
+      testPassword,
+      runId,
+      role: "owner",
+      now,
+      failureCode: "qa_owner_sign_in_failed",
+    });
 
-    ({ authId: authUserId, token: accessToken } =
-      await provisionAndSignIn("owner"));
-    recoveryEnvelope.ownerAuthUserId = authUserId;
-    recoveryEnvelope.ownerAccessToken = accessToken;
-    await persistRecoveryEnvelope(cleanupFile, recoveryEnvelope);
-    ({ authId: secondAuthUserId, token: secondAccessToken } =
-      await provisionAndSignIn("other"));
-    recoveryEnvelope.secondAuthUserId = secondAuthUserId;
-    await persistRecoveryEnvelope(cleanupFile, recoveryEnvelope);
+    envelope.other.provisioningMayHaveBeenCalled = true;
+    await persistEnvelope();
+    envelope.other.authUserId = await provisionQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      testPassword,
+      runId,
+      role: "other",
+      now,
+    });
+    await persistEnvelope();
+    secondAccessToken = await signInQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      anonKey,
+      testPassword,
+      runId,
+      role: "other",
+      now,
+      failureCode: "qa_other_sign_in_failed",
+    });
 
-    const authorizedJson = (method, path, body) =>
-      request(
-        fetchImpl,
-        `${apiBaseUrl}${path}`,
-        {
-          method,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: "application/json",
-            ...(body === undefined
-              ? {}
-              : { "Content-Type": "application/json" }),
-          },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        },
-        now,
-      );
-
-    const initialMedia = await authorizedJson("GET", "/v1/recipes/media");
+    // Mark before each request: even a connection loss can leave a server-side
+    // account record, which must then be cleaned through the account saga.
+    envelope.owner.caloraApiMayHaveBeenCalled = true;
+    await persistEnvelope();
+    const initialMedia = await authorizedJson(
+      fetchImpl,
+      apiBaseUrl,
+      ownerAccessToken,
+      "GET",
+      "/v1/recipes/media",
+      undefined,
+      now,
+    );
     report.authentication.initialMediaStatus = initialMedia.response.status;
     expect(
       initialMedia.response.status === 200,
@@ -368,21 +701,26 @@ export async function runProductionRecipeImageQa({
       initialMediaBody.media.length === 0;
     expect(report.authentication.initialMediaEmpty, "qa_account_not_empty");
 
-    photoAttempted = true;
-    recoveryEnvelope.ownerMediaAttempted = true;
-    await persistRecoveryEnvelope(cleanupFile, recoveryEnvelope);
-    const createdPhoto = await authorizedJson("POST", "/v1/recipes/photo", {
-      clientRecipeId: `qa-recipe-${runId}`,
-      title: QA_RECIPE_TITLE,
-      description: QA_RECIPE_DESCRIPTION,
-      ingredients: ["1 chicken breast", "1 lemon", "1 teaspoon dried herbs"],
-      instructions: [
-        "Season the chicken with herbs.",
-        "Cook the chicken until done.",
-        "Finish with lemon and serve.",
-      ],
-      mealType: "dinner",
-    });
+    const createdPhoto = await authorizedJson(
+      fetchImpl,
+      apiBaseUrl,
+      ownerAccessToken,
+      "POST",
+      "/v1/recipes/photo",
+      {
+        clientRecipeId: `qa-recipe-${runId}`,
+        title: QA_RECIPE_TITLE,
+        description: QA_RECIPE_DESCRIPTION,
+        ingredients: ["1 chicken breast", "1 lemon", "1 teaspoon dried herbs"],
+        instructions: [
+          "Season the chicken with herbs.",
+          "Cook the chicken until done.",
+          "Finish with lemon and serve.",
+        ],
+        mealType: "dinner",
+      },
+      now,
+    );
     report.media.createStatus = createdPhoto.response.status;
     report.media.createLatencyMs = createdPhoto.latencyMs;
     expect(
@@ -413,8 +751,13 @@ export async function runProductionRecipeImageQa({
     );
 
     const reviewPreview = await authorizedJson(
+      fetchImpl,
+      apiBaseUrl,
+      ownerAccessToken,
       "GET",
       `/v1/recipes/media/${mediaId}/review-preview`,
+      undefined,
+      now,
     );
     report.media.reviewPreviewStatus = reviewPreview.response.status;
     report.media.reviewPreviewLatencyMs = reviewPreview.latencyMs;
@@ -430,11 +773,11 @@ export async function runProductionRecipeImageQa({
       reviewPreview.response,
       "review_preview_unparseable",
     );
-    const previewUrl =
+    const returnedPreviewUrl =
       typeof reviewPreviewBody.imageUrl === "string"
         ? reviewPreviewBody.imageUrl
         : "";
-    report.media.reviewPreviewLocatorPresent = Boolean(previewUrl);
+    report.media.reviewPreviewLocatorPresent = Boolean(returnedPreviewUrl);
     expect(
       reviewPreviewBody.status === "stored" &&
         reviewPreviewBody.semanticReviewState === "needs_review",
@@ -445,14 +788,17 @@ export async function runProductionRecipeImageQa({
         report.media.reviewPreviewLocatorPresent,
       "review_preview_not_private",
     );
+    previewUrl = normalizeReviewPreviewUrl(
+      returnedPreviewUrl,
+      recipePhotoOrigin,
+    );
 
     const anonymousPreview = await request(
       fetchImpl,
       `${apiBaseUrl}/v1/recipes/media/${mediaId}/review-preview`,
-      {
-        headers: { Accept: "application/json" },
-      },
+      { headers: { Accept: "application/json" } },
       now,
+      "anonymous_preview_request_unavailable",
     );
     report.authentication.anonymousPreviewStatus =
       anonymousPreview.response.status;
@@ -464,6 +810,8 @@ export async function runProductionRecipeImageQa({
       anonymousPreview.response.status,
     );
 
+    envelope.other.caloraApiMayHaveBeenCalled = true;
+    await persistEnvelope();
     const crossAccountPreview = await request(
       fetchImpl,
       `${apiBaseUrl}/v1/recipes/media/${mediaId}/review-preview`,
@@ -474,6 +822,7 @@ export async function runProductionRecipeImageQa({
         },
       },
       now,
+      "cross_account_preview_request_unavailable",
     );
     report.authentication.crossAccountPreviewStatus =
       crossAccountPreview.response.status;
@@ -490,6 +839,7 @@ export async function runProductionRecipeImageQa({
       previewUrl,
       { headers: { Accept: "image/*" } },
       now,
+      "review_preview_image_unavailable",
     );
     report.media.previewImageStatus = previewImage.response.status;
     report.media.previewImageContentTypeIsImage = (
@@ -503,11 +853,16 @@ export async function runProductionRecipeImageQa({
       "review_preview_image_unavailable",
       previewImage.response.status,
     );
+    await cancelResponseBody(previewImage.response);
 
     const rejected = await authorizedJson(
+      fetchImpl,
+      apiBaseUrl,
+      ownerAccessToken,
       "POST",
       `/v1/recipes/media/${mediaId}/review`,
       { reviewState: "rejected" },
+      now,
     );
     report.media.rejectionStatus = rejected.response.status;
     expect(
@@ -528,8 +883,13 @@ export async function runProductionRecipeImageQa({
     );
 
     const postRejection = await authorizedJson(
+      fetchImpl,
+      apiBaseUrl,
+      ownerAccessToken,
       "GET",
       `/v1/recipes/media/${mediaId}`,
+      undefined,
+      now,
     );
     report.media.postRejectionStatus = postRejection.response.status;
     report.media.postRejectionPrivateNoStore = responseCacheIsPrivateNoStore(
@@ -554,107 +914,72 @@ export async function runProductionRecipeImageQa({
       "post_rejection_state_not_private_terminal",
     );
 
-    accountDeleteAttempted = true;
-    const deleted = await authorizedJson("DELETE", "/v1/account");
-    report.cleanup.accountDeleteStatus = deleted.response.status;
-    report.cleanup.accountDeletionTerminal = deleted.response.status === 200;
-    ownerCleanupTerminal = report.cleanup.accountDeletionTerminal;
-    expect(
-      report.cleanup.accountDeletionTerminal,
-      "account_cleanup_not_terminal",
-      deleted.response.status,
-    );
-
-    const postDeleteMedia = await authorizedJson("GET", "/v1/recipes/media");
-    report.cleanup.postDeleteMediaStatus = postDeleteMedia.response.status;
-    expect(
-      postDeleteMedia.response.status === 401,
-      "deleted_account_still_authorized",
-      postDeleteMedia.response.status,
-    );
-
+    await cleanupOwnerThroughSaga();
+    await cleanupSecondThroughSaga();
     report.result = "pass";
   } catch (error) {
-    report.failure = {
-      code:
-        error instanceof QaVerificationError
-          ? error.code
-          : "unexpected_runner_failure",
-      status: error instanceof QaVerificationError ? error.status : null,
-    };
+    setFailure(report, error);
   } finally {
-    if (accessToken && !accountDeleteAttempted) {
-      try {
-        const cleanup = await request(
-          fetchImpl,
-          `${normalizeApiBaseUrl(env.CALORA_QA_API_BASE_URL)}/v1/account`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: "application/json",
-            },
-          },
-          now,
-        );
-        report.cleanup.accountDeleteStatus = cleanup.response.status;
-        report.cleanup.accountDeletionTerminal =
-          cleanup.response.status === 200;
-        ownerCleanupTerminal = report.cleanup.accountDeletionTerminal;
-      } catch {
-        report.cleanup.accountDeletionTerminal = false;
-      }
-    } else if (authUserId && !photoAttempted) {
-      try {
-        // No media-capable API call was reached, so a server-side Auth cleanup
-        // cannot orphan generated media. Once photoAttempted is true, only the
-        // owner-scoped account deletion saga is allowed to remove the account.
-        const ownerDeleteStatus = await deleteAuthIdentityIfNoMediaWasAttempted(
-          {
-            fetchImpl,
-            supabaseUrl: normalizeSupabaseUrl(env.CALORA_QA_SUPABASE_URL),
-            serviceRoleKey: env.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY,
-            authUserId,
-          },
-        );
-        ownerCleanupTerminal = [200, 204].includes(ownerDeleteStatus);
-      } catch {
-        // The report deliberately keeps this as a generic failure; no identity
-        // or provider response is emitted to logs.
-      }
-    }
-    if (secondAuthUserId) {
-      try {
-        const secondDeleteStatus =
-          await deleteAuthIdentityIfNoMediaWasAttempted({
-            fetchImpl,
-            supabaseUrl: normalizeSupabaseUrl(env.CALORA_QA_SUPABASE_URL),
-            serviceRoleKey: env.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY,
-            authUserId: secondAuthUserId,
-          });
-        if (![200, 204].includes(secondDeleteStatus)) {
-          report.result = "fail";
-          report.failure ??= {
-            code: "secondary_qa_cleanup_not_terminal",
-            status: secondDeleteStatus,
-          };
-        } else {
-          secondCleanupTerminal = true;
+    if (envelope && apiBaseUrl && supabaseUrl && serviceRoleKey) {
+      if (envelope.owner.authUserId && !ownerCleanupAttempted) {
+        try {
+          if (envelope.owner.caloraApiMayHaveBeenCalled) {
+            expect(Boolean(ownerAccessToken), "owner_qa_cleanup_token_missing");
+            await cleanupOwnerThroughSaga();
+          } else {
+            await cleanupBeforeCaloraApiUse(envelope.owner, () => {
+              ownerCleanupTerminal = true;
+              report.cleanup.accountDeletionTerminal = true;
+            });
+          }
+        } catch (cleanupError) {
+          setFailure(report, cleanupError, "owner_qa_cleanup_not_terminal");
         }
-      } catch {
-        // The secondary account never receives a media-generation capability.
-        // Keep failure reporting generic and never emit its identity.
-        report.result = "fail";
-        report.failure ??= {
-          code: "secondary_qa_cleanup_not_terminal",
-          status: null,
-        };
       }
-    } else {
-      secondCleanupTerminal = true;
+      if (envelope.other.authUserId && !secondCleanupAttempted) {
+        try {
+          if (envelope.other.caloraApiMayHaveBeenCalled) {
+            expect(
+              Boolean(secondAccessToken),
+              "secondary_qa_cleanup_token_missing",
+            );
+            await cleanupSecondThroughSaga();
+          } else {
+            await cleanupBeforeCaloraApiUse(envelope.other, () => {
+              secondCleanupTerminal = true;
+              report.cleanup.secondaryAccountDeletionTerminal = true;
+            });
+          }
+        } catch (cleanupError) {
+          setFailure(report, cleanupError, "secondary_qa_cleanup_not_terminal");
+        }
+      }
     }
-    if (ownerCleanupTerminal && secondCleanupTerminal) {
-      await removeRecoveryEnvelope(cleanupFile);
+
+    const ownerCleanupSafe =
+      (!envelope?.owner.provisioningMayHaveBeenCalled &&
+        !envelope?.owner.authUserId) ||
+      ownerCleanupTerminal;
+    const secondCleanupSafe =
+      (!envelope?.other.provisioningMayHaveBeenCalled &&
+        !envelope?.other.authUserId) ||
+      secondCleanupTerminal;
+    if (!ownerCleanupSafe || !secondCleanupSafe) {
+      setFailure(
+        report,
+        new QaVerificationError(
+          ownerCleanupSafe
+            ? "secondary_qa_cleanup_not_terminal"
+            : "owner_qa_cleanup_not_terminal",
+        ),
+      );
+    }
+    if (ownerCleanupSafe && secondCleanupSafe) {
+      try {
+        await removeRecoveryEnvelope(cleanupFile);
+      } catch (error) {
+        setFailure(report, error, "recovery_envelope_removal_failed");
+      }
     }
     report.completedAt = nowIso(now);
     report.durationMs = elapsedMs(now, startedAt);
@@ -663,26 +988,90 @@ export async function runProductionRecipeImageQa({
   return report;
 }
 
+async function recoverOneQaIdentity({
+  envelope,
+  role,
+  fetchImpl,
+  apiBaseUrl,
+  supabaseUrl,
+  anonKey,
+  serviceRoleKey,
+  testPassword,
+  now,
+}) {
+  const identity = envelope[role];
+  if (!identity.provisioningMayHaveBeenCalled && !identity.authUserId) return;
+  if (identity.authUserId && !identity.caloraApiMayHaveBeenCalled) {
+    await deleteAuthIdentityBeforeCaloraApiUse({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      authUserId: identity.authUserId,
+      now,
+    });
+    return;
+  }
+
+  const accessToken = await signInQaIdentity({
+    fetchImpl,
+    supabaseUrl,
+    anonKey,
+    testPassword,
+    runId: envelope.runId,
+    role,
+    now,
+    failureCode: "recovery_qa_sign_in_failed",
+  });
+  await deleteAndVerifyQaAccount({
+    fetchImpl,
+    apiBaseUrl,
+    accessToken,
+    now,
+    onDeleteStatus: () => undefined,
+    onPostDeleteMediaStatus: () => undefined,
+    onPostDeletePreviewImageStatus: () => undefined,
+  });
+}
+
+/**
+ * Recovers a prior, potentially interrupted run using a non-secret, internal
+ * QA run identifier. It never retains or recovers a bearer token. If an
+ * identity may have touched Calora, it must pass through DELETE /v1/account;
+ * direct Admin deletion is reserved for a known identity before Calora API use.
+ */
 export async function recoverProductionRecipeImageQa({
   env = process.env,
   fetchImpl = globalThis.fetch,
+  now = Date.now,
 } = {}) {
   const filePath = cleanupFileFromEnv(env);
   const result = {
-    schemaVersion: "calora.production-recipe-image-qa-recovery.v1",
+    schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
     result: "not_needed",
     failure: null,
   };
-  if (!filePath) return result;
 
   let envelope;
   try {
-    envelope = JSON.parse(await readFile(filePath, "utf8"));
-  } catch {
-    return result;
-  }
-  if (!validEnvelope(envelope)) {
-    return { ...result, result: "fail", failure: "invalid_recovery_envelope" };
+    envelope = await readRecoveryEnvelope(filePath);
+    if (!envelope) {
+      const requestedRunId = env.CALORA_QA_RECOVERY_RUN_ID?.trim();
+      if (!requestedRunId) return result;
+      // The original runner workspace may be unavailable, so the recovery
+      // cannot prove which deterministic QA identities were created. Treat
+      // both as potentially provisioned and fail closed until their normal
+      // sign-in and deletion-saga cleanup are terminal.
+      envelope = recoveryEnvelope(qaRunId(requestedRunId), true);
+    }
+  } catch (error) {
+    return {
+      ...result,
+      result: "fail",
+      failure:
+        error instanceof QaVerificationError
+          ? error.code
+          : "invalid_recovery_envelope",
+    };
   }
 
   try {
@@ -690,58 +1079,49 @@ export async function recoverProductionRecipeImageQa({
       env.CALORA_QA_RUN_CONFIRMATION === REQUIRED_CONFIRMATION,
       "production_confirmation_missing",
     );
+    expect(typeof fetchImpl === "function", "fetch_unavailable");
     const apiBaseUrl = normalizeApiBaseUrl(
       getRequiredEnv(env, "CALORA_QA_API_BASE_URL"),
     );
     const supabaseUrl = normalizeSupabaseUrl(
       getRequiredEnv(env, "CALORA_QA_SUPABASE_URL"),
     );
+    const anonKey = getRequiredEnv(env, "CALORA_QA_SUPABASE_ANON_KEY");
     const serviceRoleKey = getRequiredEnv(
       env,
       "CALORA_QA_SUPABASE_SERVICE_ROLE_KEY",
     );
-    if (envelope.ownerMediaAttempted) {
-      expect(
-        Boolean(envelope.ownerAccessToken),
-        "recovery_owner_token_missing",
-      );
-      const response = await fetchImpl(`${apiBaseUrl}/v1/account`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${envelope.ownerAccessToken}`,
-          Accept: "application/json",
-        },
-      });
-      expect(
-        response.status === 200,
-        "recovery_account_cleanup_not_terminal",
-        response.status,
-      );
-    } else if (envelope.ownerAuthUserId) {
-      const status = await deleteAuthIdentityIfNoMediaWasAttempted({
-        fetchImpl,
-        supabaseUrl,
-        serviceRoleKey,
-        authUserId: envelope.ownerAuthUserId,
-      });
-      expect(
-        [200, 204].includes(status),
-        "recovery_owner_auth_cleanup_failed",
-        status,
-      );
+    const testPassword = getRequiredEnv(env, "CALORA_QA_TEST_PASSWORD");
+    const failures = [];
+
+    for (const role of ["owner", "other"]) {
+      try {
+        await recoverOneQaIdentity({
+          envelope,
+          role,
+          fetchImpl,
+          apiBaseUrl,
+          supabaseUrl,
+          anonKey,
+          serviceRoleKey,
+          testPassword,
+          now,
+        });
+      } catch (error) {
+        failures.push(
+          error instanceof QaVerificationError
+            ? error.code
+            : "unexpected_recovery_failure",
+        );
+      }
     }
-    if (envelope.secondAuthUserId) {
-      const status = await deleteAuthIdentityIfNoMediaWasAttempted({
-        fetchImpl,
-        supabaseUrl,
-        serviceRoleKey,
-        authUserId: envelope.secondAuthUserId,
-      });
-      expect(
-        [200, 204].includes(status),
-        "recovery_secondary_auth_cleanup_failed",
-        status,
-      );
+
+    if (failures.length > 0) {
+      return {
+        ...result,
+        result: "fail",
+        failure: failures[0],
+      };
     }
     await removeRecoveryEnvelope(filePath);
     return { ...result, result: "pass" };

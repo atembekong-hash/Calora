@@ -276,6 +276,7 @@ describe("AI recipe creation endpoints", () => {
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
     expect(response.body).toMatchObject({ status: "stored", semanticReviewState: "needs_review", imageUrl: expect.stringContaining(`/private/recipe-photos/${USER.id}/`) });
+    expect(new URL(response.body.imageUrl).searchParams.get("X-Amz-Expires")).toBe("900");
     expect(photoMediaQuery.mock.calls.map(([sql]) => String(sql))).not.toContain(expect.stringContaining("status = 'url_ready'"));
   });
 

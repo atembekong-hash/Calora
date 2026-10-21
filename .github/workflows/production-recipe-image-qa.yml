@@ -8,8 +8,13 @@ on:
         required: true
         type: string
       confirmation:
-        description: Type RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA to authorize one disposable QA lifecycle
+        description: Type RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA to authorize one disposable QA lifecycle or recovery
         required: true
+        type: string
+      recovery_run_id:
+        description: Optional numeric GitHub run ID of an interrupted QA run to recover; leave blank to run one new lifecycle
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -26,66 +31,89 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: calora-production-recipe-image-qa
-    env:
-      CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
-      CALORA_QA_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
-      CALORA_QA_API_BASE_URL: ${{ secrets.CALORA_QA_API_BASE_URL }}
-      CALORA_QA_SUPABASE_URL: ${{ secrets.CALORA_QA_SUPABASE_URL }}
-      CALORA_QA_SUPABASE_ANON_KEY: ${{ secrets.CALORA_QA_SUPABASE_ANON_KEY }}
-      CALORA_QA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY }}
-      CALORA_QA_TEST_PASSWORD: ${{ secrets.CALORA_QA_TEST_PASSWORD }}
     steps:
       - name: Check out protected main source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Verify protected invocation and required QA configuration
+      - name: Verify protected invocation
+        env:
+          CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
+          CALORA_QA_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         run: |
           set -euo pipefail
           test "${GITHUB_REF}" = "refs/heads/main"
           test "${CALORA_QA_RUN_CONFIRMATION}" = "RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA"
           test "${#CALORA_QA_EXPECTED_COMMIT}" -eq 40
           test "${CALORA_QA_EXPECTED_COMMIT}" = "${GITHUB_SHA}"
-          for name in \
-            CALORA_QA_API_BASE_URL \
-            CALORA_QA_SUPABASE_URL \
-            CALORA_QA_SUPABASE_ANON_KEY \
-            CALORA_QA_SUPABASE_SERVICE_ROLE_KEY \
-            CALORA_QA_TEST_PASSWORD; do
-            test -n "${!name}" || { echo "::error::Required protected QA configuration is unavailable."; exit 1; }
-          done
 
       - name: Run one bounded private review and rejection lifecycle
+        if: inputs.recovery_run_id == ''
         id: qa
         continue-on-error: true
         env:
           CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
+          CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
+          CALORA_QA_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          CALORA_QA_RUN_ID: ${{ github.run_id }}
+          CALORA_QA_API_BASE_URL: ${{ secrets.CALORA_QA_API_BASE_URL }}
+          CALORA_QA_SUPABASE_URL: ${{ secrets.CALORA_QA_SUPABASE_URL }}
+          CALORA_QA_SUPABASE_ANON_KEY: ${{ secrets.CALORA_QA_SUPABASE_ANON_KEY }}
+          CALORA_QA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY }}
+          CALORA_QA_TEST_PASSWORD: ${{ secrets.CALORA_QA_TEST_PASSWORD }}
+          CALORA_QA_RECIPE_PHOTO_ORIGIN: ${{ secrets.CALORA_QA_RECIPE_PHOTO_ORIGIN }}
         run: |
           set -o pipefail
-          node scripts/production-recipe-image-qa.mjs \
-            | tee "${RUNNER_TEMP}/calora-production-recipe-image-qa.json"
+          umask 077
+          node scripts/production-recipe-image-qa.mjs > "${RUNNER_TEMP}/calora-production-recipe-image-qa.json"
 
       - name: Recover an interrupted disposable QA lifecycle
         if: always()
+        id: recovery
+        continue-on-error: true
         env:
           CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
+          CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
+          CALORA_QA_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+          CALORA_QA_API_BASE_URL: ${{ secrets.CALORA_QA_API_BASE_URL }}
+          CALORA_QA_SUPABASE_URL: ${{ secrets.CALORA_QA_SUPABASE_URL }}
+          CALORA_QA_SUPABASE_ANON_KEY: ${{ secrets.CALORA_QA_SUPABASE_ANON_KEY }}
+          CALORA_QA_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY }}
+          CALORA_QA_TEST_PASSWORD: ${{ secrets.CALORA_QA_TEST_PASSWORD }}
         run: |
           set -o pipefail
-          node scripts/production-recipe-image-qa.mjs --recover \
-            | tee "${RUNNER_TEMP}/calora-production-recipe-image-qa-recovery.json"
+          umask 077
+          node scripts/production-recipe-image-qa.mjs --recover > "${RUNNER_TEMP}/calora-production-recipe-image-qa-recovery.json"
 
       - name: Enforce a passing sanitized QA result
         if: always()
+        env:
+          CALORA_QA_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
         run: |
           set -euo pipefail
-          test -f "${RUNNER_TEMP}/calora-production-recipe-image-qa.json"
           node --input-type=module <<'NODE'
           import { readFile } from "node:fs/promises";
-          const report = JSON.parse(await readFile(process.env.RUNNER_TEMP + "/calora-production-recipe-image-qa.json", "utf8"));
+          const temp = process.env.RUNNER_TEMP;
+          const recoveryOnly = Boolean(process.env.CALORA_QA_RECOVERY_RUN_ID);
+          const readReport = async (name) => JSON.parse(await readFile(`${temp}/${name}`, "utf8"));
+          const recovery = await readReport("calora-production-recipe-image-qa-recovery.json");
+          if (!["pass", "not_needed"].includes(recovery.result)) {
+            console.error("::error::Production recipe-image QA recovery did not reach a safe result. Review the sanitized evidence.");
+            process.exit(1);
+          }
+          if (recoveryOnly) {
+            if (recovery.result !== "pass") {
+              console.error("::error::Requested recipe-image QA recovery did not complete.");
+              process.exit(1);
+            }
+            process.exit(0);
+          }
+          const report = await readReport("calora-production-recipe-image-qa.json");
           if (report.result !== "pass") {
-            console.error("::error::Production recipe-image QA did not pass. Review the sanitized artifact.");
+            console.error("::error::Production recipe-image QA did not pass. Review the sanitized evidence.");
             process.exit(1);
           }
           NODE
@@ -95,6 +123,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: calora-production-recipe-image-qa-${{ github.run_id }}
-          path: ${{ runner.temp }}/calora-production-recipe-image-qa.json
-          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/calora-production-recipe-image-qa.json
+            ${{ runner.temp }}/calora-production-recipe-image-qa-recovery.json
+          if-no-files-found: error
           retention-days: 14
