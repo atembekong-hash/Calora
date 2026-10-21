@@ -248,3 +248,26 @@ test("recovers an interrupted media-owning QA account through the account deleti
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("defines the runner temporary cleanup envelope only at step scope", async () => {
+  const workflow = await readFile(
+    new URL(
+      "../.github/workflows/production-recipe-image-qa.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const jobEnvironment =
+    workflow.match(
+      /environment: calora-production-recipe-image-qa\n    env:\n([\s\S]*?)    steps:/,
+    )?.[1] ?? "";
+  assert.doesNotMatch(jobEnvironment, /runner\.temp/);
+  assert.match(
+    workflow,
+    /Run one bounded private review and rejection lifecycle\n        id: qa\n        continue-on-error: true\n        env:\n          CALORA_QA_CLEANUP_FILE: \$\{\{ runner\.temp \}\}/,
+  );
+  assert.match(
+    workflow,
+    /Recover an interrupted disposable QA lifecycle\n        if: always\(\)\n        env:\n          CALORA_QA_CLEANUP_FILE: \$\{\{ runner\.temp \}\}/,
+  );
+});
