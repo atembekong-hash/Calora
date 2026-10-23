@@ -561,6 +561,10 @@ test("workflow confines privileged values to trusted Node steps, retains protect
   assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(workflow, /persist-credentials: false/);
+  assert.match(
+    workflow,
+    /- name: Verify protected invocation\n\s+id: invocation_guard/,
+  );
   assert.match(workflow, /test "\$\{GITHUB_REF\}" = "refs\/heads\/main"/);
   assert.match(
     workflow,
@@ -577,6 +581,25 @@ test("workflow confines privileged values to trusted Node steps, retains protect
   assert.match(
     workflow,
     /Recover an interrupted disposable QA lifecycle[\s\S]*?CALORA_QA_EXPECTED_COMMIT: \$\{\{ inputs\.expected_commit \}\}/,
+  );
+  const invocationGuardGate =
+    "if: always() && steps.invocation_guard.outcome == 'success'";
+  assert.equal(
+    workflow.split(invocationGuardGate).length - 1,
+    3,
+    "recovery, result enforcement, and artifact upload must all be skipped after a failed invocation guard",
+  );
+  assert.match(
+    workflow,
+    /Recover an interrupted disposable QA lifecycle\n\s+if: always\(\) && steps\.invocation_guard\.outcome == 'success'/,
+  );
+  assert.match(
+    workflow,
+    /Enforce a passing sanitized QA result\n\s+if: always\(\) && steps\.invocation_guard\.outcome == 'success'/,
+  );
+  assert.match(
+    workflow,
+    /Upload sanitized QA evidence\n\s+if: always\(\) && steps\.invocation_guard\.outcome == 'success'/,
   );
   assert.doesNotMatch(
     workflow.match(/Upload sanitized QA evidence[\s\S]*/)?.[0] ?? "",
@@ -643,6 +666,30 @@ test("rejects a path-qualified Supabase URL before any credentialed request or r
   assert.deepEqual(report.failure, {
     code: "invalid_supabase_target",
     status: null,
+  });
+  assertSanitized(report);
+});
+
+test("recovery rejects a path-qualified Supabase URL before any request or cleanup action", async () => {
+  let requestCount = 0;
+  const report = await recoverProductionRecipeImageQa({
+    env: makeEnv({
+      CALORA_QA_RECOVERY_RUN_ID: "39891020186",
+      CALORA_QA_SUPABASE_URL: "https://example.supabase.co/auth/v1",
+    }),
+    fetchImpl: async () => {
+      requestCount += 1;
+      throw new Error(
+        "invalid recovery configuration must stop before any request",
+      );
+    },
+  });
+
+  assert.equal(requestCount, 0);
+  assert.deepEqual(report, {
+    schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
+    result: "fail",
+    failure: "invalid_supabase_target",
   });
   assertSanitized(report);
 });
