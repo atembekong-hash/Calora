@@ -78,6 +78,7 @@ jobs:
           CALORA_QA_CLEANUP_FILE: ${{ runner.temp }}/.calora-production-recipe-image-qa-cleanup.json
           CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
           CALORA_QA_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+          CALORA_QA_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           CALORA_QA_API_BASE_URL: ${{ secrets.CALORA_QA_API_BASE_URL }}
           CALORA_QA_SUPABASE_URL: ${{ secrets.CALORA_QA_SUPABASE_URL }}
           CALORA_QA_SUPABASE_ANON_KEY: ${{ secrets.CALORA_QA_SUPABASE_ANON_KEY }}

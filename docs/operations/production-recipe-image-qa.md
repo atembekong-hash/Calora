@@ -9,7 +9,7 @@ The workflow is intentionally not triggered by pull requests or ordinary pushes.
 Configure these environment-scoped GitHub Actions secrets in `calora-production-recipe-image-qa`. They must not be committed, printed, copied into chat, supplied as workflow inputs, or stored in artifacts.
 
 - `CALORA_QA_API_BASE_URL`: `https://mycaloraapp.com/api`
-- `CALORA_QA_SUPABASE_URL`: the Calora Supabase project URL
+- `CALORA_QA_SUPABASE_URL`: the Calora Supabase project HTTPS **origin** only, in the form `https://<project-ref>.supabase.co`; do not include `/auth/v1`, `/rest/v1`, any other path, a query, fragment, or credentials
 - `CALORA_QA_SUPABASE_ANON_KEY`: the matching public Supabase key
 - `CALORA_QA_SUPABASE_SERVICE_ROLE_KEY`: server-side Supabase Admin key, scoped only to this protected environment
 - `CALORA_QA_TEST_PASSWORD`: a random workflow-only password
@@ -26,7 +26,7 @@ A normal verification requires both inputs:
 - `expected_commit`: the exact 40-character current protected `main` commit expected on the live API.
 - `confirmation`: literal `RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA`.
 
-The normal runner refuses to provision any identity until the live `/api/version` value matches the expected protected source SHA. `workflow_dispatch` from any other branch creates no executing QA job because the job has an explicit `refs/heads/main` guard; protected-environment secrets are not supplied to a skipped job. Once the required-reviewer rule above is configured, a designated reviewer must approve the environment deployment before those secrets are released to the runner.
+The normal runner refuses to provision any identity until the live `/api/version` value matches the expected protected source SHA. It also rejects a path-qualified Supabase URL before it sends any credentialed Auth request, so an Auth API path cannot be accidentally appended twice. `workflow_dispatch` from any other branch creates no executing QA job because the job has an explicit `refs/heads/main` guard; protected-environment secrets are not supplied to a skipped job. Once the required-reviewer rule above is configured, a designated reviewer must approve the environment deployment before those secrets are released to the runner.
 
 `recovery_run_id` is optional. Leave it blank for a normal lifecycle. An authorized cleanup-only rerun may provide the numeric GitHub run ID of an interrupted QA job. This is an internal QA identifier, not a credential. A recovery operation has no image-generation step and must still receive the literal confirmation, run from protected `main`, and reach a terminal cleanup result.
 
@@ -52,9 +52,9 @@ Before creating either account, the runner writes a `0600` temporary recovery en
 
 It contains no service-role key, password, bearer token, email address, recipe payload, signed locator, image bytes, request ID, or customer data. The envelope is never printed, uploaded, or retained after terminal cleanup.
 
-The workflow always executes the recovery runner. If a normal run was interrupted but the runner workspace remains available, recovery reads this non-secret envelope. If a runner was lost or the file cannot be trusted, an authorized operator can dispatch a cleanup-only run using `recovery_run_id`; the runner reconstructs only its own deterministic QA account names, signs in normally, and sends any account that may have touched Calora through the account-deletion saga.
+The workflow always executes the recovery runner. When it has an envelope or an explicit `recovery_run_id` to process, it first requires the same exact live-release attestation as the normal lifecycle before it can clean an account. A no-work recovery returns `not_needed` without contacting production. If a normal run was interrupted but the runner workspace remains available, recovery reads this non-secret envelope. If a runner was lost or the file cannot be trusted, an authorized operator can dispatch a cleanup-only run using `recovery_run_id`; the runner reconstructs only its own deterministic QA account names, signs in normally, and sends any account that may have touched Calora through the account-deletion saga.
 
-An Admin account-create request is recorded as potentially having occurred before it is sent. If its response is lost, malformed, or otherwise ambiguous, the runner keeps that non-secret recovery record and fails certification rather than assuming no identity was created. A later authorized recovery run attempts normal sign-in for the deterministic QA identity and fails closed if it cannot prove a terminal cleanup outcome.
+An Admin account-create request is recorded as potentially having occurred before it is sent. If its response is lost, malformed, or otherwise ambiguous, the runner keeps that non-secret recovery record and fails certification rather than assuming no identity was created. A later authorized recovery run first attempts normal sign-in. Only when that candidate has no Auth identifier and is known never to have called Calora does it issue one bounded Admin create for the exact deterministic alias, persist the returned identifier, and directly delete that exact pre-API identity. This reconciles a create request that never reached Auth without listing or searching users. A duplicate response, a failed second sign-in, an unavailable provider, a known identifier after a failed sign-in, or any possibility of Calora API use remains a failing, recoverable state; it is never treated as proof of absence.
 
 Recovery attempts both identities independently. A cleanup failure remains `fail`, preserves the local envelope when present, and makes the GitHub workflow fail. A recovery run can return `pass` only after every applicable identity reaches its required terminal cleanup state; `not_needed` is accepted only when a normal run left no recovery work and no explicit recovery ID was requested. The workflow validates the recovery result before it accepts or uploads a primary QA report.
 

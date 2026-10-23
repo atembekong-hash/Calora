@@ -68,10 +68,11 @@ function normalizeSupabaseUrl(value) {
       !url.username &&
       !url.password &&
       !url.search &&
-      !url.hash,
+      !url.hash &&
+      url.pathname === "/",
     "invalid_supabase_target",
   );
-  return url.toString().replace(/\/$/, "");
+  return url.origin;
 }
 
 function normalizeRecipePhotoOrigin(value) {
@@ -131,6 +132,35 @@ async function request(fetchImpl, url, init, now, networkFailureCode) {
   } catch {
     throw new QaVerificationError(networkFailureCode);
   }
+}
+
+async function verifyExpectedLiveRelease({
+  fetchImpl,
+  apiBaseUrl,
+  expectedCommit,
+  now,
+}) {
+  const version = await request(
+    fetchImpl,
+    `${apiBaseUrl}/version`,
+    { headers: { Accept: "application/json" } },
+    now,
+    "release_version_unavailable",
+  );
+  expect(
+    version.response.status === 200,
+    "release_version_unavailable",
+    version.response.status,
+  );
+  const versionBody = await parseJson(
+    version.response,
+    "release_version_unparseable",
+  );
+  expect(
+    String(versionBody.gitCommit ?? "").toLowerCase() === expectedCommit,
+    "unexpected_live_release",
+  );
+  return version.response.status;
 }
 
 function newReport(now) {
@@ -600,26 +630,13 @@ export async function runProductionRecipeImageQa({
     const runId = qaRunId(getRequiredEnv(env, "CALORA_QA_RUN_ID"));
     expect(/^[0-9a-f]{40}$/.test(expectedCommit), "invalid_expected_commit");
 
-    const version = await request(
+    report.release.versionStatus = await verifyExpectedLiveRelease({
       fetchImpl,
-      `${apiBaseUrl}/version`,
-      { headers: { Accept: "application/json" } },
+      apiBaseUrl,
+      expectedCommit,
       now,
-      "release_version_unavailable",
-    );
-    report.release.versionStatus = version.response.status;
-    expect(
-      version.response.status === 200,
-      "release_version_unavailable",
-      version.response.status,
-    );
-    const versionBody = await parseJson(
-      version.response,
-      "release_version_unparseable",
-    );
-    report.release.expectedCommitMatched =
-      String(versionBody.gitCommit ?? "").toLowerCase() === expectedCommit;
-    expect(report.release.expectedCommitMatched, "unexpected_live_release");
+    });
+    report.release.expectedCommitMatched = true;
 
     // The recovery envelope contains only an internal QA run identifier and
     // internal Auth identifiers/state. It never holds a bearer token, password,
@@ -998,6 +1015,7 @@ async function recoverOneQaIdentity({
   serviceRoleKey,
   testPassword,
   now,
+  persistEnvelope,
 }) {
   const identity = envelope[role];
   if (!identity.provisioningMayHaveBeenCalled && !identity.authUserId) return;
@@ -1012,16 +1030,45 @@ async function recoverOneQaIdentity({
     return;
   }
 
-  const accessToken = await signInQaIdentity({
-    fetchImpl,
-    supabaseUrl,
-    anonKey,
-    testPassword,
-    runId: envelope.runId,
-    role,
-    now,
-    failureCode: "recovery_qa_sign_in_failed",
-  });
+  let accessToken;
+  try {
+    accessToken = await signInQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      anonKey,
+      testPassword,
+      runId: envelope.runId,
+      role,
+      now,
+      failureCode: "recovery_qa_sign_in_failed",
+    });
+  } catch (error) {
+    // A pre-API identity with no returned Auth id cannot own Calora data or a
+    // storage prefix. Re-create only its deterministic alias, then erase that
+    // exact returned id. This closes the "request never reached Auth" case
+    // without listing users or treating an invalid-password response as proof
+    // that an identity does not exist. State-bearing or known-id identities
+    // remain fail-closed and must authenticate for the account-deletion saga.
+    if (identity.authUserId || identity.caloraApiMayHaveBeenCalled) throw error;
+    identity.authUserId = await provisionQaIdentity({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      testPassword,
+      runId: envelope.runId,
+      role,
+      now,
+    });
+    await persistEnvelope();
+    await deleteAuthIdentityBeforeCaloraApiUse({
+      fetchImpl,
+      supabaseUrl,
+      serviceRoleKey,
+      authUserId: identity.authUserId,
+      now,
+    });
+    return;
+  }
   await deleteAndVerifyQaAccount({
     fetchImpl,
     apiBaseUrl,
@@ -1092,6 +1139,20 @@ export async function recoverProductionRecipeImageQa({
       "CALORA_QA_SUPABASE_SERVICE_ROLE_KEY",
     );
     const testPassword = getRequiredEnv(env, "CALORA_QA_TEST_PASSWORD");
+    const expectedCommit = getRequiredEnv(
+      env,
+      "CALORA_QA_EXPECTED_COMMIT",
+    ).toLowerCase();
+    expect(/^[0-9a-f]{40}$/.test(expectedCommit), "invalid_expected_commit");
+    await verifyExpectedLiveRelease({
+      fetchImpl,
+      apiBaseUrl,
+      expectedCommit,
+      now,
+    });
+    const persistEnvelope = async () => {
+      await persistRecoveryEnvelope(filePath, envelope);
+    };
     const failures = [];
 
     for (const role of ["owner", "other"]) {
@@ -1106,6 +1167,7 @@ export async function recoverProductionRecipeImageQa({
           serviceRoleKey,
           testPassword,
           now,
+          persistEnvelope,
         });
       } catch (error) {
         failures.push(
