@@ -399,6 +399,7 @@ test("preserves a non-secret recovery record when an owner provisioning outcome 
     assert.deepEqual(report.failure, {
       code: "qa_admin_request_unavailable",
       status: null,
+      transport: "unknown",
     });
     const envelope = JSON.parse(await readFile(cleanupFile, "utf8"));
     assert.deepEqual(envelope, {
@@ -692,6 +693,44 @@ test("recovery rejects a path-qualified Supabase URL before any request or clean
     failure: "invalid_supabase_target",
   });
   assertSanitized(report);
+});
+
+test("recovery emits a fixed timeout category without retaining a raw Admin transport error", async () => {
+  const calls = [];
+  const report = await recoverProductionRecipeImageQa({
+    env: makeEnv({ CALORA_QA_RECOVERY_RUN_ID: QA_RUN_ID }),
+    fetchImpl: async (url, init = {}) => {
+      assertHardenedRequest(init);
+      const value = String(url);
+      calls.push({ url: value, init });
+      if (value.endsWith("/api/version"))
+        return json(200, { gitCommit: EXPECTED_COMMIT });
+      if (value.includes("/auth/v1/token?grant_type=password"))
+        return json(400, { code: "invalid_credentials" });
+      if (value.endsWith("/auth/v1/admin/users") && init.method === "POST") {
+        const error = new Error("provider-specific connection detail");
+        error.cause = { code: "UND_ERR_CONNECT_TIMEOUT" };
+        throw error;
+      }
+      throw new Error(`Unexpected recovery request ${init.method ?? "GET"}`);
+    },
+  });
+
+  assert.deepEqual(report, {
+    schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
+    result: "fail",
+    failure: "qa_admin_request_unavailable",
+    transport: "timeout",
+  });
+  assert.equal(
+    calls.some((call) => call.url.includes("/api/v1/")),
+    false,
+  );
+  assertSanitized(report);
+  assert.doesNotMatch(
+    JSON.stringify(report),
+    /provider-specific|connection detail/,
+  );
 });
 
 test("recovery reconciles an exact pre-API QA alias after sign-in fails, then deletes it by returned Auth id", async () => {
