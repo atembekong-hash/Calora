@@ -9,6 +9,7 @@
     "provision-qa-account": "tsx ./src/provisionQaAccount.ts",
     "test": "node --test ./*.test.mjs ./ci/test-ci-aggregate.test.mjs ./ci/database-integration-workflow-contract.test.mjs ./ci/validate-qa-coverage-ledger.test.mjs",
     "test:production-recipe-image-qa": "node --test ./production-recipe-image-qa.test.mjs",
+    "test:isolated-recipe-image-staging": "node ./run-isolated-recipe-image-staging.mjs",
     "audit:required-checks": "node ./audit-required-checks.mjs",
     "test:release:build-clean-checkout": "node --test ./release-build-clean-checkout.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

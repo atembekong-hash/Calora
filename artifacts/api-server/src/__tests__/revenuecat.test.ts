@@ -11,6 +11,8 @@ const fetchMock = vi.hoisted(() => vi.fn());
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
 const originalEntitlementApiKey = process.env.REVENUECAT_ENTITLEMENT_API_KEY;
 const originalSecretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
+const originalTestOrigin = process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN;
+const originalNodeEnv = process.env.NODE_ENV;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -23,6 +25,8 @@ beforeEach(() => {
   process.env.REVENUECAT_PROJECT_ID = "project-123";
   process.env.REVENUECAT_ENTITLEMENT_API_KEY = "test-entitlement-read-secret";
   process.env.REVENUECAT_SECRET_API_KEY = "test-server-secret";
+  process.env.NODE_ENV = "test";
+  delete process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN;
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -34,11 +38,54 @@ afterEach(() => {
   else process.env.REVENUECAT_ENTITLEMENT_API_KEY = originalEntitlementApiKey;
   if (originalSecretApiKey === undefined) delete process.env.REVENUECAT_SECRET_API_KEY;
   else process.env.REVENUECAT_SECRET_API_KEY = originalSecretApiKey;
+  if (originalTestOrigin === undefined) delete process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN;
+  else process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN = originalTestOrigin;
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("hasActivePremiumEntitlement", () => {
+  it("uses only a clean loopback HTTPS override during an explicit test runtime", async () => {
+    process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN = "https://127.0.0.1:9443";
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }] }))
+      .mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+
+    await expect(hasActivePremiumEntitlement("staging-user")).resolves.toBe(false);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://127.0.0.1:9443/v2/projects/project-123/entitlements?limit=100",
+    );
+  });
+
+  it.each([
+    "http://127.0.0.1:9443",
+    "https://example.test",
+    "https://127.0.0.1:9443/path",
+    "https://user:pass@127.0.0.1:9443",
+    "https://127.0.0.1:9443?redirect=1",
+  ])("rejects an unsafe test provider origin: %s", async (origin) => {
+    process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN = origin;
+    await expect(hasActivePremiumEntitlement("staging-user")).rejects.toMatchObject({
+      name: "RevenueCatConfigurationError",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a test-provider origin outside an explicit test runtime", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN = "https://127.0.0.1:9443";
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }] }))
+      .mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+
+    await expect(hasActivePremiumEntitlement("staging-user")).resolves.toBe(false);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.revenuecat.com/v2/projects/project-123/entitlements?limit=100",
+    );
+  });
+
   it("authorizes a customer with the configured active Premium entitlement through RevenueCat directly", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({
