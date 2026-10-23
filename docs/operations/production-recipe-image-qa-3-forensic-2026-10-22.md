@@ -113,7 +113,7 @@ The post-merge `Release validation` workflow run `39895994803` completed success
 
 The source repair is newer than the live API release attested by the failed run. The QA workflow intentionally requires exact equality between protected main and `/api/version`; therefore the smallest remaining sequence is:
 
-1. Explicitly authorize an API-only Railway deployment of protected main `2f203f2639c234d53ed31f69901c9d0dab0b965c`, and verify the live API’s exact SHA before any credentialed QA action.
+1. Explicitly authorize an API-only Railway deployment of the exact protected-main SHA current at deployment time, and verify `/api/version` reports that same SHA before any credentialed QA action.
 2. Update `CALORA_QA_SUPABASE_URL` in the `calora-production-recipe-image-qa` GitHub Environment to the root Calora project origin only, with no `/auth/v1` or other path.
 3. Explicitly authorize and dispatch **recovery only** from protected main using:
 
