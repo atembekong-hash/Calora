@@ -7,6 +7,7 @@
 const ENTITLEMENT_ID = "caloraapp_pro";
 const REVENUECAT_V2_ORIGIN = "https://api.revenuecat.com";
 const REVENUECAT_REQUEST_TIMEOUT_MS = 10_000;
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 // RevenueCat customer deletion is asynchronous. Keep the account-deletion saga
 // fail-closed, but allow a short bounded window for its read model to converge
 // before recording a retryable provider-stage failure.
@@ -25,6 +26,37 @@ type ActiveEntitlementsResponse = {
 type RevenueCatCustomerResponse = {
   id?: unknown;
 };
+
+/**
+ * Local staging can exercise the complete deletion saga against a disposable
+ * provider emulator. The override is unavailable outside test runtime and is
+ * restricted to a clean loopback HTTPS origin, so production traffic cannot be
+ * redirected via a test-only environment variable.
+ */
+function revenueCatOrigin(): string {
+  const override = process.env.NODE_ENV === "test"
+    ? process.env.CALORA_TEST_REVENUECAT_V2_ORIGIN?.trim()
+    : undefined;
+  if (!override) return REVENUECAT_V2_ORIGIN;
+  let parsed: URL;
+  try {
+    parsed = new URL(override);
+  } catch {
+    throw new RevenueCatProviderError("Configuration");
+  }
+  if (
+    parsed.protocol !== "https:"
+    || !LOOPBACK_HOSTS.has(parsed.hostname)
+    || parsed.username
+    || parsed.password
+    || parsed.search
+    || parsed.hash
+    || parsed.pathname !== "/"
+  ) {
+    throw new RevenueCatProviderError("Configuration");
+  }
+  return parsed.origin;
+}
 
 /**
  * Provider bodies and credential values may contain sensitive account data.
@@ -71,9 +103,10 @@ async function revenueCatRequest(
   secretApiKeyOverride?: string,
 ): Promise<Response> {
   const secretApiKey = secretApiKeyOverride ?? revenueCatConfig().secretApiKey;
+  const origin = revenueCatOrigin();
 
   try {
-    return await fetch(`${REVENUECAT_V2_ORIGIN}${path}`, {
+    return await fetch(`${origin}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${secretApiKey}`,
