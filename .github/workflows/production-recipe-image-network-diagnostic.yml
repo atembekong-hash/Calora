@@ -1,0 +1,111 @@
+name: Production recipe-image network diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calora-production-recipe-image-network-diagnostic
+  cancel-in-progress: false
+
+env:
+  # Public Supabase project hostname only; no credential or protected route.
+  CALORA_DIAGNOSTIC_HOST: pzdulhkpwbrbrgskwwwe.supabase.co
+
+jobs:
+  diagnostic:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out protected main source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify protected invocation
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "${GITHUB_SHA}" = "${EXPECTED_SHA}"
+
+      - name: Run credential-free DNS and HTTPS diagnostic
+        env:
+          DIAGNOSTIC_HOST: ${{ env.CALORA_DIAGNOSTIC_HOST }}
+        run: |
+          set -euo pipefail
+          umask 077
+          out="${RUNNER_TEMP}/calora-network-diagnostic.json"
+          node --input-type=module >"${out}" <<'NODE'
+          import { promises as dns, lookup as dnsLookup } from "node:dns";
+          import https from "node:https";
+          import { writeFile } from "node:fs/promises";
+
+          const host = process.env.DIAGNOSTIC_HOST;
+          const fixed = (value) => value ? "pass" : "fail";
+          const result = {
+            schemaVersion: "calora.production-recipe-image-network-diagnostic.v1",
+            host,
+            dns: { getaddrinfo: "fail", promises: "fail", node: "fail" },
+            https: { status: "fail", tls: "fail" },
+            result: "fail",
+          };
+
+          try {
+            const addresses = await dns.lookup(host, { all: true });
+            result.dns.promises = addresses.length > 0 ? "pass" : "fail";
+          } catch {}
+
+          try {
+            await new Promise((resolve, reject) => {
+              dnsLookup(host, { all: true }, (error, addresses) => {
+                if (error || !addresses?.length) reject(error ?? new Error("no addresses"));
+                else resolve();
+              });
+            });
+            result.dns.node = "pass";
+          } catch {}
+
+          try {
+            const response = await fetch(`https://${host}/`, {
+              redirect: "manual",
+              signal: AbortSignal.timeout(15_000),
+            });
+            result.https.status = [200, 404, 405].includes(response.status) ? "pass" : "fail";
+            result.https.tls = "pass";
+          } catch {}
+
+          result.dns.getaddrinfo = fixed(result.dns.promises === "pass" || result.dns.node === "pass");
+          result.result = Object.values(result.dns).every((value) => value === "pass") &&
+            result.https.status === "pass" && result.https.tls === "pass" ? "pass" : "fail";
+          process.stdout.write(JSON.stringify(result) + "\n");
+          await writeFile("/dev/null", "");
+          NODE
+          cat "${out}"
+
+      - name: Validate sanitized diagnostic result
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+          const report = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/calora-network-diagnostic.json`, "utf8"));
+          if (report.schemaVersion !== "calora.production-recipe-image-network-diagnostic.v1") process.exit(1);
+          if (report.result !== "pass") process.exit(1);
+          if (!Object.values(report.dns).every((value) => value === "pass")) process.exit(1);
+          if (report.https.status !== "pass" || report.https.tls !== "pass") process.exit(1);
+          NODE
+
+      - name: Upload sanitized diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: calora-production-recipe-image-network-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-network-diagnostic.json
+          if-no-files-found: error
+          retention-days: 14
