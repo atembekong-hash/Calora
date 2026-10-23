@@ -733,6 +733,53 @@ test("recovery emits a fixed timeout category without retaining a raw Admin tran
   );
 });
 
+test("recovery separates redacted DNS, network, TCP, socket, TLS, and proxy transport categories", async () => {
+  const cases = [
+    { category: "dns", code: "ENOTFOUND" },
+    { category: "network", code: "ENETUNREACH" },
+    { category: "tcp", code: "ECONNRESET" },
+    { category: "socket", code: "UND_ERR_SOCKET" },
+    { category: "tls", code: "ERR_TLS_CERT_ALTNAME_INVALID" },
+    { category: "proxy", name: "SecureProxyConnectionError" },
+  ];
+
+  for (const { category, code, name } of cases) {
+    const report = await recoverProductionRecipeImageQa({
+      env: makeEnv({ CALORA_QA_RECOVERY_RUN_ID: QA_RUN_ID }),
+      fetchImpl: async (url, init = {}) => {
+        assertHardenedRequest(init);
+        const value = String(url);
+        if (value.endsWith("/api/version"))
+          return json(200, { gitCommit: EXPECTED_COMMIT });
+        if (value.includes("/auth/v1/token?grant_type=password"))
+          return json(400, { code: "invalid_credentials" });
+        if (value.endsWith("/auth/v1/admin/users") && init.method === "POST") {
+          const nested = Object.assign(new Error("private transport detail"), {
+            ...(code ? { code } : {}),
+            ...(name ? { name } : {}),
+          });
+          throw new Error("fetch failed", {
+            cause: new AggregateError([nested]),
+          });
+        }
+        throw new Error(`Unexpected recovery request ${init.method ?? "GET"}`);
+      },
+    });
+
+    assert.deepEqual(report, {
+      schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
+      result: "fail",
+      failure: "qa_admin_request_unavailable",
+      transport: category,
+    });
+    const serialized = JSON.stringify(report);
+    assert.doesNotMatch(serialized, /private transport detail|fetch failed/);
+    if (code) assert.doesNotMatch(serialized, new RegExp(code));
+    if (name) assert.doesNotMatch(serialized, new RegExp(name));
+    assertSanitized(report);
+  }
+});
+
 test("recovery reconciles an exact pre-API QA alias after sign-in fails, then deletes it by returned Auth id", async () => {
   await withCleanupFile(async (cleanupFile) => {
     await writeFile(

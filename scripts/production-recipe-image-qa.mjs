@@ -126,9 +126,25 @@ async function parseJson(response, code) {
 }
 
 function safeTransportCategory(error) {
-  const names = [error?.name, error?.code, error?.cause?.code]
-    .filter((value) => typeof value === "string")
-    .map((value) => value.toUpperCase());
+  const names = [];
+  const queue = [error];
+  const visited = new Set();
+  while (queue.length > 0 && names.length < 24) {
+    const current = queue.shift();
+    if (
+      !current ||
+      (typeof current !== "object" && typeof current !== "function") ||
+      visited.has(current)
+    ) {
+      continue;
+    }
+    visited.add(current);
+    for (const value of [current.name, current.code]) {
+      if (typeof value === "string") names.push(value.toUpperCase());
+    }
+    if (current.cause) queue.push(current.cause);
+    if (Array.isArray(current.errors)) queue.push(...current.errors);
+  }
   if (
     names.some((value) =>
       [
@@ -142,21 +158,41 @@ function safeTransportCategory(error) {
     return "timeout";
   }
   if (names.some((value) => value.includes("REDIRECT"))) return "redirect";
+  if (names.some((value) => value.includes("PROXY"))) return "proxy";
   if (
-    names.some((value) =>
-      [
-        "ECONNREFUSED",
-        "ECONNRESET",
-        "EAI_AGAIN",
-        "ENETUNREACH",
-        "ENOTFOUND",
-        "EPIPE",
-        "UND_ERR_SOCKET",
-      ].includes(value),
+    names.some(
+      (value) =>
+        value.startsWith("ERR_TLS_") ||
+        value.startsWith("ERR_SSL_") ||
+        [
+          "CERT_HAS_EXPIRED",
+          "CERT_NOT_YET_VALID",
+          "DEPTH_ZERO_SELF_SIGNED_CERT",
+          "SELF_SIGNED_CERT_IN_CHAIN",
+          "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+        ].includes(value),
     )
   ) {
-    return "connection";
+    return "tls";
   }
+  if (
+    names.some((value) =>
+      ["EAI_AGAIN", "EAI_FAIL", "EAI_NODATA", "ENOTFOUND"].includes(value),
+    )
+  ) {
+    return "dns";
+  }
+  if (names.some((value) => ["ENETUNREACH", "EHOSTUNREACH"].includes(value))) {
+    return "network";
+  }
+  if (
+    names.some((value) =>
+      ["ECONNREFUSED", "ECONNRESET", "EPIPE"].includes(value),
+    )
+  ) {
+    return "tcp";
+  }
+  if (names.some((value) => value === "UND_ERR_SOCKET")) return "socket";
   return "unknown";
 }
 
