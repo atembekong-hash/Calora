@@ -40,6 +40,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify protected invocation
+        id: invocation_guard
         env:
           CALORA_QA_RUN_CONFIRMATION: ${{ inputs.confirmation }}
           CALORA_QA_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
@@ -71,7 +72,7 @@ jobs:
           node scripts/production-recipe-image-qa.mjs > "${RUNNER_TEMP}/calora-production-recipe-image-qa.json"
 
       - name: Recover an interrupted disposable QA lifecycle
-        if: always()
+        if: always() && steps.invocation_guard.outcome == 'success'
         id: recovery
         continue-on-error: true
         env:
@@ -90,7 +91,7 @@ jobs:
           node scripts/production-recipe-image-qa.mjs --recover > "${RUNNER_TEMP}/calora-production-recipe-image-qa-recovery.json"
 
       - name: Enforce a passing sanitized QA result
-        if: always()
+        if: always() && steps.invocation_guard.outcome == 'success'
         env:
           CALORA_QA_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
         run: |
@@ -120,7 +121,7 @@ jobs:
           NODE
 
       - name: Upload sanitized QA evidence
-        if: always()
+        if: always() && steps.invocation_guard.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: calora-production-recipe-image-qa-${{ github.run_id }}
