@@ -9,10 +9,11 @@ const RECOVERY_ENVELOPE_SCHEMA =
   "calora.production-recipe-image-qa.recovery.v3";
 
 export class QaVerificationError extends Error {
-  constructor(code, status = null) {
+  constructor(code, status = null, transport = null) {
     super(code);
     this.code = code;
     this.status = status;
+    this.transport = transport;
   }
 }
 
@@ -124,13 +125,52 @@ async function parseJson(response, code) {
   }
 }
 
+function safeTransportCategory(error) {
+  const names = [error?.name, error?.code, error?.cause?.code]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.toUpperCase());
+  if (
+    names.some((value) =>
+      [
+        "ABORTERROR",
+        "TIMEOUTERROR",
+        "UND_ERR_CONNECT_TIMEOUT",
+        "UND_ERR_HEADERS_TIMEOUT",
+      ].includes(value),
+    )
+  ) {
+    return "timeout";
+  }
+  if (names.some((value) => value.includes("REDIRECT"))) return "redirect";
+  if (
+    names.some((value) =>
+      [
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "EAI_AGAIN",
+        "ENETUNREACH",
+        "ENOTFOUND",
+        "EPIPE",
+        "UND_ERR_SOCKET",
+      ].includes(value),
+    )
+  ) {
+    return "connection";
+  }
+  return "unknown";
+}
+
 async function request(fetchImpl, url, init, now, networkFailureCode) {
   const startedAt = now();
   try {
     const response = await fetchImpl(url, hardenedRequestInit(init));
     return { response, latencyMs: elapsedMs(now, startedAt) };
-  } catch {
-    throw new QaVerificationError(networkFailureCode);
+  } catch (error) {
+    throw new QaVerificationError(
+      networkFailureCode,
+      null,
+      safeTransportCategory(error),
+    );
   }
 }
 
@@ -217,10 +257,16 @@ function newReport(now) {
 
 function setFailure(report, error, fallbackCode = "unexpected_runner_failure") {
   report.result = "fail";
-  report.failure ??= {
-    code: error instanceof QaVerificationError ? error.code : fallbackCode,
-    status: error instanceof QaVerificationError ? error.status : null,
-  };
+  if (!report.failure) {
+    const failure = {
+      code: error instanceof QaVerificationError ? error.code : fallbackCode,
+      status: error instanceof QaVerificationError ? error.status : null,
+    };
+    if (error instanceof QaVerificationError && error.transport) {
+      failure.transport = error.transport;
+    }
+    report.failure = failure;
+  }
 }
 
 async function adminRequest(
@@ -1080,6 +1126,23 @@ async function recoverOneQaIdentity({
   });
 }
 
+function recoveryFailure(
+  result,
+  error,
+  fallbackCode = "unexpected_recovery_failure",
+) {
+  const failure =
+    error instanceof QaVerificationError ? error.code : fallbackCode;
+  return {
+    ...result,
+    result: "fail",
+    failure,
+    ...(error instanceof QaVerificationError && error.transport
+      ? { transport: error.transport }
+      : {}),
+  };
+}
+
 /**
  * Recovers a prior, potentially interrupted run using a non-secret, internal
  * QA run identifier. It never retains or recovers a bearer token. If an
@@ -1111,14 +1174,7 @@ export async function recoverProductionRecipeImageQa({
       envelope = recoveryEnvelope(qaRunId(requestedRunId), true);
     }
   } catch (error) {
-    return {
-      ...result,
-      result: "fail",
-      failure:
-        error instanceof QaVerificationError
-          ? error.code
-          : "invalid_recovery_envelope",
-    };
+    return recoveryFailure(result, error, "invalid_recovery_envelope");
   }
 
   try {
@@ -1170,32 +1226,17 @@ export async function recoverProductionRecipeImageQa({
           persistEnvelope,
         });
       } catch (error) {
-        failures.push(
-          error instanceof QaVerificationError
-            ? error.code
-            : "unexpected_recovery_failure",
-        );
+        failures.push(error);
       }
     }
 
     if (failures.length > 0) {
-      return {
-        ...result,
-        result: "fail",
-        failure: failures[0],
-      };
+      return recoveryFailure(result, failures[0]);
     }
     await removeRecoveryEnvelope(filePath);
     return { ...result, result: "pass" };
   } catch (error) {
-    return {
-      ...result,
-      result: "fail",
-      failure:
-        error instanceof QaVerificationError
-          ? error.code
-          : "unexpected_recovery_failure",
-    };
+    return recoveryFailure(result, error);
   }
 }
 
