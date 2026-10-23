@@ -451,6 +451,8 @@ test("keeps an interrupted cleanup envelope and attempts both account recoveries
         assertHardenedRequest(init);
         calls.push({ url: String(url), init });
         const value = String(url);
+        if (value.endsWith("/api/version"))
+          return json(200, { gitCommit: EXPECTED_COMMIT });
         if (value.includes("/auth/v1/token?grant_type=password")) {
           signIns += 1;
           return json(200, {
@@ -506,6 +508,8 @@ test("can recover a runner-loss QA lifecycle from a manually supplied run identi
       assertHardenedRequest(init);
       calls.push({ url: String(url), init });
       const value = String(url);
+      if (value.endsWith("/api/version"))
+        return json(200, { gitCommit: EXPECTED_COMMIT });
       if (value.includes("/auth/v1/token?grant_type=password")) {
         signIns += 1;
         return json(200, {
@@ -570,6 +574,10 @@ test("workflow confines privileged values to trusted Node steps, retains protect
     workflow,
     /Recover an interrupted disposable QA lifecycle[\s\S]*?CALORA_QA_SUPABASE_SERVICE_ROLE_KEY: \$\{\{ secrets\.CALORA_QA_SUPABASE_SERVICE_ROLE_KEY \}\}/,
   );
+  assert.match(
+    workflow,
+    /Recover an interrupted disposable QA lifecycle[\s\S]*?CALORA_QA_EXPECTED_COMMIT: \$\{\{ inputs\.expected_commit \}\}/,
+  );
   assert.doesNotMatch(
     workflow.match(/Upload sanitized QA evidence[\s\S]*/)?.[0] ?? "",
     /CALORA_QA_SUPABASE_SERVICE_ROLE_KEY|CALORA_QA_TEST_PASSWORD|\$\{\{ secrets\./,
@@ -616,4 +624,196 @@ test("CLI failure output contains only a structured sanitized report", () => {
   });
   assertSanitized(report);
   assertSanitized({ stdout: result.stdout, stderr: result.stderr });
+});
+
+test("rejects a path-qualified Supabase URL before any credentialed request or recovery envelope is created", async () => {
+  let requestCount = 0;
+  const report = await runProductionRecipeImageQa({
+    env: makeEnv({
+      CALORA_QA_SUPABASE_URL: "https://example.supabase.co/auth/v1",
+    }),
+    fetchImpl: async () => {
+      requestCount += 1;
+      throw new Error("invalid configuration must stop before any request");
+    },
+  });
+
+  assert.equal(requestCount, 0);
+  assert.equal(report.result, "fail");
+  assert.deepEqual(report.failure, {
+    code: "invalid_supabase_target",
+    status: null,
+  });
+  assertSanitized(report);
+});
+
+test("recovery reconciles an exact pre-API QA alias after sign-in fails, then deletes it by returned Auth id", async () => {
+  await withCleanupFile(async (cleanupFile) => {
+    await writeFile(
+      cleanupFile,
+      JSON.stringify({
+        schemaVersion: "calora.production-recipe-image-qa.recovery.v3",
+        runId: QA_RUN_ID,
+        owner: {
+          authUserId: "",
+          provisioningMayHaveBeenCalled: true,
+          caloraApiMayHaveBeenCalled: false,
+        },
+        other: {
+          authUserId: "",
+          provisioningMayHaveBeenCalled: false,
+          caloraApiMayHaveBeenCalled: false,
+        },
+      }),
+      { mode: 0o600 },
+    );
+    const calls = [];
+    const report = await recoverProductionRecipeImageQa({
+      env: makeEnv({ CALORA_QA_CLEANUP_FILE: cleanupFile }),
+      fetchImpl: async (url, init = {}) => {
+        assertHardenedRequest(init);
+        calls.push({ url: String(url), init });
+        const value = String(url);
+        if (value.endsWith("/api/version"))
+          return json(200, { gitCommit: EXPECTED_COMMIT });
+        if (value.includes("/auth/v1/token?grant_type=password"))
+          return json(400, { code: "invalid_credentials" });
+        if (value.endsWith("/auth/v1/admin/users") && init.method === "POST")
+          return json(201, { id: "reconciled-owner-internal-id" });
+        if (
+          value.endsWith("/auth/v1/admin/users/reconciled-owner-internal-id") &&
+          init.method === "DELETE"
+        )
+          return empty(204);
+        throw new Error(
+          `Unexpected recovery request ${init.method ?? "GET"} ${value}`,
+        );
+      },
+    });
+
+    assert.deepEqual(report, {
+      schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
+      result: "pass",
+      failure: null,
+    });
+    assert.equal(
+      calls.filter(
+        (call) =>
+          call.url.endsWith("/auth/v1/admin/users") &&
+          call.init.method === "POST",
+      ).length,
+      1,
+    );
+    assert.equal(
+      calls.filter((call) => call.url.includes("/api/v1/")).length,
+      0,
+    );
+    assert.equal(
+      calls.filter(
+        (call) =>
+          call.url.endsWith(
+            "/auth/v1/admin/users/reconciled-owner-internal-id",
+          ) && call.init.method === "DELETE",
+      ).length,
+      1,
+    );
+    await assert.rejects(readFile(cleanupFile, "utf8"), { code: "ENOENT" });
+    assertSanitized(report);
+  });
+});
+
+test("recovery refuses a stale live release before it signs in, reconciles, or deletes any identity", async () => {
+  await withCleanupFile(async (cleanupFile) => {
+    await writeFile(
+      cleanupFile,
+      JSON.stringify({
+        schemaVersion: "calora.production-recipe-image-qa.recovery.v3",
+        runId: QA_RUN_ID,
+        owner: {
+          authUserId: "owner-internal-id",
+          provisioningMayHaveBeenCalled: true,
+          caloraApiMayHaveBeenCalled: false,
+        },
+        other: {
+          authUserId: "",
+          provisioningMayHaveBeenCalled: false,
+          caloraApiMayHaveBeenCalled: false,
+        },
+      }),
+      { mode: 0o600 },
+    );
+    const calls = [];
+    const report = await recoverProductionRecipeImageQa({
+      env: makeEnv({ CALORA_QA_CLEANUP_FILE: cleanupFile }),
+      fetchImpl: async (url, init = {}) => {
+        assertHardenedRequest(init);
+        calls.push({ url: String(url), init });
+        if (String(url).endsWith("/api/version"))
+          return json(200, { gitCommit: "b".repeat(40) });
+        throw new Error("stale release must not reach recovery actions");
+      },
+    });
+
+    assert.deepEqual(report, {
+      schemaVersion: "calora.production-recipe-image-qa-recovery.v3",
+      result: "fail",
+      failure: "unexpected_live_release",
+    });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://mycaloraapp.com/api/version");
+    assert.equal(
+      JSON.parse(await readFile(cleanupFile, "utf8")).runId,
+      QA_RUN_ID,
+    );
+    assertSanitized(report);
+  });
+});
+
+test("preserves a non-secret no-ID recovery envelope after an Admin provisioning 404", async () => {
+  await withCleanupFile(async (cleanupFile) => {
+    const calls = [];
+    const report = await runProductionRecipeImageQa({
+      env: makeEnv({ CALORA_QA_CLEANUP_FILE: cleanupFile }),
+      fetchImpl: async (url, init = {}) => {
+        assertHardenedRequest(init);
+        calls.push({ url: String(url), init });
+        if (String(url).endsWith("/api/version"))
+          return json(200, { gitCommit: EXPECTED_COMMIT });
+        if (
+          String(url).endsWith("/auth/v1/admin/users") &&
+          init.method === "POST"
+        )
+          return json(404, { code: "route_not_found" });
+        throw new Error(
+          "provisioning 404 must stop before any subsequent request",
+        );
+      },
+    });
+
+    assert.deepEqual(report.failure, {
+      code: "qa_account_provision_failed",
+      status: 404,
+    });
+    assert.equal(calls.length, 2);
+    assert.equal(
+      calls.some((call) => call.url.includes("/api/v1/")),
+      false,
+    );
+    const envelope = JSON.parse(await readFile(cleanupFile, "utf8"));
+    assert.deepEqual(envelope.owner, {
+      authUserId: "",
+      provisioningMayHaveBeenCalled: true,
+      caloraApiMayHaveBeenCalled: false,
+    });
+    assert.deepEqual(envelope.other, {
+      authUserId: "",
+      provisioningMayHaveBeenCalled: false,
+      caloraApiMayHaveBeenCalled: false,
+    });
+    assertSanitized(report);
+    assert.doesNotMatch(
+      JSON.stringify(envelope),
+      /service-test-key|test-password|access-token/,
+    );
+  });
 });
