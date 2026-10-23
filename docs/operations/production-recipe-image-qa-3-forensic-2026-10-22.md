@@ -103,9 +103,19 @@ All results below are controlled, local, non-production evidence.
 
 The Supabase documentation confirms that Auth Admin create-user methods require a secret key and must run on a trusted server; it also confirms that `email_confirm: true` is the appropriate intentional confirmed-user setting for this disposable QA flow. The GitHub protected workflow is the trusted server-side execution boundary; no browser or pull-request job receives the service credential.
 
-## 7. Remaining owner-authorized step
+## 7. Delivery and validation status
 
-After this repair is merged and its required release gate passes, the smallest remaining action is to update `CALORA_QA_SUPABASE_URL` in the `calora-production-recipe-image-qa` GitHub Environment to the root Calora project origin only, with no `/auth/v1` or other path. Then explicitly dispatch **recovery only** from protected main using:
+The remediation was delivered through protected pull request [#210](https://github.com/atembekong-hash/Calora/pull/210) and squash-merged to protected main as `2f203f2639c234d53ed31f69901c9d0dab0b965c` at `2026-10-23T03:37:22Z`.
+
+The post-merge `Release validation` workflow run `39895994803` completed successfully for that exact SHA. Its `Run release validation suite` and `Attest release validation gate` jobs both passed. The validated suite included repository typechecking, complete tests, API/static/web production-artifact builds, image governance, fresh-schema database checks, Expo configuration validation, and source-only provenance attestation. This was source/CI validation only: it did not dispatch the production recipe-image QA workflow and did not create a user, media item, storage object, or database record.
+
+## 8. Remaining owner-authorized step
+
+The source repair is newer than the live API release attested by the failed run. The QA workflow intentionally requires exact equality between protected main and `/api/version`; therefore the smallest remaining sequence is:
+
+1. Explicitly authorize an API-only Railway deployment of protected main `2f203f2639c234d53ed31f69901c9d0dab0b965c`, and verify the live API’s exact SHA before any credentialed QA action.
+2. Update `CALORA_QA_SUPABASE_URL` in the `calora-production-recipe-image-qa` GitHub Environment to the root Calora project origin only, with no `/auth/v1` or other path.
+3. Explicitly authorize and dispatch **recovery only** from protected main using:
 
 - `expected_commit`: the exact deployed protected-main SHA;
 - `confirmation`: `RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA`;
@@ -113,8 +123,8 @@ After this repair is merged and its required release gate passes, the smallest r
 
 That recovery has no image-generation path. It will either prove terminal cleanup for the bounded aliases or fail closed with sanitized evidence. A subsequent separate, expressly authorized normal run is required before claiming live verification of image generation, preview, semantic human review, rejection, and deletion behavior.
 
-## 8. Final status
+## 9. Final status
 
-This remediation is ready for protected pull-request validation. It repairs the source defects that turned a malformed Supabase endpoint configuration into a misleading `404` plus unrecoverable-looking sign-in failure, without weakening any credential, account-isolation, review, or storage-erasure controls.
+This remediation is merged and release-gated. It repairs the source defects that allowed a malformed Supabase endpoint configuration to produce a misleading `404` plus unrecoverable-looking sign-in failure, without weakening any credential, account-isolation, review, or storage-erasure controls.
 
-The prior live image workflow remains **not verified**. There is no claim that an image corresponded to the requested recipe, because image generation never executed in the failed production QA run and this forensic repair intentionally did not dispatch another one.
+The prior live image workflow remains **not verified**. There is no claim that an image corresponded to the requested recipe, because image generation never executed in the failed production QA run. No Railway deployment or new production QA execution was performed during this mission.
