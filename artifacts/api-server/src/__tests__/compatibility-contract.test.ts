@@ -71,7 +71,7 @@ describe("released mobile API compatibility contract", () => {
     expect(apiSpec).toMatch(/RecipeList:[\s\S]*?terminalReason:/);
     expect(apiSpec).toMatch(/PremiumRecipeList:[\s\S]*?nextOffset:/);
     expect(apiSpec).toMatch(/PremiumRecipeList:[\s\S]*?terminalReason:/);
-    expect(generatedZod).toContain('"nextOffset": zod.number().int().nullish()');
+    expect(generatedZod).toMatch(/"nextOffset": (?:zod\.number\(\)\.int\(\)|zod\.int\(\))\.nullish\(\)/);
     expect(generatedZod).toContain('"terminalReason": zod.string().nullish()');
   });
 

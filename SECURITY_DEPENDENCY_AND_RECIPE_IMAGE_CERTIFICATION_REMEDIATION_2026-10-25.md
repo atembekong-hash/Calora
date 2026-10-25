@@ -23,7 +23,9 @@ The final command `pnpm audit --audit-level high` reports `No known vulnerabilit
 
 ## Compatibility fixes
 
-Zod 4 changed the generated expression `zod.coerce.string().uuid()` so it no longer typechecks. The generated API schema now uses `zod.string().uuid()` for UUID path parameters; this preserves UUID validation because numeric coercion cannot produce a valid UUID. The planner route also normalizes Zod 3 and Zod 4 enum issue codes to the established safe client message, preserving the existing 400 response contract.
+Zod 4 changed the generated expression `zod.coerce.string().uuid()` so it no longer typechecks. The authoritative Orval configuration now targets Zod 4 (`lib/api-spec/orval.config.ts`), and the generated API schema is regenerated in Zod 4 syntax. This replaces the previous manual generated-file workaround and keeps future code generation reproducible.
+
+The planner route normalizes Zod 3 and Zod 4 enum issue codes to the established safe client message, preserving the existing 400 response contract.
 
 ## Disposable PostgreSQL validation
 
@@ -37,9 +39,11 @@ The first run’s only failure was the expected build precondition for the rolli
 
 - API offline suite: 42 test files, 523 tests passed.
 - Planner compatibility test: 12 tests passed.
-- Mobile suite under Node 24.11.1: 165 test files, 1,822 tests passed.
+- Mobile suite under Node 24.11.1 after final Orval regeneration: 165 test files, 1,822 tests passed.
 - Scripts and governance suite: 127 tests passed; image-governance suite: 13 tests passed.
-- Full workspace TypeScript validation under Node 24.11.1: passed for libraries, API server, mobile app, gateway, mockup sandbox, and scripts.
+- Full workspace TypeScript validation under Node 24.11.1 after final Orval regeneration: passed for libraries, API server, mobile app, gateway, mockup sandbox, and scripts.
+- Orval code generation plus generated-library typecheck: passed and is idempotent.
+- API compatibility contract: 8 tests passed, including the Zod 4 pagination-schema form.
 - Focused API build: passed.
 
 Node 24.11.1 was used for the final workspace validation because patched `undici` 8.12.2 requires a supported Node 22/24 patch level; the sandbox’s system Node 22.13.0 is below that dependency’s declared minimum. This was treated as a local runtime mismatch, not suppressed.
@@ -61,6 +65,10 @@ Sanitized evidence:
 - Final staging verdict: PASS in 4.3 seconds
 
 The mismatch test is staging evidence only; no claim is made that it occurred against the real production provider.
+
+## Protected-check diagnosis
+
+The first PR 225 release-validation run failed because Orval regenerated the Zod output in Zod 3 mode while the workspace had been upgraded to Zod 4. The generator configuration is now corrected to Zod 4 mode. This was validated locally with the exact code-generation command used by CI; PR checks must be rerun after the follow-up commit.
 
 ## Authorization and deployment boundaries
 
