@@ -56,7 +56,7 @@ catalog:
   tsx: ^4.21.0
   vite: ^7.3.7
   wouter: ^3.3.5
-  zod: ^3.25.76
+  zod: ^4.6.6
 
 autoInstallPeers: false
 
@@ -87,11 +87,13 @@ overrides:
   "minimatch@9.0.9>brace-expansion": "2.1.7"
   "minimatch@10.2.5>brace-expansion": "5.0.12"
   # Keep each direct parent on its compatible patched transitive release.
-  "jsdom@30.0.1>undici": "8.11.2"
-  "@expo/cli@54.0.23>undici": "6.28.1"
-  "@expo/cli@54.0.27>undici": "6.28.1"
-  "ajv@8.20.0>fast-uri": "3.1.8"
+  "jsdom@30.0.1>undici": "8.12.2"
+  "@expo/cli@54.0.23>undici": "6.29.1"
+  "@expo/cli@54.0.27>undici": "6.29.1"
+  "ajv@8.20.0>fast-uri": "3.1.9"
   "typedoc@0.28.20>markdown-it": "14.3.3"
+  # Keep Express on the patched body-parser release for compressed-body handling.
+  "express>body-parser": "2.4.0"
   # Fix Express/body-parser query parsing and navigation URL decoding advisories.
   qs: "6.16.0"
   "decode-uri-component": "0.5.0"

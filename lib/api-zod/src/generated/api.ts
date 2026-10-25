@@ -53,15 +53,15 @@ export const GetProfileResponse = zod.object({
   "goal": zod.enum(['lose', 'maintain', 'gain']),
   "activity": zod.enum(['low', 'moderate', 'high']),
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
-  "age": zod.number().int().min(getProfileResponseAgeMin).max(getProfileResponseAgeMax),
+  "age": zod.int().min(getProfileResponseAgeMin).max(getProfileResponseAgeMax),
   "heightCm": zod.number().min(getProfileResponseHeightCmMin).max(getProfileResponseHeightCmMax),
   "weightKg": zod.number().min(getProfileResponseWeightKgMin).max(getProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(getProfileResponseTargetWeightKgMin).max(getProfileResponseTargetWeightKgMax),
-  "calorieTarget": zod.number().int().min(getProfileResponseCalorieTargetMin).max(getProfileResponseCalorieTargetMax),
+  "calorieTarget": zod.int().min(getProfileResponseCalorieTargetMin).max(getProfileResponseCalorieTargetMax),
   "targetMode": zod.enum(['automatic', 'custom']).nullable(),
-  "proteinTargetGrams": zod.number().int().min(getProfileResponseProteinTargetGramsMin).max(getProfileResponseProteinTargetGramsMax).nullish(),
-  "carbsTargetGrams": zod.number().int().min(getProfileResponseCarbsTargetGramsMin).max(getProfileResponseCarbsTargetGramsMax).nullish(),
-  "fatTargetGrams": zod.number().int().min(getProfileResponseFatTargetGramsMin).max(getProfileResponseFatTargetGramsMax).nullish(),
+  "proteinTargetGrams": zod.int().min(getProfileResponseProteinTargetGramsMin).max(getProfileResponseProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.int().min(getProfileResponseCarbsTargetGramsMin).max(getProfileResponseCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.int().min(getProfileResponseFatTargetGramsMin).max(getProfileResponseFatTargetGramsMax).nullish(),
   "units": zod.enum(['metric', 'imperial']).nullable(),
   "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
@@ -104,15 +104,15 @@ export const UpdateProfileBody = zod.object({
   "goal": zod.enum(['lose', 'maintain', 'gain']),
   "activity": zod.enum(['low', 'moderate', 'high']),
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
-  "age": zod.number().int().min(updateProfileBodyAgeMin).max(updateProfileBodyAgeMax),
+  "age": zod.int().min(updateProfileBodyAgeMin).max(updateProfileBodyAgeMax),
   "heightCm": zod.number().min(updateProfileBodyHeightCmMin).max(updateProfileBodyHeightCmMax),
   "weightKg": zod.number().min(updateProfileBodyWeightKgMin).max(updateProfileBodyWeightKgMax),
   "targetWeightKg": zod.number().min(updateProfileBodyTargetWeightKgMin).max(updateProfileBodyTargetWeightKgMax),
-  "calorieTarget": zod.number().int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
+  "calorieTarget": zod.int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
   "targetMode": zod.enum(['automatic', 'custom']).optional(),
-  "proteinTargetGrams": zod.number().int().min(updateProfileBodyProteinTargetGramsMin).max(updateProfileBodyProteinTargetGramsMax).nullish(),
-  "carbsTargetGrams": zod.number().int().min(updateProfileBodyCarbsTargetGramsMin).max(updateProfileBodyCarbsTargetGramsMax).nullish(),
-  "fatTargetGrams": zod.number().int().min(updateProfileBodyFatTargetGramsMin).max(updateProfileBodyFatTargetGramsMax).nullish(),
+  "proteinTargetGrams": zod.int().min(updateProfileBodyProteinTargetGramsMin).max(updateProfileBodyProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.int().min(updateProfileBodyCarbsTargetGramsMin).max(updateProfileBodyCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.int().min(updateProfileBodyFatTargetGramsMin).max(updateProfileBodyFatTargetGramsMax).nullish(),
   "units": zod.enum(['metric', 'imperial']).optional(),
   "consentVersion": zod.enum(['calora-onboarding-v1'])
 })
@@ -150,15 +150,15 @@ export const UpdateProfileResponse = zod.object({
   "goal": zod.enum(['lose', 'maintain', 'gain']),
   "activity": zod.enum(['low', 'moderate', 'high']),
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
-  "age": zod.number().int().min(updateProfileResponseAgeMin).max(updateProfileResponseAgeMax),
+  "age": zod.int().min(updateProfileResponseAgeMin).max(updateProfileResponseAgeMax),
   "heightCm": zod.number().min(updateProfileResponseHeightCmMin).max(updateProfileResponseHeightCmMax),
   "weightKg": zod.number().min(updateProfileResponseWeightKgMin).max(updateProfileResponseWeightKgMax),
   "targetWeightKg": zod.number().min(updateProfileResponseTargetWeightKgMin).max(updateProfileResponseTargetWeightKgMax),
-  "calorieTarget": zod.number().int().min(updateProfileResponseCalorieTargetMin).max(updateProfileResponseCalorieTargetMax),
+  "calorieTarget": zod.int().min(updateProfileResponseCalorieTargetMin).max(updateProfileResponseCalorieTargetMax),
   "targetMode": zod.enum(['automatic', 'custom']).nullable(),
-  "proteinTargetGrams": zod.number().int().min(updateProfileResponseProteinTargetGramsMin).max(updateProfileResponseProteinTargetGramsMax).nullish(),
-  "carbsTargetGrams": zod.number().int().min(updateProfileResponseCarbsTargetGramsMin).max(updateProfileResponseCarbsTargetGramsMax).nullish(),
-  "fatTargetGrams": zod.number().int().min(updateProfileResponseFatTargetGramsMin).max(updateProfileResponseFatTargetGramsMax).nullish(),
+  "proteinTargetGrams": zod.int().min(updateProfileResponseProteinTargetGramsMin).max(updateProfileResponseProteinTargetGramsMax).nullish(),
+  "carbsTargetGrams": zod.int().min(updateProfileResponseCarbsTargetGramsMin).max(updateProfileResponseCarbsTargetGramsMax).nullish(),
+  "fatTargetGrams": zod.int().min(updateProfileResponseFatTargetGramsMin).max(updateProfileResponseFatTargetGramsMax).nullish(),
   "units": zod.enum(['metric', 'imperial']).nullable(),
   "consentVersion": zod.enum(['calora-onboarding-v1']),
   "updatedAt": zod.coerce.date()
@@ -249,10 +249,10 @@ export const ListDiaryEntriesResponse = zod.object({
   "carbsG": zod.number().min(listDiaryEntriesResponseEntriesItemOneCarbsGMin),
   "fatG": zod.number().min(listDiaryEntriesResponseEntriesItemOneFatGMin),
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.number().int().min(listDiaryEntriesResponseEntriesItemOneConfidenceMin).max(listDiaryEntriesResponseEntriesItemOneConfidenceMax),
+  "confidence": zod.int().min(listDiaryEntriesResponseEntriesItemOneConfidenceMin).max(listDiaryEntriesResponseEntriesItemOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
-  "imageUrl": zod.string().url().max(listDiaryEntriesResponseEntriesItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageUrl": zod.url().max(listDiaryEntriesResponseEntriesItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
   "imageSource": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
   "imageAssetKey": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
   "imageEvidence": zod.object({
@@ -265,7 +265,7 @@ export const ListDiaryEntriesResponse = zod.object({
   "imageId": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceImageIdMax).optional(),
   "imageVersion": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceImageVersionMax).optional(),
   "assetKey": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.string().url().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceLocatorMax).optional(),
+  "locator": zod.url().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -273,7 +273,7 @@ export const ListDiaryEntriesResponse = zod.object({
   "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
 }).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "updatedAt": zod.coerce.date(),
   "imageEvidence": zod.object({
   "version": zod.literal(1),
@@ -285,7 +285,7 @@ export const ListDiaryEntriesResponse = zod.object({
   "imageId": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -350,10 +350,10 @@ export const CreateDiaryEntryBody = zod.object({
   "carbsG": zod.number().min(createDiaryEntryBodyCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryBodyFatGMin),
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.number().int().min(createDiaryEntryBodyConfidenceMin).max(createDiaryEntryBodyConfidenceMax),
+  "confidence": zod.int().min(createDiaryEntryBodyConfidenceMin).max(createDiaryEntryBodyConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
-  "imageUrl": zod.string().url().max(createDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageUrl": zod.url().max(createDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
   "imageSource": zod.string().max(createDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
   "imageAssetKey": zod.string().max(createDiaryEntryBodyImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
   "imageEvidence": zod.object({
@@ -366,7 +366,7 @@ export const CreateDiaryEntryBody = zod.object({
   "imageId": zod.string().max(createDiaryEntryBodyImageEvidenceImageIdMax).optional(),
   "imageVersion": zod.string().max(createDiaryEntryBodyImageEvidenceImageVersionMax).optional(),
   "assetKey": zod.string().max(createDiaryEntryBodyImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.string().url().max(createDiaryEntryBodyImageEvidenceLocatorMax).optional(),
+  "locator": zod.url().max(createDiaryEntryBodyImageEvidenceLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -444,10 +444,10 @@ export const CreateDiaryEntryResponse = zod.object({
   "carbsG": zod.number().min(createDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryResponseOneFatGMin),
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.number().int().min(createDiaryEntryResponseOneConfidenceMin).max(createDiaryEntryResponseOneConfidenceMax),
+  "confidence": zod.int().min(createDiaryEntryResponseOneConfidenceMin).max(createDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
-  "imageUrl": zod.string().url().max(createDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageUrl": zod.url().max(createDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
   "imageSource": zod.string().max(createDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
   "imageAssetKey": zod.string().max(createDiaryEntryResponseOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
   "imageEvidence": zod.object({
@@ -460,7 +460,7 @@ export const CreateDiaryEntryResponse = zod.object({
   "imageId": zod.string().max(createDiaryEntryResponseOneImageEvidenceImageIdMax).optional(),
   "imageVersion": zod.string().max(createDiaryEntryResponseOneImageEvidenceImageVersionMax).optional(),
   "assetKey": zod.string().max(createDiaryEntryResponseOneImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.string().url().max(createDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
+  "locator": zod.url().max(createDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -468,7 +468,7 @@ export const CreateDiaryEntryResponse = zod.object({
   "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
 }).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "updatedAt": zod.coerce.date(),
   "imageEvidence": zod.object({
   "version": zod.literal(1),
@@ -480,7 +480,7 @@ export const CreateDiaryEntryResponse = zod.object({
   "imageId": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(createDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(createDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -496,7 +496,7 @@ export const CreateDiaryEntryResponse = zod.object({
  * @summary Edit a diary entry
  */
 export const UpdateDiaryEntryParams = zod.object({
-  "entryId": zod.coerce.string().uuid()
+  "entryId": zod.uuid()
 })
 
 export const updateDiaryEntryBodyCaloriesMin = 0;
@@ -589,10 +589,10 @@ export const UpdateDiaryEntryResponse = zod.object({
   "carbsG": zod.number().min(updateDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(updateDiaryEntryResponseOneFatGMin),
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.number().int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
+  "confidence": zod.int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
-  "imageUrl": zod.string().url().max(updateDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageUrl": zod.url().max(updateDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
   "imageSource": zod.string().max(updateDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
   "imageAssetKey": zod.string().max(updateDiaryEntryResponseOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
   "imageEvidence": zod.object({
@@ -605,7 +605,7 @@ export const UpdateDiaryEntryResponse = zod.object({
   "imageId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageIdMax).optional(),
   "imageVersion": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageVersionMax).optional(),
   "assetKey": zod.string().max(updateDiaryEntryResponseOneImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.string().url().max(updateDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
+  "locator": zod.url().max(updateDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -613,7 +613,7 @@ export const UpdateDiaryEntryResponse = zod.object({
   "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
 }).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "updatedAt": zod.coerce.date(),
   "imageEvidence": zod.object({
   "version": zod.literal(1),
@@ -625,7 +625,7 @@ export const UpdateDiaryEntryResponse = zod.object({
   "imageId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -641,7 +641,7 @@ export const UpdateDiaryEntryResponse = zod.object({
  * @summary Delete a diary entry
  */
 export const DeleteDiaryEntryParams = zod.object({
-  "entryId": zod.coerce.string().uuid()
+  "entryId": zod.uuid()
 })
 
 export const DeleteDiaryEntryResponse = zod.void()
@@ -669,7 +669,7 @@ export const SearchFoodsQueryParams = zod.object({
 
 export const SearchFoodsResponse = zod.object({
   "items": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "name": zod.string(),
   "brand": zod.string().nullish(),
   "barcode": zod.string().nullish(),
@@ -682,13 +682,13 @@ export const SearchFoodsResponse = zod.object({
   "provenance": zod.object({
   "source": zod.string(),
   "verifiedAt": zod.coerce.date().nullable(),
-  "correctionVersion": zod.number().int().min(1)
+  "correctionVersion": zod.int().min(1)
 })
 })),
   "provenance": zod.object({
   "source": zod.string(),
   "verifiedAt": zod.coerce.date().nullable(),
-  "correctionVersion": zod.number().int().min(1)
+  "correctionVersion": zod.int().min(1)
 })
 })
 
@@ -705,7 +705,7 @@ export const SyncOutboxBody = zod.object({
   "deviceId": zod.string().min(1),
   "cursor": zod.string().nullish(),
   "mutations": zod.array(zod.object({
-  "mutationId": zod.string().uuid(),
+  "mutationId": zod.uuid(),
   "entity": zod.enum(['profile', 'diaryEntry', 'weight', 'savedMeal']),
   "operation": zod.enum(['upsert', 'delete']),
   "clientUpdatedAt": zod.coerce.date(),
@@ -767,15 +767,15 @@ export const syncOutboxResponseRecordsItemSourceRecipeIdMax = 128;
 
 
 export const SyncOutboxResponse = zod.object({
-  "accepted": zod.array(zod.string().uuid()),
+  "accepted": zod.array(zod.uuid()),
   "conflicts": zod.array(zod.object({
-  "mutationId": zod.string().uuid(),
+  "mutationId": zod.uuid(),
   "reason": zod.enum(['stale_write', 'validation_failed', 'unauthorized', 'unsupported_entity', 'unsupported_operation', 'invalid_mutation_id', 'server_error']),
   "serverRecord": zod.record(zod.string(), zod.unknown()).nullish()
 })),
   "records": zod.array(zod.object({
   "clientId": zod.string().min(1).max(syncOutboxResponseRecordsItemClientIdMax),
-  "captureSessionId": zod.string().uuid().nullish(),
+  "captureSessionId": zod.uuid().nullish(),
   "entryDate": zod.coerce.date(),
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string(),
@@ -785,7 +785,7 @@ export const SyncOutboxResponse = zod.object({
   "carbsG": zod.number().min(syncOutboxResponseRecordsItemCarbsGMin),
   "fatG": zod.number().min(syncOutboxResponseRecordsItemFatGMin),
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.number().int().min(syncOutboxResponseRecordsItemConfidenceMin).max(syncOutboxResponseRecordsItemConfidenceMax),
+  "confidence": zod.int().min(syncOutboxResponseRecordsItemConfidenceMin).max(syncOutboxResponseRecordsItemConfidenceMax),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "imageSource": zod.string().nullish(),
@@ -800,7 +800,7 @@ export const SyncOutboxResponse = zod.object({
   "imageId": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(syncOutboxResponseRecordsItemImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(syncOutboxResponseRecordsItemImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -855,14 +855,14 @@ export const ListRecipesResponse = zod.object({
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "image": zod.string().url().nullish(),
+  "image": zod.url().nullish(),
   "category": zod.string().nullish(),
   "area": zod.string().nullish(),
   "description": zod.string().nullish(),
   "instructions": zod.string().nullish(),
   "ingredients": zod.array(zod.string()).optional(),
   "tags": zod.array(zod.string()).optional(),
-  "prepMinutes": zod.number().int().nullish(),
+  "prepMinutes": zod.int().nullish(),
   "calories": zod.number().nullish(),
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
@@ -899,13 +899,13 @@ export const ListRecipesResponse = zod.object({
   "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
-  "sourceUrl": zod.string().url()
+  "sourceUrl": zod.url()
 })),
   "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n'),
-  "nextOffset": zod.number().int().nullish().describe('Offset for the next page, or null when this is the terminal page.'),
+  "nextOffset": zod.int().nullish().describe('Offset for the next page, or null when this is the terminal page.'),
   "continuousBrowse": zod.boolean().optional().describe('True only for the unfiltered open browse feed, whose finite provider pool intentionally wraps.'),
-  "browseCycle": zod.number().int().min(listRecipesResponseBrowseCycleMin).optional().describe('Server-owned provider-pool cycle number used to distinguish intentional repeats from duplicate refetches.'),
-  "browsePoolSize": zod.number().int().min(1).nullish().describe('Server-owned finite pool cardinality for exact per-card cycle identity when a page spans a wrap.'),
+  "browseCycle": zod.int().min(listRecipesResponseBrowseCycleMin).optional().describe('Server-owned provider-pool cycle number used to distinguish intentional repeats from duplicate refetches.'),
+  "browsePoolSize": zod.int().min(1).nullish().describe('Server-owned finite pool cardinality for exact per-card cycle identity when a page spans a wrap.'),
   "terminalReason": zod.string().nullish().describe('Stable human-readable reason included when no next page exists.')
 })
 
@@ -935,8 +935,8 @@ export const generateRecipeConceptsBodyThreeRequestMax = 500;
 export const GenerateRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
   "ingredients": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateRecipeConceptsBodyThreeIngredientsMax).optional(),
   "mealType": zod.string().min(1).max(generateRecipeConceptsBodyThreeMealTypeMax).optional(),
-  "servings": zod.number().int().min(1).max(generateRecipeConceptsBodyThreeServingsMax).optional(),
-  "maxMinutes": zod.number().int().min(generateRecipeConceptsBodyThreeMaxMinutesMin).max(generateRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "servings": zod.int().min(1).max(generateRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.int().min(generateRecipeConceptsBodyThreeMaxMinutesMin).max(generateRecipeConceptsBodyThreeMaxMinutesMax).optional(),
   "preferences": zod.array(zod.string().min(1).max(generateRecipeConceptsBodyThreePreferencesItemMax)).max(generateRecipeConceptsBodyThreePreferencesMax).optional(),
   "request": zod.string().min(1).max(generateRecipeConceptsBodyThreeRequestMax).optional()
 }))
@@ -953,7 +953,7 @@ export const GenerateRecipeConceptsResponse = zod.object({
   "summary": zod.string(),
   "whyItFits": zod.string(),
   "keyIngredients": zod.array(zod.string()),
-  "estimatedMinutes": zod.number().int().nullable()
+  "estimatedMinutes": zod.int().nullable()
 })).min(1).max(generateRecipeConceptsResponseConceptsMax),
   "nutritionNote": zod.string().min(1).max(generateRecipeConceptsResponseNutritionNoteMax)
 })
@@ -984,8 +984,8 @@ export const generateGuestRecipeConceptsBodyThreeRequestMax = 500;
 export const GenerateGuestRecipeConceptsBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
   "ingredients": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsItemMax)).min(1).max(generateGuestRecipeConceptsBodyThreeIngredientsMax).optional(),
   "mealType": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeMealTypeMax).optional(),
-  "servings": zod.number().int().min(1).max(generateGuestRecipeConceptsBodyThreeServingsMax).optional(),
-  "maxMinutes": zod.number().int().min(generateGuestRecipeConceptsBodyThreeMaxMinutesMin).max(generateGuestRecipeConceptsBodyThreeMaxMinutesMax).optional(),
+  "servings": zod.int().min(1).max(generateGuestRecipeConceptsBodyThreeServingsMax).optional(),
+  "maxMinutes": zod.int().min(generateGuestRecipeConceptsBodyThreeMaxMinutesMin).max(generateGuestRecipeConceptsBodyThreeMaxMinutesMax).optional(),
   "preferences": zod.array(zod.string().min(1).max(generateGuestRecipeConceptsBodyThreePreferencesItemMax)).max(generateGuestRecipeConceptsBodyThreePreferencesMax).optional(),
   "request": zod.string().min(1).max(generateGuestRecipeConceptsBodyThreeRequestMax).optional()
 }))
@@ -1002,7 +1002,7 @@ export const GenerateGuestRecipeConceptsResponse = zod.object({
   "summary": zod.string(),
   "whyItFits": zod.string(),
   "keyIngredients": zod.array(zod.string()),
-  "estimatedMinutes": zod.number().int().nullable()
+  "estimatedMinutes": zod.int().nullable()
 })).min(1).max(generateGuestRecipeConceptsResponseConceptsMax),
   "nutritionNote": zod.string().min(1).max(generateGuestRecipeConceptsResponseNutritionNoteMax)
 })
@@ -1022,7 +1022,7 @@ export const generateRecipeBodyServingsMax = 12;
 export const GenerateRecipeBody = zod.object({
   "title": zod.string().min(1).max(generateRecipeBodyTitleMax),
   "summary": zod.string().min(1).max(generateRecipeBodySummaryMax).optional(),
-  "servings": zod.number().int().min(1).max(generateRecipeBodyServingsMax).optional()
+  "servings": zod.int().min(1).max(generateRecipeBodyServingsMax).optional()
 })
 
 export const generateRecipeResponseIngredientsMin = 2;
@@ -1114,8 +1114,8 @@ export const GenerateRecipeResponse = zod.object({
   "description": zod.string(),
   "ingredients": zod.array(zod.string()).min(generateRecipeResponseIngredientsMin).max(generateRecipeResponseIngredientsMax),
   "instructions": zod.array(zod.string()).min(generateRecipeResponseInstructionsMin).max(generateRecipeResponseInstructionsMax),
-  "servings": zod.number().int().min(1).max(generateRecipeResponseServingsMax),
-  "prepMinutes": zod.number().int().min(1).max(generateRecipeResponsePrepMinutesMax).nullable(),
+  "servings": zod.int().min(1).max(generateRecipeResponseServingsMax),
+  "prepMinutes": zod.int().min(1).max(generateRecipeResponsePrepMinutesMax).nullable(),
   "nutrition": zod.object({
   "calories": zod.number().min(generateRecipeResponseNutritionCaloriesMin).nullable(),
   "proteinG": zod.number().min(generateRecipeResponseNutritionProteinGMin).nullable(),
@@ -1366,7 +1366,7 @@ export const generateRecipePhotoResponseRecipePayloadDietaryContextMax = 16;
 
 
 export const GenerateRecipePhotoResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(generateRecipePhotoResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1380,14 +1380,14 @@ export const GenerateRecipePhotoResponse = zod.object({
   "mealType": zod.string().max(generateRecipePhotoResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(generateRecipePhotoResponseRecipePayloadDietaryContextItemMax)).max(generateRecipePhotoResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1398,8 +1398,8 @@ export const GenerateRecipePhotoResponse = zod.object({
  * @summary Refresh a signed locator after owner and persisted-media validation
  */
 export const RefreshRecipePhotoUrlBody = zod.object({
-  "mediaId": zod.string().uuid().optional(),
-  "imageId": zod.string().uuid().optional()
+  "mediaId": zod.uuid().optional(),
+  "imageId": zod.uuid().optional()
 })
 
 export const refreshRecipePhotoUrlResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1431,7 +1431,7 @@ export const refreshRecipePhotoUrlResponseRecipePayloadDietaryContextMax = 16;
 
 
 export const RefreshRecipePhotoUrlResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(refreshRecipePhotoUrlResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1445,14 +1445,14 @@ export const RefreshRecipePhotoUrlResponse = zod.object({
   "mealType": zod.string().max(refreshRecipePhotoUrlResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(refreshRecipePhotoUrlResponseRecipePayloadDietaryContextItemMax)).max(refreshRecipePhotoUrlResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1492,7 +1492,7 @@ export const listRecipeMediaResponseMediaItemRecipePayloadDietaryContextMax = 16
 
 export const ListRecipeMediaResponse = zod.object({
   "media": zod.array(zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(listRecipeMediaResponseMediaItemContentHashRegExp),
   "recipePayload": zod.object({
@@ -1506,14 +1506,14 @@ export const ListRecipeMediaResponse = zod.object({
   "mealType": zod.string().max(listRecipeMediaResponseMediaItemRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(listRecipeMediaResponseMediaItemRecipePayloadDietaryContextItemMax)).max(listRecipeMediaResponseMediaItemRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1525,7 +1525,7 @@ export const ListRecipeMediaResponse = zod.object({
  * @summary Get an owner-only temporary locator for semantic image review without publishing the image
  */
 export const GetRecipeMediaReviewPreviewParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.uuid()
 })
 
 export const getRecipeMediaReviewPreviewResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1557,7 +1557,7 @@ export const getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextMax =
 
 
 export const GetRecipeMediaReviewPreviewResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(getRecipeMediaReviewPreviewResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1571,14 +1571,14 @@ export const GetRecipeMediaReviewPreviewResponse = zod.object({
   "mealType": zod.string().max(getRecipeMediaReviewPreviewResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextItemMax)).max(getRecipeMediaReviewPreviewResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1589,7 +1589,7 @@ export const GetRecipeMediaReviewPreviewResponse = zod.object({
  * @summary Get owner-scoped generated recipe media status and a fresh locator when available
  */
 export const GetRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.uuid()
 })
 
 export const getRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1621,7 +1621,7 @@ export const getRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
 
 
 export const GetRecipeMediaResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(getRecipeMediaResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1635,14 +1635,14 @@ export const GetRecipeMediaResponse = zod.object({
   "mealType": zod.string().max(getRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(getRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(getRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1653,7 +1653,7 @@ export const GetRecipeMediaResponse = zod.object({
  * @summary Retry generation for an owner-scoped retryable media record
  */
 export const RetryRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.uuid()
 })
 
 export const retryRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1685,7 +1685,7 @@ export const retryRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
 
 
 export const RetryRecipeMediaResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(retryRecipeMediaResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1699,14 +1699,14 @@ export const RetryRecipeMediaResponse = zod.object({
   "mealType": zod.string().max(retryRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(retryRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(retryRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1717,7 +1717,7 @@ export const RetryRecipeMediaResponse = zod.object({
  * @summary Record whether generated pixels appear to match the recipe
  */
 export const ReviewRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.uuid()
 })
 
 export const ReviewRecipeMediaBody = zod.object({
@@ -1753,7 +1753,7 @@ export const reviewRecipeMediaResponseRecipePayloadDietaryContextMax = 16;
 
 
 export const ReviewRecipeMediaResponse = zod.object({
-  "mediaId": zod.string().uuid(),
+  "mediaId": zod.uuid(),
   "clientRecipeId": zod.string(),
   "contentHash": zod.string().regex(reviewRecipeMediaResponseContentHashRegExp),
   "recipePayload": zod.object({
@@ -1767,14 +1767,14 @@ export const ReviewRecipeMediaResponse = zod.object({
   "mealType": zod.string().max(reviewRecipeMediaResponseRecipePayloadMealTypeMax).optional(),
   "dietaryContext": zod.array(zod.string().min(1).max(reviewRecipeMediaResponseRecipePayloadDietaryContextItemMax)).max(reviewRecipeMediaResponseRecipePayloadDietaryContextMax).optional()
 }).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n'),
-  "imageId": zod.string().uuid().nullable(),
-  "imageUrl": zod.string().url().optional(),
+  "imageId": zod.uuid().nullable(),
+  "imageUrl": zod.url().optional(),
   "imageUrlExpiresAt": zod.coerce.date().optional(),
   "modelVersion": zod.string(),
   "promptVersion": zod.string(),
   "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
   "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
-  "attempts": zod.number().int().min(1),
+  "attempts": zod.int().min(1),
   "lastErrorCode": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1785,7 +1785,7 @@ export const ReviewRecipeMediaResponse = zod.object({
  * @summary Acknowledge successful native image rendering for diagnostics
  */
 export const AcknowledgeRecipeMediaRenderedParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.uuid()
 })
 
 export const AcknowledgeRecipeMediaRenderedResponse = zod.void()
@@ -1804,14 +1804,14 @@ export const GetRecipeParams = zod.object({
 export const GetRecipeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "image": zod.string().url().nullish(),
+  "image": zod.url().nullish(),
   "category": zod.string().nullish(),
   "area": zod.string().nullish(),
   "description": zod.string().nullish(),
   "instructions": zod.string().nullish(),
   "ingredients": zod.array(zod.string()).optional(),
   "tags": zod.array(zod.string()).optional(),
-  "prepMinutes": zod.number().int().nullish(),
+  "prepMinutes": zod.int().nullish(),
   "calories": zod.number().nullish(),
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
@@ -1848,7 +1848,7 @@ export const GetRecipeResponse = zod.object({
   "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
-  "sourceUrl": zod.string().url()
+  "sourceUrl": zod.url()
 })
 
 
@@ -1883,14 +1883,14 @@ export const ListPremiumRecipesResponse = zod.object({
   "recipes": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "image": zod.string().url().nullish(),
+  "image": zod.url().nullish(),
   "category": zod.string().nullish(),
   "area": zod.string().nullish(),
   "description": zod.string().nullish(),
   "instructions": zod.string().nullish(),
   "ingredients": zod.array(zod.string()).optional(),
   "tags": zod.array(zod.string()).optional(),
-  "prepMinutes": zod.number().int().nullish(),
+  "prepMinutes": zod.int().nullish(),
   "calories": zod.number().nullish(),
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
@@ -1927,15 +1927,15 @@ export const ListPremiumRecipesResponse = zod.object({
   "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
-  "sourceUrl": zod.string().url()
+  "sourceUrl": zod.url()
 }).and(zod.object({
   "sourceType": zod.enum(['premium']),
   "sourceProvider": zod.string(),
   "sourceId": zod.string(),
   "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
   "nutritionSource": zod.string(),
-  "cookMinutes": zod.number().int().nullish(),
-  "totalMinutes": zod.number().int().nullish(),
+  "cookMinutes": zod.int().nullish(),
+  "totalMinutes": zod.int().nullish(),
   "servings": zod.number().nullish(),
   "cuisine": zod.string().nullish(),
   "mealType": zod.string().nullish(),
@@ -1944,7 +1944,7 @@ export const ListPremiumRecipesResponse = zod.object({
   "allergens": zod.array(zod.string()).optional(),
   "equipment": zod.array(zod.string()).optional()
 }))),
-  "nextOffset": zod.number().int().nullish(),
+  "nextOffset": zod.int().nullish(),
   "terminalReason": zod.string().nullish()
 })
 
@@ -1962,14 +1962,14 @@ export const GetPremiumRecipeParams = zod.object({
 export const GetPremiumRecipeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "image": zod.string().url().nullish(),
+  "image": zod.url().nullish(),
   "category": zod.string().nullish(),
   "area": zod.string().nullish(),
   "description": zod.string().nullish(),
   "instructions": zod.string().nullish(),
   "ingredients": zod.array(zod.string()).optional(),
   "tags": zod.array(zod.string()).optional(),
-  "prepMinutes": zod.number().int().nullish(),
+  "prepMinutes": zod.int().nullish(),
   "calories": zod.number().nullish(),
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
@@ -2006,15 +2006,15 @@ export const GetPremiumRecipeResponse = zod.object({
   "cholineMg": zod.number().nullish(),
   "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
-  "sourceUrl": zod.string().url()
+  "sourceUrl": zod.url()
 }).and(zod.object({
   "sourceType": zod.enum(['premium']),
   "sourceProvider": zod.string(),
   "sourceId": zod.string(),
   "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
   "nutritionSource": zod.string(),
-  "cookMinutes": zod.number().int().nullish(),
-  "totalMinutes": zod.number().int().nullish(),
+  "cookMinutes": zod.int().nullish(),
+  "totalMinutes": zod.int().nullish(),
   "servings": zod.number().nullish(),
   "cuisine": zod.string().nullish(),
   "mealType": zod.string().nullish(),
@@ -2084,7 +2084,7 @@ export const ListRestaurantFoodsResponse = zod.object({
   "sourceId": zod.string(),
   "name": zod.string(),
   "brandName": zod.string().nullable(),
-  "foodUrl": zod.string().url().nullable(),
+  "foodUrl": zod.url().nullable(),
   "serving": zod.string().nullable(),
   "servingId": zod.string().nullable(),
   "calories": zod.number().min(listRestaurantFoodsResponseFoodsItemCaloriesMin).nullable(),
@@ -2109,7 +2109,7 @@ export const ListRestaurantFoodsResponse = zod.object({
   "nutritionConfidence": zod.enum(['verified', 'unavailable']),
   "nutritionSource": zod.string()
 })),
-  "nextOffset": zod.number().int().nullish()
+  "nextOffset": zod.int().nullish()
 })
 
 
@@ -2158,7 +2158,7 @@ export const GetRestaurantFoodResponse = zod.object({
   "sourceId": zod.string(),
   "name": zod.string(),
   "brandName": zod.string().nullable(),
-  "foodUrl": zod.string().url().nullable(),
+  "foodUrl": zod.url().nullable(),
   "serving": zod.string().nullable(),
   "servingId": zod.string().nullable(),
   "calories": zod.number().min(getRestaurantFoodResponseCaloriesMin).nullable(),
@@ -2313,7 +2313,7 @@ export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMi
 export const AnalyzeCaptureResponse = zod.object({
   "sessionId": zod.string().describe('Legacy alias of clientCorrelationId. It is never server-issued capture provenance.'),
   "clientCorrelationId": zod.string().describe('Opaque client correlation id echoed for stale-response handling and local draft identity.'),
-  "captureSessionId": zod.string().uuid().nullable().describe('Server-issued session id only when candidate persistence succeeded. Null means no server capture proof exists.'),
+  "captureSessionId": zod.uuid().nullable().describe('Server-issued session id only when candidate persistence succeeded. Null means no server capture proof exists.'),
   "mode": zod.enum(['barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
   "status": zod.enum(['review', 'transcript', 'unavailable']),
   "title": zod.string(),
@@ -2328,11 +2328,11 @@ export const AnalyzeCaptureResponse = zod.object({
   "proteinG": zod.number().min(analyzeCaptureResponseCandidatesItemProteinGMin),
   "carbsG": zod.number().min(analyzeCaptureResponseCandidatesItemCarbsGMin),
   "fatG": zod.number().min(analyzeCaptureResponseCandidatesItemFatGMin),
-  "confidence": zod.number().int().min(analyzeCaptureResponseCandidatesItemConfidenceMin).max(analyzeCaptureResponseCandidatesItemConfidenceMax),
+  "confidence": zod.int().min(analyzeCaptureResponseCandidatesItemConfidenceMin).max(analyzeCaptureResponseCandidatesItemConfidenceMax),
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
   "editable": zod.boolean(),
-  "imageUrl": zod.string().url().max(analyzeCaptureResponseCandidatesItemImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
+  "imageUrl": zod.url().max(analyzeCaptureResponseCandidatesItemImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
   "imageSource": zod.string().max(analyzeCaptureResponseCandidatesItemImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
   "imageEvidence": zod.object({
   "version": zod.literal(1),
@@ -2344,7 +2344,7 @@ export const AnalyzeCaptureResponse = zod.object({
   "imageId": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -2363,11 +2363,11 @@ export const AnalyzeCaptureResponse = zod.object({
   "proteinG": zod.number().min(analyzeCaptureResponseComponentsItemOneProteinGMin),
   "carbsG": zod.number().min(analyzeCaptureResponseComponentsItemOneCarbsGMin),
   "fatG": zod.number().min(analyzeCaptureResponseComponentsItemOneFatGMin),
-  "confidence": zod.number().int().min(analyzeCaptureResponseComponentsItemOneConfidenceMin).max(analyzeCaptureResponseComponentsItemOneConfidenceMax),
+  "confidence": zod.int().min(analyzeCaptureResponseComponentsItemOneConfidenceMin).max(analyzeCaptureResponseComponentsItemOneConfidenceMax),
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
   "editable": zod.boolean(),
-  "imageUrl": zod.string().url().max(analyzeCaptureResponseComponentsItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
+  "imageUrl": zod.url().max(analyzeCaptureResponseComponentsItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
   "imageSource": zod.string().max(analyzeCaptureResponseComponentsItemOneImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
   "imageEvidence": zod.object({
   "version": zod.literal(1),
@@ -2379,7 +2379,7 @@ export const AnalyzeCaptureResponse = zod.object({
   "imageId": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageIdMax).optional(),
   "imageVersion": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageVersionMax).optional(),
   "assetKey": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.string().url().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneLocatorMax).optional(),
+  "locator": zod.url().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
@@ -2394,10 +2394,10 @@ export const AnalyzeCaptureResponse = zod.object({
   "included": zod.boolean(),
   "eatenFraction": zod.number().min(analyzeCaptureResponseComponentsItemTwoEatenFractionMin).max(analyzeCaptureResponseComponentsItemTwoEatenFractionMax),
   "confidenceDimensions": zod.object({
-  "identity": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMax),
-  "portion": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMax),
-  "nutritionSource": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMax),
-  "preparation": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMax)
+  "identity": zod.int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMax),
+  "portion": zod.int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMax),
+  "nutritionSource": zod.int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMax),
+  "preparation": zod.int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMax)
 }),
   "assumptions": zod.array(zod.string()).optional(),
   "nutritionRange": zod.object({
@@ -2420,7 +2420,7 @@ export const AnalyzeCaptureResponse = zod.object({
  * @summary Confirm a reviewed image or barcode capture
  */
 export const ApproveCaptureParams = zod.object({
-  "sessionId": zod.coerce.string().uuid()
+  "sessionId": zod.uuid()
 })
 
 export const ApproveCaptureResponse = zod.void()
@@ -2443,7 +2443,7 @@ export const GeneratePlannerBody = zod.object({
   "goal": zod.enum(['lose', 'maintain', 'gain']),
   "activity": zod.enum(['low', 'moderate', 'high']),
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
-  "calorieTarget": zod.number().int().min(generatePlannerBodyProfileCalorieTargetMin).max(generatePlannerBodyProfileCalorieTargetMax)
+  "calorieTarget": zod.int().min(generatePlannerBodyProfileCalorieTargetMin).max(generatePlannerBodyProfileCalorieTargetMax)
 }),
   "planType": zod.enum(['balanced-nutrition', 'high-protein-power', 'low-carb-living', 'mediterranean-diet', 'plant-based-week', 'keto-kickstart', 'intermittent-fasting', 'budget-friendly', 'quick-and-easy', 'athletic-performance', 'anti-inflammatory', 'healthy-habits-week']).optional().describe('Optional plan style identifier guiding AI generation')
 })
@@ -2471,12 +2471,12 @@ export const GeneratePlannerResponse = zod.object({
   "day": zod.coerce.date(),
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string(),
-  "image": zod.string().url(),
+  "image": zod.url(),
   "imageAssetKey": zod.string().optional().describe('Stable client asset identity for curated planner imagery. Optional for generated or custom meals.'),
   "recipeId": zod.string().max(generatePlannerResponseMealsItemRecipeIdMax).optional(),
   "recipeSource": zod.enum(['discover', 'plus', 'create', 'calora']).optional(),
-  "generatedMediaId": zod.string().uuid().optional(),
-  "generatedImageId": zod.string().uuid().optional(),
+  "generatedMediaId": zod.uuid().optional(),
+  "generatedImageId": zod.uuid().optional(),
   "generatedImageUrlExpiresAt": zod.coerce.date().optional(),
   "generatedImageReviewState": zod.enum(['needs_review', 'accepted', 'rejected']).optional(),
   "serving": zod.string(),
@@ -2486,7 +2486,7 @@ export const GeneratePlannerResponse = zod.object({
   "fatG": zod.number().min(generatePlannerResponseMealsItemFatGMin),
   "ingredients": zod.array(zod.string()),
   "description": zod.string(),
-  "prepMinutes": zod.number().int().min(generatePlannerResponseMealsItemPrepMinutesMin).optional()
+  "prepMinutes": zod.int().min(generatePlannerResponseMealsItemPrepMinutesMin).optional()
 }))
 })
 
@@ -2593,27 +2593,27 @@ export const RespondCoachFactContextBody = zod.object({
   "status": zod.enum(['available', 'limited', 'unknown']),
   "statement": zod.string().min(1).max(respondCoachFactContextBodyFactContextFactsItemStatementMax),
   "values": zod.object({
-  "consumedKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMax).optional(),
-  "targetKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMax).optional(),
-  "remainingKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMax).optional(),
-  "consumedG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMax).optional(),
-  "targetG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax).optional(),
-  "remainingG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax).optional(),
-  "consumedMg": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMax).optional(),
-  "consumedOz": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMax).optional(),
+  "consumedKcal": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMax).optional(),
+  "targetKcal": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMax).optional(),
+  "remainingKcal": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMax).optional(),
+  "consumedG": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMax).optional(),
+  "targetG": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax).optional(),
+  "remainingG": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax).optional(),
+  "consumedMg": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMax).optional(),
+  "consumedOz": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMax).optional(),
   "breakfastPercentage": zod.number().min(respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMin).max(respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMax).optional(),
   "lunchPercentage": zod.number().min(respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMax).optional(),
   "dinnerPercentage": zod.number().min(respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMin).max(respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMax).optional(),
   "snackPercentage": zod.number().min(respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMin).max(respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMax).optional(),
-  "logCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax).optional(),
-  "mealSlotsLogged": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin).max(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax).optional(),
+  "logCount": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax).optional(),
+  "mealSlotsLogged": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin).max(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax).optional(),
   "state": zod.enum(['logged', 'partially_logged', 'no_logs']).optional(),
-  "loggedDayCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMax).optional(),
-  "qualifiedDayCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMax).optional(),
-  "windowDays": zod.number().int().min(1).max(respondCoachFactContextBodyFactContextFactsItemValuesWindowDaysMax).optional(),
+  "loggedDayCount": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMax).optional(),
+  "qualifiedDayCount": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMax).optional(),
+  "windowDays": zod.int().min(1).max(respondCoachFactContextBodyFactContextFactsItemValuesWindowDaysMax).optional(),
   "direction": zod.enum(['up', 'down', 'stable', 'insufficient']).optional(),
   "deltaKg": zod.number().min(respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMin).max(respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMax).optional(),
-  "entryCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMax).optional()
+  "entryCount": zod.int().min(respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMax).optional()
 }),
   "unit": zod.union([zod.literal('kcal'),zod.literal('g'),zod.literal('mg'),zod.literal('fl oz'),zod.literal('%'),zod.literal('kg'),zod.literal(null)]).nullable(),
   "timeWindow": zod.enum(['today', 'recent']),
@@ -2767,7 +2767,7 @@ export const getCoachV2ConversationResponseTurnsMax = 100;
 
 export const GetCoachV2ConversationResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "role": zod.enum(['user', 'assistant']),
   "content": zod.string().min(1).max(getCoachV2ConversationResponseTurnsItemContentMax),
   "createdAt": zod.coerce.date()
@@ -2796,9 +2796,9 @@ export const listCoachV2ConversationsResponseConversationsMax = 50;
 
 export const ListCoachV2ConversationsResponse = zod.object({
   "conversations": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "preview": zod.string().max(listCoachV2ConversationsResponseConversationsItemPreviewMax).nullable(),
-  "turnCount": zod.number().int().min(listCoachV2ConversationsResponseConversationsItemTurnCountMin).max(listCoachV2ConversationsResponseConversationsItemTurnCountMax),
+  "turnCount": zod.int().min(listCoachV2ConversationsResponseConversationsItemTurnCountMin).max(listCoachV2ConversationsResponseConversationsItemTurnCountMax),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "active": zod.boolean()
@@ -2818,7 +2818,7 @@ export const StartNewCoachV2ConversationResponse = zod.void()
  * @summary Permanently delete one completed saved Coach chat
  */
 export const DeleteCoachV2ConversationParams = zod.object({
-  "conversationId": zod.coerce.string().uuid()
+  "conversationId": zod.uuid()
 })
 
 export const DeleteCoachV2ConversationResponse = zod.void()
@@ -2845,7 +2845,7 @@ export const ReportCoachV2ContentResponse = zod.object({
  * @summary Reopen one of the signed-in account's saved Coach chats
  */
 export const OpenCoachV2ConversationParams = zod.object({
-  "conversationId": zod.coerce.string().uuid()
+  "conversationId": zod.uuid()
 })
 
 export const openCoachV2ConversationResponseTurnsItemContentMax = 4000;
@@ -2856,7 +2856,7 @@ export const openCoachV2ConversationResponseTurnsMax = 100;
 
 export const OpenCoachV2ConversationResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "role": zod.enum(['user', 'assistant']),
   "content": zod.string().min(1).max(openCoachV2ConversationResponseTurnsItemContentMax),
   "createdAt": zod.coerce.date()
@@ -2908,11 +2908,11 @@ export const getReferralResponseCodeMax = 16;
 
 export const GetReferralResponse = zod.object({
   "code": zod.string().min(getReferralResponseCodeMin).max(getReferralResponseCodeMax),
-  "inviteUrl": zod.string().url(),
-  "rewardDays": zod.number().int(),
+  "inviteUrl": zod.url(),
+  "rewardDays": zod.int(),
   "stats": zod.object({
-  "pendingCount": zod.number().int(),
-  "rewardedCount": zod.number().int()
+  "pendingCount": zod.int(),
+  "rewardedCount": zod.int()
 }),
   "redemption": zod.object({
   "status": zod.enum(['none', 'pending', 'rewarded']),
@@ -3004,7 +3004,7 @@ export const syncFirstDiaryEntryBodyImageEvidenceAttributionMax = 500;
 
 
 export const SyncFirstDiaryEntryBody = zod.object({
-  "captureSessionId": zod.string().uuid().describe('Server-issued capture session id returned by \/v1\/capture\/analyze\nfor an authenticated request. The synced entry must correspond to\nthat server-recorded analysis; fabricated payloads are rejected.\n'),
+  "captureSessionId": zod.uuid().describe('Server-issued capture session id returned by \/v1\/capture\/analyze\nfor an authenticated request. The synced entry must correspond to\nthat server-recorded analysis; fabricated payloads are rejected.\n'),
   "entryDate": zod.coerce.date(),
   "meal": zod.string().min(1).max(syncFirstDiaryEntryBodyMealMax),
   "name": zod.string().min(1).max(syncFirstDiaryEntryBodyNameMax),
@@ -3014,10 +3014,10 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "carbsG": zod.number().min(syncFirstDiaryEntryBodyCarbsGMin).max(syncFirstDiaryEntryBodyCarbsGMax),
   "fatG": zod.number().min(syncFirstDiaryEntryBodyFatGMin).max(syncFirstDiaryEntryBodyFatGMax),
   "provenance": zod.string().min(1).max(syncFirstDiaryEntryBodyProvenanceMax),
-  "confidence": zod.number().int().min(syncFirstDiaryEntryBodyConfidenceMin).max(syncFirstDiaryEntryBodyConfidenceMax),
+  "confidence": zod.int().min(syncFirstDiaryEntryBodyConfidenceMin).max(syncFirstDiaryEntryBodyConfidenceMax),
   "notes": zod.string().max(syncFirstDiaryEntryBodyNotesMax).optional(),
   "clientUpdatedAt": zod.coerce.date(),
-  "imageUrl": zod.string().url().max(syncFirstDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry.\nOnly absolute http\/https URLs are persisted; other values are\ndropped so a fabricated payload cannot inject arbitrary content.\n'),
+  "imageUrl": zod.url().max(syncFirstDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry.\nOnly absolute http\/https URLs are persisted; other values are\ndropped so a fabricated payload cannot inject arbitrary content.\n'),
   "imageSource": zod.string().max(syncFirstDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
   "imageAssetKey": zod.string().max(syncFirstDiaryEntryBodyImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
   "imageEvidence": zod.object({
@@ -3030,7 +3030,7 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "imageId": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceImageIdMax).optional(),
   "imageVersion": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceImageVersionMax).optional(),
   "assetKey": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.string().url().max(syncFirstDiaryEntryBodyImageEvidenceLocatorMax).optional(),
+  "locator": zod.url().max(syncFirstDiaryEntryBodyImageEvidenceLocatorMax).optional(),
   "verifiedAt": zod.coerce.date().optional(),
   "retrievedAt": zod.coerce.date().optional(),
   "expiresAt": zod.coerce.date().optional(),
