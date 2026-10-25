@@ -161,3 +161,7 @@ Native Android/iOS certification is a separate action requiring an explicitly na
 **Fresh production provider lifecycle:** BLOCKED pending separate owner authorization
 **Android/iOS native image certification:** NOT TESTED
 **Overall:** **PARTIAL — NOT FULLY PRODUCTION CERTIFIED**
+
+## Publication status
+
+The report is available on protected PR [#224](https://github.com/atembekong-hash/Calora/pull/224). The PR's required release validation is currently blocked by the existing workspace dependency audit, which reports 13 advisories (2 low, 7 moderate, 4 high), including an `undici` high-severity advisory. The check failed again on rerun; this is unrelated to the documentation-only diff. The report was not merged, and no dependency changes were introduced to bypass or weaken the gate.
