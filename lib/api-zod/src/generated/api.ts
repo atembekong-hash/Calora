@@ -496,7 +496,7 @@ export const CreateDiaryEntryResponse = zod.object({
  * @summary Edit a diary entry
  */
 export const UpdateDiaryEntryParams = zod.object({
-  "entryId": zod.coerce.string().uuid()
+  "entryId": zod.string().uuid()
 })
 
 export const updateDiaryEntryBodyCaloriesMin = 0;
@@ -641,7 +641,7 @@ export const UpdateDiaryEntryResponse = zod.object({
  * @summary Delete a diary entry
  */
 export const DeleteDiaryEntryParams = zod.object({
-  "entryId": zod.coerce.string().uuid()
+  "entryId": zod.string().uuid()
 })
 
 export const DeleteDiaryEntryResponse = zod.void()
@@ -1525,7 +1525,7 @@ export const ListRecipeMediaResponse = zod.object({
  * @summary Get an owner-only temporary locator for semantic image review without publishing the image
  */
 export const GetRecipeMediaReviewPreviewParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.string().uuid()
 })
 
 export const getRecipeMediaReviewPreviewResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1589,7 +1589,7 @@ export const GetRecipeMediaReviewPreviewResponse = zod.object({
  * @summary Get owner-scoped generated recipe media status and a fresh locator when available
  */
 export const GetRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.string().uuid()
 })
 
 export const getRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1653,7 +1653,7 @@ export const GetRecipeMediaResponse = zod.object({
  * @summary Retry generation for an owner-scoped retryable media record
  */
 export const RetryRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.string().uuid()
 })
 
 export const retryRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
@@ -1717,7 +1717,7 @@ export const RetryRecipeMediaResponse = zod.object({
  * @summary Record whether generated pixels appear to match the recipe
  */
 export const ReviewRecipeMediaParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.string().uuid()
 })
 
 export const ReviewRecipeMediaBody = zod.object({
@@ -1785,7 +1785,7 @@ export const ReviewRecipeMediaResponse = zod.object({
  * @summary Acknowledge successful native image rendering for diagnostics
  */
 export const AcknowledgeRecipeMediaRenderedParams = zod.object({
-  "mediaId": zod.coerce.string().uuid()
+  "mediaId": zod.string().uuid()
 })
 
 export const AcknowledgeRecipeMediaRenderedResponse = zod.void()
@@ -2420,7 +2420,7 @@ export const AnalyzeCaptureResponse = zod.object({
  * @summary Confirm a reviewed image or barcode capture
  */
 export const ApproveCaptureParams = zod.object({
-  "sessionId": zod.coerce.string().uuid()
+  "sessionId": zod.string().uuid()
 })
 
 export const ApproveCaptureResponse = zod.void()
@@ -2818,7 +2818,7 @@ export const StartNewCoachV2ConversationResponse = zod.void()
  * @summary Permanently delete one completed saved Coach chat
  */
 export const DeleteCoachV2ConversationParams = zod.object({
-  "conversationId": zod.coerce.string().uuid()
+  "conversationId": zod.string().uuid()
 })
 
 export const DeleteCoachV2ConversationResponse = zod.void()
@@ -2845,7 +2845,7 @@ export const ReportCoachV2ContentResponse = zod.object({
  * @summary Reopen one of the signed-in account's saved Coach chats
  */
 export const OpenCoachV2ConversationParams = zod.object({
-  "conversationId": zod.coerce.string().uuid()
+  "conversationId": zod.string().uuid()
 })
 
 export const openCoachV2ConversationResponseTurnsItemContentMax = 4000;

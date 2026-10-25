@@ -121,7 +121,15 @@ router.post("/v1/planner/generate", async (req, res) => {
 
   const parsed = GeneratePlannerBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid planner input" });
+    const issue = parsed.error.issues[0];
+    const isPlanTypeEnumError =
+      issue?.path[0] === "planType" &&
+      (String(issue.code) === "invalid_enum_value" || String(issue.code) === "invalid_value");
+    res.status(400).json({
+      message: isPlanTypeEnumError
+        ? "Invalid enum value for planner Program."
+        : issue?.message ?? "Invalid planner input",
+    });
     return;
   }
 
