@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -627,7 +628,7 @@ test("CLI failure output contains only a structured sanitized report", () => {
     process.execPath,
     ["scripts/production-recipe-image-qa.mjs"],
     {
-      cwd: path.resolve(path.dirname(new URL(import.meta.url).pathname), ".."),
+      cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
       encoding: "utf8",
       env: {
         ...process.env,
