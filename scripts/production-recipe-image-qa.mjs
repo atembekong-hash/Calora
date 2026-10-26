@@ -1,4 +1,6 @@
 import { chmod, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const REQUIRED_CONFIRMATION = "RUN_CALORA_PRODUCTION_RECIPE_IMAGE_QA";
 const QA_RECIPE_TITLE = "QA verification lemon herb chicken bowl";
@@ -1285,6 +1287,9 @@ async function main() {
   if (report.result === "fail") process.exitCode = 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
   await main();
 }
