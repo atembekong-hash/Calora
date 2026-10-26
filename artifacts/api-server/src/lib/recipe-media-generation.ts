@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { logger, safeErrorDetails } from "./logger.js";
 import { createRecipePhotoSignedUrl } from "./recipe-photo-storage.js";
@@ -14,6 +15,34 @@ import {
 } from "./recipe-media.js";
 
 export const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
+
+export const RECIPE_MEDIA_FAILURE_CATEGORIES = Object.freeze({
+  PROVIDER_RESPONSE: "provider_response_error",
+  PROVIDER_TIMEOUT: "provider_timeout",
+  INVALID_OUTPUT: "invalid_generation_output",
+  STORAGE_UPLOAD: "storage_upload_error",
+  STORAGE_UPLOAD_TIMEOUT: "storage_upload_timeout",
+  DATABASE_TRANSITION: "post_upload_database_transition_error",
+});
+
+class RecipeMediaGenerationError extends Error {
+  constructor(readonly category: string, message = category) {
+    super(message);
+    this.name = "RecipeMediaGenerationError";
+  }
+}
+
+function correlationId(ownerExternalId: string, mediaId: string): string {
+  return createHash("sha256").update(`${ownerExternalId}:${mediaId}`).digest("hex").slice(0, 16);
+}
+
+function remainingDeadlineMs(deadlineAt: number): number {
+  return Math.max(0, deadlineAt - Date.now());
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
 
 export async function locatorForRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
   // An ordinary locator is a published accepted image capability. Stored
@@ -43,41 +72,71 @@ export async function reviewPreviewLocatorForRecipeMedia(ownerExternalId: string
 
 export async function generateClaimedRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
   if (!row.image_id) throw new Error("recipe_media_missing_image_id");
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
+  const deadlineAt = Date.now() + RECIPE_PHOTO_TIMEOUT_MS;
+  const correlation = correlationId(ownerExternalId, row.id);
+  let phase = "provider";
+  let uploadCompleted = false;
   try {
-    const generated = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt: buildRecipePhotoPrompt(row.recipe_payload),
-      size: "1024x1024",
-      quality: "low",
-      output_format: "png",
-      n: 1,
-    }, { signal: controller.signal });
-    const encoded = generated.data?.[0]?.b64_json;
-    if (typeof encoded !== "string" || !encoded) throw new Error("image_provider_empty");
-    const imageBytes = Buffer.from(encoded, "base64");
-    if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("image_provider_invalid_size");
+    const providerController = new AbortController();
+    const providerTimer = setTimeout(() => providerController.abort(), remainingDeadlineMs(deadlineAt));
+    let generated: { data?: Array<{ b64_json?: string | null }> };
+    try {
+      generated = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: buildRecipePhotoPrompt(row.recipe_payload),
+        size: "1024x1024",
+        quality: "low",
+        output_format: "png",
+        n: 1,
+      }, { signal: providerController.signal });
+      if (providerController.signal.aborted) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_TIMEOUT);
+    } catch (error) {
+      if (error instanceof RecipeMediaGenerationError) throw error;
+      if (isAbortError(error) || providerController.signal.aborted) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_TIMEOUT);
+      throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_RESPONSE);
+    } finally {
+      clearTimeout(providerTimer);
+    }
 
-    const uploadUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "PUT", 15 * 60);
-    const upload = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
-      body: imageBytes,
-      signal: controller.signal,
-    });
-    if (!upload.ok) throw new Error(`recipe_media_upload_${upload.status}`);
-    return toRecipeMediaResource(await updateRecipeMediaStored(ownerExternalId, row.id, row.attempts));
+    const encoded = generated.data?.[0]?.b64_json;
+    if (typeof encoded !== "string" || !encoded) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.INVALID_OUTPUT);
+    const imageBytes = Buffer.from(encoded, "base64");
+    if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.INVALID_OUTPUT);
+
+    phase = "storage_upload";
+    const uploadController = new AbortController();
+    const uploadTimer = setTimeout(() => uploadController.abort(), remainingDeadlineMs(deadlineAt));
+    try {
+      const uploadUrl = await createRecipePhotoSignedUrl(ownerExternalId, row.image_id, "PUT", 15 * 60);
+      const upload = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
+        body: imageBytes,
+        signal: uploadController.signal,
+      });
+      if (uploadController.signal.aborted) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.STORAGE_UPLOAD_TIMEOUT);
+      if (!upload.ok) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.STORAGE_UPLOAD);
+      uploadCompleted = true;
+    } catch (error) {
+      if (error instanceof RecipeMediaGenerationError) throw error;
+      if (isAbortError(error) || uploadController.signal.aborted) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.STORAGE_UPLOAD_TIMEOUT);
+      throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.STORAGE_UPLOAD);
+    } finally {
+      clearTimeout(uploadTimer);
+    }
+
+    phase = "database_transition";
+    try {
+      return toRecipeMediaResource(await updateRecipeMediaStored(ownerExternalId, row.id, row.attempts));
+    } catch {
+      throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.DATABASE_TRANSITION);
+    }
   } catch (error) {
-    const code = error instanceof Error && error.name === "AbortError"
-      ? "generation_timeout"
-      : error instanceof Error && /^image_provider_|^recipe_media_upload_/.test(error.message)
-        ? error.message
-        : "generation_unavailable";
-    await markRecipeMediaError(ownerExternalId, row.id, code, row.attempts).catch(() => undefined);
-    logger.warn({ ...safeErrorDetails(error), mediaId: row.id, code }, "Recipe media generation failed");
+    const category = error instanceof RecipeMediaGenerationError ? error.category : RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_RESPONSE;
+    const reconciliation = await markRecipeMediaError(ownerExternalId, row.id, category, row.attempts)
+      .then((recorded) => recorded ? "retryable_error_recorded" : "reconciliation_unverified")
+      .catch(() => "reconciliation_unverified");
+    logger.warn({ event: "recipe_media_generation_failed", correlationId: correlation, category, phase, uploadCompleted, reconciliation, ...safeErrorDetails(error) }, "Recipe media generation failed");
     throw error;
-  } finally {
-    clearTimeout(timer);
   }
 }
