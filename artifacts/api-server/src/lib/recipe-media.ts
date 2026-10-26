@@ -238,12 +238,13 @@ export async function issueRecipeMediaUrlState(ownerExternalId: string, mediaId:
   return result.rows[0];
 }
 
-export async function markRecipeMediaError(ownerExternalId: string, mediaId: string, code: string, claimedAttempt?: number): Promise<void> {
-  await pool.query(
+export async function markRecipeMediaError(ownerExternalId: string, mediaId: string, code: string, claimedAttempt?: number): Promise<boolean> {
+  const result = await pool.query(
     `UPDATE calora_recipe_media SET status = 'retryable_error', last_error_code = $3, updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2
         AND ($4::integer IS NULL OR attempts = $4)`, [mediaId, ownerExternalId, code.slice(0, 80), claimedAttempt ?? null],
   );
+  return (result.rowCount ?? 0) > 0;
 }
 
 export async function findOwnerRecipeMedia(ownerExternalId: string, options: { mediaId?: string; imageId?: string; clientRecipeId?: string } = {}): Promise<RecipeMediaRow | null> {
