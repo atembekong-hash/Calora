@@ -626,7 +626,12 @@ test("workflow confines privileged values to trusted Node steps, retains protect
 test("CLI failure output contains only a structured sanitized report", () => {
   const result = spawnSync(
     process.execPath,
-    ["scripts/production-recipe-image-qa.mjs"],
+    [
+      path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "production-recipe-image-qa.mjs",
+      ),
+    ],
     {
       cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
       encoding: "utf8",
