@@ -50,7 +50,13 @@ function safeProviderDiagnostics(error: unknown): {
   providerType?: string;
 } {
   if (!error || typeof error !== "object") return {};
-  const value = error as { status?: unknown; code?: unknown; type?: unknown };
+  const value = error as {
+    status?: unknown;
+    code?: unknown;
+    type?: unknown;
+    error?: { code?: unknown; type?: unknown };
+  };
+  const nested = value.error && typeof value.error === "object" ? value.error : {};
   const diagnostics: {
     providerStatus?: number;
     providerCode?: string;
@@ -64,7 +70,11 @@ function safeProviderDiagnostics(error: unknown): {
   ) {
     diagnostics.providerStatus = value.status;
   }
-  for (const [key, candidate] of [["providerCode", value.code], ["providerType", value.type]] as const) {
+  for (const [key, candidates] of [
+    ["providerCode", [value.code, nested.code]],
+    ["providerType", [value.type, nested.type]],
+  ] as const) {
+    const candidate = candidates.find((item) => typeof item === "string");
     if (
       typeof candidate === "string"
       && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(candidate)
