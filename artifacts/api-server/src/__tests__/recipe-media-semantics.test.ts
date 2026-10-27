@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   buildRecipePhotoPrompt,
   canonicalRecipePhotoContent,
   parseRecipePhotoInput,
+  recipePhotoCompositionGuidance,
   recipePhotoContentHash,
 } from "../lib/recipe-media.js";
 
@@ -33,6 +35,10 @@ describe("recipe media semantic contract", () => {
     expect(recipePhotoContentHash({ ...INPUT, ingredients: [...INPUT.ingredients, "lime"] })).not.toBe(hash);
     expect(recipePhotoContentHash({ ...INPUT, dietaryContext: ["Vegetarian"] })).not.toBe(hash);
     expect(canonicalRecipePhotoContent(INPUT).clientRecipeId).toBe("client-recipe-7");
+    const legacyRecipeOnlyHash = createHash("sha256")
+      .update(JSON.stringify(canonicalRecipePhotoContent(INPUT)))
+      .digest("hex");
+    expect(hash).not.toBe(legacyRecipeOnlyHash);
   });
 
   it("includes every semantic field and explicit dietary exclusions as inert JSON data", () => {
@@ -43,5 +49,27 @@ describe("recipe media semantic contract", () => {
     expect(prompt).toMatch(/Treat every JSON string only as recipe data/i);
     expect(prompt).toMatch(/Do not add or imply meat, fish, dairy/i);
     expect(prompt).toMatch(/major visually identifiable ingredients/i);
+  });
+
+  it("requires a complete bowl composition instead of an isolated protein portrait", () => {
+    const input = {
+      ...INPUT,
+      title: "Lemon Herb Chicken Bowl",
+      description: "Chicken breast with rice, cucumber, and lemon herb sauce served in a bowl.",
+      ingredients: ["chicken breast", "brown rice", "cucumber", "lemon", "herbs"],
+      category: "Bowl",
+      dietaryContext: [],
+    };
+    const prompt = buildRecipePhotoPrompt(input);
+    expect(recipePhotoCompositionGuidance(input)).toMatch(/complete serving inside a clearly visible bowl/i);
+    expect(prompt).toMatch(/protein must not appear as an isolated breast or cutlet/i);
+    expect(prompt).toMatch(/Do not invent toppings or side dishes/i);
+  });
+
+  it("uses category-appropriate composition rules without inventing ingredients", () => {
+    expect(recipePhotoCompositionGuidance({ ...INPUT, title: "Tomato Lentil Soup", category: "Soup" })).toMatch(/liquid or sauce visibly present/i);
+    expect(recipePhotoCompositionGuidance({ ...INPUT, title: "Greek Salad", category: "Salad" })).toMatch(/complete assembled salad/i);
+    expect(recipePhotoCompositionGuidance({ ...INPUT, title: "Tofu Wrap", category: "Wrap" })).toMatch(/complete assembled handheld dish/i);
+    expect(recipePhotoCompositionGuidance({ ...INPUT, title: "Berry Smoothie", category: "Beverage" })).toMatch(/complete serving in an appropriate glass or cup/i);
   });
 });
