@@ -178,9 +178,11 @@ describe("recipe media generation diagnostics", () => {
   it("retains only bounded provider HTTP diagnostics", async () => {
     const error = Object.assign(new Error("provider body must not leak"), {
       status: 400,
-      code: "invalid_image_request",
-      type: "invalid_request_error",
-      error: { message: "secret provider response body" },
+      error: {
+        message: "secret provider response body",
+        code: "invalid_image_request",
+        type: "invalid_request_error",
+      },
     });
     generate.mockRejectedValueOnce(error);
 
