@@ -11,10 +11,14 @@ describe("tab bar labels", () => {
     expect(layoutSource).not.toContain("tabBarShowLabel: false");
     expect(layoutSource).toContain("styles.scanTabLabel");
     expect(layoutSource).toMatch(/>\s*Scan\s*<\/Text>/);
-    expect(layoutSource).toMatch(/title: ["']Home["']/);
+    expect(layoutSource).toMatch(/title: ["']Today["']/);
     expect(layoutSource).toMatch(/title: ["']Recipes["']/);
-    expect(layoutSource).toMatch(/title: ["']Progress["']/);
     expect(layoutSource).toMatch(/title: ["']Plan["']/);
+    expect(layoutSource).toMatch(/title: ["']More["']/);
+    expect(layoutSource).toContain('name="insights" options={{ href: null }}');
+
+    const names = [...layoutSource.matchAll(/name="(index|recipes|scan|planner|more)"/g)].map((match) => match[1]);
+    expect(names).toEqual(['index', 'recipes', 'scan', 'planner', 'more']);
   });
 
   it("reserves an inset-aware native bar for the raised Scan label", () => {

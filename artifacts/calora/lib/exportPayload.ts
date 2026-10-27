@@ -66,6 +66,8 @@ export interface CaloraExportState {
   plannerPreferences: unknown;
   fontSizeScale: unknown;
   profilePhotoUri: string | null;
+  fasting?: unknown;
+  dashboardPreferences?: unknown;
 }
 
 export type PortableProfilePhoto =

@@ -1376,6 +1376,39 @@ export default function ProfileScreen() {
                   colors={colors}
                   updateProfile={updateProfile}
                 />
+                <Animated.View entering={enterMotion("screen", 1)}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 18 }]}>Personalization</Text>
+                  {[
+                    {
+                      icon: "layout" as const,
+                      title: "Customize dashboard",
+                      body: "Choose the insights shown on Today.",
+                      onPress: () => router.push("/dashboard-layout"),
+                    },
+                    {
+                      icon: "bookmark" as const,
+                      title: "Saved meals",
+                      body: `${savedMeals.length} saved meal${savedMeals.length === 1 ? "" : "s"} ready to reuse.`,
+                      onPress: () => router.push("/saved-meals"),
+                    },
+                  ].map((item) => (
+                    <SettingRowPressable
+                      key={item.title}
+                      onPress={item.onPress}
+                      disabled={false}
+                      style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    >
+                      <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
+                        <Feather name={item.icon} size={17} color={colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.settingTitle, { color: colors.foreground }]}>{item.title}</Text>
+                        <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{item.body}</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                    </SettingRowPressable>
+                  ))}
+                </Animated.View>
                 {profileSyncError && (
                   <Pressable
                     accessibilityRole="button"

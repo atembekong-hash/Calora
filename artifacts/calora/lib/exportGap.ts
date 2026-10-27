@@ -30,6 +30,8 @@ import {
   normalizeNotificationPreferences,
   type LocalNotificationPreferences,
 } from './notificationPreferences';
+import { EMPTY_FASTING_STATE } from './fasting';
+import { DEFAULT_DASHBOARD_PREFERENCES } from './dashboardPreferences';
 
 // ---------------------------------------------------------------------------
 // makeClearedExportSnapshot
@@ -107,6 +109,8 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     plannerPreferences:   null,
     fontSizeScale:         'default',
     profilePhotoUri:       null,
+    fasting:               { ...EMPTY_FASTING_STATE, history: [] },
+    dashboardPreferences:  { ...DEFAULT_DASHBOARD_PREFERENCES, visible: [...DEFAULT_DASHBOARD_PREFERENCES.visible], order: [...DEFAULT_DASHBOARD_PREFERENCES.order], density: { ...DEFAULT_DASHBOARD_PREFERENCES.density } },
   };
 }
 
