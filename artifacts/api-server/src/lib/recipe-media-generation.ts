@@ -4,6 +4,7 @@ import { logger, safeErrorDetails } from "./logger.js";
 import { createRecipePhotoSignedUrl } from "./recipe-photo-storage.js";
 import {
   RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS,
+  RECIPE_MEDIA_MODEL,
   RECIPE_MEDIA_URL_TTL_SECS,
   buildRecipePhotoPrompt,
   issueRecipeMediaUrlState,
@@ -123,7 +124,7 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
     let generated: { data?: Array<{ b64_json?: string | null }> };
     try {
       generated = await openai.images.generate({
-        model: "gpt-image-1",
+        model: RECIPE_MEDIA_MODEL,
         prompt: buildRecipePhotoPrompt(row.recipe_payload),
         size: "1024x1024",
         quality: "low",

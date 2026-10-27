@@ -19,6 +19,7 @@ vi.mock("../lib/recipe-photo-storage.js", () => ({
 }));
 
 vi.mock("../lib/recipe-media.js", () => ({
+  RECIPE_MEDIA_MODEL: "gpt-image-2.5-flare",
   RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS: 900,
   RECIPE_MEDIA_URL_TTL_SECS: 3600,
   buildRecipePhotoPrompt: vi.fn(() => "safe prompt"),
@@ -54,7 +55,7 @@ const ROW = {
   image_id: "22222222-2222-4222-8222-222222222222",
   object_key:
     "private/recipe-photos/owner/22222222-2222-4222-8222-222222222222.png",
-  model_version: "gpt-image-1:low:1024:v1",
+  model_version: "gpt-image-2.5-flare:low:1024:v1",
   prompt_version: "recipe-photo-semantic-v2",
   status: "generating",
   semantic_review_state: "needs_review",
