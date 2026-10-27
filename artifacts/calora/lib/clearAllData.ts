@@ -126,6 +126,8 @@ export interface ClearAllDataCtx {
   setPendingPlannerAck: Setter;
   /** Resets the persisted plan type preference so the user must re-select after clearing. */
   setPlannerPreferences: Setter;
+  setFasting?: Setter;
+  setDashboardPreferences?: Setter;
 }
 
 /**
@@ -184,4 +186,10 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   ctx.setCoachMessages([]);
   ctx.setGoalCelebrationSeenTargetKg(null);
   ctx.setPlannerPreferences(null);
+  ctx.setFasting?.({ selectedPlanId: '12:12', activeStartedAt: null, activePlannedHours: null, history: [] });
+  ctx.setDashboardPreferences?.({
+    visible: ['calories', 'steps', 'water', 'weight', 'mealRhythm', 'nutrients', 'fasting'],
+    order: ['calories', 'steps', 'water', 'weight', 'mealRhythm', 'nutrients', 'fasting'],
+    density: { calories: 'expanded', steps: 'compact', water: 'compact', weight: 'compact', mealRhythm: 'compact', nutrients: 'expanded', fasting: 'compact' },
+  });
 }

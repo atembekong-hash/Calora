@@ -105,6 +105,7 @@ import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { ConfirmedDeletionControl } from '@/components/ConfirmedDeletionControl';
 import { isLiveSessionOnly, type LiveStepTrackingState } from '@/lib/steps/stepTracking';
+import { deriveFastingProgress, formatFastingDuration } from '@/lib/fasting';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -1558,13 +1559,51 @@ function makeGaugeStyles(f: number) {
 }
 const gaugeStyles = makeGaugeStyles(1.0);
 
+function DashboardFastingCard({
+  colors,
+  fontScale,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  fontScale: number;
+}) {
+  const { fasting } = useCalora();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const status = deriveFastingProgress(fasting, now);
+  return (
+    <ScalePressable
+      accessibilityRole="button"
+      accessibilityLabel="Open fasting"
+      onPress={() => router.push('/fasting')}
+      style={[styles.dashboardFastingCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={[styles.dashboardFastingIcon, { backgroundColor: 'rgba(36,164,104,0.12)' }]}>
+        <Feather name="clock" size={20} color={colors.success} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
+        <Text style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>
+          {status.active
+            ? `${formatFastingDuration(status.elapsedMs)} elapsed · ${formatFastingDuration(status.remainingMs)} remaining`
+            : 'Optional time-restricted eating that fits your routine.'}
+        </Text>
+      </View>
+      <Text style={[styles.dashboardFastingAction, { color: colors.success, fontSize: 11 * fontScale }]}>{status.active ? 'View' : 'Set up'}</Text>
+      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+    </ScalePressable>
+  );
+}
+
 export default function HomeScreen() {
   const {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
     livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
     startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated, hydrationError, retryHydration, isRetrying,
-    updateProfile,
+    updateProfile, dashboardPreferences,
   } = useCalora();
   const insets = useSafeAreaInsets();
   const homeHeaderImage = useHourlyHeaderImage('home');
@@ -1824,6 +1863,15 @@ export default function HomeScreen() {
         }
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Customize Today dashboard"
+          onPress={() => router.push('/dashboard-layout')}
+          style={[styles.dashboardCustomLink, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Feather name="sliders" size={15} color={colors.primary} />
+          <Text style={[styles.dashboardCustomLinkText, { color: colors.primary }]}>Customize Today</Text>
+        </Pressable>
         <View style={styles.homeHeader}>
            <Image key={homeHeaderImage.hourSlot} source={homeHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
@@ -1902,7 +1950,7 @@ export default function HomeScreen() {
           </ScalePressable>
         </View>
 
-        {isViewingToday && (
+        {isViewingToday && dashboardPreferences.visible.includes('steps') && (
           <StepsTodayCard
             colors={colors}
             tracking={liveStepTracking}
@@ -1932,7 +1980,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <WaterCard
+        {dashboardPreferences.order.map((widgetId) => {
+          if (!dashboardPreferences.visible.includes(widgetId)) return null;
+          if (widgetId === 'water') return (
+            <View key={widgetId} style={dashboardPreferences.density[widgetId] === 'compact' ? styles.dashboardCompactWidget : undefined}>
+<WaterCard
           colors={colors}
           waterOunces={selectedWater}
           waterConfirmed={waterConfirmed}
@@ -1960,8 +2012,16 @@ export default function HomeScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }}
         />
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            </View>
+          );
+          if (widgetId === 'fasting') return (
+            <View key={widgetId} style={dashboardPreferences.density[widgetId] === 'compact' ? styles.dashboardCompactWidget : undefined}>
+              <DashboardFastingCard colors={colors} fontScale={fontScale} />
+            </View>
+          );
+          if (widgetId === 'nutrients') return (
+            <View key={widgetId} style={dashboardPreferences.density[widgetId] === 'compact' ? styles.dashboardCompactWidget : undefined}>
+<View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
@@ -1982,6 +2042,22 @@ export default function HomeScreen() {
           <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} />
           <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} />
         </View>
+            </View>
+          );
+          if (widgetId === 'mealRhythm') return (
+            <View key={widgetId} style={dashboardPreferences.density[widgetId] === 'compact' ? styles.dashboardCompactWidget : undefined}>
+              <LivingRhythmCard
+          colors={colors}
+          livingState={livingState}
+          waterOunces={selectedWater}
+          mealsLogged={mealsLogged}
+          selectedDate={selectedDate}
+          onAddMeal={openAdd}
+        />
+            </View>
+          );
+          return null;
+        })}
 
         <MoodCard
           colors={colors}
@@ -2032,15 +2108,6 @@ export default function HomeScreen() {
             </View>
           </Surface>
         ) : null}
-
-        <LivingRhythmCard
-          colors={colors}
-          livingState={livingState}
-          waterOunces={selectedWater}
-          mealsLogged={mealsLogged}
-          selectedDate={selectedDate}
-          onAddMeal={openAdd}
-        />
 
         <View style={styles.recipeSection}>
           <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
@@ -2120,6 +2187,14 @@ function makeStyles(f: number) {
     homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateY: 2 }] },
     homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
+  dashboardCustomLink: { alignSelf: 'flex-end', minHeight: 32, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, marginBottom: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dashboardCustomLinkText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  dashboardFastingCard: { minHeight: 74, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardFastingIcon: { height: 40, width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
+  dashboardFastingCopy: { fontFamily: 'Inter_500Medium', marginTop: 3, lineHeight: 15 },
+  dashboardFastingAction: { fontFamily: 'Inter_700Bold' },
+  dashboardCompactWidget: { marginBottom: -6 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
   dateKicker: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
   greeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8 },

@@ -1514,6 +1514,8 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     plannerPreferences:   null,
     fontSizeScale:        'large',
     profilePhotoUri:      '/photo.jpg',
+    fasting:              { selectedPlanId: '16:8', activeStartedAt: '2026-08-07T08:00:00.000Z', activePlannedHours: 16, history: [] },
+    dashboardPreferences: { visible: ['calories', 'water'], order: ['water', 'calories'], density: { calories: 'expanded', steps: 'compact', water: 'compact', weight: 'compact', mealRhythm: 'compact', nutrients: 'expanded', fasting: 'compact' } },
   };
 
   it('resolveExportData with a non-null ref returns cleared snapshot — ref priority wins over stale closed-over state', () => {
@@ -1588,6 +1590,8 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     expect(snap.consentAccepted).toBe(false);
     expect(snap.coachConsentAccepted).toBe(false);
     expect(snap.coachMessages).toEqual([]);
+    expect(snap.fasting).toMatchObject({ activeStartedAt: null, history: [] });
+    expect(snap.dashboardPreferences).toMatchObject({ visible: expect.arrayContaining(['calories']) });
   });
 
   it('FIELD EXHAUSTIVENESS GUARD — cleared snapshot key set matches CaloraExportState exactly, no more and no less', () => {

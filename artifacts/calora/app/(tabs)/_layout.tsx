@@ -76,7 +76,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Today',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon focused={focused}>
               {isIOS ? <SymbolView name="house" tintColor={color} size={24} /> : <Feather name="home" size={22} color={color} />}
@@ -125,17 +125,6 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="insights"
-        options={{
-          title: 'Progress',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused}>
-              {isIOS ? <SymbolView name="chart.bar.xaxis" tintColor={color} size={23} /> : <Feather name="bar-chart-2" size={22} color={color} />}
-            </AnimatedTabIcon>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="planner"
         options={{
           title: 'Plan',
@@ -146,6 +135,18 @@ function ClassicTabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: 'More',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="ellipsis.circle" tintColor={color} size={23} /> : <Feather name="more-horizontal" size={23} color={color} />}
+            </AnimatedTabIcon>
+          ),
+        }}
+      />
+      <Tabs.Screen name="insights" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );

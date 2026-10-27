@@ -438,7 +438,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('gaugeStyles.remainingNumber, { color: colors.strongForeground }');
   });
 
-  it('mounts a single secondary Today insight between the diary footer and living picture card', async () => {
+  it('mounts a single secondary Today insight after the diary footer and before recipe discovery', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -448,7 +448,8 @@ describe('Today dashboard — date context and display contracts', () => {
 
     expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
     expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
-    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('<LivingRhythmCard'));
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('styles.recipeSection'));
+    expect(source).toContain("widgetId === 'mealRhythm'");
     expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
     expect(source).toContain('selectVisibleTodayInsight');
   });
