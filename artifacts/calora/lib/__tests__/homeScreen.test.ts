@@ -17,20 +17,20 @@
  * covered by the effect descriptors ('navigate' / 'open_add_food').
  */
 
-import { describe, expect, it } from 'vitest';
-import { deriveLivingState } from '../livingState';
-import { resolveLivingActionEffect } from '../livingActionHandler';
-import type { FoodLog, Profile } from '@/context/CaloraContext';
+import { describe, expect, it } from "vitest";
+import { deriveLivingState } from "../livingState";
+import { resolveLivingActionEffect } from "../livingActionHandler";
+import type { FoodLog, Profile } from "@/context/CaloraContext";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
 // ---------------------------------------------------------------------------
 
 const profile: Profile = {
-  name: 'Casey',
-  goal: 'maintain',
-  activity: 'moderate',
-  diet: 'Everything',
+  name: "Casey",
+  goal: "maintain",
+  activity: "moderate",
+  diet: "Everything",
   heightCm: 170,
   weightKg: 72,
   targetWeightKg: 72,
@@ -38,7 +38,7 @@ const profile: Profile = {
   calorieTarget: 2000,
 };
 
-const meal = (date: string, kind: FoodLog['meal']): FoodLog => ({
+const meal = (date: string, kind: FoodLog["meal"]): FoodLog => ({
   id: `${date}-${kind}`,
   name: kind,
   date,
@@ -47,21 +47,21 @@ const meal = (date: string, kind: FoodLog['meal']): FoodLog => ({
   protein: 25,
   carbs: 45,
   fat: 14,
-  source: 'USDA verified',
+  source: "USDA verified",
   confidence: 95,
-  time: '12:00 PM',
-  serving: '1 serving',
+  time: "12:00 PM",
+  serving: "1 serving",
 });
 
 // ---------------------------------------------------------------------------
 // 1. Button presence — unconditional render
 // ---------------------------------------------------------------------------
 
-describe('living-state-action button — static render guarantee', () => {
-  it('is not behind any conditional guard in the HomeScreen source', async () => {
+describe("living-state-action button — static render guarantee", () => {
+  it("is not behind any conditional guard in the HomeScreen source", async () => {
     /**
      * The button at testID="living-state-action" sits directly inside the
- * fuel card View without any surrounding conditional expression.
+     * fuel card View without any surrounding conditional expression.
      * We verify this by reading the source and confirming the testID appears
      * exactly once, outside of any `{condition &&` or ternary guard.
      *
@@ -69,11 +69,11 @@ describe('living-state-action button — static render guarantee', () => {
      * would be caught by the component test below (which would fail to find
      * the element) or by the grep assertion here.
      */
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
     // The testID must be present exactly once.
@@ -82,7 +82,7 @@ describe('living-state-action button — static render guarantee', () => {
 
     // The line containing the testID must NOT be immediately preceded by a
     // short-circuit `&&` or ternary `?` operator on the same element opening.
-    const lines = source.split('\n');
+    const lines = source.split("\n");
     const lineIndex = lines.findIndex((line) =>
       line.includes('testID="living-state-action"'),
     );
@@ -95,22 +95,26 @@ describe('living-state-action button — static render guarantee', () => {
   });
 });
 
-describe('Home profile avatar renderer', () => {
-  it('routes the header avatar through ProfilePhoto rather than directly rendering profilePhotoUri', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+describe("Home profile avatar renderer", () => {
+  it("routes the header avatar through ProfilePhoto rather than directly rendering profilePhotoUri", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
     const avatarStart = source.indexOf('accessibilityLabel="Profile shortcut"');
-    const avatarEnd = source.indexOf('</Pressable>', avatarStart);
+    const avatarEnd = source.indexOf("</Pressable>", avatarStart);
     const avatarSection = source.slice(avatarStart, avatarEnd);
 
-    expect(source).toContain("import { ProfilePhoto } from '@/components/ProfilePhoto'");
-    expect(avatarSection).toContain('<ProfilePhoto');
-    expect(avatarSection).toContain('uri={profilePhotoUri}');
-    expect(avatarSection).not.toContain('<Image source={{ uri: profilePhotoUri }}');
+    expect(source).toContain(
+      "import { ProfilePhoto } from '@/components/ProfilePhoto'",
+    );
+    expect(avatarSection).toContain("<ProfilePhoto");
+    expect(avatarSection).toContain("uri={profilePhotoUri}");
+    expect(avatarSection).not.toContain(
+      "<Image source={{ uri: profilePhotoUri }}",
+    );
   });
 });
 
@@ -118,8 +122,8 @@ describe('Home profile avatar renderer', () => {
 // 2. First-launch → log_meal → opens Add Food modal
 // ---------------------------------------------------------------------------
 
-describe('living-state-action — first launch (no history)', () => {
-  it('deriveLivingState produces action.kind === log_meal for a brand-new user', () => {
+describe("living-state-action — first launch (no history)", () => {
+  it("deriveLivingState produces action.kind === log_meal for a brand-new user", () => {
     const state = deriveLivingState({
       profile: null,
       logs: [],
@@ -129,19 +133,19 @@ describe('living-state-action — first launch (no history)', () => {
       repeatPatterns: [],
       plannerMeals: [],
       onboardingComplete: false,
-      now: new Date('2026-08-07T08:00:00.000Z'),
+      now: new Date("2026-08-07T08:00:00.000Z"),
     });
 
-    expect(state.routineStage).toBe('first_day');
-    expect(state.action.kind).toBe('log_meal');
+    expect(state.routineStage).toBe("first_day");
+    expect(state.action.kind).toBe("log_meal");
   });
 
-  it('resolveLivingActionEffect maps log_meal to open_add_food', () => {
-    const effect = resolveLivingActionEffect('log_meal');
-    expect(effect).toEqual({ kind: 'open_add_food' });
+  it("resolveLivingActionEffect maps log_meal to open_add_food", () => {
+    const effect = resolveLivingActionEffect("log_meal");
+    expect(effect).toEqual({ kind: "open_add_food" });
   });
 
-  it('first-launch action label is set for the morning period', () => {
+  it("first-launch action label is set for the morning period", () => {
     const state = deriveLivingState({
       profile: null,
       logs: [],
@@ -151,10 +155,10 @@ describe('living-state-action — first launch (no history)', () => {
       repeatPatterns: [],
       plannerMeals: [],
       onboardingComplete: false,
-      now: new Date('2026-08-07T08:30:00.000Z'),
+      now: new Date("2026-08-07T08:30:00.000Z"),
     });
 
-    expect(state.action.label).toBe('Log breakfast');
+    expect(state.action.label).toBe("Log breakfast");
   });
 });
 
@@ -162,17 +166,18 @@ describe('living-state-action — first launch (no history)', () => {
 // 3. Reflection-ready evening → view_progress → navigates to insights
 // ---------------------------------------------------------------------------
 
-describe('living-state-action — reflection-ready evening', () => {
-  const sevenDays = Array.from({ length: 7 }, (_, i) =>
-    `2026-08-${String(i + 1).padStart(2, '0')}`,
+describe("living-state-action — reflection-ready evening", () => {
+  const sevenDays = Array.from(
+    { length: 7 },
+    (_, i) => `2026-08-${String(i + 1).padStart(2, "0")}`,
   );
   const allLogs = sevenDays.flatMap((date) => [
-    meal(date, 'Breakfast'),
-    meal(date, 'Lunch'),
-    meal(date, 'Dinner'),
+    meal(date, "Breakfast"),
+    meal(date, "Lunch"),
+    meal(date, "Dinner"),
   ]);
 
-  it('deriveLivingState produces action.kind === view_progress for a consistent evening', () => {
+  it("deriveLivingState produces action.kind === view_progress for a consistent evening", () => {
     const state = deriveLivingState({
       profile,
       logs: allLogs,
@@ -182,17 +187,17 @@ describe('living-state-action — reflection-ready evening', () => {
       repeatPatterns: [],
       plannerMeals: [],
       onboardingComplete: true,
-      now: new Date('2026-08-07T20:00:00.000Z'),
+      now: new Date("2026-08-07T20:00:00.000Z"),
     });
 
-    expect(state.routineStage).toBe('consistent');
-    expect(state.category).toBe('reflection_ready');
-    expect(state.action.kind).toBe('view_progress');
+    expect(state.routineStage).toBe("consistent");
+    expect(state.category).toBe("reflection_ready");
+    expect(state.action.kind).toBe("view_progress");
   });
 
-  it('resolveLivingActionEffect maps view_progress to navigate insights route', () => {
-    const effect = resolveLivingActionEffect('view_progress');
-    expect(effect).toEqual({ kind: 'navigate', route: '/(tabs)/insights' });
+  it("resolveLivingActionEffect maps view_progress to navigate insights route", () => {
+    const effect = resolveLivingActionEffect("view_progress");
+    expect(effect).toEqual({ kind: "navigate", route: "/(tabs)/insights" });
   });
 });
 
@@ -200,56 +205,60 @@ describe('living-state-action — reflection-ready evening', () => {
 // 3b. Afternoon low-water → add_water → does NOT open the Add Food modal
 // ---------------------------------------------------------------------------
 
-describe('living-state-action — afternoon low-water check-in', () => {
+describe("living-state-action — afternoon low-water check-in", () => {
   // Build a user who has logged consistently for several days, has lunch today,
   // but only has 8 oz of water logged — below the 16 oz threshold that triggers
   // the hydration nudge in the afternoon period (14:00–17:59 UTC).
-  const sevenDays = Array.from({ length: 7 }, (_, i) =>
-    `2026-08-${String(i + 1).padStart(2, '0')}`,
+  const sevenDays = Array.from(
+    { length: 7 },
+    (_, i) => `2026-08-${String(i + 1).padStart(2, "0")}`,
   );
-  const today = '2026-08-07';
+  const today = "2026-08-07";
   const pastDays = sevenDays.filter((d) => d !== today);
 
   // Breakfast + Lunch + Dinner for every past day; Breakfast + Lunch for today.
   const allLogs = [
     ...pastDays.flatMap((date) => [
-      meal(date, 'Breakfast'),
-      meal(date, 'Lunch'),
-      meal(date, 'Dinner'),
+      meal(date, "Breakfast"),
+      meal(date, "Lunch"),
+      meal(date, "Dinner"),
     ]),
-    meal(today, 'Breakfast'),
-    meal(today, 'Lunch'),
+    meal(today, "Breakfast"),
+    meal(today, "Lunch"),
   ];
 
-  it('deriveLivingState produces action.kind === add_water for afternoon + low water', () => {
+  it("deriveLivingState produces action.kind === add_water for afternoon + low water", () => {
     const state = deriveLivingState({
       profile,
       logs: allLogs,
       // 8 oz today — below the 16 oz threshold
-      waterLogs: { ...Object.fromEntries(pastDays.map((d) => [d, 48])), [today]: 8 },
+      waterLogs: {
+        ...Object.fromEntries(pastDays.map((d) => [d, 48])),
+        [today]: 8,
+      },
       moodLogs: {},
       activityLogs: {},
       repeatPatterns: [],
       plannerMeals: [],
       onboardingComplete: true,
       // 15:30 — firmly inside the 'afternoon' period (14:00–17:59)
-      now: new Date('2026-08-07T15:30:00.000Z'),
+      now: new Date("2026-08-07T15:30:00.000Z"),
     });
 
-    expect(state.timePeriod).toBe('afternoon');
+    expect(state.timePeriod).toBe("afternoon");
     expect(state.signal.waterToday).toBe(8);
-    expect(state.action.kind).toBe('add_water');
-    expect(state.action.label).toBe('Add 8 fl oz');
+    expect(state.action.kind).toBe("add_water");
+    expect(state.action.label).toBe("Add 8 fl oz");
   });
 
-  it('resolveLivingActionEffect maps add_water to { kind: add_water, ounces: 8 }', () => {
-    const effect = resolveLivingActionEffect('add_water');
-    expect(effect).toEqual({ kind: 'add_water', ounces: 8 });
+  it("resolveLivingActionEffect maps add_water to { kind: add_water, ounces: 8 }", () => {
+    const effect = resolveLivingActionEffect("add_water");
+    expect(effect).toEqual({ kind: "add_water", ounces: 8 });
   });
 
-  it('resolveLivingActionEffect does NOT return open_add_food for add_water', () => {
-    const effect = resolveLivingActionEffect('add_water');
-    expect(effect.kind).not.toBe('open_add_food');
+  it("resolveLivingActionEffect does NOT return open_add_food for add_water", () => {
+    const effect = resolveLivingActionEffect("add_water");
+    expect(effect.kind).not.toBe("open_add_food");
   });
 });
 
@@ -257,29 +266,31 @@ describe('living-state-action — afternoon low-water check-in', () => {
 // 4. Full dispatch matrix — all four LivingAction kinds
 // ---------------------------------------------------------------------------
 
-describe('resolveLivingActionEffect — full dispatch matrix', () => {
-  it('log_meal → open_add_food', () => {
-    expect(resolveLivingActionEffect('log_meal')).toEqual({ kind: 'open_add_food' });
+describe("resolveLivingActionEffect — full dispatch matrix", () => {
+  it("log_meal → open_add_food", () => {
+    expect(resolveLivingActionEffect("log_meal")).toEqual({
+      kind: "open_add_food",
+    });
   });
 
-  it('add_water → add_water with 8 ounces', () => {
-    expect(resolveLivingActionEffect('add_water')).toEqual({
-      kind: 'add_water',
+  it("add_water → add_water with 8 ounces", () => {
+    expect(resolveLivingActionEffect("add_water")).toEqual({
+      kind: "add_water",
       ounces: 8,
     });
   });
 
-  it('view_progress → navigate to insights tab', () => {
-    expect(resolveLivingActionEffect('view_progress')).toEqual({
-      kind: 'navigate',
-      route: '/(tabs)/insights',
+  it("view_progress → navigate to insights tab", () => {
+    expect(resolveLivingActionEffect("view_progress")).toEqual({
+      kind: "navigate",
+      route: "/(tabs)/insights",
     });
   });
 
-  it('open_planner → navigate to planner tab', () => {
-    expect(resolveLivingActionEffect('open_planner')).toEqual({
-      kind: 'navigate',
-      route: '/(tabs)/planner',
+  it("open_planner → navigate to planner tab", () => {
+    expect(resolveLivingActionEffect("open_planner")).toEqual({
+      kind: "navigate",
+      route: "/(tabs)/planner",
     });
   });
 });
@@ -288,26 +299,28 @@ describe('resolveLivingActionEffect — full dispatch matrix', () => {
 // 5. Today dashboard hierarchy and precision
 // ---------------------------------------------------------------------------
 
-describe('Today dashboard — date context and display contracts', () => {
-  it('keeps exactly one selected-day navigator and removes the planned-for-today widget', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+describe("Today dashboard — date context and display contracts", () => {
+  it("keeps exactly one selected-day navigator and removes the planned-for-today widget", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source.split('accessibilityLabel="Previous diary day"').length - 1).toBe(1);
-    expect(source).not.toContain('PlannerPeek');
-    expect(source).not.toContain('planned for today');
+    expect(
+      source.split('accessibilityLabel="Previous diary day"').length - 1,
+    ).toBe(1);
+    expect(source).not.toContain("PlannerPeek");
+    expect(source).not.toContain("planned for today");
   });
 
-  it('opens a calendar picker from the date selector and restores today from past dates', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("opens a calendar picker from the date selector and restores today from past dates", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
     expect(source).toContain('testID="open-calendar-date-picker"');
@@ -315,61 +328,74 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('testID="next-calendar-month"');
     expect(source).toContain('testID="back-to-today"');
     expect(source).toContain('testID="calendar-back-to-today"');
-    expect(source).toContain('setCalendarMonth(calendarMonthKey(selectedDate))');
-    expect(source).toContain('setSelectedDate(dateKey(new Date()))');
+    expect(source).toContain(
+      "setCalendarMonth(calendarMonthKey(selectedDate))",
+    );
+    expect(source).toContain("setSelectedDate(dateKey(new Date()))");
   });
 
-  it('keeps the Add meal sheet reachable on native and gives the verified list room to scroll', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps the Add meal sheet reachable on native and gives the verified list room to scroll", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('styles.addFoodModalCard');
-    expect(source).toContain("import { BottomSheet } from '@/components/BottomSheet'");
-    expect(source).toContain('<BottomSheet');
-    expect(source).toContain('sheetStyle={[styles.modalCard, styles.addFoodModalCard');
+    expect(source).toContain("styles.addFoodModalCard");
+    expect(source).toContain(
+      "import { BottomSheet } from '@/components/BottomSheet'",
+    );
+    expect(source).toContain("<BottomSheet");
+    expect(source).toContain(
+      "sheetStyle={[styles.modalCard, styles.addFoodModalCard",
+    );
     expect(source).toContain('keyboardShouldPersistTaps="handled"');
-    expect(source).toContain('nestedScrollEnabled');
+    expect(source).toContain("nestedScrollEnabled");
   });
 
-  it('keeps manual entry fixed below the scrollable food options', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps manual entry fixed below the scrollable food options", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
-    const manualFooter = source.indexOf('styles.manualEntryFooter');
+    const manualFooter = source.indexOf("styles.manualEntryFooter");
     const photoOption = source.indexOf('testID="photo-log-button"');
-    const verifiedLabel = source.indexOf('>VERIFIED</Text>');
+    const verifiedLabel = source.indexOf(">VERIFIED</Text>");
 
-    expect(source).toContain('<KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>');
-    expect(source).not.toContain('stickyHeaderIndices');
+    expect(source).toContain(
+      '<KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>',
+    );
+    expect(source).not.toContain("stickyHeaderIndices");
     expect(source).toContain('testID="voice-log-button"');
     expect(source).toContain("params: { date: entryDate, capture: 'voice' }");
     expect(source).toContain('testID="barcode-log-button"');
     expect(source).toContain("params: { date: entryDate, capture: 'barcode' }");
-    expect(source).toContain('styles.manualFooterRow');
-    expect(source).toContain('manualInput: { flex: 1, minWidth: 0');
+    expect(source).toContain("styles.manualFooterRow");
+    expect(source).toContain("manualInput: { flex: 1, minWidth: 0");
     expect(manualFooter).toBeGreaterThan(verifiedLabel);
     expect(manualFooter).toBeGreaterThan(photoOption);
     expect(photoOption).toBeLessThan(verifiedLabel);
   });
 
-  it('keeps the diary title and Add action inside the log card', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps the diary title and Add action inside the log card", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
-    const logCardStart = source.indexOf('styles.logCard');
-    const logCardHeader = source.indexOf('styles.logCardHeader');
-    const diaryTitle = source.indexOf('{isToday(selectedDate) ? \'Today’s log\' : \'Diary log\'}');
-    const addAction = source.indexOf('accessibilityLabel="Add meal"', logCardHeader);
+    const logCardStart = source.indexOf("styles.logCard");
+    const logCardHeader = source.indexOf("styles.logCardHeader");
+    const diaryTitle = source.indexOf(
+      "{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}",
+    );
+    const addAction = source.indexOf(
+      'accessibilityLabel="Add meal"',
+      logCardHeader,
+    );
 
     expect(logCardStart).toBeGreaterThan(-1);
     expect(logCardHeader).toBeGreaterThan(logCardStart);
@@ -377,242 +403,285 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(addAction).toBeGreaterThan(logCardHeader);
   });
 
-  it('opens the Health Data connection sheet directly from the calorie ring', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("opens the Health Data connection sheet directly from the calorie ring", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
     expect(source).toContain("router.push('/profile?tab=account&open=health')");
   });
 
-  it('records concrete clock times for every Home diary insertion path', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("records concrete clock times for every Home diary insertion path", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
     expect(source).not.toContain("time: 'Just now'");
-    expect(source.split('time: formatLogTime()').length - 1).toBe(3);
+    expect(source.split("time: formatLogTime()").length - 1).toBe(3);
   });
 
-  it('keeps the top greeting elevated without the removed bottom insight line', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps the top greeting elevated without the removed bottom insight line", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('paddingBottom: 26');
-    expect(source).not.toContain('styles.heroInsight');
-    expect(source).not.toContain('livingState.headline');
+    expect(source).toContain("paddingBottom: 26");
+    expect(source).not.toContain("styles.heroInsight");
+    expect(source).not.toContain("livingState.headline");
   });
 
-  it('enlarges only the calorie ring into the space above it', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("enlarges only the calorie ring into the space above it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('const CALORIE_RING_SCALE = 1.2');
-    expect(source).toContain('style={[gaugeStyles.ringLayer');
-    expect(source).toContain('const ringTop    = gaugeH - ringH');
-    expect(source).toContain('const ringLeft   = (gaugeW - ringW) / 2');
+    expect(source).toContain("const CALORIE_RING_SCALE = 1.2");
+    expect(source).toContain("style={[gaugeStyles.ringLayer");
+    expect(source).toContain("const ringTop    = gaugeH - ringH");
+    expect(source).toContain("const ringLeft   = (gaugeW - ringW) / 2");
   });
 
-  it('uses stronger contrast for the central remaining-calorie figure only', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("uses stronger contrast for the central remaining-calorie figure only", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('gaugeStyles.remainingNumber, { color: colors.strongForeground }');
+    expect(source).toContain(
+      "gaugeStyles.remainingNumber, { color: colors.strongForeground }",
+    );
   });
 
-  it('mounts a single secondary Today insight between the diary footer and living picture card', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("mounts a single secondary Today insight after the diary footer and before recipe discovery", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
-    expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
-    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('<LivingRhythmCard'));
-    expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
-    expect(source).toContain('selectVisibleTodayInsight');
+    expect(source.split('testID="today-contextual-insight"').length - 1).toBe(
+      1,
+    );
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(
+      source.indexOf("styles.footerNote"),
+    );
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(
+      source.indexOf("styles.recipeSection"),
+    );
+    expect(source).toContain("widgetId === 'mealRhythm'");
+    expect(source).toContain(
+      "isIntelligenceFeatureEnabled('intelligence.insights.today')",
+    );
+    expect(source).toContain("selectVisibleTodayInsight");
   });
 
-  it('renders dashboard calories, macros, and burned energy as whole numbers', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("renders dashboard calories, macros, and burned energy as whole numbers", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('formatWhole(log.calories)');
-    expect(source).toContain('formatQuantity(value)');
-    expect(source).toContain('formatQuantity(selectedTotals.protein)');
-    expect(source).toContain('formatWhole(burned)');
-    expect(source).not.toContain('burned?.toLocaleString()');
+    expect(source).toContain("formatWhole(log.calories)");
+    expect(source).toContain("formatQuantity(value)");
+    expect(source).toContain("formatQuantity(selectedTotals.protein)");
+    expect(source).toContain("formatWhole(burned)");
+    expect(source).not.toContain("burned?.toLocaleString()");
   });
 
-  it('rejects fractional manual-food calories instead of silently changing their value', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("rejects fractional manual-food calories instead of silently changing their value", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('const kcal = parseWholeNumberInput(customCalories);');
-    expect(source).toContain("setManualError('Enter whole-number calories greater than zero.');");
-    expect(source).toContain('const nextCalories = parseWholeNumberInput(calories);');
+    expect(source).toContain(
+      "const kcal = parseWholeNumberInput(customCalories);",
+    );
+    expect(source).toContain(
+      "setManualError('Enter whole-number calories greater than zero.');",
+    );
+    expect(source).toContain(
+      "const nextCalories = parseWholeNumberInput(calories);",
+    );
   });
 
-  it('opens a direct independent macro-goal editor from Macro balance', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("opens a direct independent macro-goal editor from Macro balance", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
     expect(source).toContain('testID="edit-macro-goals"');
     expect(source).toContain('testID="save-macro-goals"');
     expect(source).toContain('testID="cancel-macro-goals"');
-    expect(source).toContain('onPress={openMacroGoals}');
-    expect(source).toContain('proteinTargetGrams: values.protein');
-    expect(source).toContain('carbsTargetGrams: values.carbs');
-    expect(source).toContain('fatTargetGrams: values.fat');
+    expect(source).toContain("onPress={openMacroGoals}");
+    expect(source).toContain("proteinTargetGrams: values.protein");
+    expect(source).toContain("carbsTargetGrams: values.carbs");
+    expect(source).toContain("fatTargetGrams: values.fat");
     const macroSection = source.slice(
-      source.indexOf('>Macro balance</Text>'),
-      source.indexOf('<MoodCard', source.indexOf('>Macro balance</Text>')),
+      source.indexOf(">Macro balance</Text>"),
+      source.indexOf("<MoodCard", source.indexOf(">Macro balance</Text>")),
     );
     expect(macroSection).not.toContain("router.navigate('/(tabs)/profile')");
   });
 
-  it('labels a no-Health Pedometer stream as session-only and keeps Health recovery reachable', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("labels a no-Health Pedometer stream as session-only and keeps Health recovery reachable", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('Live since opened — ${healthMessage}');
-    expect(source).toContain('Session steps since opened — ${healthMessage}');
-    expect(source).toContain('`no ${healthStepsProvider} Steps recorded today`');
-    expect(source).toContain('const sessionOnly = isLiveSessionOnly(tracking);');
-    expect(source).toContain('const hasDailyProviderTotal = tracking.providerSteps !== null;');
+    expect(source).toContain("Live since opened — ${healthMessage}");
+    expect(source).toContain("Session steps since opened — ${healthMessage}");
+    expect(source).toContain(
+      "`no ${healthStepsProvider} Steps recorded today`",
+    );
+    expect(source).toContain(
+      "const sessionOnly = isLiveSessionOnly(tracking);",
+    );
+    expect(source).toContain(
+      "const hasDailyProviderTotal = tracking.providerSteps !== null;",
+    );
     expect(source).toContain("healthConnection.granted.includes('steps')");
-    expect(source).toContain("const hasReadyHealthConnection = healthConnection.authorization === 'requested'");
-    expect(source).toContain("const healthStepsProvider = healthConnection.provider === 'health-connect' ? 'Health Connect' : 'Health';");
-    expect(source).toContain("const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);");
+    expect(source).toContain(
+      "const hasReadyHealthConnection = healthConnection.authorization === 'requested'",
+    );
+    expect(source).toContain(
+      "const healthStepsProvider = healthConnection.provider === 'health-connect' ? 'Health Connect' : 'Health';",
+    );
+    expect(source).toContain(
+      "const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);",
+    );
     expect(source).toContain("? 'Update Health access'");
     expect(source).toContain("? 'Sync Health'");
-    expect(source).toContain('const accessibilitySummary = `${accessibilityPrefix}:');
+    expect(source).toContain(
+      "const accessibilitySummary = `${accessibilityPrefix}:",
+    );
     expect(source).toContain('accessibilityRole="text"');
-    expect(source).toContain('accessibilityLabel={accessibilitySummary}');
+    expect(source).toContain("accessibilityLabel={accessibilitySummary}");
     expect(source).toContain('accessibilityRole="header"');
   });
 
-  it('routes a permanent motion denial to settings rather than retrying the same prompt', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("routes a permanent motion denial to settings rather than retrying the same prompt", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain("const needsMotionSettings = tracking.status === 'denied';");
+    expect(source).toContain(
+      "const needsMotionSettings = tracking.status === 'denied';",
+    );
     expect(source).toContain("? 'Open motion settings'");
     expect(source).toContain("const needsRetry = tracking.status === 'error';");
     expect(source).toContain("? 'Retry live steps'");
-    expect(source).toContain('onOpenMotionSettings');
-    expect(source).toContain('minHeight: 44');
+    expect(source).toContain("onOpenMotionSettings");
+    expect(source).toContain("minHeight: 44");
   });
 
-  it('renders the live step total inside an accessible progress ring and queues foreground milestones', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("renders the live step total inside an accessible progress ring and queues foreground milestones", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('function StepProgressRing');
+    expect(source).toContain("function StepProgressRing");
     expect(source).toContain('testID="dashboard-steps-value"');
-    expect(source).toContain('strokeDasharray={STEPS_RING_LENGTH}');
+    expect(source).toContain("strokeDasharray={STEPS_RING_LENGTH}");
     expect(source).toContain('testID="dashboard-steps-ring"');
-    expect(source).toContain('<StepMilestoneCelebration');
-    expect(source).toContain('milestone={liveStepMilestones[0] ?? null}');
-    expect(source).toContain('onDismissMilestone={dismissLiveStepMilestone}');
+    expect(source).toContain("<StepMilestoneCelebration");
+    expect(source).toContain("milestone={liveStepMilestones[0] ?? null}");
+    expect(source).toContain("onDismissMilestone={dismissLiveStepMilestone}");
   });
 
-  it('follows today across a local-day change without overwriting a deliberate historical date', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("follows today across a local-day change without overwriting a deliberate historical date", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
 
-    expect(source).toContain('const followsTodayRef = useRef(true);');
-    expect(source).toContain('if (followsTodayRef.current) setSelectedDate(todayKey);');
-    expect(source).toContain('followsTodayRef.current = date === dateKey(new Date());');
-    expect(source).toContain('followsTodayRef.current = true;');
+    expect(source).toContain("const followsTodayRef = useRef(true);");
+    expect(source).toContain(
+      "if (followsTodayRef.current) setSelectedDate(todayKey);",
+    );
+    expect(source).toContain(
+      "followsTodayRef.current = date === dateKey(new Date());",
+    );
+    expect(source).toContain("followsTodayRef.current = true;");
   });
 
-  it('keeps the add-meal flow on every Today rhythm-card stage after removing Meals logged', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps the add-meal flow on every Today rhythm-card stage after removing Meals logged", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
     const livingCard = source.slice(
-      source.indexOf('function LivingRhythmCard'),
-      source.indexOf('function RecipeSwipeWidget'),
+      source.indexOf("function LivingRhythmCard"),
+      source.indexOf("function RecipeSwipeWidget"),
     );
 
     expect(livingCard).not.toContain("livingState.routineStage === 'building'");
     expect(livingCard).toContain('testID="living-rhythm-add-meal-button"');
-    expect(livingCard).toContain('accessibilityLabel="Add a meal from your rhythm card"');
-    expect(livingCard).toContain('onPress={onAddMeal}');
-    expect(source).toContain('<LivingRhythmCard');
-    expect(source).toContain('onAddMeal={openAdd}');
-    expect(source).not.toContain('Meals logged');
-    expect(source).not.toContain('wellness-add-meal-button');
+    expect(livingCard).toContain(
+      'accessibilityLabel="Add a meal from your rhythm card"',
+    );
+    expect(livingCard).toContain("onPress={onAddMeal}");
+    expect(source).toContain("<LivingRhythmCard");
+    expect(source).toContain("onAddMeal={openAdd}");
+    expect(source).not.toContain("Meals logged");
+    expect(source).not.toContain("wellness-add-meal-button");
   });
 
-  it('keeps dashboard recipe failures and empty results visible and recoverable', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+  it("keeps dashboard recipe failures and empty results visible and recoverable", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
     const source = readFileSync(
-      resolve(__dirname, '../../app/(tabs)/index.tsx'),
-      'utf8',
+      resolve(__dirname, "../../app/(tabs)/index.tsx"),
+      "utf8",
     );
     const widget = source.slice(
-      source.indexOf('function RecipeSwipeWidget'),
-      source.indexOf('const moodOptions'),
+      source.indexOf("function RecipeSwipeWidget"),
+      source.indexOf("const moodOptions"),
     );
 
-    expect(widget).not.toContain('if (isError || (!isLoading && recipes.length === 0)) return null;');
+    expect(widget).not.toContain(
+      "if (isError || (!isLoading && recipes.length === 0)) return null;",
+    );
     expect(widget).toContain('accessibilityLabel="Retry dashboard recipes"');
     expect(widget).toContain('accessibilityRole="alert"');
-    expect(widget).toContain('const pageWidth = Math.max(240, Math.min(360, width - 72));');
-    expect(widget).toContain('width: pageWidth');
+    expect(widget).toContain(
+      "const pageWidth = Math.max(240, Math.min(360, width - 72));",
+    );
+    expect(widget).toContain("width: pageWidth");
   });
 });

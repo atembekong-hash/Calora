@@ -95,6 +95,7 @@ vi.mock("@/components/ScalePressable", () => ({
     accessibilityLabel,
     accessibilityRole,
     accessibilityState,
+    style: _style,
     ...props
   }: any) => (
     <button
