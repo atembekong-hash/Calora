@@ -56,7 +56,7 @@ const ROW = {
   object_key:
     "private/recipe-photos/owner/22222222-2222-4222-8222-222222222222.png",
   model_version: "gpt-image-2.5-flare:low:1024:v1",
-  prompt_version: "recipe-photo-semantic-v2",
+  prompt_version: "recipe-photo-semantic-v3-composition",
   status: "generating",
   semantic_review_state: "needs_review",
   attempts: 1,
