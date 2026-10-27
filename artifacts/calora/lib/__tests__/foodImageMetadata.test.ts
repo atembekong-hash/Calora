@@ -198,6 +198,22 @@ describe('resolveFoodImage', () => {
     });
   });
 
+  it('rejects an unverified remote locator on restaurant content instead of rendering another food photo', () => {
+    const resolution = resolveFoodImage({
+      id: 'restaurant-malformed-remote',
+      name: 'Restaurant chicken bowl',
+      source: 'Restaurant verified',
+      imageUrl: 'https://images.openfoodfacts.org/unrelated-food.jpg',
+      imageSource: 'provider',
+    });
+
+    expect(resolution).toMatchObject({
+      state: 'no-image',
+      visibleDisclosure: 'No photo',
+    });
+    expect('imageUrl' in resolution).toBe(false);
+  });
+
   it('does not infer a canonical image for restaurant content from a matching name', () => {
     const resolution = resolveFoodImage({
       id: 'restaurant-name-collision',

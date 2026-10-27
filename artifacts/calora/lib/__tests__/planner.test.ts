@@ -295,12 +295,14 @@ describe('planner identity', () => {
 });
 
 describe('planner image rendering contract', () => {
-  it('uses stable identity keys and an explicit local fallback for every planner image surface', () => {
+  it('uses stable identity keys and a neutral unavailable state rather than an unrelated food fallback', () => {
     const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../components/PlannerMealImage.tsx'), 'utf8');
     expect(source).toContain('function PlannerMealImage');
     expect(source).toContain('onError={() => {');
-    expect(source).toContain('recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `fallback-${meal.meal.toLowerCase()}`}`}');
-    expect(source).toContain('PLANNER_IMAGE_FALLBACK');
+    expect(source).toContain('recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `unavailable-${meal.meal.toLowerCase()}`}`}');
+    expect(source).toContain('Photo unavailable');
+    expect(source).not.toContain('PLANNER_IMAGE_FALLBACK');
+    expect(source).not.toContain('food-fallback-main.jpg');
   });
 });
 

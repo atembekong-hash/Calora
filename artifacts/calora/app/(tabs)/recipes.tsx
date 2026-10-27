@@ -211,7 +211,6 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
               if (!renewed) setImageFailed(true);
             });
           }}
-          placeholder={require('../../assets/images/calora-recipes-header.jpg')}
           recyclingKey={`${recipe.id}:${recipeImageKey}:${imageRetryNonce}`}
           style={[styles.recipeImage, { height }]}
         />
