@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
 
-export const RECIPE_MEDIA_MODEL_VERSION = "gpt-image-1:low:1024:v1";
+export const RECIPE_MEDIA_MODEL = "gpt-image-2.5-flare";
+export const RECIPE_MEDIA_MODEL_VERSION = `${RECIPE_MEDIA_MODEL}:low:1024:v1`;
 export const RECIPE_MEDIA_PROMPT_VERSION = "recipe-photo-semantic-v2";
 export const RECIPE_MEDIA_URL_TTL_SECS = 60 * 60 * 24 * 6;
 /** Review capabilities are deliberately much shorter than accepted-image locators. */

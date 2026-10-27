@@ -105,7 +105,7 @@ describe("AI recipe creation endpoints", () => {
           },
           image_id: "22222222-2222-4222-8222-222222222222",
           object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
-          model_version: "gpt-image-1:low:1024:v1",
+          model_version: "gpt-image-2.5-flare:low:1024:v1",
           prompt_version: "recipe-photo-semantic-v2",
           status,
           semantic_review_state: "needs_review",
@@ -257,7 +257,7 @@ describe("AI recipe creation endpoints", () => {
         recipe_payload: { clientRecipeId: "legacy-test-recipe", title: "Lemony lentil bowl", description: "", ingredients: ["lentils"], instructions: ["Cook."], dietaryContext: [] },
         image_id: "22222222-2222-4222-8222-222222222222",
         object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
-        model_version: "gpt-image-1:low:1024:v1",
+        model_version: "gpt-image-2.5-flare:low:1024:v1",
         prompt_version: "recipe-photo-semantic-v2",
         status: "stored",
         semantic_review_state: "needs_review",
@@ -499,11 +499,18 @@ describe("AI recipe creation endpoints", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ imageId: expect.any(String), status: "stored", semanticReviewState: "needs_review" });
+    expect(response.body).toMatchObject({
+      imageId: expect.any(String),
+      modelVersion: "gpt-image-2.5-flare:low:1024:v1",
+      status: "stored",
+      semanticReviewState: "needs_review",
+    });
     expect(response.body.imageUrl).toBeUndefined();
     expect(response.body.imageUrlExpiresAt).toBeUndefined();
     expect(mockOpenAiImageGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "gpt-image-1",
+      model: "gpt-image-2.5-flare",
+      size: "1024x1024",
+      quality: "low",
       n: 1,
       output_format: "png",
     }), expect.any(Object));
