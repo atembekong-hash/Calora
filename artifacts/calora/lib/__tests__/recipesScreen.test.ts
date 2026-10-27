@@ -282,6 +282,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('RECIPE_FALLBACK_IMAGES');
     expect(source).not.toContain('recipeFallbackImage');
     expect(source).not.toContain('food photo fallback');
+    expect(source).not.toContain("placeholder={require('../../assets/images/calora-recipes-header.jpg')}");
   });
 
   it('does not create an unattached generated-photo request for a manual personal recipe', () => {

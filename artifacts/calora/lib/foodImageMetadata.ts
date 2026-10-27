@@ -288,6 +288,30 @@ export function resolveFoodImage(input: FoodImageResolutionInput): FoodImageReso
         ? 'Unverified provider image'
         : undefined;
 
+  if (representativeAssetKey) {
+    return {
+      state: 'representative',
+      category,
+      imageAssetKey: representativeAssetKey,
+      recyclingKey: withKey('representative', representativeAssetKey),
+      accessibilityLabel: `${input.name} representative category image, not the exact menu item`,
+      visibleDisclosure: 'Representative image',
+    };
+  }
+
+  // Restaurant content is photo-free unless a source supplies exact evidence
+  // bound to that item. A malformed or legacy provider URL must not override
+  // the explicit no-photo policy with an unrelated food photograph.
+  if (restaurantContent && remoteState !== 'exact') {
+    return {
+      state: 'no-image',
+      category,
+      recyclingKey: withKey('no-image', 'restaurant'),
+      accessibilityLabel: `${input.name} restaurant item, no verified photo available`,
+      visibleDisclosure: 'No photo',
+    };
+  }
+
   // A remote locator may render only with its actual evidence state. A URL or
   // source label alone is never promoted to exact. Planner's closed curated
   // catalog remains authoritative when its visible name resolves to one.
@@ -303,27 +327,6 @@ export function resolveFoodImage(input: FoodImageResolutionInput): FoodImageReso
           ? `${input.name} exact provider image`
           : `${input.name} provider image; exact item binding is not verified`,
       ...(remoteDisclosure ? { visibleDisclosure: remoteDisclosure } : {}),
-    };
-  }
-
-  if (representativeAssetKey) {
-    return {
-      state: 'representative',
-      category,
-      imageAssetKey: representativeAssetKey,
-      recyclingKey: withKey('representative', representativeAssetKey),
-      accessibilityLabel: `${input.name} representative category image, not the exact menu item`,
-      visibleDisclosure: 'Representative image',
-    };
-  }
-
-  if (restaurantContent) {
-    return {
-      state: 'no-image',
-      category,
-      recyclingKey: withKey('no-image', 'restaurant'),
-      accessibilityLabel: `${input.name} restaurant item, no verified photo available`,
-      visibleDisclosure: 'No photo',
     };
   }
 

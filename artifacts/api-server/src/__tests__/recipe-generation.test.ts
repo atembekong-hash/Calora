@@ -58,6 +58,14 @@ import express from "express";
 import recipesRouter from "../routes/recipes.js";
 
 const USER = { id: "create-recipe-user", email: "creator@example.com" };
+const PHOTO_INPUT = {
+  clientRecipeId: "test-lentil-photo",
+  title: "Lemony lentil bowl",
+  description: "A bright, hearty dinner.",
+  ingredients: ["1 cup lentils", "1 lemon", "2 cups spinach"],
+  instructions: ["Cook lentils.", "Wilt spinach.", "Finish with lemon."],
+  dietaryContext: [],
+};
 
 function buildApp() {
   const app = express();
@@ -99,14 +107,14 @@ describe("AI recipe creation endpoints", () => {
             clientRecipeId: "legacy-test-recipe",
             title: "Lemony lentil bowl",
             description: "A bright, hearty dinner.",
-            ingredients: ["A bright, hearty dinner."],
-            instructions: ["Prepare and plate the saved recipe consistently with its title and description."],
+            ingredients: ["1 cup lentils", "1 lemon", "2 cups spinach"],
+            instructions: ["Cook lentils.", "Wilt spinach.", "Finish with lemon."],
             dietaryContext: [],
           },
           image_id: "22222222-2222-4222-8222-222222222222",
           object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
           model_version: "gpt-image-2.5-flare:low:1024:v1",
-          prompt_version: "recipe-photo-semantic-v3-composition",
+          prompt_version: "recipe-photo-semantic-v4-ingredient-fidelity",
           status,
           semantic_review_state: "needs_review",
           attempts: 1,
@@ -258,7 +266,7 @@ describe("AI recipe creation endpoints", () => {
         image_id: "22222222-2222-4222-8222-222222222222",
         object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
         model_version: "gpt-image-2.5-flare:low:1024:v1",
-        prompt_version: "recipe-photo-semantic-v3-composition",
+        prompt_version: "recipe-photo-semantic-v4-ingredient-fidelity",
         status: "stored",
         semantic_review_state: "needs_review",
         attempts: 1,
@@ -489,12 +497,22 @@ describe("AI recipe creation endpoints", () => {
     expect(response.body.message).toMatch(/couldn’t finish/i);
   });
 
+  it("rejects a title-only photo request before provider work", async () => {
+    const response = await request(app).post("/v1/recipes/photo").send({
+      title: "Lemony lentil bowl",
+      description: "A familiar dinner bowl.",
+    });
+
+    expect(response.status).toBe(400);
+    expect(mockOpenAiImageGenerate).not.toHaveBeenCalled();
+    expect(photoLockQuery).not.toHaveBeenCalled();
+  });
+
   it("creates a bounded private recipe photo without forwarding account data", async () => {
     mockOpenAiImageGenerate.mockResolvedValueOnce({ data: [{ b64_json: Buffer.from("recipe-photo").toString("base64") }] });
 
     const response = await request(app).post("/v1/recipes/photo").send({
-      title: "Lemony lentil bowl",
-      description: "A bright, hearty dinner.",
+      ...PHOTO_INPUT,
       profile: { email: "must-not-forward@example.com" },
     });
 
@@ -534,10 +552,7 @@ describe("AI recipe creation endpoints", () => {
       resolveImage = resolve;
     }));
 
-    const pending = request(app).post("/v1/recipes/photo").send({
-      title: "Lemony lentil bowl",
-      description: "A bright, hearty dinner.",
-    }).then((response) => response);
+    const pending = request(app).post("/v1/recipes/photo").send(PHOTO_INPUT).then((response) => response);
     await vi.waitFor(() => {
       expect(photoLockQuery).toHaveBeenCalledWith(
         "SELECT pg_advisory_lock_shared(hashtextextended($1, 0))",
@@ -560,7 +575,7 @@ describe("AI recipe creation endpoints", () => {
 
   it("keeps a completed recipe usable when recipe-photo generation fails", async () => {
     mockOpenAiImageGenerate.mockRejectedValueOnce(new Error("provider unavailable"));
-    const response = await request(app).post("/v1/recipes/photo").send({ title: "Lemony lentil bowl" });
+    const response = await request(app).post("/v1/recipes/photo").send(PHOTO_INPUT);
     expect(response.status).toBe(502);
     expect(response.body.message).toMatch(/recipe photo/i);
   });
