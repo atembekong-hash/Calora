@@ -175,6 +175,27 @@ describe("recipe media generation diagnostics", () => {
     expect(fetch as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
+  it("retains only bounded provider HTTP diagnostics", async () => {
+    const error = Object.assign(new Error("provider body must not leak"), {
+      status: 400,
+      code: "invalid_image_request",
+      type: "invalid_request_error",
+      error: { message: "secret provider response body" },
+    });
+    generate.mockRejectedValueOnce(error);
+
+    await expect(
+      generateClaimedRecipeMedia("owner", ROW as never),
+    ).rejects.toBeDefined();
+
+    const serializedLogs = JSON.stringify(warn.mock.calls);
+    expect(serializedLogs).toContain('"providerStatus":400');
+    expect(serializedLogs).toContain("invalid_image_request");
+    expect(serializedLogs).toContain("invalid_request_error");
+    expect(serializedLogs).not.toContain("secret provider response body");
+    expect(serializedLogs).not.toContain("provider body must not leak");
+  });
+
   it("records reconciliation_unverified when the retryable state write fails", async () => {
     generate.mockRejectedValueOnce(new Error("provider failure"));
     markError.mockRejectedValueOnce(new Error("database unavailable"));

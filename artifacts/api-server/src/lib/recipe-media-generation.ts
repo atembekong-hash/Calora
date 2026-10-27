@@ -44,6 +44,37 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+function safeProviderDiagnostics(error: unknown): {
+  providerStatus?: number;
+  providerCode?: string;
+  providerType?: string;
+} {
+  if (!error || typeof error !== "object") return {};
+  const value = error as { status?: unknown; code?: unknown; type?: unknown };
+  const diagnostics: {
+    providerStatus?: number;
+    providerCode?: string;
+    providerType?: string;
+  } = {};
+  if (
+    typeof value.status === "number"
+    && Number.isInteger(value.status)
+    && value.status >= 400
+    && value.status <= 599
+  ) {
+    diagnostics.providerStatus = value.status;
+  }
+  for (const [key, candidate] of [["providerCode", value.code], ["providerType", value.type]] as const) {
+    if (
+      typeof candidate === "string"
+      && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(candidate)
+    ) {
+      diagnostics[key] = candidate;
+    }
+  }
+  return diagnostics;
+}
+
 export async function locatorForRecipeMedia(ownerExternalId: string, row: RecipeMediaRow): Promise<RecipeMediaResource> {
   // An ordinary locator is a published accepted image capability. Stored
   // review media must not silently cross that semantic boundary.
@@ -93,7 +124,7 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
     } catch (error) {
       if (error instanceof RecipeMediaGenerationError) throw error;
       if (isAbortError(error) || providerController.signal.aborted) throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_TIMEOUT);
-      throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.PROVIDER_RESPONSE);
+      throw error;
     } finally {
       clearTimeout(providerTimer);
     }
@@ -136,7 +167,7 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
     const reconciliation = await markRecipeMediaError(ownerExternalId, row.id, category, row.attempts)
       .then((recorded) => recorded ? "retryable_error_recorded" : "reconciliation_unverified")
       .catch(() => "reconciliation_unverified");
-    logger.warn({ event: "recipe_media_generation_failed", correlationId: correlation, category, phase, uploadCompleted, reconciliation, ...safeErrorDetails(error) }, "Recipe media generation failed");
+    logger.warn({ event: "recipe_media_generation_failed", correlationId: correlation, category, phase, uploadCompleted, reconciliation, ...safeProviderDiagnostics(error), ...safeErrorDetails(error) }, "Recipe media generation failed");
     throw error;
   }
 }
