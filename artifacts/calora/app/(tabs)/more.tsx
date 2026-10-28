@@ -225,7 +225,7 @@ function makeStyles(scale: number) {
     headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
     headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
     gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
-    fastingCard: { minHeight: 270, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
+    fastingCard: { minHeight: 216, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
     fastingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4, 42, 32, .56)" },
     fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
     fastRingOuter: { height: 116, width: 116, borderRadius: 58, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 18, top: 34 },

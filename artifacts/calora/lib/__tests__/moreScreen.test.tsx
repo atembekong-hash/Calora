@@ -143,6 +143,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("calora-insights-header.jpg");
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
+    expect(source).toContain("fastingCard: { minHeight: 216");
     expect(source).toContain("fontSize: 15 * scale");
   });
 
