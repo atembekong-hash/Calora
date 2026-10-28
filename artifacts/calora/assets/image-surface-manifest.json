@@ -2435,15 +2435,6 @@
       "role": "local editorial thumbnail in a related Learning lesson widget; the related lesson label remains the accessible content",
       "owner": "Calora product team",
       "reviewStatus": "reviewed decorative primitive"
-    },
-    {
-      "id": "more-editorial-photo",
-      "path": "artifacts/calora/app/(tabs)/more.tsx",
-      "anchor": "testID=\"more-editorial-photo\"",
-      "classification": "decorative",
-      "role": "local editorial photo behind More\u2019s primary Fasting, Progress, and Learning destination cards",
-      "owner": "Calora product team",
-      "reviewStatus": "reviewed decorative primitive"
     }
   ]
 }
