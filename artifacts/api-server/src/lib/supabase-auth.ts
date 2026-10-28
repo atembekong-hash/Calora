@@ -107,14 +107,13 @@ export function getCoachFactAccountEligibility(user: {
 
 /**
  * Resolves the authenticated Supabase user from the request's Bearer token.
- * Returns null when the header is missing, malformed, or the token is invalid.
- * Throws only when Supabase credentials are not configured at all.
+ * Returns null when the verifier is unavailable, the header is missing or
+ * malformed, or the token is invalid. Authentication must fail closed without
+ * turning a configuration outage into an unhandled 500 response.
  */
 export async function verifyBearerToken(req: Request): Promise<VerifiedUser | null> {
   const verifier = getVerifier();
-  if (!verifier) {
-    throw new Error("Supabase credentials are not configured");
-  }
+  if (!verifier) return null;
 
   const authHeader = req.headers.authorization ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

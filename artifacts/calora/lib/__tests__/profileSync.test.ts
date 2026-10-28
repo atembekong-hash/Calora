@@ -28,6 +28,7 @@ vi.mock('@workspace/api-client-react', () => ({
 import {
   isMissingRemoteProfile,
   mergeRemoteProfile,
+  PROFILE_SYNC_TIMEOUT_MS,
   reconcileRemoteProfile,
   removeRemoteProfile,
   toProfileInput,
@@ -103,6 +104,7 @@ describe('profile sync launch boundary', () => {
       },
     });
     expect(getProfileMock).toHaveBeenCalledOnce();
+    expect(getProfileMock).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: PROFILE_SYNC_TIMEOUT_MS }));
     expect(updateProfileMock).not.toHaveBeenCalled();
   });
 
