@@ -7,8 +7,10 @@ import {
   type ProfileInput,
 } from '@workspace/api-client-react';
 import { supabase } from '@/lib/supabase';
+import { withTimeout } from '@/lib/withTimeout';
 
 export const ONBOARDING_CONSENT_VERSION = 'calora-onboarding-v1';
+export const PROFILE_SYNC_TIMEOUT_MS = 12_000;
 
 export type ProfileRequestOptions = {
   accountId?: string;
@@ -21,28 +23,29 @@ class ProfileIdentityChangedError extends Error {
 
 function scopedRequestOptions(options: ProfileRequestOptions = {}) {
   const { accountId, signal } = options;
-  if (!accountId) return { signal };
+  if (!accountId) return { signal, timeoutMs: PROFILE_SYNC_TIMEOUT_MS };
   const assertIdentity = async () => {
     if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
-    const { data } = await supabase.auth.getSession();
+    const { data } = await withTimeout(supabase.auth.getSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session check');
     if (data.session?.user.id !== accountId) {
       throw new ProfileIdentityChangedError('Profile request identity changed.');
     }
   };
   const getToken = async () => {
     await assertIdentity();
-    const { data } = await supabase.auth.getSession();
+    const { data } = await withTimeout(supabase.auth.getSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session read');
     if (data.session?.user.id !== accountId) throw new ProfileIdentityChangedError('Profile request identity changed.');
     return data.session.access_token;
   };
   const refreshToken = async () => {
     await assertIdentity();
-    const { data } = await supabase.auth.refreshSession();
+    const { data } = await withTimeout(supabase.auth.refreshSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session refresh');
     if (data.session?.user.id !== accountId) throw new ProfileIdentityChangedError('Profile request identity changed.');
     return data.session.access_token;
   };
   return {
     signal,
+    timeoutMs: PROFILE_SYNC_TIMEOUT_MS,
     authIdentityGuard: assertIdentity,
     authTokenGetter: getToken,
     authTokenRefresher: refreshToken,

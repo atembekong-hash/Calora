@@ -1306,7 +1306,15 @@ export function CaloraProvider({
         // synchronization failure for the newly active provider.
         if (error instanceof Error && error.name === 'ProfileIdentityChangedError') return;
         setProfileSyncError(error instanceof Error ? error.message : 'Account setup could not be synchronized.');
-        setProfileSyncReady(false);
+        // A completed local profile is safe to render when the remote service
+        // is unavailable. Keep the error visible so the user knows sync did
+        // not succeed, but do not strand an existing account on onboarding.
+        // First-run accounts remain blocked until their profile is saved.
+        if (profileRef.current && onboardingComplete) {
+          setProfileSyncReady(true);
+        } else {
+          setProfileSyncReady(false);
+        }
       });
     return () => {
       active = false;

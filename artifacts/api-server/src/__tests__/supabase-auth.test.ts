@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getCoachFactAccountEligibility } from "../lib/supabase-auth.js";
+import { getCoachFactAccountEligibility, verifyBearerToken } from "../lib/supabase-auth.js";
 
 const activeMetadata = {};
 
@@ -55,5 +55,19 @@ describe("Coach Fact Context account eligibility", () => {
       app_metadata: activeMetadata,
       banned_until: "2020-01-01T00:00:00.000Z",
     })).toEqual({ eligible: true, reason: "eligible" });
+  });
+
+  it("fails closed without throwing when the public verifier is not configured", async () => {
+    const originalUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const originalAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    await expect(verifyBearerToken({ headers: {} } as never)).resolves.toBeNull();
+
+    if (originalUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    else process.env.EXPO_PUBLIC_SUPABASE_URL = originalUrl;
+    if (originalAnonKey === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalAnonKey;
   });
 });
