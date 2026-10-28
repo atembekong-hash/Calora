@@ -145,6 +145,8 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).toContain("fastingCard: { minHeight: 216");
     expect(source).toContain("featureCard: { flex: 1, minHeight: 156.8");
+    expect(source).toContain('quickItem: { width: "31.5%", minHeight: 62.4');
+    expect(source).toContain('icon={item.icon} size={30}');
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 15 * scale");

@@ -201,7 +201,7 @@ export default function MoreScreen() {
           <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
-          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={38} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
+          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={30} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -253,7 +253,7 @@ function makeStyles(scale: number) {
     sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
-    quickItem: { width: "31.5%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
+    quickItem: { width: "31.5%", minHeight: 62.4, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
     quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
     lowerPanel: { borderRadius: 21, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14 },
     lowerRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 12 },
