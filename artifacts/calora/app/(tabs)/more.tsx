@@ -24,6 +24,15 @@ const moreEditorialImages = {
   learning: require("../../assets/images/learning/articles/balanced-plate-basics.jpg"),
 } as const;
 
+const SURFACE = "#10231f";
+const SURFACE_RAISED = "#153129";
+const BORDER = "rgba(140, 203, 177, 0.16)";
+const TEXT = "#f4fbf7";
+const MUTED = "#9ab1a7";
+const GREEN = "#45e29b";
+const ORANGE = "#ff876c";
+const PURPLE = "#9d77ff";
+
 function MoreEditorialPhoto({ source }: { source: number }) {
   return (
     <Image
@@ -36,71 +45,111 @@ function MoreEditorialPhoto({ source }: { source: number }) {
   );
 }
 
+function IconBox({
+  color,
+  icon,
+  size = 42,
+}: {
+  color: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  size?: number;
+}) {
+  return (
+    <View style={[styles.iconBox, { width: size, height: size, backgroundColor: `${color}20` }]}>
+      <Feather name={icon} size={size * 0.48} color={color} />
+    </View>
+  );
+}
+
 function FastingCard() {
-  const { fasting, colors, fontScale } = useCalora();
+  const { fasting, fontScale } = useCalora();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
   const progress = deriveFastingProgress(fasting, now);
-  const styles = makeStyles(colors, fontScale);
+  const styles = makeStyles(fontScale);
   const subtitle = progress.active
     ? progress.remainingMs > 0
       ? `${formatFastingDuration(progress.remainingMs)} remaining in your ${progress.plannedHours}-hour window`
       : "Your planned window is complete — end it when you are ready."
     : "Choose a flexible time-restricted schedule that fits your routine.";
+
   return (
-    <ScalePressable
-      accessibilityRole="button"
-      accessibilityLabel="Open Fasting"
-      onPress={() => router.push("/fasting")}
-      style={styles.fastingCard}
-    >
+    <View style={styles.fastingCard}>
       <MoreEditorialPhoto source={moreEditorialImages.fasting} />
-      <View pointerEvents="none" style={styles.fastingPhotoOverlay} />
-      <View style={styles.fastRing}>
+      <View pointerEvents="none" style={styles.fastingShade} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Open Fasting" onPress={() => router.push("/fasting")} style={styles.fastingMainPressable}>
+      <View style={styles.fastRingOuter}>
         <View
           style={[
-            styles.fastRingProgress,
+            styles.fastRing,
             {
-              borderTopColor: colors.success,
-              borderRightColor:
-                progress.progress > 0.25
-                  ? colors.success
-                  : "rgba(255,255,255,.25)",
-              borderBottomColor:
-                progress.progress > 0.55
-                  ? colors.success
-                  : "rgba(255,255,255,.25)",
+              borderTopColor: GREEN,
+              borderRightColor: progress.progress > 0.25 ? GREEN : "#53776b",
+              borderBottomColor: progress.progress > 0.55 ? GREEN : "#53776b",
             },
           ]}
         >
-          <Feather name="clock" size={22} color="#fff" />
+          <Feather name="clock" size={24} color={TEXT} />
         </View>
       </View>
       <View style={styles.fastCopy}>
+        <View style={styles.statusPill}>
+          <Feather name="sun" size={12} color={GREEN} />
+          <Text style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
+        </View>
         <Text style={styles.fastTitle}>Fasting</Text>
         <Text style={styles.fastMain}>
-          {progress.active
-            ? formatFastingDuration(progress.elapsedMs)
-            : "Set your rhythm"}
+          {progress.active ? formatFastingDuration(progress.elapsedMs) : "Set your rhythm"}
         </Text>
         <Text style={styles.fastSubtitle}>{subtitle}</Text>
       </View>
       <View style={styles.fastAction}>
-        <Text style={styles.fastActionText}>
-          {progress.active ? "View" : "Start"}
-        </Text>
-        <Feather name="arrow-right" size={15} color="#fff" />
+        <Feather name="chevron-right" size={24} color={TEXT} />
       </View>
-    </ScalePressable>
+      </Pressable>
+      <View style={styles.fastingLeaves} pointerEvents="none">
+        <Feather name="feather" size={78} color="rgba(69,226,155,.22)" />
+      </View>
+      <View style={styles.miniStats}>
+        <MiniStat icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
+        <MiniStat icon="bar-chart-2" label="History" caption={`${fasting.history.length} completed`} color="#5dd4a5" route="/fasting" />
+        <MiniStat icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/notifications" />
+      </View>
+    </View>
+  );
+}
+
+function MiniStat({
+  icon,
+  label,
+  caption,
+  color,
+  route,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  label: string;
+  caption: string;
+  color: string;
+  route: string;
+}) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Open fasting ${label}`} onPress={() => router.push(route as never)} style={styles.miniStat}>
+      <Feather name={icon} size={18} color={color} />
+      <View style={styles.miniStatCopy}>
+        <Text style={styles.miniStatLabel}>{label}</Text>
+        <Text style={styles.miniStatCaption}>{caption}</Text>
+      </View>
+      <Feather name="chevron-right" size={16} color={MUTED} />
+    </Pressable>
   );
 }
 
 function ProgressCard() {
-  const { weights, profile, colors, fontScale, logs } = useCalora();
-  const styles = makeStyles(colors, fontScale);
+  const { weights, profile, logs, fontScale } = useCalora();
+  const styles = makeStyles(fontScale);
   const latest = selectProgressWeightSummary(weights).latestRecord;
   const todayLogs = logs.filter((log) => log.date === dateKey());
   return (
@@ -108,418 +157,160 @@ function ProgressCard() {
       accessibilityRole="button"
       accessibilityLabel="Open Progress"
       onPress={() => router.push("/(tabs)/insights")}
-      style={styles.progressCard}
+      style={[styles.featureCard, styles.progressCard]}
     >
       <MoreEditorialPhoto source={moreEditorialImages.progress} />
-      <View pointerEvents="none" style={styles.progressPhotoOverlay} />
-      <View style={styles.progressIcon}>
-        <Feather name="bar-chart-2" size={21} color={colors.primary} />
-      </View>
-      <View style={styles.progressCopy}>
-        <Text style={styles.progressTitle}>Progress</Text>
-        <Text style={styles.progressSummary}>
-          {latest
-            ? `${formatWeight(latest.kg, profile?.units ?? "metric")} logged`
-            : todayLogs.length
-              ? `${todayLogs.length} meals logged today`
-              : "Start with a first check-in"}
-        </Text>
-      </View>
-      <View style={styles.progressArrow}>
-        <Feather name="arrow-up-right" size={18} color={colors.primary} />
+      <View style={[styles.featureShade, { backgroundColor: "rgba(59, 36, 24, .72)" }]} />
+      <IconBox color={ORANGE} icon="bar-chart-2" />
+      <Text style={styles.featureTitle}>Progress</Text>
+      <Text style={styles.featureSubtitle}>
+        {latest ? `${formatWeight(latest.kg, profile?.units ?? "metric")} logged` : todayLogs.length ? `${todayLogs.length} meals logged today` : "Trends, goals & insights"}
+      </Text>
+      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
+      <View style={styles.chartBars} pointerEvents="none">
+        {[18, 28, 14, 38, 24, 32, 18, 12].map((height, index) => <View key={index} style={[styles.chartBar, { height, opacity: 0.35 + index * 0.07 }]} />)}
       </View>
     </ScalePressable>
   );
 }
 
+function LearningCard() {
+  const { fontScale } = useCalora();
+  const styles = makeStyles(fontScale);
+  return (
+    <ScalePressable
+      accessibilityRole="button"
+      accessibilityLabel="Open Learning"
+      onPress={() => router.push("/learning")}
+      style={[styles.featureCard, styles.learningCard]}
+    >
+      <MoreEditorialPhoto source={moreEditorialImages.learning} />
+      <View style={[styles.featureShade, { backgroundColor: "rgba(32, 27, 73, .72)" }]} />
+      <IconBox color={PURPLE} icon="book-open" />
+      <Text style={styles.featureTitle}>Learning</Text>
+      <Text style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
+      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
+      <View style={styles.learningCards} pointerEvents="none"><View /><View /><View /></View>
+    </ScalePressable>
+  );
+}
+
 export default function MoreScreen() {
-  const { colors, fontScale, profile, profilePhotoUri, savedMeals } =
-    useCalora();
-  const styles = makeStyles(colors, fontScale);
-  const quick = [
-    {
-      label: "Saved meals",
-      icon: "bookmark" as const,
-      route: "/saved-meals",
-      tint: "#159957",
-    },
-    {
-      label: "Coach",
-      icon: "message-circle" as const,
-      route: "/coach",
-      tint: "#3677e8",
-    },
-    {
-      label: "Reminders",
-      icon: "bell" as const,
-      route: "/profile?tab=you&open=reminders",
-      tint: "#ec9b21",
-    },
-    {
-      label: "Calora Pro",
-      icon: "award" as const,
-      route: "/profile?tab=membership",
-      tint: "#d28b1d",
-    },
-    {
-      label: "Goals",
-      icon: "target" as const,
-      route: "/profile?tab=you&open=goals",
-      tint: "#276fdd",
-    },
-    {
-      label: "Health sync",
-      icon: "heart" as const,
-      route: "/profile?tab=account&open=health",
-      tint: "#159957",
-    },
+  const { fontScale, profile, profilePhotoUri } = useCalora();
+  const styles = makeStyles(fontScale);
+  const quick = useMemo(() => [
+    { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
+    { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
+    { label: "Reminders", icon: "bell" as const, route: "/profile?tab=you&open=reminders", tint: "#f3b33f" },
+    { label: "Calora Pro", icon: "award" as const, route: "/profile?tab=membership", tint: "#f2c04d" },
+    { label: "Meal plan", icon: "calendar" as const, route: "/planner", tint: "#a78bfa" },
+    { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
+    { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
+    { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
+  ], []);
+  const lower = [
+    { label: "Settings & profile", caption: "Appearance, units, notifications and more", icon: "user" as const, route: "/settings", tint: "#71cfac" },
+    { label: "Health & privacy", caption: "Data, permissions, export and account", icon: "shield" as const, route: "/profile?tab=account&open=health", tint: "#8bd9c0" },
+    { label: "Help & support", caption: "FAQs, contact and legal", icon: "help-circle" as const, route: "/profile?tab=account&open=help", tint: "#b8c7c0" },
   ];
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>More</Text>
-          <Text style={styles.headerCaption}>
-            Tools to support a healthier you.
-          </Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>More</Text>
+            <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open settings and profile" onPress={() => router.push("/profile")} style={styles.gear}>
+            <Feather name="settings" size={22} color={TEXT} />
+          </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open settings and profile"
-          onPress={() => router.push("/profile")}
-          style={styles.gear}
-        >
-          <Feather name="settings" size={20} color={colors.text} />
-        </Pressable>
-      </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.welcome}>
-          <ProfilePhoto
-            uri={profilePhotoUri}
-            size={42}
-            accessibilityLabel="Profile photo"
-            fallback={
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarLetter}>
-                  {profile?.name?.charAt(0) ?? "C"}
-                </Text>
-              </View>
-            }
-          />
+        <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={styles.welcome}>
+          <ProfilePhoto uri={profilePhotoUri} size={50} accessibilityLabel="Profile photo" fallback={<View style={styles.avatarFallback}><Text style={styles.avatarLetter}>{profile?.name?.charAt(0) ?? "C"}</Text></View>} />
           <View style={styles.welcomeCopy}>
-            <Text style={styles.welcomeTitle}>
-              {profile?.name
-                ? `Hi, ${profile.name.split(" ")[0]}`
-                : "Your Calora space"}
-            </Text>
-            <Text style={styles.welcomeSub}>
-              {savedMeals.length
-                ? `${savedMeals.length} saved meal${savedMeals.length === 1 ? "" : "s"} ready to reuse`
-                : "Your tools, preferences, and progress in one place"}
-            </Text>
+            <Text style={styles.welcomeTitle}>{profile?.name ? `Hi, ${profile.name.split(" ")[0]}` : "Hi, there"}</Text>
+            <Text style={styles.welcomeSub}>Your tools, preferences, and progress in one place</Text>
           </View>
-        </View>
+          <Feather name="chevron-right" size={24} color={TEXT} />
+        </Pressable>
         <FastingCard />
-        <ProgressCard />
-        <ScalePressable
-          accessibilityRole="button"
-          accessibilityLabel="Open Learning"
-          onPress={() => router.push("/learning")}
-          style={styles.learningCard}
-        >
-          <MoreEditorialPhoto source={moreEditorialImages.learning} />
-          <View pointerEvents="none" style={styles.learningPhotoOverlay} />
-          <View style={styles.learningIcon}>
-            <Feather name="book-open" size={22} color={colors.link} />
-          </View>
-          <View style={styles.learningCopy}>
-            <Text style={styles.learningTitle}>Learning</Text>
-            <Text style={styles.learningText}>
-              Simple guides for fasting, nutrition, recipes, and meal planning.
-            </Text>
-          </View>
-          <View style={styles.learningGo}>
-            <Text style={styles.learningGoText}>Explore</Text>
-            <Feather name="arrow-right" size={14} color={colors.link} />
-          </View>
-        </ScalePressable>
+        <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Quick access</Text>
-          <Text style={styles.sectionCaption}>
-            Settings and supporting tools
-          </Text>
+          <View><Text style={styles.sectionTitle}>Quick access</Text><Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Edit quick access" onPress={() => router.push("/settings")} style={styles.editButton}><Text style={styles.editText}>Edit</Text><Feather name="edit-2" size={16} color={GREEN} /></Pressable>
         </View>
         <View style={styles.quickGrid}>
-          {quick.map((item) => (
-            <ScalePressable
-              key={item.label}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${item.label}`}
-              onPress={() => router.push(item.route as never)}
-              style={styles.quickItem}
-            >
-              <View
-                style={[
-                  styles.quickIcon,
-                  { backgroundColor: `${item.tint}18` },
-                ]}
-              >
-                <Feather name={item.icon} size={20} color={item.tint} />
-              </View>
-              <Text style={styles.quickLabel}>{item.label}</Text>
-            </ScalePressable>
-          ))}
+          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={38} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
+        </View>
+        <View style={styles.lowerPanel}>
+          {lower.map((item, index) => <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={[styles.lowerRow, index > 0 && styles.lowerRowBorder]}><IconBox color={item.tint} icon={item.icon} size={40} /><View style={styles.lowerCopy}><Text style={styles.lowerTitle}>{item.label}</Text><Text style={styles.lowerCaption}>{item.caption}</Text></View><Feather name="chevron-right" size={22} color={TEXT} /></Pressable>)}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-const makeStyles = (
-  colors: ReturnType<typeof useCalora>["colors"],
-  scale: number,
-) =>
-  StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
-    header: {
-      paddingHorizontal: 20,
-      paddingTop: 7,
-      paddingBottom: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    headerTitle: {
-      color: colors.text,
-      fontSize: 20 * scale,
-      fontWeight: "800",
-      letterSpacing: -0.55,
-    },
-    headerCaption: {
-      color: colors.mutedForeground,
-      fontSize: 10 * scale,
-      marginTop: 2,
-    },
-    gear: {
-      height: 42,
-      width: 42,
-      borderRadius: 15,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    content: { padding: 18, paddingTop: 0, paddingBottom: 36, gap: 11 },
-    welcome: { flexDirection: "row", gap: 11, alignItems: "center" },
-    avatarFallback: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: colors.success,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarLetter: { color: "#fff", fontSize: 14 * scale, fontWeight: "800" },
+
+const styles = {
+  iconBox: { borderRadius: 13, alignItems: "center" as const, justifyContent: "center" as const },
+  miniStat: { flex: 1, minHeight: 58, borderRadius: 15, paddingHorizontal: 12, flexDirection: "row" as const, alignItems: "center" as const, gap: 8, backgroundColor: "rgba(8, 30, 24, .64)", borderWidth: 1, borderColor: "rgba(140,203,177,.10)" },
+  miniStatCopy: { flex: 1 },
+  miniStatLabel: { color: TEXT, fontSize: 12, fontWeight: "800" as const },
+  miniStatCaption: { color: MUTED, fontSize: 9, marginTop: 2 },
+};
+
+function makeStyles(scale: number) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: "#081612" },
+    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 38, gap: 16 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
+    headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
+    gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
+    welcome: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 14 },
+    avatarFallback: { width: 50, height: 50, borderRadius: 25, backgroundColor: GREEN, alignItems: "center", justifyContent: "center" },
+    avatarLetter: { color: "#063523", fontSize: 20 * scale, fontWeight: "800" },
     welcomeCopy: { flex: 1 },
-    welcomeTitle: {
-      color: colors.text,
-      fontWeight: "800",
-      fontSize: 14 * scale,
-    },
-    welcomeSub: {
-      color: colors.mutedForeground,
-      fontSize: 10 * scale,
-      marginTop: 2,
-    },
-    fastingCard: {
-      minHeight: 122,
-      borderRadius: 19,
-      padding: 14,
-      backgroundColor: "#123f33",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-      overflow: "hidden",
-      position: "relative",
-    },
-    fastingPhotoOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(10, 50, 38, 0.48)",
-    },
-    fastRing: {
-      width: 68,
-      height: 68,
-      borderRadius: 34,
-      backgroundColor: "rgba(255,255,255,.09)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    fastRingProgress: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      borderWidth: 5,
-      borderLeftColor: "rgba(255,255,255,.25)",
-      alignItems: "center",
-      justifyContent: "center",
-      transform: [{ rotate: "-35deg" }],
-    },
-    fastCopy: { flex: 1 },
-    fastTitle: { color: "#d9f1e0", fontSize: 10 * scale, fontWeight: "800" },
-    fastMain: {
-      color: "#fff",
-      fontSize: 15 * scale,
-      fontWeight: "800",
-      marginTop: 2,
-    },
-    fastSubtitle: {
-      color: "#b3d3bf",
-      fontSize: 9 * scale,
-      lineHeight: 13 * scale,
-      marginTop: 3,
-    },
-    fastAction: {
-      position: "absolute",
-      right: 13,
-      bottom: 11,
-      flexDirection: "row",
-      gap: 4,
-      alignItems: "center",
-    },
-    fastActionText: { color: "#fff", fontSize: 10 * scale, fontWeight: "800" },
-    progressCard: {
-      minHeight: 78,
-      borderRadius: 18,
-      padding: 12,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      overflow: "hidden",
-      position: "relative",
-    },
-    progressPhotoOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(244, 250, 247, 0.46)",
-    },
-    progressIcon: {
-      height: 40,
-      width: 40,
-      borderRadius: 13,
-      backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    progressCopy: {
-      flex: 1,
-      backgroundColor: "rgba(255,255,255,0.76)",
-      borderRadius: 11,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-    },
-    progressTitle: {
-      color: colors.text,
-      fontSize: 13 * scale,
-      fontWeight: "800",
-    },
-    progressSummary: {
-      color: colors.mutedForeground,
-      fontSize: 10 * scale,
-      marginTop: 2,
-    },
-    progressArrow: {
-      height: 30,
-      width: 30,
-      borderRadius: 10,
-      backgroundColor: colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    learningCard: {
-      minHeight: 84,
-      borderRadius: 18,
-      padding: 12,
-      backgroundColor: colors.accent,
-      borderWidth: 1,
-      borderColor: colors.border,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      overflow: "hidden",
-      position: "relative",
-    },
-    learningPhotoOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(224, 243, 233, 0.42)",
-    },
-    learningIcon: {
-      height: 40,
-      width: 40,
-      borderRadius: 13,
-      backgroundColor: colors.secondary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    learningCopy: {
-      flex: 1,
-      backgroundColor: "rgba(255,255,255,0.76)",
-      borderRadius: 11,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-    },
-    learningTitle: {
-      color: colors.foreground,
-      fontWeight: "800",
-      fontSize: 13 * scale,
-    },
-    learningText: {
-      color: colors.mutedForeground,
-      fontSize: 10 * scale,
-      lineHeight: 14 * scale,
-      marginTop: 2,
-    },
-    learningGo: { alignItems: "center", gap: 3 },
-    learningGoText: {
-      color: colors.link,
-      fontWeight: "800",
-      fontSize: 10 * scale,
-    },
-    sectionHeading: { marginTop: 7, gap: 2 },
-    sectionTitle: {
-      color: colors.text,
-      fontSize: 14 * scale,
-      fontWeight: "800",
-    },
-    sectionCaption: { color: colors.mutedForeground, fontSize: 10 * scale },
-    quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-    quickItem: {
-      width: "31.7%",
-      minHeight: 76,
-      borderRadius: 15,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      padding: 7,
-    },
-    quickIcon: {
-      height: 30,
-      width: 30,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    quickLabel: {
-      color: colors.text,
-      fontWeight: "700",
-      fontSize: 9 * scale,
-      textAlign: "center",
-    },
+    welcomeTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
+    welcomeSub: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
+    fastingCard: { minHeight: 270, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
+    fastingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4, 42, 32, .56)" },
+    fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
+    fastRingOuter: { height: 116, width: 116, borderRadius: 58, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 18, top: 34 },
+    fastRing: { height: 98, width: 98, borderRadius: 49, borderWidth: 10, borderLeftColor: "#53776b", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
+    fastCopy: { marginLeft: 138, paddingTop: 2, minHeight: 136 },
+    statusPill: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: "rgba(69,226,155,.14)" },
+    statusText: { color: GREEN, fontSize: 12 * scale, fontWeight: "700" },
+    fastTitle: { color: TEXT, fontSize: 18 * scale, fontWeight: "800", marginTop: 12 },
+    fastMain: { color: TEXT, fontSize: 36 * scale, fontWeight: "800", letterSpacing: -1 },
+    fastSubtitle: { color: "#b8d3c8", fontSize: 13 * scale, lineHeight: 18 * scale, maxWidth: 230 },
+    fastAction: { position: "absolute", right: 19, top: 93, height: 52, width: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
+    fastingLeaves: { position: "absolute", right: 12, top: 8, opacity: 0.7, transform: [{ rotate: "-25deg" }] },
+    miniStats: { position: "absolute", left: 14, right: 14, bottom: 14, flexDirection: "row", gap: 8 },
+    featureRow: { flexDirection: "row", gap: 14 },
+    featureCard: { flex: 1, minHeight: 196, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
+    progressCard: { backgroundColor: "#3b2b22" },
+    learningCard: { backgroundColor: "#262148" },
+    featureShade: { ...StyleSheet.absoluteFillObject },
+    featureTitle: { color: TEXT, fontSize: 22 * scale, fontWeight: "800", marginTop: 18 },
+    featureSubtitle: { color: "#d0d8d4", fontSize: 14 * scale, lineHeight: 19 * scale, maxWidth: 145, marginTop: 3 },
+    featureArrow: { position: "absolute", right: 16, bottom: 18, height: 42, width: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
+    chartBars: { position: "absolute", bottom: 14, left: 14, flexDirection: "row", gap: 4, alignItems: "flex-end" },
+    chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
+    learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
+    sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 3 },
+    sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
+    sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
+    editButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingBottom: 2 },
+    editText: { color: GREEN, fontSize: 14 * scale, fontWeight: "700" },
+    quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    quickItem: { width: "23.2%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
+    quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
+    lowerPanel: { borderRadius: 21, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14 },
+    lowerRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 12 },
+    lowerRowBorder: { borderTopWidth: 1, borderTopColor: BORDER },
+    lowerCopy: { flex: 1 },
+    lowerTitle: { color: TEXT, fontSize: 16 * scale, fontWeight: "800" },
+    lowerCaption: { color: MUTED, fontSize: 12 * scale, marginTop: 3 },
   });
+}
