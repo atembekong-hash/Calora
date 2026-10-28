@@ -166,6 +166,20 @@ describe("MoreScreen feature hierarchy", () => {
     expect(screen.queryByText("Your Calora")).toBeNull();
   });
 
+  it("opens the dedicated Settings experience from the header control", () => {
+    render(<MoreScreen />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open settings and profile" }),
+    );
+    expect(harness.router.push).toHaveBeenLastCalledWith("/settings");
+  });
+
+  it("keeps the welcome identity card as a direct Profile entry point", () => {
+    render(<MoreScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Open profile" }));
+    expect(harness.router.push).toHaveBeenLastCalledWith("/profile");
+  });
+
   it("uses the most recent valid weigh-in and renders its unit once", () => {
     harness.calora.weights = [
       { id: "old-manual", date: "2026-10-01", kg: 81, source: "manual" },
