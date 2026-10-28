@@ -27,7 +27,7 @@ describe("Learning editorial photography", () => {
       .readdirSync(assetRoot)
       .filter((file) => file.endsWith("-mobile.jpg"));
 
-    expect(photos).toHaveLength(7);
+    expect(photos).toHaveLength(6);
     for (const photo of photos) {
       const bytes = fs.statSync(path.join(assetRoot, photo)).size;
       expect(bytes).toBeLessThan(200_000);

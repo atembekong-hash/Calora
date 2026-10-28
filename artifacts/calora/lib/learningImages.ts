@@ -7,7 +7,7 @@ const collectionImages: Record<LearningCollectionId, LocalImage> = {
   "plan-with-less-pressure": require("../assets/images/learning/tea-journal-unsplash-mobile.jpg"),
   "cook-with-flexibility": require("../assets/images/learning/colorful-plate-unsplash-mobile.jpg"),
   "labels-with-context": require("../assets/images/learning/grain-bowl-unsplash-mobile.jpg"),
-  "habits-that-fit": require("../assets/images/learning/outdoor-movement-unsplash-mobile.jpg"),
+  "habits-that-fit": require("../assets/images/learning/wellness-yoga-unsplash-mobile.jpg"),
   "meal-timing-basics": require("../assets/images/learning/coffee-morning-unsplash-mobile.jpg"),
   "hydration-everyday": require("../assets/images/foods/berry-protein-smoothie.jpg"),
   "movement-and-recovery": require("../assets/images/learning/wellness-yoga-unsplash-mobile.jpg"),

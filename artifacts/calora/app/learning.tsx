@@ -117,9 +117,11 @@ function LessonArtwork({
       style={[styles.artwork, compact && styles.artworkCompact]}
     >
       <Image
+        accessible={false}
         resizeMode="cover"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
+        testID="learning-lesson-editorial-photo"
       />
       <View style={[styles.artworkTint, { backgroundColor: tone.shape }]} />
       <View style={[styles.artTopicPill, { backgroundColor: colors.card }]}>
@@ -311,9 +313,11 @@ function FeaturedLessonCard({
       ]}
     >
       <Image
+        accessible={false}
         resizeMode="cover"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
+        testID="learning-featured-editorial-photo"
       />
       <View
         style={[styles.featuredPhotoTint, { backgroundColor: colors.hero }]}

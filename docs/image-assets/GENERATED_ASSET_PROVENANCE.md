@@ -1,8 +1,8 @@
-# Calora Generated Asset Provenance
+# Calora Bundled Image Provenance
 
 **Generation date:** 2026-09-23
 
-All bundled runtime images listed below are original assets commissioned specifically for Calora through the Manus `generate_image` tool. They do not use external stock imagery, provider-hosted food images, or user content. Product stewardship does not assert copyright ownership beyond the usage rights supplied by the generation service. The source-controlled manifest is the machine-readable release authority; this document is the human-readable ledger.
+The original assets listed below were commissioned specifically for Calora through the Manus `generate_image` tool. The six Learning editorial photographs added on 2026-10-28 are licensed Unsplash assets; their local source and license record is `artifacts/calora/assets/images/learning/ASSET_SOURCES.md`. No bundled runtime image is fetched from a third party at runtime. Product stewardship does not assert copyright ownership beyond each asset's documented usage rights. The source-controlled manifest is the machine-readable release authority; this document is the human-readable ledger.
 
 | Asset | Dimensions | SHA-256 | Product role |
 | --- | ---: | --- | --- |
@@ -64,6 +64,12 @@ All bundled runtime images listed below are original assets commissioned specifi
 | `artifacts/calora/assets/images/meals/tuna-poke.jpg` | 1024×1024 | `729ced12a48f7a1d67d11ac1b5f5374268a79a52bf362f3f03cc99fc9180513c` | planner curated meal image |
 | `artifacts/calora/assets/images/meals/turkey-hummus-wrap.jpg` | 1024×1024 | `7ec782470e1ec0745925af73d87c19859fb58adbb1c0286c0317b9949dbc2ce2` | planner curated meal image |
 | `artifacts/calora/assets/images/meals/yogurt-parfait.jpg` | 1024×1024 | `45f0ce8d69f690b8903783968aa11613593b521f9868f166e4e63cbbf02837b1` | planner curated meal image |
+| `artifacts/calora/assets/images/learning/balanced-meal-unsplash-mobile.jpg` | 720×480 | `862172823e7aea6730780e7462a0b5b9bac4476ada84aba2b2b088599c207cba` | Learning editorial photograph |
+| `artifacts/calora/assets/images/learning/coffee-morning-unsplash-mobile.jpg` | 481×720 | `043500d1bdce8b43828309580eb1437f87e3865263a0504ed66c502a913ae213` | Learning editorial photograph |
+| `artifacts/calora/assets/images/learning/colorful-plate-unsplash-mobile.jpg` | 720×480 | `6e1ebc02a922e15c73490b403db28c6a1bf09271f37a26262fa7c74329e0ed01` | Learning editorial photograph |
+| `artifacts/calora/assets/images/learning/grain-bowl-unsplash-mobile.jpg` | 540×720 | `eafcc890acb4288915f63146dcf65a941b472aab23448438349d829affc1a166` | Learning editorial photograph |
+| `artifacts/calora/assets/images/learning/tea-journal-unsplash-mobile.jpg` | 720×576 | `8237f8b9217a476a0d694db4cc65ecb7b30cbb3307d27c4113e598dc32c52244` | Learning editorial photograph |
+| `artifacts/calora/assets/images/learning/wellness-yoga-unsplash-mobile.jpg` | 720×720 | `7b1865dd1c3861fb7988a6141fe8b5273be918739693ea7bb0906d3382cdd091` | Learning editorial photograph |
 
 ## Review record
 

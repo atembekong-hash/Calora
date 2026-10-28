@@ -10,6 +10,5 @@ The files were collected from Unsplash search results on 2026-10-28 for healthy 
 - `grain-bowl-unsplash-mobile.jpg` — Balanced Meal search result, Unsplash.
 - `colorful-plate-unsplash-mobile.jpg` — Balanced Meal search result, Unsplash.
 - `wellness-yoga-unsplash-mobile.jpg` — Health and Wellness search result, Unsplash.
-- `outdoor-movement-unsplash-mobile.jpg` — Health Woman search result, Unsplash.
 
 The original local staging copies were deliberately excluded; only optimized mobile JPEG files are shipped.
