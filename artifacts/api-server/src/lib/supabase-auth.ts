@@ -19,15 +19,9 @@ function getVerifier(): SupabaseClient | null {
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
   if (!url || !anonKey) return null;
 
-  try {
-    _client = createClient(url, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-  } catch {
-    // Configuration errors must remain an authentication denial, not an
-    // unhandled request error that traps the client in startup recovery.
-    return null;
-  }
+  _client = createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   return _client;
 }
 
@@ -113,13 +107,14 @@ export function getCoachFactAccountEligibility(user: {
 
 /**
  * Resolves the authenticated Supabase user from the request's Bearer token.
- * Returns null when the verifier is unavailable, the header is missing or
- * malformed, or the token is invalid. Authentication must fail closed without
- * turning a configuration outage into an unhandled 500 response.
+ * Returns null when the header is missing, malformed, or the token is invalid.
+ * Throws only when Supabase credentials are not configured at all.
  */
 export async function verifyBearerToken(req: Request): Promise<VerifiedUser | null> {
   const verifier = getVerifier();
-  if (!verifier) return null;
+  if (!verifier) {
+    throw new Error("Supabase credentials are not configured");
+  }
 
   const authHeader = req.headers.authorization ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

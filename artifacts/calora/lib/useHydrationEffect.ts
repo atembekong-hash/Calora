@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { applyStorageMigration, ParseHydrationError, type HydrationErrorKind } from './hydrationGuard';
 import { STORAGE_SCHEMA_VERSION } from './storageSchema';
 import type { PersistenceManager } from './persistenceManager';
-import { withTimeout } from './withTimeout';
 
 export type HydrationEffectResult = {
   hydrated: boolean;
@@ -33,8 +32,6 @@ export type HydrationEffectResult = {
    */
   isRetrying: boolean;
 };
-
-export const HYDRATION_TIMEOUT_MS = 12_000;
 
 /**
  * Manage the storage-read lifecycle for an injected PersistenceManager ref.
@@ -79,11 +76,7 @@ export function useHydrationEffect<T>(
 
     readInFlight.current = true;
 
-    withTimeout(
-      pmRef.current.read<T & { schemaVersion?: number }>(),
-      HYDRATION_TIMEOUT_MS,
-      'Encrypted local data hydration',
-    )
+    pmRef.current.read<T & { schemaVersion?: number }>()
       .then(({ state: saved, error: parseError }) => {
         if (parseError) throw new ParseHydrationError(parseError);
         // Apply schema migrations before handing state to the app.
