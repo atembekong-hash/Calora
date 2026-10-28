@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScalePressable } from "@/components/ScalePressable";
-import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { useCalora } from "@/context/CaloraContext";
 import { dateKey } from "@/lib/dates";
 import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
@@ -171,7 +170,7 @@ function LearningCard() {
 }
 
 export default function MoreScreen() {
-  const { fontScale, profile, profilePhotoUri } = useCalora();
+  const { fontScale } = useCalora();
   const styles = makeStyles(fontScale);
   const quick = useMemo(() => [
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
@@ -182,6 +181,7 @@ export default function MoreScreen() {
     { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
     { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
+    { label: "Recipes", icon: "book-open" as const, route: "/recipes", tint: ORANGE },
   ], []);
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -195,14 +195,6 @@ export default function MoreScreen() {
             <Feather name="settings" size={22} color={TEXT} />
           </Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={styles.welcome}>
-          <ProfilePhoto uri={profilePhotoUri} size={50} accessibilityLabel="Profile photo" fallback={<View style={styles.avatarFallback}><Text style={styles.avatarLetter}>{profile?.name?.charAt(0) ?? "C"}</Text></View>} />
-          <View style={styles.welcomeCopy}>
-            <Text style={styles.welcomeTitle}>{profile?.name ? `Hi, ${profile.name.split(" ")[0]}` : "Hi, there"}</Text>
-            <Text style={styles.welcomeSub}>Your tools, preferences, and progress in one place</Text>
-          </View>
-          <Feather name="chevron-right" size={24} color={TEXT} />
-        </Pressable>
         <FastingCard />
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
@@ -233,12 +225,6 @@ function makeStyles(scale: number) {
     headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
     headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
     gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
-    welcome: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 14 },
-    avatarFallback: { width: 50, height: 50, borderRadius: 25, backgroundColor: GREEN, alignItems: "center", justifyContent: "center" },
-    avatarLetter: { color: "#063523", fontSize: 20 * scale, fontWeight: "800" },
-    welcomeCopy: { flex: 1 },
-    welcomeTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
-    welcomeSub: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     fastingCard: { minHeight: 270, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
     fastingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4, 42, 32, .56)" },
     fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
@@ -269,8 +255,8 @@ function makeStyles(scale: number) {
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     editButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingBottom: 2 },
     editText: { color: GREEN, fontSize: 14 * scale, fontWeight: "700" },
-    quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    quickItem: { width: "23.2%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
+    quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
+    quickItem: { width: "31.5%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
     quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
     lowerPanel: { borderRadius: 21, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14 },
     lowerRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 12 },

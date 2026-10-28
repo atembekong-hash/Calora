@@ -143,7 +143,6 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("calora-insights-header.jpg");
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
-    expect(source).toContain("fontSize: 20 * scale");
     expect(source).toContain("fontSize: 15 * scale");
   });
 
@@ -157,15 +156,16 @@ describe("MoreScreen feature hierarchy", () => {
       ["Open Calora Pro", "/profile?tab=membership"],
       ["Open Goals", "/profile?tab=you&open=goals"],
       ["Open Health sync", "/profile?tab=account&open=health"],
+      ["Open Recipes", "/recipes"],
     ] as const;
     for (const [label, route] of quickRoutes) {
       fireEvent.click(screen.getByRole("button", { name: label }));
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
-    expect(screen.queryByText("Settings & profile")).toBeNull();
-    expect(screen.queryByText("Health & privacy")).toBeNull();
-    expect(screen.queryByText("Help & support")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open profile" })).toBeNull();
+    expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(16);
     expect(screen.queryByText("Your Calora")).toBeNull();
   });
 
@@ -187,6 +187,7 @@ describe("MoreScreen feature hierarchy", () => {
       "utf8",
     );
 
+    expect(source).toContain('width: "31.5%"');
     expect(source).toContain("log.date === dateKey()");
     expect(source).not.toContain("new Date().toISOString().slice(0, 10)");
   });
