@@ -17,13 +17,11 @@ import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
 
 const SURFACE = "#10231f";
-const SURFACE_RAISED = "#153129";
 const BORDER = "rgba(140, 203, 177, 0.16)";
 const TEXT = "#f4fbf7";
 const MUTED = "#9ab1a7";
 const GREEN = "#45e29b";
 const ORANGE = "#ff876c";
-const PURPLE = "#9d77ff";
 
 function IconBox({
   color,
@@ -159,7 +157,7 @@ function LearningCard() {
       onPress={() => router.push("/learning")}
       style={[styles.featureCard, styles.learningCard]}
     >
-      <IconBox color={PURPLE} icon="book-open" />
+      <IconBox color="#9d77ff" icon="book-open" />
       <Text style={styles.featureTitle}>Learning</Text>
       <Text style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
       <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
@@ -219,33 +217,31 @@ const styles = {
 function makeStyles(scale: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: "#081612" },
-    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 38, gap: 16 },
+    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 38, gap: 13 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
     headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
     gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
     fastingCard: { minHeight: 216, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
-    fastingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4, 42, 32, .56)" },
     fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
-    fastRingOuter: { height: 116, width: 116, borderRadius: 58, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 18, top: 34 },
-    fastRing: { height: 98, width: 98, borderRadius: 49, borderWidth: 10, borderLeftColor: "#53776b", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
-    fastCopy: { marginLeft: 138, paddingTop: 2, minHeight: 136 },
+    fastRingOuter: { height: 104, width: 104, borderRadius: 52, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 16, top: 30 },
+    fastRing: { height: 88, width: 88, borderRadius: 44, borderWidth: 9, borderLeftColor: "#53776b", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
+    fastCopy: { marginLeft: 124, marginRight: 72, paddingTop: 2, minHeight: 126 },
     statusPill: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: "rgba(69,226,155,.14)" },
     statusText: { color: GREEN, fontSize: 12 * scale, fontWeight: "700" },
-    fastTitle: { color: TEXT, fontSize: 18 * scale, fontWeight: "800", marginTop: 12 },
+    fastTitle: { color: TEXT, fontSize: 18 * scale, fontWeight: "800", marginTop: 8 },
     fastMain: { color: TEXT, fontSize: 36 * scale, fontWeight: "800", letterSpacing: -1 },
-    fastSubtitle: { color: "#b8d3c8", fontSize: 13 * scale, lineHeight: 18 * scale, maxWidth: 230 },
-    fastAction: { position: "absolute", right: 19, top: 93, height: 52, width: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
+    fastSubtitle: { color: "#b8d3c8", fontSize: 13 * scale, lineHeight: 18 * scale, maxWidth: 205 },
+    fastAction: { position: "absolute", right: 19, top: 78, height: 48, width: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 12, top: 8, opacity: 0.7, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 14, right: 14, bottom: 14, flexDirection: "row", gap: 8 },
     featureRow: { flexDirection: "row", gap: 14 },
     featureCard: { flex: 1, minHeight: 156.8, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
     progressCard: { backgroundColor: "#3b2b22" },
     learningCard: { backgroundColor: "#262148" },
-    featureShade: { ...StyleSheet.absoluteFillObject },
-    featureTitle: { color: TEXT, fontSize: 22 * scale, fontWeight: "800", marginTop: 18 },
-    featureSubtitle: { color: "#d0d8d4", fontSize: 14 * scale, lineHeight: 19 * scale, maxWidth: 145, marginTop: 3 },
-    featureArrow: { position: "absolute", right: 16, bottom: 18, height: 42, width: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
+    featureTitle: { color: TEXT, fontSize: 20 * scale, fontWeight: "800", marginTop: 12 },
+    featureSubtitle: { color: "#d0d8d4", fontSize: 13 * scale, lineHeight: 17 * scale, maxWidth: 132, marginTop: 2 },
+    featureArrow: { position: "absolute", right: 14, bottom: 14, height: 38, width: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
     chartBars: { position: "absolute", bottom: 14, left: 14, flexDirection: "row", gap: 4, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
@@ -255,11 +251,5 @@ function makeStyles(scale: number) {
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "31.5%", minHeight: 62.4, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
     quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
-    lowerPanel: { borderRadius: 21, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14 },
-    lowerRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 12 },
-    lowerRowBorder: { borderTopWidth: 1, borderTopColor: BORDER },
-    lowerCopy: { flex: 1 },
-    lowerTitle: { color: TEXT, fontSize: 16 * scale, fontWeight: "800" },
-    lowerCaption: { color: MUTED, fontSize: 12 * scale, marginTop: 3 },
   });
 }
