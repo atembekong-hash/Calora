@@ -12,6 +12,27 @@ import { AccountDeletionInProgressError, assertAccountWritable } from "./account
 
 let _client: SupabaseClient | null = null;
 
+export type SupabaseVerifierFailureCode =
+  | "supabase_config_missing"
+  | "supabase_config_invalid"
+  | "supabase_auth_unavailable";
+
+export class SupabaseVerifierError extends Error {
+  readonly code: SupabaseVerifierFailureCode;
+
+  constructor(code: SupabaseVerifierFailureCode) {
+    super("Supabase verifier unavailable");
+    this.name = "SupabaseVerifierError";
+    this.code = code;
+  }
+}
+
+export function isSupabaseVerifierError(
+  error: unknown,
+): error is SupabaseVerifierError {
+  return error instanceof SupabaseVerifierError;
+}
+
 function getVerifier(): SupabaseClient | null {
   if (_client) return _client;
 
@@ -19,9 +40,13 @@ function getVerifier(): SupabaseClient | null {
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
   if (!url || !anonKey) return null;
 
-  _client = createClient(url, anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  try {
+    _client = createClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  } catch {
+    throw new SupabaseVerifierError("supabase_config_invalid");
+  }
   return _client;
 }
 
@@ -108,19 +133,26 @@ export function getCoachFactAccountEligibility(user: {
 /**
  * Resolves the authenticated Supabase user from the request's Bearer token.
  * Returns null when the header is missing, malformed, or the token is invalid.
- * Throws only when Supabase credentials are not configured at all.
+ * Throws a bounded SupabaseVerifierError only when verifier configuration or
+ * the Supabase Auth service is unavailable.
  */
 export async function verifyBearerToken(req: Request): Promise<VerifiedUser | null> {
-  const verifier = getVerifier();
-  if (!verifier) {
-    throw new Error("Supabase credentials are not configured");
-  }
-
   const authHeader = req.headers.authorization ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return null;
 
-  const { data, error } = await verifier.auth.getUser(token);
+  const verifier = getVerifier();
+  if (!verifier) {
+    throw new SupabaseVerifierError("supabase_config_missing");
+  }
+
+  let result: Awaited<ReturnType<typeof verifier.auth.getUser>>;
+  try {
+    result = await verifier.auth.getUser(token);
+  } catch {
+    throw new SupabaseVerifierError("supabase_auth_unavailable");
+  }
+  const { data, error } = result;
   if (error || !data?.user) return null;
 
   try {

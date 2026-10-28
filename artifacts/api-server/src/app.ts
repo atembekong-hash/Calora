@@ -12,6 +12,7 @@ import adminRouter from "./routes/admin";
 import { logger, safeErrorDetails } from "./lib/logger";
 import { isCorsOriginAllowed } from "./lib/cors-policy";
 import { HealthCheckResponse } from "@workspace/api-zod";
+import { isSupabaseVerifierError } from "./lib/supabase-auth.js";
 
 const app: Express = express();
 const STRICT_TRANSPORT_SECURITY = "max-age=31536000";
@@ -104,6 +105,10 @@ const handleUnhandledRequestError: ErrorRequestHandler = (
   req.log.error(safeErrorDetails(err), "Unhandled request error");
   if (res.headersSent) {
     next(err);
+    return;
+  }
+  if (isSupabaseVerifierError(err)) {
+    res.status(503).json({ message: "Authentication service is temporarily unavailable." });
     return;
   }
   res.status(500).json({ message: "An unexpected server error occurred." });
