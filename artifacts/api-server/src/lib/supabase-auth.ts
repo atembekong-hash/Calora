@@ -19,9 +19,15 @@ function getVerifier(): SupabaseClient | null {
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
   if (!url || !anonKey) return null;
 
-  _client = createClient(url, anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  try {
+    _client = createClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  } catch {
+    // Configuration errors must remain an authentication denial, not an
+    // unhandled request error that traps the client in startup recovery.
+    return null;
+  }
   return _client;
 }
 
