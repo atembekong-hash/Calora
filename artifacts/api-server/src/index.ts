@@ -13,8 +13,14 @@ import { recoverPendingAccountDeletions } from "./routes/account";
 import { runSafeBackgroundTask } from "./lib/safe-background-task";
 import { assertStartupReady } from "./lib/startup-readiness";
 import { refreshOperationalAlerts } from "./lib/admin-alerts";
+import { assertApiRuntimeCompatible } from "./lib/runtime-compatibility";
 
 const rawPort = process.env["PORT"];
+
+// A compatible runtime is a release prerequisite, not a warning. This must
+// fail before the listener opens so Railway cannot route traffic to an API
+// whose Supabase SDK cannot initialize reliably.
+assertApiRuntimeCompatible();
 
 if (!rawPort) {
   throw new Error(
