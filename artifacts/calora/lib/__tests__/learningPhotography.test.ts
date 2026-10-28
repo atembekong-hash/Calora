@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { LEARNING_COLLECTIONS, LEARNING_LESSONS } from "@/content/learning";
+import { getLearningEditorialImage } from "@/lib/learningImages";
 
 const appRoot = path.resolve(__dirname, "../..");
 const imageMapPath = path.join(appRoot, "lib", "learningImages.ts");
@@ -19,6 +20,16 @@ describe("Learning editorial photography", () => {
     expect(imageMap).toContain("assets/images/learning/");
     expect(screen).toContain("getLearningEditorialImage(lesson)");
     expect(screen).toContain('resizeMode="cover"');
+  });
+
+  it("resolves a local image module for every Learning collection", () => {
+    for (const collection of LEARNING_COLLECTIONS) {
+      const lesson = LEARNING_LESSONS.find(
+        (item) => item.collectionId === collection.id,
+      );
+      expect(lesson).toBeDefined();
+      expect(getLearningEditorialImage(lesson!)).toBeTruthy();
+    }
   });
 
   it("keeps the local Learning asset set small enough for a mobile editorial surface", () => {

@@ -58,6 +58,11 @@ vi.mock("react-native", () => {
         children,
       );
   return {
+    Image: ({ source: _source, style: _style, testID, ...props }: any) =>
+      React.createElement("img", {
+        ...props,
+        ...(testID ? { "data-testid": testID } : {}),
+      }),
     Pressable: element("button"),
     ScrollView: element("div"),
     StyleSheet: {
@@ -151,9 +156,21 @@ describe("LearningScreen", () => {
   it("offers an editorial library that filters by topic and search query", () => {
     render(<LearningScreen />);
 
-    expect(screen.getAllByText("Build a balanced plate").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Fasting basics and boundaries").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("tab", { name: "Fasting learning topic" }));
+    expect(
+      screen.getAllByText("Build a balanced plate").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Fasting basics and boundaries").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByTestId("learning-lesson-editorial-photo").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByTestId("learning-featured-editorial-photo").length,
+    ).toBeGreaterThan(0);
+    fireEvent.click(
+      screen.getByRole("tab", { name: "Fasting learning topic" }),
+    );
     expect(
       screen.getByLabelText("Open lesson: Fasting basics and boundaries"),
     ).toBeTruthy();
@@ -168,7 +185,9 @@ describe("LearningScreen", () => {
   it("opens the canonical lesson route and exposes a local save hook", () => {
     render(<LearningScreen />);
 
-    fireEvent.click(screen.getByLabelText("Open lesson: Build a balanced plate"));
+    fireEvent.click(
+      screen.getByLabelText("Open lesson: Build a balanced plate"),
+    );
     expect(harness.router.push).toHaveBeenCalledWith({
       pathname: "/learning/[lessonId]",
       params: { lessonId: "balanced-plate-basics" },
@@ -190,7 +209,9 @@ describe("LearningLessonScreen route", () => {
     render(<LearningLessonScreen />);
 
     expect(screen.getByText("Consider safety first")).toBeTruthy();
-    expect(screen.getByText(/does not replace individualized medical advice/)).toBeTruthy();
+    expect(
+      screen.getByText(/does not replace individualized medical advice/),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Open Fasting" }));
     expect(harness.router.push).toHaveBeenCalledWith("/fasting");
   });
@@ -200,7 +221,9 @@ describe("LearningLessonScreen route", () => {
     render(<LearningLessonScreen />);
 
     expect(screen.getByText("Lesson unavailable")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Browse Learning library" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Browse Learning library" }),
+    );
     expect(harness.router.replace).toHaveBeenCalledWith("/learning");
   });
 });

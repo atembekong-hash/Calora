@@ -11,7 +11,7 @@ const collectionImages: Record<LearningCollectionId, LocalImage> = {
   "meal-timing-basics": require("../assets/images/learning/coffee-morning-unsplash-mobile.jpg"),
   "hydration-everyday": require("../assets/images/foods/berry-protein-smoothie.jpg"),
   "movement-and-recovery": require("../assets/images/learning/wellness-yoga-unsplash-mobile.jpg"),
-  "sleep-and-rhythm": require("../assets/images/meals/overnight-oats.jpg"),
+  "sleep-and-rhythm": require("../assets/images/foods/overnight-oats.jpg"),
   "mindset-and-routine": require("../assets/images/meals/yogurt-parfait.jpg"),
 };
 
