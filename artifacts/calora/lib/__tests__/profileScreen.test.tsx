@@ -385,7 +385,7 @@ describe("Profile rendered interactions", () => {
   it("offers a review path for completed onboarding without changing data first", () => {
     render(<ProfileScreen />);
     fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
+      screen.getByRole("tab", { name: "You profile tab" }),
     );
     expect(
       screen.getByText(
@@ -404,7 +404,7 @@ describe("Profile rendered interactions", () => {
     harness.calora.onboardingStep = 3;
     render(<ProfileScreen />);
     fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
+      screen.getByRole("tab", { name: "You profile tab" }),
     );
     expect(screen.getByText("Continue from step 4 of 7.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Resume onboarding" }));
@@ -425,6 +425,41 @@ describe("Profile rendered interactions", () => {
     expect(
       screen.getByText("Your plan").closest('[class*="r-display"]'),
     ).toBeTruthy();
+  });
+
+  it("accepts the reminders intent in You and keeps the reminder controls discoverable", () => {
+    harness.state.tab = "membership";
+    harness.state.open = "reminders";
+    render(<ProfileScreen />);
+
+    expect(screen.getByTestId("profile-reminders-context")).toBeTruthy();
+    expect(screen.getByText("Reminders")).toBeTruthy();
+    expect(
+      screen.getByRole("switch", { name: "Toggle all notifications" }),
+    ).toBeTruthy();
+  });
+
+  it("accepts the goals intent in You and opens the existing Nutrition goals control", () => {
+    harness.state.tab = "membership";
+    harness.state.open = "goals";
+    render(<ProfileScreen />);
+
+    expect(screen.getByTestId("nutrition-goals-settings")).toBeTruthy();
+    expect(screen.getByRole("dialog").textContent).toContain("Nutrition goals");
+  });
+
+  it("keeps Membership limited to subscription and referral concerns", () => {
+    render(<ProfileScreen />);
+    fireEvent.click(
+      screen.getByRole("tab", { name: "Membership profile tab" }),
+    );
+
+    expect(screen.getByText("Calora Pro")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create saved meal" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Review living memory" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Review onboarding" })).toBeNull();
   });
 
   it("uses the approved store prices and only reports purchase success with the expected entitlement", async () => {
@@ -791,7 +826,7 @@ describe("Profile rendered interactions", () => {
   it("opens saved-meal creation and routes living memory to its screen", () => {
     render(<ProfileScreen />);
     fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
+      screen.getByRole("tab", { name: "You profile tab" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Create saved meal" }));
     expect(screen.getByText("Create a saved template")).toBeTruthy();

@@ -302,6 +302,14 @@ export function AccountSection({
       >
         Account
       </Text>
+      <Text
+        style={[
+          styles.sectionDescription,
+          { color: colors.mutedForeground, fontSize: 12 * f },
+        ]}
+      >
+        Sign-in details and permanent account controls.
+      </Text>
 
       {/* Account info card */}
       <View
@@ -446,6 +454,10 @@ export function AccountSection({
               This will permanently delete your account and all data — diary
               entries, weight logs, meals, and profile — from this device and
               our servers. This cannot be undone.
+              {"\n\n"}
+              If you have an App Store or Google Play subscription, cancel it
+              in the store separately. Deleting your account does not cancel
+              store billing.
               {"\n\n"}
               To confirm, type{" "}
               <Text
@@ -666,6 +678,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.3,
     marginTop: 25,
+    marginBottom: 11,
+  },
+  sectionDescription: {
+    fontFamily: "Inter_400Regular",
+    lineHeight: 17,
+    marginTop: -5,
     marginBottom: 11,
   },
 

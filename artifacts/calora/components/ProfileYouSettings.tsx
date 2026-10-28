@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View, StyleSheet } from 'react-native';
 import type { ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -29,10 +29,13 @@ export function ProfileYouSettings({
   profile,
   colors: themeColors,
   updateProfile,
+  openIntent = null,
 }: {
   profile: Profile | null;
   colors: typeof colors.light | typeof colors.dark;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
+  /** A validated contextual Profile intent. Goals reuses the existing sheet. */
+  openIntent?: 'goals' | null;
 }) {
   const [personalOpen, setPersonalOpen] = useState(false);
   const [nutritionOpen, setNutritionOpen] = useState(false);
@@ -76,6 +79,14 @@ export function ProfileYouSettings({
     setMacro({ calories: String(targets.calories), protein: String(targets.protein), carbs: String(targets.carbs), fat: String(targets.fat) });
     setError(''); setNutritionOpen(true);
   };
+  // Deliberately depend on the intent value, rather than nutritionOpen: closing
+  // the sheet should not immediately reopen it while the route remains mounted.
+  useEffect(() => {
+    if (openIntent === 'goals') openNutrition();
+    // openNutrition is intentionally omitted so a parent re-render does not
+    // replay a one-time deep-link request after the person closes the sheet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIntent]);
   const continuePersonal = () => {
     const result = validatePersonalDetails(personal, units);
     if (!result.ok) { setError(result.message); return; }
@@ -138,7 +149,7 @@ export function ProfileYouSettings({
           <Feather name="chevron-right" size={18} color={themeColors.mutedForeground} />
         </Pressable>
         <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
-        <Pressable accessibilityRole="button" testID="nutrition-goals-settings" onPress={openNutrition} style={styles.row}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open nutrition goals" testID="nutrition-goals-settings" onPress={openNutrition} style={styles.row}>
           <View style={[styles.icon, { backgroundColor: themeColors.muted }]}><Feather name="target" size={16} color={themeColors.primary} /></View>
           <View style={styles.copy}><Text style={[styles.rowTitle, { color: themeColors.foreground }]}>Nutrition goals</Text><Text style={[styles.rowBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? 'Automatic recommendations' : 'Custom calorie and macro targets'}</Text></View>
           <Feather name="chevron-right" size={18} color={themeColors.mutedForeground} />

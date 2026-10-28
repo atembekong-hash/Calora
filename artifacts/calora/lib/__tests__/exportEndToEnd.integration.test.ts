@@ -24,6 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readRawStorageData }                      from '../exportPayload';
 import { makeExportHandler, EXPORT_FILENAME, EXPORT_MIME_TYPE, type FileShareAdapter } from '../exportUiHandler';
 import { storageKeyForAccount } from '../accountStorage';
+import { STORAGE_SCHEMA_VERSION } from '../storageSchema';
 
 // ---------------------------------------------------------------------------
 // In-memory storage adapter — same pattern used by other integration tests
@@ -51,7 +52,7 @@ function makeStore(initial: Record<string, string> = {}): {
 /** All keys present in CaloraExportState, populated with minimal realistic values. */
 function makeStoredSnapshot(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    schemaVersion: 2,
+    schemaVersion: STORAGE_SCHEMA_VERSION,
     profile: {
       name: 'Alex',
       goal: 'lose',
@@ -93,6 +94,9 @@ function makeStoredSnapshot(overrides: Record<string, unknown> = {}): string {
     consentAccepted: true,
     coachConsentAccepted: true,
     coachMessages: [],
+    fasting: { selectedPlanId: '12:12', activeStartedAt: null, activePlannedHours: null, history: [] },
+    dashboardPreferences: { visible: ['calories'], order: ['calories'], density: { calories: 'expanded' } },
+    learningReaderState: { version: 1, savedLessonIds: [], progressByLessonId: {} },
     ...overrides,
   }, null, 2);
 }
@@ -159,7 +163,7 @@ describe('readRawStorageData: returns the stored snapshot verbatim', () => {
 
     const parsed = JSON.parse(raw!) as Record<string, unknown>;
     expect(typeof parsed['schemaVersion']).toBe('number');
-    expect(parsed['schemaVersion']).toBe(2);
+    expect(parsed['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
   });
 });
 
@@ -324,6 +328,9 @@ describe('exported JSON contains the expected CaloraExportState keys', () => {
     'mealReminders',
     'goalReminder',
     'notificationPreferences',
+    'fasting',
+    'dashboardPreferences',
+    'learningReaderState',
   ];
 
   it.each(EXPECTED_KEYS)('exported JSON contains top-level key "%s"', async (key) => {

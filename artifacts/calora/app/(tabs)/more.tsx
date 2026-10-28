@@ -6,8 +6,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ScalePressable } from "@/components/ScalePressable";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { useCalora } from "@/context/CaloraContext";
+import { dateKey } from "@/lib/dates";
 import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
-import { formatWeight, weightUnitLabel } from "@/lib/weightInput";
+import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
+import { formatWeight } from "@/lib/weightInput";
 
 function FastingCard() {
   const { fasting, colors, fontScale } = useCalora();
@@ -72,11 +74,8 @@ function FastingCard() {
 function ProgressCard() {
   const { weights, profile, colors, fontScale, logs } = useCalora();
   const styles = makeStyles(colors, fontScale);
-  const latest = weights[0] ?? null;
-  const unit = weightUnitLabel(profile?.units ?? "metric");
-  const todayLogs = logs.filter(
-    (log) => log.date === new Date().toISOString().slice(0, 10),
-  );
+  const latest = selectProgressWeightSummary(weights).latestRecord;
+  const todayLogs = logs.filter((log) => log.date === dateKey());
   return (
     <ScalePressable
       accessibilityRole="button"
@@ -91,7 +90,7 @@ function ProgressCard() {
         <Text style={styles.progressTitle}>Progress</Text>
         <Text style={styles.progressSummary}>
           {latest
-            ? `${formatWeight(latest.kg, profile?.units ?? "metric")} ${unit} logged`
+            ? `${formatWeight(latest.kg, profile?.units ?? "metric")} logged`
             : todayLogs.length
               ? `${todayLogs.length} meals logged today`
               : "Start with a first check-in"}
@@ -105,14 +104,8 @@ function ProgressCard() {
 }
 
 export default function MoreScreen() {
-  const {
-    colors,
-    fontScale,
-    profile,
-    profilePhotoUri,
-    savedMeals,
-    healthConnection,
-  } = useCalora();
+  const { colors, fontScale, profile, profilePhotoUri, savedMeals } =
+    useCalora();
   const styles = makeStyles(colors, fontScale);
   const quick = [
     {
@@ -225,7 +218,7 @@ export default function MoreScreen() {
         <View style={styles.sectionHeading}>
           <Text style={styles.sectionTitle}>Quick access</Text>
           <Text style={styles.sectionCaption}>
-            Shortcuts to the things you use most
+            Settings and supporting tools
           </Text>
         </View>
         <View style={styles.quickGrid}>
@@ -249,80 +242,9 @@ export default function MoreScreen() {
             </ScalePressable>
           ))}
         </View>
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Your Calora</Text>
-        </View>
-        <View style={styles.list}>
-          <Row
-            label="Fasting"
-            icon="clock"
-            tint="#159957"
-            onPress={() => router.push("/fasting")}
-          />
-          <Row
-            label="Progress"
-            icon="bar-chart-2"
-            tint="#ef6b4f"
-            onPress={() => router.push("/(tabs)/insights")}
-          />
-          <Row
-            label="Learning"
-            icon="book-open"
-            tint="#7d4ee5"
-            onPress={() => router.push("/learning")}
-          />
-          <Row
-            label="Settings & profile"
-            icon="settings"
-            tint={colors.mutedForeground}
-            onPress={() => router.push("/profile")}
-          />
-          <Row
-            label="Health connection"
-            detail={
-              healthConnection.authorization === "authorized"
-                ? "Connected"
-                : "Manage permissions"
-            }
-            icon="heart"
-            tint="#159957"
-            onPress={() => router.push("/profile?tab=account&open=health")}
-          />
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
-  function Row({
-    label,
-    detail,
-    icon,
-    tint,
-    onPress,
-  }: {
-    label: string;
-    detail?: string;
-    icon: keyof typeof Feather.glyphMap;
-    tint: string;
-    onPress: () => void;
-  }) {
-    return (
-      <ScalePressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${label}`}
-        onPress={onPress}
-        style={styles.row}
-      >
-        <View style={[styles.rowIcon, { backgroundColor: `${tint}14` }]}>
-          <Feather name={icon} size={18} color={tint} />
-        </View>
-        <View style={styles.rowCopy}>
-          <Text style={styles.rowLabel}>{label}</Text>
-          {detail ? <Text style={styles.rowDetail}>{detail}</Text> : null}
-        </View>
-        <Feather name="chevron-right" size={19} color={colors.mutedForeground} />
-      </ScalePressable>
-    );
-  }
 }
 const makeStyles = (
   colors: ReturnType<typeof useCalora>["colors"],
@@ -344,7 +266,11 @@ const makeStyles = (
       fontWeight: "800",
       letterSpacing: -0.8,
     },
-    headerCaption: { color: colors.mutedForeground, fontSize: 12 * scale, marginTop: 3 },
+    headerCaption: {
+      color: colors.mutedForeground,
+      fontSize: 12 * scale,
+      marginTop: 3,
+    },
     gear: {
       height: 42,
       width: 42,
@@ -372,7 +298,11 @@ const makeStyles = (
       fontWeight: "800",
       fontSize: 15 * scale,
     },
-    welcomeSub: { color: colors.mutedForeground, fontSize: 11 * scale, marginTop: 2 },
+    welcomeSub: {
+      color: colors.mutedForeground,
+      fontSize: 11 * scale,
+      marginTop: 2,
+    },
     fastingCard: {
       minHeight: 139,
       borderRadius: 22,
@@ -532,30 +462,4 @@ const makeStyles = (
       fontSize: 10 * scale,
       textAlign: "center",
     },
-    list: {
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 18,
-      overflow: "hidden",
-    },
-    row: {
-      minHeight: 61,
-      paddingHorizontal: 13,
-      flexDirection: "row",
-      gap: 11,
-      alignItems: "center",
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-    },
-    rowIcon: {
-      height: 34,
-      width: 34,
-      borderRadius: 11,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rowCopy: { flex: 1 },
-    rowLabel: { color: colors.text, fontWeight: "700", fontSize: 13 * scale },
-    rowDetail: { color: colors.mutedForeground, fontSize: 10 * scale, marginTop: 2 },
   });

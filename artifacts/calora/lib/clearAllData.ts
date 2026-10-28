@@ -17,6 +17,7 @@ import type { PersistenceManager } from './persistenceManager';
 import type { LivingMemory } from './livingMemory';
 import type { HydrationReminderPrefs } from './hydrationReminders';
 import { EMPTY_HEALTH_CONNECTION } from './health/types';
+import { EMPTY_LEARNING_READER_STATE } from './learning';
 
 export type ClearAllDataFailureKind = 'core-clear-failed' | 'partial-cleanup';
 
@@ -128,6 +129,8 @@ export interface ClearAllDataCtx {
   setPlannerPreferences: Setter;
   setFasting?: Setter;
   setDashboardPreferences?: Setter;
+  /** Clears saved lessons and reader progress within the encrypted local scope. */
+  setLearningReaderState?: Setter;
 }
 
 /**
@@ -192,4 +195,5 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
     order: ['calories', 'steps', 'water', 'weight', 'mealRhythm', 'nutrients', 'fasting'],
     density: { calories: 'expanded', steps: 'compact', water: 'compact', weight: 'compact', mealRhythm: 'compact', nutrients: 'expanded', fasting: 'compact' },
   });
+  ctx.setLearningReaderState?.(EMPTY_LEARNING_READER_STATE);
 }

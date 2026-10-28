@@ -1,15 +1,31 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppChrome";
 import { ScalePressable } from "@/components/ScalePressable";
 import { useCalora } from "@/context/CaloraContext";
 import {
+  clampFastingHours,
+  deriveFastingCalendar,
+  deriveFastingHistorySummary,
   deriveFastingProgress,
   FASTING_PLANS,
+  fastingHistoryInsight,
+  fastingHoursFor,
+  fastingPlanLabel,
   formatFastingDuration,
+  formatFastingHours,
+  isFastingTimerEligible,
   type FastingPlanId,
 } from "@/lib/fasting";
 
@@ -20,10 +36,35 @@ function formatClock(value: Date): string {
   }).format(value);
 }
 
+function formatShortDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function trendLabel(
+  trend: ReturnType<typeof deriveFastingHistorySummary>["trend"],
+): string {
+  switch (trend) {
+    case "more":
+      return "More windows than the prior 7 days";
+    case "fewer":
+      return "Fewer windows than the prior 7 days";
+    case "steady":
+      return "Similar to the prior 7 days";
+    case "new":
+      return "First recorded week";
+    default:
+      return "History will appear as you use this optional tracker";
+  }
+}
+
 export default function FastingScreen() {
   const {
     colors,
     fontScale,
+    profile,
     fasting,
     setFastingPlan,
     startFast,
@@ -31,23 +72,108 @@ export default function FastingScreen() {
     notificationPreferences,
   } = useCalora();
   const [now, setNow] = useState(() => new Date());
+  const [customHoursInput, setCustomHoursInput] = useState(() =>
+    String(fasting.customFastingHours ?? 12),
+  );
+
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000);
+    const interval = setInterval(() => setNow(new Date()), 1_000);
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (fasting.selectedPlanId === "custom") {
+      setCustomHoursInput(String(fastingHoursFor(fasting)));
+    }
+  }, [fasting.customFastingHours, fasting.selectedPlanId]);
+
   const progress = deriveFastingProgress(fasting, now);
-  const activePlan =
-    FASTING_PLANS.find((plan) => plan.id === fasting.selectedPlanId) ??
-    FASTING_PLANS[0]!;
+  const selectedHours = fastingHoursFor(fasting);
   const completed = useMemo(
     () => fasting.history.slice(0, 4),
     [fasting.history],
   );
-  const reminderEnabled = Boolean(
+  const summary = useMemo(
+    () => deriveFastingHistorySummary(fasting.history, now),
+    [fasting.history, now],
+  );
+  const calendar = useMemo(
+    () => deriveFastingCalendar(fasting.history, now),
+    [fasting.history, now],
+  );
+  const remindersEnabled = Boolean(
     notificationPreferences.categories.meal?.enabled,
   );
+  const targetComplete = progress.active && progress.remainingMs === 0;
   const styles = makeStyles(colors, fontScale);
+
+  const choosePlan = (planId: FastingPlanId) => {
+    if (planId === "custom") {
+      const hours = fasting.customFastingHours ?? 12;
+      setCustomHoursInput(String(hours));
+      setFastingPlan("custom", hours);
+      return;
+    }
+    setFastingPlan(planId);
+  };
+
+  const saveCustomPlan = () => {
+    const hours = clampFastingHours(customHoursInput, selectedHours);
+    setCustomHoursInput(String(hours));
+    setFastingPlan("custom", hours);
+  };
+
+  const adjustCustomPlan = (delta: number) => {
+    const hours = clampFastingHours(selectedHours + delta);
+    setCustomHoursInput(String(hours));
+    setFastingPlan("custom", hours);
+  };
+
+  const requestStart = () => {
+    if (!isFastingTimerEligible(profile?.age)) {
+      Alert.alert(
+        "Fasting tracker is for adults",
+        "Calora keeps this optional timer unavailable for people under 18. Talk with a parent, guardian, or qualified health professional before changing eating routines.",
+        [
+          { text: "Not now", style: "cancel" },
+          {
+            text: "Read safety guidance",
+            onPress: () =>
+              router.push({
+                pathname: "/learning/[lessonId]",
+                params: { lessonId: "fasting-basics-and-boundaries" },
+              } as never),
+          },
+        ],
+      );
+      return;
+    }
+    Alert.alert(
+      "Start optional fasting window?",
+      `Calora will record a ${formatFastingHours(selectedHours)} time-based window on this device. You can end it whenever you choose.`,
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "Start window", onPress: startFast },
+      ],
+    );
+  };
+
+  const requestEnd = () => {
+    Alert.alert(
+      targetComplete ? "Save completed window?" : "End this window early?",
+      targetComplete
+        ? "Your selected time target is complete. Save it to your local history?"
+        : "This will stop the current window and save the elapsed time to your local history.",
+      [
+        { text: "Keep tracking", style: "cancel" },
+        {
+          text: targetComplete ? "Save to history" : "End and save",
+          style: targetComplete ? "default" : "destructive",
+          onPress: endFast,
+        },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -58,7 +184,8 @@ export default function FastingScreen() {
         action={
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Fasting options"
+            accessibilityLabel="Open fasting options"
+            accessibilityHint="Opens your profile settings"
             onPress={() => router.push("/profile")}
             hitSlop={10}
           >
@@ -77,7 +204,8 @@ export default function FastingScreen() {
                 styles.ringFill,
                 {
                   borderTopColor: colors.success,
-                  borderRightColor: colors.success,
+                  borderRightColor:
+                    progress.progress > 0.25 ? colors.success : colors.border,
                   borderBottomColor:
                     progress.progress > 0.5 ? colors.success : colors.border,
                 },
@@ -85,49 +213,59 @@ export default function FastingScreen() {
             >
               <View style={styles.ringCenter}>
                 <View style={styles.flame}>
-                  <Feather name="zap" size={18} color={colors.warning} />
+                  <Feather name="clock" size={18} color={colors.warning} />
                 </View>
                 <Text style={styles.eyebrow}>
-                  {progress.active ? "FASTING" : "READY WHEN YOU ARE"}
+                  {targetComplete
+                    ? "TARGET COMPLETE"
+                    : progress.active
+                      ? "WINDOW IN PROGRESS"
+                      : "READY WHEN YOU ARE"}
                 </Text>
-                <Text style={styles.timer}>
+                <Text style={styles.timer} accessibilityLiveRegion="polite">
                   {progress.active
                     ? formatFastingDuration(progress.elapsedMs)
-                    : `${activePlan.fastingHours}:00`}
+                    : formatFastingDuration(selectedHours * 60 * 60 * 1_000)}
                 </Text>
                 <Text style={styles.timerCaption}>
                   {progress.active
-                    ? `of ${progress.plannedHours} hours`
-                    : "selected fasting window"}
+                    ? targetComplete
+                      ? `${formatFastingHours(progress.plannedHours)} target reached`
+                      : `${formatFastingDuration(progress.remainingMs)} remaining`
+                    : `${formatFastingHours(selectedHours)} selected window`}
                 </Text>
               </View>
             </View>
           </View>
-          <View style={styles.statusPill}>
+          <View
+            style={[styles.statusPill, targetComplete && styles.completePill]}
+          >
             <Feather
-              name={progress.active ? "sun" : "clock"}
+              name={
+                targetComplete ? "check" : progress.active ? "sun" : "heart"
+              }
               size={14}
               color={colors.successForeground}
             />
             <Text style={styles.statusPillText}>
-              {progress.active
-                ? progress.remainingMs > 0
-                  ? "Your fasting window is active"
-                  : "Your planned window is complete"
-                : "Start when it feels right for you"}
+              {targetComplete
+                ? "Your selected time target is complete"
+                : progress.active
+                  ? "Your optional window is active"
+                  : "Start when it feels right for you"}
             </Text>
           </View>
           {progress.active && progress.endsAt ? (
             <View style={styles.timeRow}>
-              <View>
+              <View style={styles.timeCell}>
                 <Text style={styles.timeLabel}>STARTED</Text>
                 <Text style={styles.timeValue}>
                   {formatClock(new Date(fasting.activeStartedAt!))}
                 </Text>
               </View>
               <View style={styles.timeDivider} />
-              <View>
-                <Text style={styles.timeLabel}>ENDS</Text>
+              <View style={styles.timeCell}>
+                <Text style={styles.timeLabel}>TARGET TIME</Text>
                 <Text style={styles.timeValue}>
                   {formatClock(new Date(progress.endsAt))}
                 </Text>
@@ -136,158 +274,340 @@ export default function FastingScreen() {
           ) : null}
           <ScalePressable
             accessibilityRole="button"
-            accessibilityLabel={progress.active ? "End fast" : "Start fast"}
+            accessibilityLabel={
+              progress.active
+                ? targetComplete
+                  ? "Save completed fasting window"
+                  : "End fasting window early"
+                : "Start fasting window"
+            }
+            accessibilityHint={
+              progress.active
+                ? "Asks before saving this window to your on-device history"
+                : "Asks before starting the selected optional time window"
+            }
             style={[styles.primaryButton, progress.active && styles.endButton]}
-            onPress={progress.active ? endFast : startFast}
+            onPress={progress.active ? requestEnd : requestStart}
           >
             <Text style={styles.primaryButtonText}>
-              {progress.active ? "End fast" : "Start fast"}
+              {progress.active
+                ? targetComplete
+                  ? "Save completed window"
+                  : "End window"
+                : "Start window"}
             </Text>
             <Feather
               name={progress.active ? "square" : "arrow-right"}
               size={18}
-              color="#fff"
+              color={colors.onHero}
             />
           </ScalePressable>
         </View>
 
-        {!progress.active ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Choose your rhythm</Text>
-            <Text style={styles.sectionCaption}>
-              A fasting schedule is optional. Pick a window that supports your
-              routine.
-            </Text>
-            <View style={styles.planGrid}>
-              {FASTING_PLANS.filter((plan) => plan.id !== "custom").map(
-                (plan) => (
-                  <Pressable
-                    key={plan.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Use ${plan.label} plan`}
-                    onPress={() => setFastingPlan(plan.id as FastingPlanId)}
-                    style={[
-                      styles.planCard,
-                      fasting.selectedPlanId === plan.id && styles.planSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.planLabel,
-                        fasting.selectedPlanId === plan.id &&
-                          styles.planSelectedText,
-                      ]}
-                    >
-                      {plan.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.planSub,
-                        fasting.selectedPlanId === plan.id &&
-                          styles.planSelectedText,
-                      ]}
-                    >
-                      {plan.fastingHours} hour fast
-                    </Text>
-                  </Pressable>
-                ),
-              )}
-            </View>
-          </View>
-        ) : null}
-
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Fasting schedule</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open fasting schedule settings"
-              onPress={() => router.push("/profile?tab=you&open=reminders")}
-            >
-              <Text style={styles.link}>Manage</Text>
-            </Pressable>
+            <Text style={styles.sectionTitle}>Choose your rhythm</Text>
+            <Text style={styles.sectionCaption}>
+              {fastingPlanLabel(fasting)}
+            </Text>
           </View>
-          <View style={styles.settingsRow}>
-            <View style={styles.rowIcon}>
-              <Feather name="calendar" size={18} color="#8b5cf6" />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>{activePlan.label} rhythm</Text>
-              <Text style={styles.rowSubtitle}>{activePlan.description}</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+          <Text style={styles.sectionCaption}>
+            Fasting is optional. Choose a time-based routine that fits your day,
+            or skip it entirely.
+          </Text>
+          {progress.active ? (
+            <Text style={styles.selectionNotice}>
+              Finish or end the current window before changing your next rhythm.
+            </Text>
+          ) : null}
+          <View style={styles.planGrid}>
+            {FASTING_PLANS.map((plan) => {
+              const selected = fasting.selectedPlanId === plan.id;
+              return (
+                <Pressable
+                  key={plan.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use ${plan.label} plan`}
+                  accessibilityHint={
+                    progress.active
+                      ? "Unavailable while a fasting window is active"
+                      : plan.id === "custom"
+                        ? "Opens the custom duration editor below"
+                        : plan.description
+                  }
+                  accessibilityState={{ selected, disabled: progress.active }}
+                  disabled={progress.active}
+                  onPress={() => choosePlan(plan.id)}
+                  style={[
+                    styles.planCard,
+                    selected && styles.planSelected,
+                    progress.active && styles.planDisabled,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.planLabel,
+                      selected && styles.planSelectedText,
+                    ]}
+                  >
+                    {plan.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.planSub,
+                      selected && styles.planSelectedText,
+                    ]}
+                  >
+                    {plan.id === "custom" && selected
+                      ? formatFastingHours(selectedHours)
+                      : `${plan.fastingHours} hour fast`}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <View style={styles.settingsRow}>
-            <View style={styles.rowIcon}>
-              <Feather name="bell" size={18} color="#f59e0b" />
+          {fasting.selectedPlanId === "custom" ? (
+            <View style={styles.customEditor}>
+              <View style={styles.customEditorHeading}>
+                <View style={styles.rowCopy}>
+                  <Text style={styles.rowTitle}>Custom fasting duration</Text>
+                  <Text style={styles.rowSubtitle}>
+                    Choose 10 to 24 hours in half-hour steps. This only changes
+                    your selected timer.
+                  </Text>
+                </View>
+                <Text style={styles.customValue}>
+                  {formatFastingHours(selectedHours)}
+                </Text>
+              </View>
+              <View style={styles.customControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease custom fasting duration by thirty minutes"
+                  accessibilityHint="Minimum is 10 hours"
+                  disabled={progress.active || selectedHours <= 10}
+                  onPress={() => adjustCustomPlan(-0.5)}
+                  style={styles.durationButton}
+                >
+                  <Feather name="minus" size={19} color={colors.text} />
+                </Pressable>
+                <View style={styles.durationInputWrap}>
+                  <TextInput
+                    testID="fasting-custom-hours-input"
+                    accessibilityLabel="Custom fasting duration in hours"
+                    accessibilityHint="Enter a number from 10 to 24. Half-hour increments are used."
+                    accessibilityValue={{
+                      text: `${clampFastingHours(customHoursInput, selectedHours)} hours`,
+                    }}
+                    editable={!progress.active}
+                    keyboardType="decimal-pad"
+                    inputMode="decimal"
+                    maxLength={4}
+                    selectTextOnFocus
+                    value={customHoursInput}
+                    onChangeText={setCustomHoursInput}
+                    onEndEditing={saveCustomPlan}
+                    style={styles.durationInput}
+                  />
+                  <Text style={styles.durationUnit}>hours</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase custom fasting duration by thirty minutes"
+                  accessibilityHint="Maximum is 24 hours"
+                  disabled={progress.active || selectedHours >= 24}
+                  onPress={() => adjustCustomPlan(0.5)}
+                  style={styles.durationButton}
+                >
+                  <Feather name="plus" size={19} color={colors.text} />
+                </Pressable>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Save custom fasting duration"
+                accessibilityHint="Saves your custom time window"
+                disabled={progress.active}
+                onPress={saveCustomPlan}
+                style={styles.saveCustomButton}
+              >
+                <Text style={styles.saveCustomButtonText}>
+                  Save custom rhythm
+                </Text>
+              </Pressable>
             </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Meal reminders</Text>
-              <Text style={styles.rowSubtitle}>
-                {reminderEnabled
-                  ? "Using your existing meal reminder settings"
-                  : "Off — manage reminders in Settings"}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open reminder settings"
-              onPress={() => router.push("/profile?tab=you&open=reminders")}
-            >
-              <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
+          ) : null}
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Recent fasts</Text>
+            <Text style={styles.sectionTitle}>Your local history</Text>
             <Text style={styles.sectionCaption}>
-              {fasting.history.length} completed
+              {summary.completedCount} completed
             </Text>
           </View>
-          {completed.length ? (
-            completed.map((item) => (
-              <View key={item.id} style={styles.historyRow}>
-                <View style={styles.historyIcon}>
-                  <Feather name="check" size={15} color={colors.successForeground} />
-                </View>
-                <View style={styles.rowCopy}>
-                  <Text style={styles.rowTitle}>
-                    {item.plannedHours}-hour window
-                    {item.endedEarly ? " · ended early" : ""}
+          <Text style={styles.sectionCaption}>
+            {fastingHistoryInsight(summary)}
+          </Text>
+          <View
+            testID="fasting-calendar"
+            accessibilityLabel="Completed fasting windows across the last 7 days"
+            style={styles.calendar}
+          >
+            {calendar.map((day) => (
+              <View
+                key={day.date}
+                accessibilityLabel={`${day.weekdayLabel} ${day.dayNumber}: ${day.completedCount} completed fasting ${day.completedCount === 1 ? "window" : "windows"}`}
+                style={styles.calendarDay}
+              >
+                <Text style={styles.calendarWeekday}>{day.weekdayLabel}</Text>
+                <View
+                  style={[
+                    styles.calendarDate,
+                    day.completedCount > 0 && styles.calendarDateComplete,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.calendarNumber,
+                      day.completedCount > 0 && styles.calendarNumberComplete,
+                    ]}
+                  >
+                    {day.dayNumber}
                   </Text>
-                  <Text style={styles.rowSubtitle}>
-                    {new Date(item.endedAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}{" "}
-                    ·{" "}
-                    {formatFastingDuration(
-                      Date.parse(item.endedAt) - Date.parse(item.startedAt),
-                    )}
-                  </Text>
                 </View>
+                <Text style={styles.calendarCount}>
+                  {day.completedCount > 0 ? day.completedCount : "–"}
+                </Text>
               </View>
-            ))
+            ))}
+          </View>
+          <View style={styles.trendCard}>
+            <View style={styles.rowIcon}>
+              <Feather name="bar-chart-2" size={18} color={colors.success} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>7-day routine view</Text>
+              <Text style={styles.rowSubtitle}>
+                {trendLabel(summary.trend)}
+              </Text>
+              {summary.recentAverageDurationMs !== null ? (
+                <Text style={styles.trendDetail}>
+                  Average recorded duration:{" "}
+                  {formatFastingDuration(summary.recentAverageDurationMs)}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+          {completed.length ? (
+            <View style={styles.historyList}>
+              {completed.map((item) => (
+                <View key={item.id} style={styles.historyRow}>
+                  <View style={styles.historyIcon}>
+                    <Feather
+                      name="check"
+                      size={15}
+                      color={colors.successForeground}
+                    />
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowTitle}>
+                      {formatFastingHours(item.plannedHours)} window
+                      {item.endedEarly ? " · ended early" : ""}
+                    </Text>
+                    <Text style={styles.rowSubtitle}>
+                      {formatShortDate(item.endedAt)} ·{" "}
+                      {formatFastingDuration(
+                        Date.parse(item.endedAt) - Date.parse(item.startedAt),
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           ) : (
             <View style={styles.empty}>
               <Feather name="clock" size={22} color={colors.mutedForeground} />
               <Text style={styles.emptyTitle}>
-                Your completed fasts will appear here
+                Your completed windows will appear here
               </Text>
               <Text style={styles.emptyCopy}>
-                Calora keeps this history on your device and does not make
-                fasting a requirement.
+                Calora keeps this optional history on your device. It is not a
+                score or a requirement.
               </Text>
             </View>
           )}
         </View>
-        <Text style={styles.disclaimer}>
-          Fasting tools are for personal routine tracking, not medical advice.
-          Check with a qualified clinician if you have a medical condition, are
-          pregnant, or have a history of disordered eating.
-        </Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support your routine</Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open fasting learning guide"
+            accessibilityHint="Opens Calora's fasting patterns lesson"
+            onPress={() =>
+              router.push({
+                pathname: "/learning/[lessonId]",
+                params: { lessonId: "fasting-basics-and-boundaries" },
+              } as never)
+            }
+            style={styles.settingsRow}
+          >
+            <View style={styles.rowIcon}>
+              <Feather name="book-open" size={18} color={colors.link} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Understand fasting patterns</Text>
+              <Text style={styles.rowSubtitle}>
+                Explore the optional guide and its safety notes.
+              </Text>
+            </View>
+            <Feather
+              name="chevron-right"
+              size={20}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open meal reminder settings"
+            accessibilityHint="Opens your existing reminder settings"
+            onPress={() => router.push("/profile?tab=you&open=reminders")}
+            style={styles.settingsRow}
+          >
+            <View style={styles.rowIcon}>
+              <Feather name="bell" size={18} color={colors.warning} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Meal reminders</Text>
+              <Text style={styles.rowSubtitle}>
+                {remindersEnabled
+                  ? "Using your existing meal reminder settings"
+                  : "Off — manage your existing reminders in Settings"}
+              </Text>
+            </View>
+            <Feather
+              name="chevron-right"
+              size={20}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.safetyCard}>
+          <Feather name="shield" size={18} color={colors.warning} />
+          <View style={styles.rowCopy}>
+            <Text style={styles.safetyTitle}>
+              A personal routine tool, not medical advice
+            </Text>
+            <Text style={styles.safetyCopy}>
+              Fasting is optional and not right for everyone. Stop if it does
+              not feel right, and check with a qualified clinician before
+              fasting if you have a medical condition, are pregnant or
+              breastfeeding, take medication that affects meals, or have a
+              history of disordered eating.
+            </Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -359,6 +679,7 @@ const makeStyles = (
       backgroundColor: colors.successTint,
       borderRadius: 16,
     },
+    completePill: { borderWidth: 1, borderColor: colors.success },
     statusPillText: {
       color: colors.text,
       fontWeight: "700",
@@ -373,6 +694,7 @@ const makeStyles = (
       padding: 13,
       borderRadius: 16,
     },
+    timeCell: { flex: 1 },
     timeDivider: {
       height: 34,
       width: StyleSheet.hairlineWidth,
@@ -413,21 +735,31 @@ const makeStyles = (
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "baseline",
+      gap: 12,
     },
     sectionTitle: {
       color: colors.text,
       fontWeight: "800",
       fontSize: 18 * scale,
+      flexShrink: 1,
     },
     sectionCaption: {
       color: colors.mutedForeground,
       fontSize: 12 * scale,
       lineHeight: 18 * scale,
+      flexShrink: 1,
     },
-    link: { color: colors.link, fontWeight: "800", fontSize: 13 * scale },
-    planGrid: { flexDirection: "row", gap: 9 },
+    selectionNotice: {
+      color: colors.mutedForeground,
+      fontSize: 11 * scale,
+      lineHeight: 16 * scale,
+      backgroundColor: colors.warningTint,
+      padding: 10,
+      borderRadius: 12,
+    },
+    planGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
     planCard: {
-      flex: 1,
+      width: "48.6%",
       minHeight: 78,
       justifyContent: "center",
       alignItems: "center",
@@ -435,15 +767,90 @@ const makeStyles = (
       borderColor: colors.border,
       borderRadius: 15,
       backgroundColor: colors.card,
+      paddingHorizontal: 8,
     },
-    planSelected: {
-      backgroundColor: colors.hero,
-      borderColor: colors.success,
-    },
+    planSelected: { backgroundColor: colors.hero, borderColor: colors.success },
+    planDisabled: { opacity: 0.55 },
     planLabel: { color: colors.text, fontSize: 17 * scale, fontWeight: "800" },
-    planSub: { color: colors.mutedForeground, fontSize: 10 * scale, marginTop: 3 },
+    planSub: {
+      color: colors.mutedForeground,
+      fontSize: 10 * scale,
+      marginTop: 3,
+      textAlign: "center",
+    },
     planSelectedText: { color: colors.onHero },
+    customEditor: {
+      gap: 12,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    customEditorHeading: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    customValue: {
+      color: colors.success,
+      fontWeight: "800",
+      fontSize: 13 * scale,
+    },
+    customControls: { flexDirection: "row", gap: 10, alignItems: "center" },
+    durationButton: {
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    durationInputWrap: {
+      flex: 1,
+      minHeight: 46,
+      borderRadius: 14,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+    },
+    durationInput: {
+      flex: 1,
+      color: colors.text,
+      fontWeight: "800",
+      fontSize: 16 * scale,
+      paddingVertical: 8,
+    },
+    durationUnit: { color: colors.mutedForeground, fontSize: 12 * scale },
+    saveCustomButton: {
+      minHeight: 42,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.successTint,
+    },
+    saveCustomButtonText: {
+      color: colors.text,
+      fontWeight: "800",
+      fontSize: 13 * scale,
+    },
     settingsRow: {
+      minHeight: 68,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      padding: 12,
+    },
+    trendCard: {
       minHeight: 68,
       flexDirection: "row",
       alignItems: "center",
@@ -470,6 +877,44 @@ const makeStyles = (
       lineHeight: 16 * scale,
       marginTop: 2,
     },
+    trendDetail: {
+      color: colors.text,
+      fontSize: 11 * scale,
+      fontWeight: "700",
+      marginTop: 5,
+    },
+    calendar: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderColor: colors.border,
+      borderWidth: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+    },
+    calendarDay: { flex: 1, alignItems: "center", gap: 5 },
+    calendarWeekday: {
+      color: colors.mutedForeground,
+      fontWeight: "700",
+      fontSize: 10 * scale,
+    },
+    calendarDate: {
+      width: 29,
+      height: 29,
+      borderRadius: 14.5,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    calendarDateComplete: { backgroundColor: colors.success },
+    calendarNumber: {
+      color: colors.text,
+      fontWeight: "700",
+      fontSize: 12 * scale,
+    },
+    calendarNumberComplete: { color: colors.successForeground },
+    calendarCount: { color: colors.mutedForeground, fontSize: 10 * scale },
+    historyList: { gap: 4 },
     historyRow: {
       flexDirection: "row",
       gap: 12,
@@ -506,10 +951,24 @@ const makeStyles = (
       textAlign: "center",
       lineHeight: 18 * scale,
     },
-    disclaimer: {
+    safetyCard: {
+      flexDirection: "row",
+      gap: 12,
+      padding: 15,
+      borderRadius: 18,
+      backgroundColor: colors.warningTint,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    safetyTitle: {
+      color: colors.text,
+      fontWeight: "800",
+      fontSize: 13 * scale,
+    },
+    safetyCopy: {
       color: colors.mutedForeground,
       fontSize: 11 * scale,
-      lineHeight: 16 * scale,
-      paddingBottom: 12,
+      lineHeight: 17 * scale,
+      marginTop: 4,
     },
   });

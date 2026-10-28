@@ -86,6 +86,15 @@ import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
 import { DEFAULT_DASHBOARD_PREFERENCES, normalizeDashboardPreferences, type DashboardPreferences } from '@/lib/dashboardPreferences';
 import { EMPTY_FASTING_STATE, beginFast, finishFast, normalizeFastingState, type FastingState } from '@/lib/fasting';
+import {
+  EMPTY_LEARNING_READER_STATE,
+  markLearningLessonCompleted,
+  normalizeLearningReaderState,
+  setLearningLessonProgress,
+  toggleSavedLearningLesson,
+  type LearningLessonProgress,
+  type LearningReaderState,
+} from '@/lib/learning';
 import { quarantineLegacyStorage, storageKeyForAccount } from '@/lib/accountStorage';
 import { EncryptedStorageAdapter } from '@/lib/encryptedStorage';
 import { secureStoreKeyAdapter } from '@/lib/secureStoreKeyAdapter';
@@ -359,6 +368,8 @@ export type CaloraState = {
   fasting?: FastingState;
   /** User-controlled dashboard visibility, order, and compact/expanded density. */
   dashboardPreferences?: DashboardPreferences;
+  /** Account-scoped saved lessons and offline reader progress. */
+  learningReaderState?: LearningReaderState;
 };
 
 function normalizeLogImageMetadata(log: FoodLog): FoodLog {
@@ -512,6 +523,11 @@ type CaloraContextValue = {
   endFast: () => void;
   dashboardPreferences: DashboardPreferences;
   updateDashboardPreferences: (updater: (current: DashboardPreferences) => DashboardPreferences) => void;
+  /** Account-scoped reader state for original Calora Learning lessons. */
+  learningReaderState: LearningReaderState;
+  toggleSavedLearningLesson: (lessonId: string) => void;
+  setLearningLessonProgress: (lessonId: string, update: Partial<LearningLessonProgress>) => void;
+  markLearningLessonCompleted: (lessonId: string) => void;
   /** Delete the profile photo file from disk and clear its URI from state. Call on sign-out. */
   clearProfilePhoto: () => Promise<void>;
   coachConsentAccepted: boolean;
@@ -831,6 +847,7 @@ export function CaloraProvider({
   const [plannerPreferences, setPlannerPreferencesState] = useState<import('@/lib/planType').PlannerPreferences | null>(null);
   const [fasting, setFastingState] = useState<FastingState>(() => ({ ...EMPTY_FASTING_STATE, history: [] }));
   const [dashboardPreferences, setDashboardPreferencesState] = useState<DashboardPreferences>(() => normalizeDashboardPreferences(DEFAULT_DASHBOARD_PREFERENCES));
+  const [learningReaderState, setLearningReaderState] = useState<LearningReaderState>(() => EMPTY_LEARNING_READER_STATE);
   const [fontSizeScale, setFontSizeScaleState] = useState<'small' | 'default' | 'large' | 'xlarge'>('default');
   // Keep xlarge as a legacy persisted value, but render it at the new maximum
   // so people who selected it before the option was removed land on A+.
@@ -1071,6 +1088,7 @@ export function CaloraProvider({
      if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(normalizePlannerPreferences(saved.plannerPreferences));
      if (saved.fasting !== undefined) setFastingState(normalizeFastingState(saved.fasting));
      if (saved.dashboardPreferences !== undefined) setDashboardPreferencesState(normalizeDashboardPreferences(saved.dashboardPreferences));
+     if (saved.learningReaderState !== undefined) setLearningReaderState(normalizeLearningReaderState(saved.learningReaderState));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
      if (base) {
@@ -1136,6 +1154,9 @@ export function CaloraProvider({
          dashboardPreferences: saved.dashboardPreferences !== undefined
            ? normalizeDashboardPreferences(saved.dashboardPreferences)
            : base.dashboardPreferences,
+         learningReaderState: saved.learningReaderState !== undefined
+           ? normalizeLearningReaderState(saved.learningReaderState)
+           : base.learningReaderState,
          fontSizeScale: saved.fontSizeScale ?? base.fontSizeScale,
          profilePhotoUri: saved.profilePhotoUri ?? base.profilePhotoUri,
        };
@@ -1810,11 +1831,12 @@ export function CaloraProvider({
       plannerPreferences: plannerPreferences ?? undefined,
       fasting,
       dashboardPreferences,
+      learningReaderState,
       fontSizeScale,
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      void enqueueAutosave(pm.current, sanitizeRecipeMediaStateForPersistence(state)).catch(() => reportPersistenceError());
-  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, dashboardPreferences, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, dashboardPreferences, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, learningReaderState, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -1933,6 +1955,7 @@ export function CaloraProvider({
     plannerPreferences,
     fasting,
     dashboardPreferences,
+    learningReaderState,
     fontSizeScale,
     profilePhotoUri,
   };
@@ -2011,6 +2034,28 @@ export function CaloraProvider({
         return next;
       });
       queueMutation('settings', 'upsert');
+    },
+    learningReaderState,
+    toggleSavedLearningLesson: (lessonId) => {
+      setLearningReaderState((current) => {
+        const next = toggleSavedLearningLesson(current, lessonId);
+        patchExportSnapshot({ learningReaderState: next });
+        return next;
+      });
+    },
+    setLearningLessonProgress: (lessonId, update) => {
+      setLearningReaderState((current) => {
+        const next = setLearningLessonProgress(current, lessonId, update);
+        patchExportSnapshot({ learningReaderState: next });
+        return next;
+      });
+    },
+    markLearningLessonCompleted: (lessonId) => {
+      setLearningReaderState((current) => {
+        const next = markLearningLessonCompleted(current, lessonId, new Date().toISOString());
+        patchExportSnapshot({ learningReaderState: next });
+        return next;
+      });
     },
     shoppingItems,
     foodDrafts,
@@ -2761,6 +2806,7 @@ export function CaloraProvider({
         setPlannerPreferences: setPlannerPreferencesState,
         setFasting: setFastingState,
         setDashboardPreferences: setDashboardPreferencesState,
+        setLearningReaderState,
         setPlannerMeals: setPlannerMealsState,
         setShoppingItems,
         setFoodDrafts,
@@ -2982,7 +3028,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, commitSnapshot, consentAccepted, dailyStepGoal, dashboardPreferences, diarySyncState, dismissLiveStepMilestone, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, persistenceError, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryPersistence, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, commitSnapshot, consentAccepted, dailyStepGoal, dashboardPreferences, diarySyncState, dismissLiveStepMilestone, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, learningReaderState, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, persistenceError, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryPersistence, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
