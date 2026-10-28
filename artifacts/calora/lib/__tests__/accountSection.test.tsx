@@ -68,6 +68,18 @@ describe('AccountSection account deletion timeout', () => {
     harness.signOut.mockResolvedValue({ error: null });
   });
 
+  it('warns that account deletion does not cancel App Store or Google Play billing', () => {
+    render(<AccountSection clearAllData={vi.fn(async () => undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+
+    expect(
+      screen.getByText(/cancel it in the store separately/i),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Deleting your account does not cancel store billing/i),
+    ).toBeTruthy();
+  });
+
   it('aborts a request that does not settle and returns the user to an actionable state', async () => {
     render(<AccountSection clearAllData={vi.fn(async () => undefined)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));

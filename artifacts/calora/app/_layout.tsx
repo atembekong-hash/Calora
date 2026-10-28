@@ -382,6 +382,7 @@ function RootLayoutNav() {
           <Stack.Screen name="saved-meals" options={{ headerShown: false }} />
           <Stack.Screen name="fasting" options={{ headerShown: false }} />
           <Stack.Screen name="learning" options={{ headerShown: false }} />
+          <Stack.Screen name="learning/[lessonId]" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard-layout" options={{ headerShown: false }} />
           <Stack.Screen name="coach" options={{ headerShown: false }} />
           <Stack.Screen name="memory" options={{ headerShown: false }} />

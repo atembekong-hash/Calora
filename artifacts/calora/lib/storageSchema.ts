@@ -15,7 +15,7 @@
  * calling enqueueWrite with a manually stamped object.
  */
 
-export const STORAGE_SCHEMA_VERSION = 3;
+export const STORAGE_SCHEMA_VERSION = 4;
 
 /** Adds the current schema version to any snapshot object. Internal only. */
 function stampSchemaVersion<T extends object>(

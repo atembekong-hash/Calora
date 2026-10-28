@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
-import { enqueueAutosave } from '../storageSchema';
+import { enqueueAutosave, STORAGE_SCHEMA_VERSION } from '../storageSchema';
 
 class MemoryStorage implements StorageAdapter {
   private readonly values = new Map<string, string>();
@@ -37,6 +37,6 @@ describe('capture acceptance durable boundary', () => {
     expect(restored.error).toBeNull();
     expect(restored.state?.logs).toEqual(snapshot.logs);
     expect(restored.state?.outbox).toEqual(snapshot.outbox);
-    expect(restored.state?.schemaVersion).toBe(3);
+    expect(restored.state?.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
   });
 });

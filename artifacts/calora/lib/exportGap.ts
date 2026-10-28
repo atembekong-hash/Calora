@@ -32,6 +32,7 @@ import {
 } from './notificationPreferences';
 import { EMPTY_FASTING_STATE } from './fasting';
 import { DEFAULT_DASHBOARD_PREFERENCES } from './dashboardPreferences';
+import { EMPTY_LEARNING_READER_STATE } from './learning';
 
 // ---------------------------------------------------------------------------
 // makeClearedExportSnapshot
@@ -111,6 +112,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     profilePhotoUri:       null,
     fasting:               { ...EMPTY_FASTING_STATE, history: [] },
     dashboardPreferences:  { ...DEFAULT_DASHBOARD_PREFERENCES, visible: [...DEFAULT_DASHBOARD_PREFERENCES.visible], order: [...DEFAULT_DASHBOARD_PREFERENCES.order], density: { ...DEFAULT_DASHBOARD_PREFERENCES.density } },
+    learningReaderState:   EMPTY_LEARNING_READER_STATE,
   };
 }
 

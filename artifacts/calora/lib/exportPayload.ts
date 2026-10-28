@@ -68,6 +68,8 @@ export interface CaloraExportState {
   profilePhotoUri: string | null;
   fasting?: unknown;
   dashboardPreferences?: unknown;
+  /** Saved original lessons and on-device reader progress. */
+  learningReaderState?: unknown;
 }
 
 export type PortableProfilePhoto =

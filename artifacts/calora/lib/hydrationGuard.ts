@@ -92,7 +92,8 @@ export function parseStorageValue<T>(
  *          No data transformation needed — v1 snapshots have no schemaVersion
  *          and are treated as v1 by the `?? 1` fallback in applyStorageMigration.
  * ─────────────────────────────────────────────────────────────────────────
- * Add MIGRATIONS[2] here when bumping STORAGE_SCHEMA_VERSION to 3.
+ * v2 → v3  Normalized legacy notification preferences.
+ * v3 → v4  Added the account-scoped Learning reader state with safe defaults.
  */
 export const MIGRATIONS: Record<number, (state: object) => object> = {
   /**
@@ -115,6 +116,13 @@ export const MIGRATIONS: Record<number, (state: object) => object> = {
       schemaVersion: 3,
     };
   },
+  /** v3 → v4: retain existing state and initialize safe local Learning progress. */
+  3: (state) => ({
+    ...state,
+    learningReaderState: (state as { learningReaderState?: unknown }).learningReaderState
+      ?? { version: 1, savedLessonIds: [], progressByLessonId: {} },
+    schemaVersion: 4,
+  }),
 };
 
 /**

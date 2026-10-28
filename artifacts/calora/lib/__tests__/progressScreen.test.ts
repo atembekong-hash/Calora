@@ -33,14 +33,14 @@ describe('Progress dashboard layout contracts', () => {
     expect(source).toContain('numberOfLines={1} style={[styles.lineGraphLabel');
   });
 
-  it('fits the seven-day nutrition bar chart to its measured native viewport before scrolling longer ranges', () => {
-    expect(source).toContain('const [nutritionChartWidth, setNutritionChartWidth] = useState(0);');
-    expect(source).toContain('const nutritionChartContentWidth = Math.max(nutritionChartWidth, calorieRangePoints.length * 40);');
-    expect(source).toContain('style={styles.chartViewport}');
-    expect(source).toContain('setNutritionChartWidth((current) => current === measuredWidth ? current : measuredWidth);');
-    expect(source).toContain('contentContainerStyle={{ width: nutritionChartContentWidth }}');
-    expect(source).toContain('style={[styles.chart, { width: nutritionChartContentWidth }]}');
-    expect(source).not.toContain('style={[styles.chart, { minWidth: calorieRangePoints.length * 48 }]}');
+  it('keeps one accessible, viewport-bounded calorie graph rather than duplicating calorie visuals', () => {
+    expect(source).toContain('title="Calorie trend"');
+    expect(source).toContain('points={calorieRangePoints}');
+    expect(source).toContain('style={styles.lineGraphViewport}');
+    expect(source).toContain('style={styles.lineGraphScroll}');
+    expect(source).not.toContain('const [nutritionChartWidth, setNutritionChartWidth] = useState(0);');
+    expect(source).not.toContain('const nutritionChartContentWidth = Math.max(nutritionChartWidth, calorieRangePoints.length * 40);');
+    expect(source).not.toContain('style={[styles.chart, { width: nutritionChartContentWidth }]}');
   });
 
   it('preserves an explicit calendar range while refreshing only the default rolling range', () => {
@@ -55,5 +55,21 @@ describe('Progress dashboard layout contracts', () => {
     expect(source).toContain('title="Workout sessions"');
     expect(source).toContain('points={workoutRangePoints}');
     expect(source).toContain('Sync Health to show recorded workout sessions.');
+  });
+
+  it('uses the Progress-only weight selector so recorded data, baseline, source, and stale context stay distinct', () => {
+    expect(source).toContain("from '@/lib/progressWeightSummary'");
+    expect(source).toContain('selectProgressWeightSummary(weights');
+    expect(source).toContain('Onboarding baseline · not a recorded weigh-in');
+    expect(source).toContain('No weigh-in yet');
+    expect(source).toContain('This is your latest recorded weigh-in.');
+    expect(source).toContain('progressWeightSourceLabel(entry.source, healthConnection.provider)');
+    expect(source).not.toContain('profile?.weightKg ?? 76');
+    expect(source).not.toContain('const weightDelta = latestWeight - firstLoggedWeight');
+  });
+
+  it('retains one shared date control for the Trends period', () => {
+    expect((source.match(/GraphDateRangePicker range=\{graphRange\}/g) ?? [])).toHaveLength(1);
+    expect(source).toContain('Uses the same selected period as nutrition above.');
   });
 });

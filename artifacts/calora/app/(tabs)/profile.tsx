@@ -140,6 +140,19 @@ const mealConfig: {
 
 type ProfileTab = "you" | "membership" | "account";
 const PROFILE_TABS = ["you", "membership", "account"] as const;
+type ProfileOpenIntent = "reminders" | "goals" | "health";
+
+function profileTabFromParam(tab?: string): ProfileTab {
+  return tab === "membership" || tab === "account" || tab === "you"
+    ? tab
+    : "you";
+}
+
+function profileOpenIntentFromParam(open?: string): ProfileOpenIntent | null {
+  return open === "reminders" || open === "goals" || open === "health"
+    ? open
+    : null;
+}
 
 function formatNotificationDate(value: string): string {
   const date = new Date(value);
@@ -172,6 +185,8 @@ export function notificationOutcomeMessage(
 
 export default function ProfileScreen() {
   const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
+  const profileOpenIntent = profileOpenIntentFromParam(open);
+  const requestedProfileTab = profileTabFromParam(tab);
   const { user, signOut } = useAuth();
   const {
     colors,
@@ -356,7 +371,7 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<
     null | "food-data" | "no-ads" | "help" | "health"
-  >(open === "health" ? "health" : null);
+  >(profileOpenIntent === "health" ? "health" : null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthSyncFeedback, setHealthSyncFeedback] =
     useState<HealthSyncOutcome | null>(null);
@@ -364,7 +379,9 @@ export default function ProfileScreen() {
     String(dailyStepGoal),
   );
   const [profileTab, setProfileTab] = useState<ProfileTab>(
-    tab === "membership" || tab === "account" ? tab : "you",
+    profileOpenIntent === "reminders" || profileOpenIntent === "goals"
+      ? "you"
+      : requestedProfileTab,
   );
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>(
@@ -484,13 +501,18 @@ export default function ProfileScreen() {
   ).length;
 
   useEffect(() => {
-    if (tab !== "membership" && tab !== "account" && tab !== "you") return;
-    setProfileTab(tab);
-  }, [tab]);
+    // Contextual controls live in You. This keeps a valid intent useful even
+    // if a stale or incomplete link names another profile tab.
+    if (profileOpenIntent === "reminders" || profileOpenIntent === "goals") {
+      setProfileTab("you");
+      return;
+    }
+    setProfileTab(requestedProfileTab);
+  }, [profileOpenIntent, requestedProfileTab]);
 
   useEffect(() => {
-    if (open === "health") setInfoModal("health");
-  }, [open]);
+    if (profileOpenIntent === "health") setInfoModal("health");
+  }, [profileOpenIntent]);
 
   useEffect(() => {
     if (infoModal !== "health") {
@@ -1375,7 +1397,44 @@ export default function ProfileScreen() {
                   profile={profile}
                   colors={colors}
                   updateProfile={updateProfile}
+                  openIntent={
+                    profileOpenIntent === "goals" ? "goals" : null
+                  }
                 />
+                {profileOpenIntent === "reminders" && (
+                  <View
+                    accessibilityLiveRegion="polite"
+                    testID="profile-reminders-context"
+                    style={[
+                      styles.notificationSettingsButton,
+                      {
+                        backgroundColor: colors.accent,
+                        borderColor: colors.primary,
+                        marginTop: 14,
+                      },
+                    ]}
+                  >
+                    <Feather name="bell" size={14} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.notificationSettingsButtonText,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Reminder settings
+                      </Text>
+                      <Text
+                        style={[
+                          styles.settingBody,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Notification and reminder controls are available below.
+                      </Text>
+                    </View>
+                  </View>
+                )}
                 <Animated.View entering={enterMotion("screen", 1)}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 18 }]}>Personalization</Text>
                   {[
@@ -3209,9 +3268,7 @@ export default function ProfileScreen() {
                 <ReferralCard fontScale={fontScale} />
               </View>
 
-              <View
-                style={tab === "membership" ? undefined : styles.hiddenSection}
-              >
+              <View style={tab === "you" ? undefined : styles.hiddenSection}>
                 {/* ── Saved meals ── */}
                 <View style={styles.savedHeader}>
                   <View>

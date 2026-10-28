@@ -37,6 +37,7 @@ import {
 } from '@/lib/intelligence';
 import { displayTargetWeight, validateTargetWeight } from '@/lib/profileTargets';
 import { displayWeight, formatWeight, validateWeightInput, weightUnitLabel, type WeightUnit } from '@/lib/weightInput';
+import { progressWeightRecencyLabel, progressWeightSourceLabel, selectProgressWeightSummary } from '@/lib/progressWeightSummary';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
 const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
@@ -74,17 +75,6 @@ function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] 
       <Feather name="activity" size={20} color={colors.heroMuted} />
     </Animated.View>
   );
-}
-
-function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
-  const progress = useSharedValue(0);
-  const reduceMotion = useReducedMotion();
-  useEffect(() => {
-    progress.value = 0;
-    progress.value = reduceMotion ? 1 : withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress, reduceMotion, value]);
-  const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
-  return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
 }
 
 // ─── Confetti burst ───────────────────────────────────────────────────────────
@@ -147,6 +137,7 @@ function ConfettiParticle({ progress, fadeOpacity, config }: {
 function ConfettiBurst({ active }: { active: boolean }) {
   const progress = useSharedValue(0);
   const fadeOpacity = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
 
   const particles = useMemo<ParticleConfig[]>(() =>
     Array.from({ length: CONFETTI_COUNT }, (_, i) => {
@@ -170,12 +161,12 @@ function ConfettiBurst({ active }: { active: boolean }) {
     if (active) {
       progress.value = 0;
       fadeOpacity.value = 1;
-      progress.value = withTiming(1, { duration: 2100, easing: Easing.out(Easing.cubic) });
-      fadeOpacity.value = withDelay(1500, withTiming(0, { duration: 600 }));
+      progress.value = reduceMotion ? 1 : withTiming(1, { duration: 2100, easing: Easing.out(Easing.cubic) });
+      fadeOpacity.value = reduceMotion ? 0 : withDelay(1500, withTiming(0, { duration: 600 }));
     }
   // Run only when active first becomes true; no cleanup needed — animation self-terminates.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, reduceMotion]);
 
   if (!active) return null;
 
@@ -192,18 +183,25 @@ function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: Return
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.88);
   const starScale = useSharedValue(1);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
-    opacity.value = withDelay(120, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
-    scale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 140 }));
-    starScale.value = withDelay(680, withSequence(
+    opacity.value = reduceMotion ? 1 : withDelay(120, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+    scale.value = reduceMotion ? 1 : withDelay(120, withSpring(1, { damping: 14, stiffness: 140 }));
+    starScale.value = reduceMotion ? 1 : withDelay(680, withSequence(
       withTiming(1.28, { duration: 200, easing: Easing.out(Easing.quad) }),
       withTiming(1, { duration: 200, easing: Easing.in(Easing.quad) }),
     ));
-  }, [opacity, scale, starScale]);
+  }, [opacity, reduceMotion, scale, starScale]);
   const bannerStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
   const starStyle = useAnimatedStyle(() => ({ transform: [{ scale: starScale.value }] }));
 
   const handleDismiss = () => {
+    if (reduceMotion) {
+      opacity.value = 0;
+      scale.value = 0.88;
+      onDismiss();
+      return;
+    }
     opacity.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }, (finished) => {
       if (finished) runOnJS(onDismiss)();
     });
@@ -234,10 +232,11 @@ function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: Return
 
 function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: number; color: string; trackColor: string }) {
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     progress.value = 0;
-    progress.value = withDelay(260, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
-  }, [progress, percentage]);
+    progress.value = reduceMotion ? 1 : withDelay(260, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [progress, percentage, reduceMotion]);
   const animatedStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, Math.min(percentage, 100)) * progress.value}%` }));
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
@@ -249,10 +248,11 @@ function AnimatedCountUp({ to, prefix = '', suffix = '', style }: {
   to: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle>;
 }) {
   const sv = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     sv.value = 0;
-    sv.value = withDelay(300, withTiming(to, { duration: 900, easing: Easing.out(Easing.cubic) }));
-  }, [to, sv]);
+    sv.value = reduceMotion ? to : withDelay(300, withTiming(to, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [reduceMotion, to, sv]);
   const animatedProps = useAnimatedProps(() => ({
     text: `${prefix}${Math.round(sv.value)}${suffix}`,
     defaultValue: `${prefix}${Math.round(to)}${suffix}`,
@@ -327,6 +327,7 @@ function WeightLineChart({
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
+  const reduceMotion = useReducedMotion();
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   // Scroll-hint gradient opacities — start scrolled to end, so left edge is visible.
@@ -382,11 +383,11 @@ function WeightLineChart({
   useEffect(() => {
     dashOffset.value = dashLen;
     fillOpacity.value = 0;
-    dashOffset.value = withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
-    fillOpacity.value = withTiming(1, { duration: 920, easing: Easing.out(Easing.cubic) });
+    dashOffset.value = reduceMotion ? 0 : withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
+    fillOpacity.value = reduceMotion ? 1 : withTiming(1, { duration: 920, easing: Easing.out(Easing.cubic) });
   // Re-run whenever data or size changes; eslint can't verify the string identity dependency.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataKey]);
+  }, [dataKey, reduceMotion]);
 
   // Clean up dismiss timer on unmount
   useEffect(() => {
@@ -717,8 +718,8 @@ function WeightLineChart({
               const atEnd = x >= maxScroll - 8;
               const fadeDuration = 200;
               const fadeEasing = Easing.inOut(Easing.ease);
-              leftGradientOpacity.value = withTiming(atEnd ? 1 : 0, { duration: fadeDuration, easing: fadeEasing });
-              rightGradientOpacity.value = withTiming(atEnd ? 0 : 1, { duration: fadeDuration, easing: fadeEasing });
+              leftGradientOpacity.value = reduceMotion ? (atEnd ? 1 : 0) : withTiming(atEnd ? 1 : 0, { duration: fadeDuration, easing: fadeEasing });
+              rightGradientOpacity.value = reduceMotion ? (atEnd ? 0 : 1) : withTiming(atEnd ? 0 : 1, { duration: fadeDuration, easing: fadeEasing });
             }}
           >
             {chartContent}
@@ -817,16 +818,17 @@ function WeightChartModal({
 }) {
   const sheetY = useSharedValue(600);
   const backdropOpacity = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (visible) {
-      sheetY.value = withSpring(0, { damping: 22, stiffness: 200 });
-      backdropOpacity.value = withTiming(1, { duration: 260 });
+      sheetY.value = reduceMotion ? 0 : withSpring(0, { damping: 22, stiffness: 200 });
+      backdropOpacity.value = reduceMotion ? 1 : withTiming(1, { duration: 260 });
     } else {
-      sheetY.value = withTiming(600, { duration: 240, easing: Easing.in(Easing.cubic) });
-      backdropOpacity.value = withTiming(0, { duration: 220 });
+      sheetY.value = reduceMotion ? 600 : withTiming(600, { duration: 240, easing: Easing.in(Easing.cubic) });
+      backdropOpacity.value = reduceMotion ? 0 : withTiming(0, { duration: 220 });
     }
-  }, [visible, sheetY, backdropOpacity]);
+  }, [visible, sheetY, backdropOpacity, reduceMotion]);
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetY.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
@@ -968,10 +970,12 @@ function CircularProgress({ percentage, color, trackColor, size = 52, strokeWidt
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     progress.value = 0;
-    progress.value = withDelay(400, withTiming(Math.min(Math.max(percentage / 100, 0), 1), { duration: 1100, easing: Easing.out(Easing.cubic) }));
-  }, [percentage, progress]);
+    const target = Math.min(Math.max(percentage / 100, 0), 1);
+    progress.value = reduceMotion ? target : withDelay(400, withTiming(target, { duration: 1100, easing: Easing.out(Easing.cubic) }));
+  }, [percentage, progress, reduceMotion]);
   const animatedArcProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - progress.value),
   }));
@@ -989,9 +993,10 @@ function SpringChip({ selected, children, onPress, style, accessibilityLabel, ac
   style?: StyleProp<ViewStyle>; accessibilityLabel?: string; accessibilityState?: object; testID?: string;
 }) {
   const scale = useSharedValue(1);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
-    scale.value = withSpring(selected ? 1.07 : 1, { damping: 11, stiffness: 380 });
-  }, [selected, scale]);
+    scale.value = reduceMotion ? 1 : withSpring(selected ? 1.07 : 1, { damping: 11, stiffness: 380 });
+  }, [reduceMotion, selected, scale]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
     <Animated.View style={animStyle}>
@@ -1023,9 +1028,10 @@ function GoalNudge({
 }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(6);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     if (visible) {
-      if (nudgeHasAnimatedIn) {
+      if (reduceMotion || nudgeHasAnimatedIn) {
         // Tab switch re-mount: nudge was already visible — jump to final values
         // without replaying the enter animation.
         opacity.value = 1;
@@ -1036,12 +1042,18 @@ function GoalNudge({
         translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
       }
     } else {
+      if (reduceMotion) {
+        opacity.value = 0;
+        translateY.value = 6;
+        onExited();
+        return;
+      }
       opacity.value = withTiming(0, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
         if (finished) runOnJS(onExited)();
       });
       translateY.value = withTiming(6, { duration: 320, easing: Easing.in(Easing.cubic) });
     }
-  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reduceMotion, visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
@@ -1142,6 +1154,7 @@ function ProgressLineGraph({
 }) {
   const [chartWidth, setChartWidth] = useState(320);
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   const chartHeight = 128;
   const padX = 8;
   const padTop = 12;
@@ -1207,8 +1220,8 @@ function ProgressLineGraph({
 
   useEffect(() => {
     progress.value = 0;
-    progress.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
-  }, [path, progress]);
+    progress.value = reduceMotion ? 1 : withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+  }, [path, progress, reduceMotion]);
 
   return (
     <View
@@ -1302,6 +1315,7 @@ function ProgressLineGraph({
 function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalora>['colors']; points: MacroTrendPoint[] }) {
   const [chartWidth, setChartWidth] = useState(320);
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   const chartHeight = 128;
   const padX = 8;
   const padTop = 12;
@@ -1350,8 +1364,8 @@ function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalo
 
   useEffect(() => {
     progress.value = 0;
-    progress.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
-  }, [paths.map((item) => item.path).join('|'), progress]);
+    progress.value = reduceMotion ? 1 : withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+  }, [paths.map((item) => item.path).join('|'), progress, reduceMotion]);
 
   return (
     <View accessibilityLabel={`Macro trend. ${hasData ? points.map((point) => `${point.label}: Protein ${point.protein == null ? 'no data' : `${formatWhole(point.protein)} grams`}, Carbs ${point.carbs == null ? 'no data' : `${formatWhole(point.carbs)} grams`}, Fat ${point.fat == null ? 'no data' : `${formatWhole(point.fat)} grams`}`).join(', ') : 'No data yet'}`} accessibilityRole="summary" style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1411,6 +1425,7 @@ export default function InsightsScreen() {
     || healthConnection.authorization === 'requested'
   );
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const weightUnit: WeightUnit = profile?.units === 'imperial' ? 'imperial' : 'metric';
   const useImperial = weightUnit === 'imperial';
@@ -1426,9 +1441,6 @@ export default function InsightsScreen() {
   const [shoppingVisible, setShoppingVisible] = useState(false);
   const [graphRangeSelection, setGraphRangeSelection] = useState(() => createRollingSevenDaySelection());
   const graphRange = graphRangeSelection.range;
-  // Measure the card instead of assuming a fixed width: a seven-day chart must
-  // fit its native viewport while longer ranges scroll within that same boundary.
-  const [nutritionChartWidth, setNutritionChartWidth] = useState(0);
 
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
@@ -1472,16 +1484,17 @@ export default function InsightsScreen() {
     setPendingDelete(entry);
     snackOpacity.value = 0;
     snackTranslateY.value = 8;
-    snackOpacity.value = withSpring(1, { damping: 16, stiffness: 240 });
-    snackTranslateY.value = withSpring(0, { damping: 16, stiffness: 240 });
+    snackOpacity.value = reduceMotion ? 1 : withSpring(1, { damping: 16, stiffness: 240 });
+    snackTranslateY.value = reduceMotion ? 0 : withSpring(0, { damping: 16, stiffness: 240 });
     deleteTimerRef.current = setTimeout(() => {
       deleteTimerRef.current = null;
       pendingDeleteRef.current = null;
       removeWeight(entry.id);
-      snackOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
+      snackOpacity.value = reduceMotion ? 0 : withTiming(0, { duration: 200 }, (finished) => {
         if (finished) runOnJS(setPendingDelete)(null);
       });
-      snackTranslateY.value = withTiming(8, { duration: 200 });
+      if (reduceMotion) setPendingDelete(null);
+      snackTranslateY.value = reduceMotion ? 8 : withTiming(8, { duration: 200 });
     }, 4000);
   };
 
@@ -1492,9 +1505,10 @@ export default function InsightsScreen() {
     }
     // Release the lock synchronously so a new deletion can be started immediately.
     pendingDeleteRef.current = null;
-    snackOpacity.value = withTiming(0, { duration: 180 });
-    snackTranslateY.value = withTiming(8, { duration: 180 });
-    setTimeout(() => setPendingDelete(null), 200);
+    snackOpacity.value = reduceMotion ? 0 : withTiming(0, { duration: 180 });
+    snackTranslateY.value = reduceMotion ? 8 : withTiming(8, { duration: 180 });
+    if (reduceMotion) setPendingDelete(null);
+    else setTimeout(() => setPendingDelete(null), 200);
   };
 
   // Commit any pending deletion on unmount (e.g. navigating away).
@@ -1509,15 +1523,6 @@ export default function InsightsScreen() {
   // removeWeight is stable across re-renders; eslint can't verify it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // When the weigh-in count drops below 3 mid-session (e.g. after the undo window expires),
-  // close the expanded chart modal so it animates out cleanly instead of being force-unmounted.
-  // Also resets the flag so adding weights back doesn't silently re-open the modal.
-  useEffect(() => {
-    if (weights.length < 3 && showExpandedChart) {
-      setShowExpandedChart(false);
-    }
-  }, [weights.length, showExpandedChart]);
 
   const isEditingMinutes = useRef(false);
   const isEditingWeight = useRef(false);
@@ -1601,23 +1606,47 @@ export default function InsightsScreen() {
     weights,
   ]);
   const dataTrust = trustScore(remembered.logs);
-  const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
-  const startingWeight = profile?.weightKg ?? latestWeight;
-  // Delta badge: difference between first and latest *logged* weigh-in, not the onboarding profile value.
-  const firstLoggedWeight = weights[0]?.kg ?? latestWeight;
-  const weightDelta = latestWeight - firstLoggedWeight;
+  // The provider owns the raw records. Progress only creates a safe, sorted view
+  // so chronology, source, and empty-state language reflect the data actually held.
+  const allWeightSummary = useMemo(() => selectProgressWeightSummary(weights, {
+    onboardingBaselineKg: profile?.weightKg,
+    today: todayKey,
+    healthProvider: healthConnection.provider,
+  }), [healthConnection.provider, profile?.weightKg, todayKey, weights]);
+  const visibleWeightRecords = useMemo(
+    () => allWeightSummary.records.filter((entry) => entry.id !== pendingDelete?.id),
+    [allWeightSummary.records, pendingDelete?.id],
+  );
+  const weightSummary = useMemo(() => selectProgressWeightSummary(visibleWeightRecords, {
+    onboardingBaselineKg: profile?.weightKg,
+    today: todayKey,
+    healthProvider: healthConnection.provider,
+  }), [healthConnection.provider, profile?.weightKg, todayKey, visibleWeightRecords]);
+  const latestWeight = weightSummary.latestRecord?.kg ?? null;
+  const startingWeight = profile?.weightKg ?? null;
+  // Change is only meaningful across at least two recorded, chronology-sorted weigh-ins.
+  const weightDelta = weightSummary.trendDeltaKg;
   const targetWeight = profile?.targetWeightKg ?? 0;
-  const hasGoal = targetWeight > 0 && Math.abs(targetWeight - startingWeight) > 0.1;
-  const goalTotalDistance = hasGoal ? Math.abs(targetWeight - startingWeight) : 1;
-  const goalDirection = hasGoal ? Math.sign(targetWeight - startingWeight) : 1;
-  const goalProgressKg = (latestWeight - startingWeight) * goalDirection;
-  const goalProgressRaw = (goalProgressKg / goalTotalDistance) * 100;
-  const goalReached = goalProgressRaw >= 100;
-  const goalProgressPct = Math.max(0, Math.min(100, goalProgressRaw));
-  const showGoalProgress = weights.length >= 3 && hasGoal;
+  const hasGoal = startingWeight !== null && targetWeight > 0 && Math.abs(targetWeight - startingWeight) > 0.1;
+  const goalTotalDistance = hasGoal && startingWeight !== null ? Math.abs(targetWeight - startingWeight) : null;
+  const goalDirection = hasGoal && startingWeight !== null ? Math.sign(targetWeight - startingWeight) : 1;
+  const goalProgressKg = hasGoal && latestWeight !== null && startingWeight !== null
+    ? (latestWeight - startingWeight) * goalDirection
+    : null;
+  const goalProgressRaw = goalProgressKg !== null && goalTotalDistance !== null
+    ? (goalProgressKg / goalTotalDistance) * 100
+    : null;
+  const goalReached = goalProgressRaw !== null && goalProgressRaw >= 100;
+  const goalProgressPct = goalProgressRaw === null ? 0 : Math.max(0, Math.min(100, goalProgressRaw));
+  const showGoalProgress = weightSummary.records.length >= 3 && hasGoal && latestWeight !== null;
+  // A chart needs two remaining recorded points. Close it if a pending deletion
+  // or completed removal leaves fewer, rather than reopening on a later edit.
+  useEffect(() => {
+    if (weightSummary.records.length < 2 && showExpandedChart) setShowExpandedChart(false);
+  }, [showExpandedChart, weightSummary.records.length]);
   // Nudge: 90–99% progress, goal not yet reached
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
-  const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
+  const goalRemainingKg = Math.max(0, (goalTotalDistance ?? 0) - (goalProgressKg ?? 0));
   const weightUnits = useImperial ? 'lb' : 'kg';
   const targetWeightDisplay = useImperial ? targetWeight * 2.20462 : targetWeight;
   const openWeightGoalEdit = () => {
@@ -1736,8 +1765,8 @@ export default function InsightsScreen() {
       return;
     }
     if (isEditingWeight.current) return;
-    setWeightInput(latestWeight > 0 ? String(Math.round(displayWeight(latestWeight, weightUnit))) : '');
-  }, [latestWeight, showWeight]);
+    setWeightInput(latestWeight !== null ? String(Math.round(displayWeight(latestWeight, weightUnit))) : '');
+  }, [latestWeight, showWeight, weightUnit]);
   const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
     fiber: totals.fiber + (log.fiber ?? 0),
@@ -1774,11 +1803,6 @@ export default function InsightsScreen() {
   );
   const calorieRangePoints = useMemo(() => deriveCalorieTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
   const macroRangePoints = useMemo(() => deriveMacroTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
-  const nutritionChartContentWidth = Math.max(nutritionChartWidth, calorieRangePoints.length * 40);
-  const graphAverageCalories = useMemo(() => {
-    const values = calorieRangePoints.map((point) => point.value).filter((value): value is number => value !== null && value > 0);
-    return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
-  }, [calorieRangePoints]);
   const signalDays = weeklySignals.trackedDays;
   const averageWeekCalories = weeklySignals.averageCalories;
   const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
@@ -1918,8 +1942,19 @@ export default function InsightsScreen() {
             <Text style={[styles.statLabel, { color: colors.mutedForeground, marginTop: 5 }]}>data trust</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <AnimatedCountUp to={Math.abs(weightDelta)} prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '-' : ''} style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]} />
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
+            {weightDelta !== null ? (
+              <AnimatedCountUp
+                to={Math.abs(displayWeight(weightDelta, weightUnit))}
+                prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '−' : ''}
+                suffix={` ${weightUnits}`}
+                style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]}
+              />
+            ) : (
+              <Text style={[styles.statValue, { color: colors.mutedForeground }]}>—</Text>
+            )}
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
+              {weightDelta !== null ? 'recorded trend' : weightSummary.display.kind === 'baseline' ? 'baseline only' : 'no weigh-ins'}
+            </Text>
           </View>
         </AnimatedReveal>
 
@@ -1968,36 +2003,6 @@ export default function InsightsScreen() {
           <GraphDateRangePicker range={graphRange} colors={colors} onChange={(range) => setGraphRangeSelection(createCustomGraphRangeSelection(range))} />
         </View>
         <AnimatedReveal delay={280}>
-        <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View
-            style={styles.chartViewport}
-            onLayout={(event) => {
-              const measuredWidth = Math.max(event.nativeEvent.layout.width, 1);
-              setNutritionChartWidth((current) => current === measuredWidth ? current : measuredWidth);
-            }}
-          >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lineGraphScroll} contentContainerStyle={{ width: nutritionChartContentWidth }}>
-          <View style={[styles.chart, { width: nutritionChartContentWidth }]}>
-            {calorieRangePoints.map((item, index) => (
-              <View key={item.date} style={styles.barColumn}>
-                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.value !== null ? formatWhole(item.value) : '—'}</Text>
-                <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
-                  <AnimatedBar value={item.value ?? 0} color={index === calorieRangePoints.length - 1 ? colors.primary : colors.success} delay={index * 35} />
-                </View>
-                <Text style={[styles.barDay, { color: index === calorieRangePoints.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-          </ScrollView>
-          </View>
-          <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
-            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
-            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{graphAverageCalories ? `Avg. ${formatWhole(graphAverageCalories)} kcal` : 'No calorie average yet'}</Text>
-          </View>
-        </View>
-        </AnimatedReveal>
-
-        <AnimatedReveal delay={350}>
           <ProgressLineGraph
             colors={colors}
             title="Calorie trend"
@@ -2016,9 +2021,8 @@ export default function InsightsScreen() {
         <View style={styles.healthTrendHeader}>
           <View style={styles.sectionHeaderCopy}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement & hydration</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Steps, burned calories, and water for the selected period.</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Uses the same selected period as nutrition above.</Text>
           </View>
-          <GraphDateRangePicker range={graphRange} colors={colors} onChange={(range) => setGraphRangeSelection(createCustomGraphRangeSelection(range))} />
         </View>
 
         <AnimatedReveal delay={365}>
@@ -2270,22 +2274,47 @@ export default function InsightsScreen() {
           </View>
         </View>
         <AnimatedReveal delay={540}>
-        <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          accessibilityRole="summary"
+          accessibilityLabel={weightSummary.display.kind === 'record'
+            ? `Latest recorded weight: ${formatWeight(weightSummary.display.kg, weightUnit)}. ${weightSummary.display.sourceLabel}. ${progressWeightRecencyLabel(weightSummary.display) ?? ''}`
+            : weightSummary.display.kind === 'baseline'
+              ? `Onboarding baseline: ${formatWeight(weightSummary.display.kg, weightUnit)}. No weigh-ins have been recorded.`
+              : 'No weight record yet. Log a weigh-in to begin your trend.'}
+          style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <View style={styles.weightTopRow}>
             <View>
-              <Text style={[styles.weightValue, { color: colors.foreground }]}>{formatWhole(displayWeight(latestWeight, weightUnit))} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>{weightUnitLabel(weightUnit)}</Text></Text>
-              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add weigh-ins to see a trend'}</Text>
+              {weightSummary.display.kind === 'record' ? (
+                <>
+                  <Text style={[styles.weightValue, { color: colors.foreground }]}>{formatWeight(weightSummary.display.kg, weightUnit)}</Text>
+                  <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weightSummary.display.sourceLabel} · {progressWeightRecencyLabel(weightSummary.display)}</Text>
+                  {weightSummary.display.isStale && (
+                    <Text style={[styles.weightStaleHint, { color: colors.warning }]}>This is your latest recorded weigh-in. Log another when it is useful.</Text>
+                  )}
+                </>
+              ) : weightSummary.display.kind === 'baseline' ? (
+                <>
+                  <Text style={[styles.weightValue, { color: colors.foreground }]}>{formatWeight(weightSummary.display.kg, weightUnit)}</Text>
+                  <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>Onboarding baseline · not a recorded weigh-in</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.weightEmptyValue, { color: colors.foreground }]}>No weigh-in yet</Text>
+                  <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>Log a measurement to begin a recorded trend.</Text>
+                </>
+              )}
             </View>
-            {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
+            {weightDelta !== null && (
               <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
                 <Feather name={weightDelta <= 0 ? 'trending-down' : 'trending-up'} size={13} color={weightDelta <= 0 ? colors.success : colors.warning} />
                 <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : weightDelta < 0 ? '−' : ''}{formatWeight(Math.abs(weightDelta), weightUnit)}</Text>
               </View>
             )}
           </View>
-          {weights.length - (pendingDelete ? 1 : 0) >= 3 ? (
+          {weightSummary.records.length >= 2 ? (
             <View style={{ position: 'relative' }}>
-              <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} unit={weightUnit} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
+              <WeightLineChart entries={allWeightSummary.records.slice(-7)} colors={colors} unit={weightUnit} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
               <Pressable
                 onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
                 accessibilityLabel="Expand weight chart"
@@ -2296,14 +2325,16 @@ export default function InsightsScreen() {
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
               </Pressable>
             </View>
-          ) : (
-            <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length - (pendingDelete ? 1 : 0) > 1 ? '50%' : '0%' }]} /></View>
-          )}
-          {weights.length > 0 ? (
+          ) : weightSummary.display.kind === 'record' ? (
+            <View style={[styles.weightRecordNote, { backgroundColor: colors.muted }]}>
+              <Feather name="circle" size={8} color={colors.success} />
+              <Text style={[styles.weightRecordNoteText, { color: colors.mutedForeground }]}>One recorded weigh-in is a starting point, not a trend.</Text>
+            </View>
+          ) : null}
+          {weightSummary.records.length > 0 ? (
             <View style={[styles.weightEntryList, { borderTopColor: colors.border }]}>
               <Text style={[styles.weightEntryListTitle, { color: colors.mutedForeground }]}>RECENT WEIGH-INS</Text>
-              {weights
-                .filter((entry) => entry.id !== pendingDelete?.id)
+              {weightSummary.records
                 .slice(-3)
                 .reverse()
                 .map((entry) => {
@@ -2315,7 +2346,7 @@ export default function InsightsScreen() {
                     <View key={entry.id ?? `${entry.date}-${entry.kg}`} style={styles.weightEntryRow}>
                       <View style={styles.weightEntrySummary}>
                         <Text style={[styles.weightEntryValue, { color: colors.foreground }]}>{formatWeight(entry.kg, weightUnit)}</Text>
-                        <Text style={[styles.weightEntryDate, { color: colors.mutedForeground }]}>{dateLabel}</Text>
+                        <Text style={[styles.weightEntryDate, { color: colors.mutedForeground }]}>{dateLabel} · {progressWeightSourceLabel(entry.source, healthConnection.provider)}</Text>
                       </View>
                       {entry.id ? (
                         <View style={styles.weightEntryActions}>
@@ -2356,7 +2387,7 @@ export default function InsightsScreen() {
                 <Text style={[styles.goalProgressText, { color: goalReached ? colors.success : colors.mutedForeground }]}>
                   {goalReached
                     ? `Goal reached · ${formatWhole(targetWeightDisplay)} ${weightUnits}`
-                    : goalProgressKg > 0
+                    : goalProgressKg !== null && goalProgressKg > 0
                     ? `${formatWhole(useImperial ? goalProgressKg * 2.20462 : goalProgressKg)} ${weightUnits} toward your ${formatWhole(targetWeightDisplay)} ${weightUnits} goal`
                     : `Target ${formatWhole(targetWeightDisplay)} ${weightUnits} · start logging progress`}
                 </Text>
@@ -2437,7 +2468,7 @@ export default function InsightsScreen() {
               value={weightInput}
               onChangeText={(value) => { setWeightInput(normalizeWholeNumberInput(value)); if (weightError) setWeightError(''); }}
               keyboardType="number-pad"
-              placeholder={formatWeight(latestWeight, weightUnit)}
+              placeholder={latestWeight !== null ? formatWeight(latestWeight, weightUnit) : `e.g. ${weightUnit === 'imperial' ? '169 lb' : '77 kg'}`}
               placeholderTextColor={colors.mutedForeground}
               accessibilityLabel={`Weight in ${weightUnitLabel(weightUnit)}`}
               accessibilityHint={`Enter a valid ${weightUnitLabel(weightUnit)} measurement before saving your weigh-in`}
@@ -2562,10 +2593,10 @@ export default function InsightsScreen() {
       {/* Modal is always mounted so its close animation can play when weights drop below 3.
            visible becomes false immediately when the count falls, triggering the slide-out. */}
       <WeightChartModal
-        entries={weights.length >= 1 ? weights : []}
+        entries={allWeightSummary.records}
         colors={colors}
         unit={weightUnit}
-        visible={showExpandedChart && weights.length >= 3}
+        visible={showExpandedChart && weightSummary.records.length >= 2}
         onClose={() => setShowExpandedChart(false)}
         onRequestDelete={handleRequestDelete}
         onRequestEdit={handleRequestEdit}
@@ -2665,14 +2696,6 @@ function makeStyles(f: number) {
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
   rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
   rangeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  chartCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
-  chart: { height: 190, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 7 },
-  barColumn: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  barValue: { fontFamily: 'Inter_400Regular', fontSize: 8 * f, marginBottom: 6 },
-  barTrack: { width: '100%', height: 128, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
-  bar: { width: '100%', borderRadius: 6 },
-  barDay: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 8 },
-  chartLegend: { borderTopWidth: 1, marginTop: 14, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
@@ -2746,8 +2769,10 @@ function makeStyles(f: number) {
   weightValue: { fontFamily: 'Inter_700Bold', fontSize: 28 * f },
   weightUnit: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   weightHint: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 5 },
-  weightLine: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 14 },
-  weightLineFill: { height: 7, borderRadius: 4 },
+  weightEmptyValue: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
+  weightStaleHint: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 14 * f, marginTop: 7, maxWidth: 250 },
+  weightRecordNote: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, marginTop: 14, paddingHorizontal: 10, paddingVertical: 9 },
+  weightRecordNoteText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 * f },
   weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20 },
   weightFormScroll: { flexShrink: 1, minHeight: 0 },
   weightFormContent: { paddingBottom: 4 },

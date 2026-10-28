@@ -27,6 +27,7 @@ import {
 import { makeClearedExportSnapshot, resolveExportData } from '../exportGap';
 import { storageKeyForAccount } from '../accountStorage';
 import { EMPTY_HEALTH_CONNECTION } from '../health/types';
+import { EMPTY_LEARNING_READER_STATE } from '../learning';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
@@ -488,6 +489,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setPendingUndoSwap:             spy('pendingUndoSwap'),
     setPendingPlannerAck:           spy('pendingPlannerAck'),
     setPlannerPreferences:          spy('plannerPreferences'),
+    setLearningReaderState:         spy('learningReaderState'),
   };
   return { ctx, captured };
 }
@@ -640,6 +642,7 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     expect(captured.coachConsentAccepted).toBe(false);
     expect(captured.coachMessages).toEqual([]);
     expect(captured.goalCelebrationSeenTargetKg).toBeNull();
+    expect(captured.learningReaderState).toEqual(EMPTY_LEARNING_READER_STATE);
     // hydrationReminders resets to DEFAULT_HYDRATION_PREFS (not all-false/all-zero)
     expect(captured.hydrationReminders).toEqual(DEFAULT_HYDRATION_PREFS);
     // livingMemory resets to emptyLivingMemory() — must have the expected shape
@@ -1516,6 +1519,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     profilePhotoUri:      '/photo.jpg',
     fasting:              { selectedPlanId: '16:8', activeStartedAt: '2026-08-07T08:00:00.000Z', activePlannedHours: 16, history: [] },
     dashboardPreferences: { visible: ['calories', 'water'], order: ['water', 'calories'], density: { calories: 'expanded', steps: 'compact', water: 'compact', weight: 'compact', mealRhythm: 'compact', nutrients: 'expanded', fasting: 'compact' } },
+    learningReaderState:  { version: 1, savedLessonIds: ['balanced-plate-basics'], progressByLessonId: {} },
   };
 
   it('resolveExportData with a non-null ref returns cleared snapshot — ref priority wins over stale closed-over state', () => {
@@ -1532,7 +1536,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     });
 
     // Call the REAL production resolveExportData — same function CaloraContext.exportData uses.
-    const exported = resolveExportData(ref, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const exported = resolveExportData(ref, staleClosedOver, STORAGE_SCHEMA_VERSION);
     const parsed = JSON.parse(exported) as Record<string, unknown>;
 
     // Ref wins: cleared values, not stale ones.
@@ -1592,6 +1596,11 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     expect(snap.coachMessages).toEqual([]);
     expect(snap.fasting).toMatchObject({ activeStartedAt: null, history: [] });
     expect(snap.dashboardPreferences).toMatchObject({ visible: expect.arrayContaining(['calories']) });
+    expect(snap.learningReaderState).toEqual({
+      version: 1,
+      savedLessonIds: [],
+      progressByLessonId: {},
+    });
   });
 
   it('FIELD EXHAUSTIVENESS GUARD — cleared snapshot key set matches CaloraExportState exactly, no more and no less', () => {
@@ -1676,7 +1685,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
       ...staleClosedOver,
       hydrationReminders: customPreClearSchedule,
     };
-    const exported = resolveExportData(ref, closedOverWithCustomSchedule, 2 /* STORAGE_SCHEMA_VERSION */);
+    const exported = resolveExportData(ref, closedOverWithCustomSchedule, STORAGE_SCHEMA_VERSION);
     const parsed = JSON.parse(exported) as Record<string, unknown>;
 
     expect(parsed['hydrationReminders']).toEqual(DEFAULT_HYDRATION_PREFS);
@@ -1693,7 +1702,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     // immediately recognisable in a failing test.
     const ref: { current: CaloraExportState | null } = { current: null }; // not set
 
-    const exported = resolveExportData(ref, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const exported = resolveExportData(ref, staleClosedOver, STORAGE_SCHEMA_VERSION);
     const parsed = JSON.parse(exported) as Record<string, unknown>;
 
     // Stale data IS visible without the ref — this is the bug.
@@ -1719,7 +1728,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     //     ref.current = makeClearedExportSnapshot(opts)        ← real function
     //
     //   exportData:
-    //     return resolveExportData(ref, staleClosedOver, 2)    ← real function
+    //     return resolveExportData(ref, staleClosedOver, STORAGE_SCHEMA_VERSION)    ← real function
     //
     //   exportRawStorageData:
     //     return readRawStorageData(getItem, KEY)              ← real function
@@ -1751,7 +1760,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     // staleClosedOver still holds pre-clear values in the closed-over closure.
 
     // exportData calls resolveExportData (real function) — ref wins.
-    const exported = resolveExportData(exportSnapshotRef, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const exported = resolveExportData(exportSnapshotRef, staleClosedOver, STORAGE_SCHEMA_VERSION);
     const parsed = JSON.parse(exported) as Record<string, unknown>;
 
     expect(parsed['profile']).toBeNull();
@@ -1809,7 +1818,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
 
     // In-memory surface: cleared (real resolveExportData, real ref, stale fallback)
     const parsed = JSON.parse(
-      resolveExportData(exportSnapshotRef, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */),
+      resolveExportData(exportSnapshotRef, staleClosedOver, STORAGE_SCHEMA_VERSION),
     ) as Record<string, unknown>;
 
     expect(parsed['profile']).toBeNull();
@@ -1843,11 +1852,14 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
       coachConsentAccepted: false, coachMessages: [],
       goalCelebrationSeenTargetKg: null, plannerPreferences: null,
       fontSizeScale: 'default', profilePhotoUri: null,
+      fasting: { selectedPlanId: '12:12', activeStartedAt: null, activePlannedHours: null, history: [] },
+      dashboardPreferences: { visible: ['calories'], order: ['calories'], density: { calories: 'expanded' } },
+      learningReaderState: { version: 1, savedLessonIds: [], progressByLessonId: {} },
     };
 
     // With ref null, resolveExportData falls through to liveCleared.
     const parsed = JSON.parse(
-      resolveExportData(ref, liveCleared, 2 /* STORAGE_SCHEMA_VERSION */),
+      resolveExportData(ref, liveCleared, STORAGE_SCHEMA_VERSION),
     ) as Record<string, unknown>;
 
     expect(parsed['profile']).toBeNull();
@@ -1879,7 +1891,7 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     // healthConnected is not reset by performClearAllData (it has no setter in
     // ClearAllDataCtx), so its value after a clear is the React useState default: false.
     //
-    // schemaVersion (2) is CaloraContext's STORAGE_SCHEMA_VERSION — the single
+    // STORAGE_SCHEMA_VERSION is CaloraContext's schema authority — the single
     // source of truth.  We pass it explicitly here; buildExportPayload adds no
     // independent constant of its own to prevent drift.
     const clearedSnapshot: CaloraExportState = {
@@ -1918,11 +1930,14 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
       plannerPreferences:   null,
       fontSizeScale:         'default',
       profilePhotoUri:       null,
+      fasting:               { selectedPlanId: '12:12', activeStartedAt: null, activePlannedHours: null, history: [] },
+      dashboardPreferences:  { visible: ['calories'], order: ['calories'], density: { calories: 'expanded' } },
+      learningReaderState:   { version: 1, savedLessonIds: [], progressByLessonId: {} },
     };
 
     // Call the real production serialiser — same code path as
     // CaloraContext.exportData reading from exportSnapshotRef.
-    const exported = buildExportPayload(2 /* STORAGE_SCHEMA_VERSION */, clearedSnapshot);
+    const exported = buildExportPayload(STORAGE_SCHEMA_VERSION, clearedSnapshot);
 
     // Output must be a non-empty string.
     expect(typeof exported).toBe('string');
@@ -1930,7 +1945,7 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     const parsed = JSON.parse(exported) as Record<string, unknown>;
 
     // schemaVersion is emitted by buildExportPayload from the value passed in.
-    expect(parsed['schemaVersion']).toBe(2);
+    expect(parsed['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
 
     // Every field must reflect the cleared default — no pre-clear session data.
     expect(parsed['profile']).toBeNull();
@@ -1957,6 +1972,12 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     expect(parsed['coachConsentAccepted']).toBe(false);
     expect(parsed['coachMessages']).toEqual([]);
     expect(parsed['healthConnected']).toBe(false);
+    expect(parsed['fasting']).toMatchObject({ activeStartedAt: null, history: [] });
+    expect(parsed['learningReaderState']).toEqual({
+      version: 1,
+      savedLessonIds: [],
+      progressByLessonId: {},
+    });
 
     // Storage at the same moment is also empty (readRawStorageData returns null)
     // — both export surfaces agree that no pre-clear data is visible.
@@ -2457,6 +2478,16 @@ describe('schema version migration gate — bumping STORAGE_SCHEMA_VERSION requi
     expect(Array.isArray(migrated['weights'])).toBe(true);
     expect(migrated['consentAccepted']).toBe(true);
     expect(migrated['themePreference']).toBe('system');
+  });
+
+  it('v3 reader snapshots gain an empty, bounded Learning reader state at v4', () => {
+    const migrated = applyStorageMigration(
+      { schemaVersion: 3, onboardingComplete: true },
+      4,
+    ) as Record<string, unknown>;
+
+    expect(migrated['schemaVersion']).toBe(4);
+    expect(migrated['learningReaderState']).toEqual(EMPTY_LEARNING_READER_STATE);
   });
 
   it('simulated next-version bump: v2 snapshot targeted at STORAGE_SCHEMA_VERSION + 1 surfaces ParseHydrationError — never silent passthrough', () => {
