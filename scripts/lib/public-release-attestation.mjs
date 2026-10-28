@@ -1,6 +1,8 @@
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
 const RELEASE_ID = /^calora-api-[0-9a-f]{12}-\d{14,17}$/i;
+const NODE_VERSION = /^v?22\.\d+\.\d+$/;
+const SUPABASE_SDK = /^2\.112\.2$/;
 
 export const PUBLIC_RELEASE_ATTESTATION_SCHEMA =
   "calora.release-attestation.v1";
@@ -23,8 +25,8 @@ export function canonicalHttpsOrigin(value) {
 
 /**
  * Copy only the public, non-sensitive release identity exposed by /api/version.
- * This deliberately drops any future fields so deployment records cannot leak
- * into the aggregate monitor report.
+ * This deliberately copies only the allowlisted source and runtime fields so
+ * deployment records cannot leak into aggregate monitor reports.
  */
 export function sanitizePublishedReleaseAttestation(value) {
   if (
@@ -40,6 +42,17 @@ export function sanitizePublishedReleaseAttestation(value) {
     throw new Error("Published API release attestation has an invalid shape.");
   }
 
+  const runtimeMetadataPresent =
+    value.nodeVersion !== undefined || value.nodeMajor !== undefined || value.supabaseSdk !== undefined;
+  if (
+    runtimeMetadataPresent &&
+    (!NODE_VERSION.test(value.nodeVersion ?? "") ||
+      value.nodeMajor !== 22 ||
+      !SUPABASE_SDK.test(value.supabaseSdk ?? ""))
+  ) {
+    throw new Error("Published API runtime metadata has an invalid shape.");
+  }
+
   return {
     schemaVersion: PUBLIC_RELEASE_ATTESTATION_SCHEMA,
     gitCommit: value.gitCommit,
@@ -47,6 +60,9 @@ export function sanitizePublishedReleaseAttestation(value) {
     sourceDigest: value.sourceDigest,
     buildTimestamp: value.buildTimestamp,
     releaseId: value.releaseId,
+    ...(runtimeMetadataPresent
+      ? { nodeVersion: value.nodeVersion, nodeMajor: value.nodeMajor, supabaseSdk: value.supabaseSdk }
+      : {}),
   };
 }
 

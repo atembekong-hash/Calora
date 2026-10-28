@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { pathToFileURL } from "node:url";
+
 /**
  * Supported pre-activation release check for the managed Publishing path.
  * It compares the reviewed clean-source identity with immutable build metadata
@@ -7,6 +9,13 @@
  */
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
+const NODE_VERSION = /^v?22\.\d+\.\d+$/;
+
+export function validateLiveRuntimeMetadata(version) {
+  if (!NODE_VERSION.test(version?.nodeVersion ?? "") || version?.nodeMajor !== 22 || version?.supabaseSdk !== "2.112.2") {
+    throw new Error("Live version response lacks the approved runtime compatibility metadata.");
+  }
+}
 
 function argument(name) {
   const index = process.argv.indexOf(name);
@@ -62,6 +71,7 @@ async function main() {
   if (typeof version.releaseId !== "string" || !version.releaseId || Number.isNaN(Date.parse(version.buildTimestamp))) {
     throw new Error("Live version response lacks valid compiled release metadata.");
   }
+  validateLiveRuntimeMetadata(version);
   console.log(JSON.stringify({
     verified: true,
     gitCommit: version.gitCommit,
@@ -69,12 +79,17 @@ async function main() {
     sourceDigest: version.sourceDigest,
     releaseId: version.releaseId,
     buildTimestamp: version.buildTimestamp,
+    nodeVersion: version.nodeVersion,
+    nodeMajor: version.nodeMajor,
+    supabaseSdk: version.supabaseSdk,
     liveUrl,
     liveChecks: { versionStatus: versionResponse.status, healthStatus: healthResponse.status },
   }));
 }
 
-main().catch((error) => {
-  console.error(`Release identity verification failed: ${error.message}`);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(`Release identity verification failed: ${error.message}`);
+    process.exit(1);
+  });
+}

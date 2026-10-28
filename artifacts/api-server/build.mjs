@@ -11,6 +11,7 @@ import {
   canonicalJson,
   verifyProviderPackageAttestation,
 } from "../../scripts/lib/provider-package-attestation.mjs";
+import { assertSupportedNodeRuntime } from "../../scripts/lib/node-runtime-policy.mjs";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -255,6 +256,16 @@ async function writeSignedExternalManifest(release, distDir) {
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
+  const runtime = assertSupportedNodeRuntime(process.versions.node);
+  const apiPackage = JSON.parse(
+    await readFile(path.join(artifactDir, "package.json"), "utf8"),
+  );
+  const supabaseSdk = String(apiPackage.dependencies?.["@supabase/supabase-js"] ?? "")
+    .replace(/^[^0-9]*/, "")
+    .split(/[<>=~^ ]/)[0];
+  if (!/^2\.112\.2$/.test(supabaseSdk)) {
+    throw new Error(`Unexpected Supabase SDK version declaration: ${supabaseSdk || "missing"}.`);
+  }
   const release = await getReleaseAttestation();
   console.info(
     `[release-source] commit=${release.gitCommit} tree=${release.sourceTree} release=${release.releaseId}`,
@@ -288,6 +299,9 @@ async function buildAll() {
       __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
       __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
       __RELEASE_ID__: JSON.stringify(release.releaseId),
+      __RELEASE_NODE_VERSION__: JSON.stringify(process.versions.node),
+      __RELEASE_NODE_MAJOR__: JSON.stringify(runtime.major),
+      __RELEASE_SUPABASE_SDK__: JSON.stringify(supabaseSdk),
         // A sensitive release is eligible only when its production build is
         // explicitly bound to the clean reviewed source commit. Runtime access
         // remains independently deny-all until every process, rollout, cohort,

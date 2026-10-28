@@ -8,6 +8,9 @@ declare const __RELEASE_SOURCE_TREE__: string;
 declare const __RELEASE_SOURCE_DIGEST__: string;
 declare const __RELEASE_BUILD_TIMESTAMP__: string;
 declare const __RELEASE_ID__: string;
+declare const __RELEASE_NODE_VERSION__: string;
+declare const __RELEASE_NODE_MAJOR__: number;
+declare const __RELEASE_SUPABASE_SDK__: string;
 
 // `typeof` keeps unbundled TypeScript test imports safe: absent build constants
 // resolve to empty values and therefore fail closed below.
@@ -21,6 +24,9 @@ const rawReleaseAttestation = {
   sourceDigest: compiledValue(typeof __RELEASE_SOURCE_DIGEST__ === "string" ? __RELEASE_SOURCE_DIGEST__ : ""),
   buildTimestamp: compiledValue(typeof __RELEASE_BUILD_TIMESTAMP__ === "string" ? __RELEASE_BUILD_TIMESTAMP__ : ""),
   releaseId: compiledValue(typeof __RELEASE_ID__ === "string" ? __RELEASE_ID__ : ""),
+  nodeVersion: compiledValue(typeof __RELEASE_NODE_VERSION__ === "string" ? __RELEASE_NODE_VERSION__ : ""),
+  nodeMajor: typeof __RELEASE_NODE_MAJOR__ === "number" ? __RELEASE_NODE_MAJOR__ : 0,
+  supabaseSdk: compiledValue(typeof __RELEASE_SUPABASE_SDK__ === "string" ? __RELEASE_SUPABASE_SDK__ : ""),
 } as const;
 
 export type ReleaseAttestation = typeof rawReleaseAttestation;
@@ -28,6 +34,8 @@ export type ReleaseAttestation = typeof rawReleaseAttestation;
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
 const RELEASE_ID = /^calora-api-[0-9a-f]{12}-\d{14,17}$/i;
+const NODE_VERSION = /^v?22\.\d+\.\d+$/;
+const SUPABASE_SDK = /^2\.112\.2$/;
 
 function isCompiledAttestation(value: ReleaseAttestation): boolean {
   return (
@@ -35,7 +43,10 @@ function isCompiledAttestation(value: ReleaseAttestation): boolean {
     FULL_SHA.test(value.sourceTree) &&
     SHA256.test(value.sourceDigest) &&
     RELEASE_ID.test(value.releaseId) &&
-    !Number.isNaN(Date.parse(value.buildTimestamp))
+    !Number.isNaN(Date.parse(value.buildTimestamp)) &&
+    NODE_VERSION.test(value.nodeVersion) &&
+    value.nodeMajor === 22 &&
+    SUPABASE_SDK.test(value.supabaseSdk)
   );
 }
 
