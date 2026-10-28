@@ -118,7 +118,7 @@ describe("MoreScreen feature hierarchy", () => {
   it("uses the three feature cards as the unique Fasting, Progress, and Learning routes", () => {
     render(<MoreScreen />);
 
-    expect(screen.getAllByTestId("more-editorial-photo")).toHaveLength(3);
+    expect(screen.queryAllByTestId("more-editorial-photo")).toHaveLength(0);
     const primaryRoutes = [
       ["Open Fasting", "/fasting"],
       ["Open Progress", "/(tabs)/insights"],
@@ -131,17 +131,17 @@ describe("MoreScreen feature hierarchy", () => {
     }
   });
 
-  it("keeps editorial photography local and primary-card typography compact", () => {
+  it("keeps the three primary cards photo-free and typography compact", () => {
     const source = readFileSync(
       resolve(__dirname, "../../app/(tabs)/more.tsx"),
       "utf8",
     );
 
-    expect(source).toContain("const moreEditorialImages");
-    expect(source).toContain('testID="more-editorial-photo"');
-    expect(source).toContain('resizeMode="contain"');
-    expect(source).toContain("articles/fasting-basics-and-boundaries.jpg");
-    expect(source).toContain("articles/balanced-plate-basics.jpg");
+    expect(source).not.toContain("const moreEditorialImages");
+    expect(source).not.toContain('testID="more-editorial-photo"');
+    expect(source).not.toContain("fasting-basics-and-boundaries.jpg");
+    expect(source).not.toContain("calora-insights-header.jpg");
+    expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).toContain("fontSize: 20 * scale");
     expect(source).toContain("fontSize: 15 * scale");
@@ -163,6 +163,9 @@ describe("MoreScreen feature hierarchy", () => {
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
+    expect(screen.queryByText("Settings & profile")).toBeNull();
+    expect(screen.queryByText("Health & privacy")).toBeNull();
+    expect(screen.queryByText("Help & support")).toBeNull();
     expect(screen.queryByText("Your Calora")).toBeNull();
   });
 

@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,12 +17,6 @@ import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
 import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
 
-const moreEditorialImages = {
-  fasting: require("../../assets/images/learning/articles/fasting-basics-and-boundaries.jpg"),
-  progress: require("../../assets/images/calora-insights-header.jpg"),
-  learning: require("../../assets/images/learning/articles/balanced-plate-basics.jpg"),
-} as const;
-
 const SURFACE = "#10231f";
 const SURFACE_RAISED = "#153129";
 const BORDER = "rgba(140, 203, 177, 0.16)";
@@ -32,18 +25,6 @@ const MUTED = "#9ab1a7";
 const GREEN = "#45e29b";
 const ORANGE = "#ff876c";
 const PURPLE = "#9d77ff";
-
-function MoreEditorialPhoto({ source }: { source: number }) {
-  return (
-    <Image
-      accessible={false}
-      resizeMode="contain"
-      source={source}
-      style={StyleSheet.absoluteFillObject}
-      testID="more-editorial-photo"
-    />
-  );
-}
 
 function IconBox({
   color,
@@ -78,8 +59,6 @@ function FastingCard() {
 
   return (
     <View style={styles.fastingCard}>
-      <MoreEditorialPhoto source={moreEditorialImages.fasting} />
-      <View pointerEvents="none" style={styles.fastingShade} />
       <Pressable accessibilityRole="button" accessibilityLabel="Open Fasting" onPress={() => router.push("/fasting")} style={styles.fastingMainPressable}>
       <View style={styles.fastRingOuter}>
         <View
@@ -159,8 +138,6 @@ function ProgressCard() {
       onPress={() => router.push("/(tabs)/insights")}
       style={[styles.featureCard, styles.progressCard]}
     >
-      <MoreEditorialPhoto source={moreEditorialImages.progress} />
-      <View style={[styles.featureShade, { backgroundColor: "rgba(59, 36, 24, .72)" }]} />
       <IconBox color={ORANGE} icon="bar-chart-2" />
       <Text style={styles.featureTitle}>Progress</Text>
       <Text style={styles.featureSubtitle}>
@@ -184,8 +161,6 @@ function LearningCard() {
       onPress={() => router.push("/learning")}
       style={[styles.featureCard, styles.learningCard]}
     >
-      <MoreEditorialPhoto source={moreEditorialImages.learning} />
-      <View style={[styles.featureShade, { backgroundColor: "rgba(32, 27, 73, .72)" }]} />
       <IconBox color={PURPLE} icon="book-open" />
       <Text style={styles.featureTitle}>Learning</Text>
       <Text style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
@@ -208,12 +183,6 @@ export default function MoreScreen() {
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
     { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
   ], []);
-  const lower = [
-    { label: "Settings & profile", caption: "Appearance, units, notifications and more", icon: "user" as const, route: "/settings", tint: "#71cfac" },
-    { label: "Health & privacy", caption: "Data, permissions, export and account", icon: "shield" as const, route: "/profile?tab=account&open=health", tint: "#8bd9c0" },
-    { label: "Help & support", caption: "FAQs, contact and legal", icon: "help-circle" as const, route: "/profile?tab=account&open=help", tint: "#b8c7c0" },
-  ];
-
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -242,9 +211,6 @@ export default function MoreScreen() {
         </View>
         <View style={styles.quickGrid}>
           {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={38} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
-        </View>
-        <View style={styles.lowerPanel}>
-          {lower.map((item, index) => <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={[styles.lowerRow, index > 0 && styles.lowerRowBorder]}><IconBox color={item.tint} icon={item.icon} size={40} /><View style={styles.lowerCopy}><Text style={styles.lowerTitle}>{item.label}</Text><Text style={styles.lowerCaption}>{item.caption}</Text></View><Feather name="chevron-right" size={22} color={TEXT} /></Pressable>)}
         </View>
       </ScrollView>
     </SafeAreaView>
