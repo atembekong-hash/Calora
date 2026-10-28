@@ -186,7 +186,7 @@ export default function MoreScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open settings and profile"
-          onPress={() => router.push("/profile")}
+          onPress={() => router.push("/settings" as never)}
           style={styles.gear}
         >
           <Feather name="settings" size={20} color={colors.text} />
@@ -196,7 +196,12 @@ export default function MoreScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.welcome}>
+        <ScalePressable
+          accessibilityRole="button"
+          accessibilityLabel="Open profile"
+          onPress={() => router.push("/profile")}
+          style={styles.welcome}
+        >
           <ProfilePhoto
             uri={profilePhotoUri}
             size={42}
@@ -221,7 +226,7 @@ export default function MoreScreen() {
                 : "Your tools, preferences, and progress in one place"}
             </Text>
           </View>
-        </View>
+        </ScalePressable>
         <FastingCard />
         <ProgressCard />
         <ScalePressable
