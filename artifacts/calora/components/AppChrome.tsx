@@ -45,11 +45,11 @@ export function AppHeader({ title, back = false, onBack, action, leftAlignTitle 
     <View style={[styles.wrap, { backgroundColor: colors.background, paddingTop: insets.top, borderBottomColor: colors.border }]}>
       <View style={styles.bar}>
         {back ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={handleBack} hitSlop={10} style={[styles.backButton, { backgroundColor: colors.muted }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" accessibilityHint="Returns to the previous screen" onPress={handleBack} hitSlop={10} style={[styles.backButton, { backgroundColor: colors.muted, borderColor: colors.border }]}>
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
         ) : !leftAlignTitle ? <View style={styles.backSpacer} /> : null}
-        <Text numberOfLines={1} style={[styles.title, leftAlignTitle && back && styles.leftAlignedTitle, titleOffset !== undefined && { marginLeft: titleOffset }, { color: colors.foreground }]}>{title}</Text>
+        <Text allowFontScaling maxFontSizeMultiplier={1.5} numberOfLines={1} style={[styles.title, leftAlignTitle && back && styles.leftAlignedTitle, titleOffset !== undefined && { marginLeft: titleOffset }, { color: colors.foreground }]}>{title}</Text>
         <View style={styles.action}>{action}</View>
       </View>
     </View>
@@ -59,7 +59,7 @@ export function AppHeader({ title, back = false, onBack, action, leftAlignTitle 
 const styles = StyleSheet.create({
   wrap: { borderBottomWidth: StyleSheet.hairlineWidth },
   bar: { minHeight: 52, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   backSpacer: { width: 44 },
   title: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 17, letterSpacing: -0.2 },
   leftAlignedTitle: { marginLeft: -10 },

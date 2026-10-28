@@ -3855,7 +3855,7 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.dialogBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.46)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View
@@ -3994,7 +3994,7 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.dialogBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.46)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View
@@ -4045,7 +4045,7 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.dialogBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.46)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View
@@ -4321,7 +4321,7 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.dialogBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.46)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View
@@ -4376,7 +4376,7 @@ export default function ProfileScreen() {
         visible={notificationModal}
         onRequestClose={() => setNotificationModal(false)}
         onBackdropPress={() => setNotificationModal(false)}
-        overlayColor="rgba(0,0,0,0.5)"
+
         maxHeight="88%"
         sheetStyle={{ backgroundColor: colors.background }}
       >
@@ -4688,7 +4688,7 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={profileEditModal}
         onRequestClose={discardProfileEdit}
-        overlayColor="rgba(0,0,0,0.5)"
+
         sheetStyle={{ backgroundColor: colors.background }}
       >
         <KeyboardAwareScrollViewCompat
@@ -4840,7 +4840,7 @@ export default function ProfileScreen() {
       <BottomSheet
         visible={infoModal !== null}
         onRequestClose={() => setInfoModal(null)}
-        overlayColor="rgba(0,0,0,0.5)"
+
         sheetStyle={{ backgroundColor: colors.background }}
       >
         <ScrollView

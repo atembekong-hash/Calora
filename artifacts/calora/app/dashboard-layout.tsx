@@ -87,7 +87,7 @@ export default function DashboardLayoutScreen() {
             const density = dashboardPreferences.density[id];
             return (
               <View
-                style={[styles.card, !visible && styles.cardMuted]}
+                style={[styles.card, !visible && styles.cardHidden]}
                 key={id}
               >
                 <View style={styles.topRow}>
@@ -111,9 +111,9 @@ export default function DashboardLayoutScreen() {
                     }
                     trackColor={{
                       false: colors.border,
-                      true: "rgba(36,164,104,.5)",
+                      true: colors.success,
                     }}
-                    thumbColor={visible ? colors.success : colors.muted}
+                    thumbColor={visible ? colors.success : colors.disabledForeground}
                     accessibilityLabel={`Show ${item.title} on dashboard`}
                   />
                 </View>
@@ -136,7 +136,7 @@ export default function DashboardLayoutScreen() {
                       <Feather
                         name="chevron-up"
                         size={18}
-                        color={colors.text}
+                        color={index === 0 ? colors.disabledForeground : colors.foreground}
                       />
                     </ScalePressable>
                     <ScalePressable
@@ -163,7 +163,7 @@ export default function DashboardLayoutScreen() {
                       <Feather
                         name="chevron-down"
                         size={18}
-                        color={colors.text}
+                        color={index === dashboardPreferences.order.filter((candidate) => CONFIGURABLE_DASHBOARD_WIDGET_IDS.includes(candidate)).length - 1 ? colors.disabledForeground : colors.foreground}
                       />
                     </ScalePressable>
                   </View>
@@ -198,7 +198,7 @@ export default function DashboardLayoutScreen() {
             );
           })}
         <View style={styles.note}>
-          <Feather name="info" size={17} color={colors.muted} />
+          <Feather name="info" size={17} color={colors.mutedForeground} />
           <Text style={styles.noteText}>
             Calora keeps recorded meals, health data, and privacy controls
             unchanged. This only changes your dashboard layout.
@@ -216,7 +216,7 @@ const makeStyles = (
     safe: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 12, paddingBottom: 40 },
     intro: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 13 * scale,
       lineHeight: 19 * scale,
       marginBottom: 5,
@@ -229,7 +229,7 @@ const makeStyles = (
       padding: 13,
       gap: 11,
     },
-    cardMuted: { opacity: 0.62 },
+    cardHidden: { backgroundColor: colors.muted },
     topRow: { flexDirection: "row", alignItems: "center", gap: 11 },
     icon: {
       height: 39,
@@ -242,7 +242,7 @@ const makeStyles = (
     copy: { flex: 1 },
     title: { color: colors.text, fontWeight: "800", fontSize: 14 * scale },
     description: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       lineHeight: 15 * scale,
       marginTop: 2,
@@ -266,7 +266,7 @@ const makeStyles = (
       borderWidth: 1,
       borderColor: colors.border,
     },
-    disabled: { opacity: 0.35 },
+    disabled: { backgroundColor: colors.secondary, borderColor: colors.border },
     density: {
       height: 31,
       paddingHorizontal: 10,
@@ -277,7 +277,7 @@ const makeStyles = (
       gap: 6,
     },
     densityText: {
-      color: colors.success,
+      color: colors.successForeground,
       fontWeight: "800",
       fontSize: 11 * scale,
     },
@@ -293,7 +293,7 @@ const makeStyles = (
     },
     noteText: {
       flex: 1,
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       lineHeight: 16 * scale,
     },

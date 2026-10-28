@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import type { PlannerMeal } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useCalora } from '@/context/CaloraContext';
 import { hasPlannerImageKey, plannerImageSource } from '@/lib/mealImages';
 import { plannerImageKeyForMeal, type PlannerImageKey } from '@/lib/mealImageIdentity';
 import { plannerImageRenderDecision, plannerStoredImageKeyMismatch } from '@/lib/plannerImageRendering';
@@ -45,7 +45,7 @@ export function PlannerMealImage({
   /** Use immediate image replacement on a no-motion planner surface. */
   disableTransition?: boolean;
 }) {
-  const colors = useColors();
+  const { colors } = useCalora();
   const { user } = useAuth();
   const resolvedImageKey = plannerImageKeyForMeal(meal.id, meal.name);
   const renderDecision = plannerImageRenderDecision(meal, user?.id);

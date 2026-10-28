@@ -243,7 +243,7 @@ function LessonDetail({
           accessibilityRole="button"
           accessibilityLabel="Close lesson details"
           onPress={onClose}
-          style={styles.modalBackdrop}
+          style={[styles.modalBackdrop, { backgroundColor: colors.sheetOverlay }]}
         />
         <View
           accessibilityViewIsModal
@@ -257,7 +257,7 @@ function LessonDetail({
           ]}
         >
           <View
-            style={[styles.modalHandle, { backgroundColor: colors.border }]}
+            style={[styles.modalHandle, { backgroundColor: colors.sheetHandle }]}
           />
           <View style={styles.detailHeader}>
             <View
@@ -473,7 +473,7 @@ export default function LearningScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader title="Learning" leftAlignTitle />
+      <AppHeader title="Learning" back leftAlignTitle />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
@@ -767,7 +767,6 @@ const styles = StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(7, 16, 12, 0.58)",
   },
   detailSheet: {
     borderTopLeftRadius: 26,

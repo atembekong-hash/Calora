@@ -80,7 +80,7 @@ export default function SavedMealsScreen() {
                 <Feather
                   name={meal.kind === "recipe" ? "book-open" : "coffee"}
                   size={20}
-                  color={colors.success}
+                  color={colors.successForeground}
                 />
               </View>
               <View style={styles.copy}>
@@ -97,7 +97,7 @@ export default function SavedMealsScreen() {
                     accessibilityLabel={`Log ${meal.name}`}
                   >
                     <Text style={styles.logText}>Log meal</Text>
-                    <Feather name="plus" size={15} color="#fff" />
+                    <Feather name="plus" size={15} color={colors.primaryForeground} />
                   </ScalePressable>
                   <ScalePressable
                     onPress={() =>
@@ -114,7 +114,7 @@ export default function SavedMealsScreen() {
                     accessibilityLabel={`Remove ${meal.name}`}
                     style={styles.remove}
                   >
-                    <Feather name="trash-2" size={18} color={colors.muted} />
+                    <Feather name="trash-2" size={18} color={colors.mutedForeground} />
                   </ScalePressable>
                 </View>
               </View>
@@ -123,7 +123,7 @@ export default function SavedMealsScreen() {
         ) : (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Feather name="bookmark" size={26} color={colors.success} />
+              <Feather name="bookmark" size={26} color={colors.successForeground} />
             </View>
             <Text style={styles.emptyTitle}>No saved meals yet</Text>
             <Text style={styles.emptyCopy}>
@@ -136,7 +136,7 @@ export default function SavedMealsScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.browseText}>Browse recipes</Text>
-              <Feather name="arrow-right" size={16} color="#fff" />
+              <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
             </ScalePressable>
           </View>
         )}
@@ -152,7 +152,7 @@ const makeStyles = (
     safe: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 16, paddingBottom: 42 },
     intro: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 13 * scale,
       lineHeight: 19 * scale,
     },
@@ -171,13 +171,13 @@ const makeStyles = (
       justifyContent: "center",
       borderRadius: 10,
     },
-    segmentSelected: { backgroundColor: colors.success },
+    segmentSelected: { backgroundColor: colors.primary },
     segmentText: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontWeight: "700",
       fontSize: 11 * scale,
     },
-    segmentTextSelected: { color: "#fff" },
+    segmentTextSelected: { color: colors.primaryForeground },
     card: {
       flexDirection: "row",
       gap: 12,
@@ -197,7 +197,7 @@ const makeStyles = (
     },
     copy: { flex: 1, gap: 4 },
     name: { color: colors.text, fontSize: 15 * scale, fontWeight: "800" },
-    macros: { color: colors.muted, fontSize: 11 * scale },
+    macros: { color: colors.mutedForeground, fontSize: 11 * scale },
     actions: { flexDirection: "row", gap: 8, marginTop: 7 },
     logButton: {
       flexDirection: "row",
@@ -206,9 +206,9 @@ const makeStyles = (
       paddingHorizontal: 12,
       height: 35,
       borderRadius: 11,
-      backgroundColor: colors.success,
+      backgroundColor: colors.primary,
     },
-    logText: { color: "#fff", fontWeight: "800", fontSize: 12 * scale },
+    logText: { color: colors.primaryForeground, fontWeight: "800", fontSize: 12 * scale },
     remove: {
       height: 35,
       width: 35,
@@ -238,7 +238,7 @@ const makeStyles = (
     },
     emptyTitle: { color: colors.text, fontWeight: "800", fontSize: 17 * scale },
     emptyCopy: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       textAlign: "center",
       fontSize: 12 * scale,
       lineHeight: 18 * scale,
@@ -248,11 +248,11 @@ const makeStyles = (
       height: 43,
       paddingHorizontal: 16,
       borderRadius: 13,
-      backgroundColor: colors.success,
+      backgroundColor: colors.primary,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
       gap: 8,
     },
-    browseText: { color: "#fff", fontWeight: "800", fontSize: 13 * scale },
+    browseText: { color: colors.primaryForeground, fontWeight: "800", fontSize: 13 * scale },
   });

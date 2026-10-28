@@ -96,8 +96,8 @@ export default function VerifyEmailScreen() {
            <Text style={[styles.resendLabel, { color: colors.foreground }]}>Didn’t get it?</Text>
         {resendDone ? (
           <View style={styles.resendSuccess}>
-            <Feather name="check-circle" size={16} color={colors.success} />
-             <Text style={[styles.resendSuccessText, { color: colors.success }]}>Sent. Check your inbox.</Text>
+            <Feather name="check-circle" size={16} color={colors.successForeground} />
+             <Text style={[styles.resendSuccessText, { color: colors.successForeground }]}>Sent. Check your inbox.</Text>
           </View>
         ) : (
           <>

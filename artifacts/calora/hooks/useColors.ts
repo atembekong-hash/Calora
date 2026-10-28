@@ -2,16 +2,14 @@ import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 
 /**
- * Returns the design tokens for the current color scheme.
+ * Returns a system-scheme palette when Calora context is unavailable.
  *
  * The returned object contains all color tokens for the active palette
  * plus scheme-independent values like `radius`.
  *
- * Falls back to the light palette when no dark key is defined in
- * constants/colors.ts (the scaffold ships light-only by default).
- * When a sibling web artifact's dark tokens are synced into a `dark`
- * key, this hook will automatically switch palettes based on the
- * device's appearance setting.
+ * This is intentionally retained only for the root error fallback, which
+ * renders outside `CaloraProvider`. App screens and normal components must
+ * consume `useCalora()` so their selected in-app appearance is respected.
  */
 export function useColors() {
   const scheme = useColorScheme();

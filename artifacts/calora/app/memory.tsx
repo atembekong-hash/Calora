@@ -430,7 +430,7 @@ export default function LivingMemoryScreen() {
           </KeyboardAwareScrollViewCompat>
       </BottomSheet>
       <Modal visible={showForgetAllStale} transparent animationType="fade" onRequestClose={() => setShowForgetAllStale(false)}>
-        <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+        <View style={[styles.confirmBackdrop, { backgroundColor: colors.sheetOverlay }]}>
           <View style={[styles.confirmCard, { backgroundColor: colors.card }]}>
             <View style={[styles.confirmIcon, { backgroundColor: colors.muted }]}>
               <Feather name="eye-off" size={19} color={colors.foreground} />
@@ -454,7 +454,7 @@ export default function LivingMemoryScreen() {
         </View>
       </Modal>
       <Modal visible={forgetTarget !== null} transparent animationType="fade" onRequestClose={() => setForgetTarget(null)}>
-        <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+        <View style={[styles.confirmBackdrop, { backgroundColor: colors.sheetOverlay }]}>
           <View style={[styles.confirmCard, { backgroundColor: colors.card }]}>
             <View style={[styles.confirmIcon, { backgroundColor: colors.muted }]}>
               <Feather name="eye-off" size={19} color={colors.foreground} />

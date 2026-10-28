@@ -468,7 +468,7 @@ type CaloraContextValue = {
   retryPersistence: () => Promise<void>;
   themePreference: ThemePreference;
   mode: 'light' | 'dark';
-  colors: typeof colors.light;
+  colors: typeof colors.light | typeof colors.dark;
   syncState: SyncState;
   /** Session-only diary backup status, set only by the authenticated sync worker. */
   setDiarySyncState: (state: Exclude<SyncState, 'offline'>) => void;

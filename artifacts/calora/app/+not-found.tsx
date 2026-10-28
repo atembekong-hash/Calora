@@ -1,7 +1,7 @@
 import { Link, Stack, router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/hooks/useColors';
+import { useCalora } from '@/context/CaloraContext';
 import { recoverFromNotFoundRoute } from '@/lib/notFoundRecovery';
 
 /**
@@ -12,7 +12,7 @@ import { recoverFromNotFoundRoute } from '@/lib/notFoundRecovery';
  * short delay so the user never has to click anything.
  */
 export default function NotFoundScreen() {
-  const colors = useColors();
+  const { colors } = useCalora();
 
   useEffect(() => {
     // Expo Router cannot always replace an unmatched web route. Use a

@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { AppHeader } from '@/components/AppChrome';
-import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
@@ -51,9 +51,10 @@ const moodColors: Record<Mood, string> = {
 
 function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
-    progress.value = withDelay(delay, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress]);
+    progress.value = reduceMotion ? 1 : withDelay(delay, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, reduceMotion]);
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ translateY: 14 * (1 - progress.value) }],
@@ -63,9 +64,10 @@ function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactN
 
 function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
   const pulse = useSharedValue(1);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
-    pulse.value = withRepeat(withTiming(1.08, { duration: 1350, easing: Easing.inOut(Easing.ease) }), -1, true);
-  }, [pulse]);
+    pulse.value = reduceMotion ? 1 : withRepeat(withTiming(1.08, { duration: 1350, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [pulse, reduceMotion]);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
   return (
     <Animated.View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }, animatedStyle]}>
@@ -76,10 +78,11 @@ function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] 
 
 function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress, value]);
+    progress.value = reduceMotion ? 1 : withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, reduceMotion, value]);
   const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
   return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
 }
@@ -260,11 +263,12 @@ function AnimatedCountUp({ to, prefix = '', suffix = '', style }: {
 // ─── Animated bar for Weekly Patterns chart ────────────────────────────────────
 function AnimatedPatternBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   const targetPct = Math.max(value, 16);
   useEffect(() => {
     progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress, value]);
+    progress.value = reduceMotion ? 1 : withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, reduceMotion, value]);
   const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
   return <Animated.View style={[styles.patternFill, { backgroundColor: color }, animStyle]} />;
 }
@@ -272,11 +276,12 @@ function AnimatedPatternBar({ value, color, delay = 0 }: { value: number; color:
 // ─── Animated bar for Logging Rhythm chart ────────────────────────────────────
 function AnimatedRhythmBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
   const progress = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
   const targetPct = Math.max(value, 14);
   useEffect(() => {
     progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress, value]);
+    progress.value = reduceMotion ? 1 : withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, reduceMotion, value]);
   const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
   return <Animated.View style={[styles.rhythmFill, { backgroundColor: color }, animStyle]} />;
 }
@@ -854,7 +859,7 @@ function WeightChartModal({
       <View style={{ flex: 1 }}>
         {/* Backdrop */}
         <Animated.View
-          style={[{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.48)' }, backdropStyle]}
+          style={[{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.sheetOverlay }, backdropStyle]}
         >
           <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close chart" />
         </Animated.View>
@@ -913,7 +918,7 @@ function WeightChartModal({
           {statsEntries.length >= 2 && minEntry && maxEntry && (
             <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
               <View style={styles.chartModalStat}>
-                <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{formatWeight(min, unit)}</Text>
+                <Text style={[styles.chartModalStatValue, { color: colors.successForeground }]}>{formatWeight(min, unit)}</Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
               </View>
               <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
@@ -925,7 +930,7 @@ function WeightChartModal({
               </View>
               <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
               <View style={styles.chartModalStat}>
-                <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{formatWeight(max, unit)}</Text>
+                <Text style={[styles.chartModalStatValue, { color: colors.warningForeground }]}>{formatWeight(max, unit)}</Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
               </View>
             </View>
@@ -946,7 +951,7 @@ function WeightChartModal({
                 accessibilityLabel="Undo delete weigh-in"
                 accessibilityRole="button"
               >
-                <Text style={[styles.chartModalUndoBtn, { color: colors.success }]}>Undo</Text>
+                <Text style={[styles.chartModalUndoBtn, { color: colors.successForeground }]}>Undo</Text>
               </Pressable>
             </View>
           )}
@@ -2424,7 +2429,7 @@ export default function InsightsScreen() {
         />
         </SwipeMenuHighlightProvider>
       </View>
-      <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
@@ -2456,7 +2461,7 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
             </KeyboardAwareScrollViewCompat>
       </BottomSheet>
-      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => { setGoalError(''); setShowGoalEdit(false); }} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => { setGoalError(''); setShowGoalEdit(false); }} sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
@@ -2499,7 +2504,7 @@ export default function InsightsScreen() {
       </BottomSheet>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
       {/* Inline edit modal — pre-filled with the selected weigh-in value */}
-      <BottomSheet visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)} sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit weigh-in</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
@@ -2594,7 +2599,7 @@ export default function InsightsScreen() {
             accessibilityLabel="Undo delete weigh-in"
             accessibilityRole="button"
           >
-            <Text style={[styles.weightDeleteSnackUndo, { color: colors.success }]}>Undo</Text>
+            <Text style={[styles.weightDeleteSnackUndo, { color: colors.successForeground }]}>Undo</Text>
           </Pressable>
         </Animated.View>
       )}

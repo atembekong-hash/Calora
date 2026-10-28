@@ -1414,7 +1414,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
           <Feather name="plus" size={14} color={colors.foreground} />
         </Pressable>
       </View>
-      {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text>}
+      {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text>}
     </View>
   );
 }
@@ -1492,7 +1492,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
           style={[
             styles.modalBackdrop,
             {
-              backgroundColor: 'rgba(0,0,0,0.52)',
+              backgroundColor: colors.sheetOverlay,
               justifyContent: 'center',
               padding: 24,
             },
@@ -1545,7 +1545,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
           style={[
             styles.modalBackdrop,
             {
-              backgroundColor: 'rgba(0,0,0,0.52)',
+              backgroundColor: colors.sheetOverlay,
               justifyContent: 'center',
               padding: 24,
             },
@@ -2112,7 +2112,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                       void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail));
                     }}
                   >
-                    <Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text>
+                    <Text style={[styles.shopActionText, { color: colors.warningForeground }]}>Regenerate</Text>
                   </Pressable>
                 </View>
               )}
@@ -3487,7 +3487,7 @@ export default function RecipesScreen() {
             style={[
               styles.modalBackdrop,
               {
-                backgroundColor: 'rgba(0,0,0,0.52)',
+                backgroundColor: colors.sheetOverlay,
                 justifyContent: 'center',
                 padding: 24,
               },
@@ -3553,7 +3553,7 @@ export default function RecipesScreen() {
             style={[
               styles.modalBackdrop,
               {
-                backgroundColor: 'rgba(0,0,0,0.52)',
+                backgroundColor: colors.sheetOverlay,
                 justifyContent: 'center',
                 padding: 24,
               },
