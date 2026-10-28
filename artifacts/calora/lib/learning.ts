@@ -1,6 +1,7 @@
 import {
   LEARNING_COLLECTIONS,
   LEARNING_LESSONS,
+  LEARNING_TOPICS,
   type LearningCollection,
   type LearningLesson,
   type LearningLessonTopic,
@@ -381,14 +382,11 @@ export function getLearningCatalogIssues(
   const issues: LearningCatalogIssue[] = [];
   const ids = new Set<string>();
   const knownIds = validLessonIdSet(catalog);
-  const validTopics = new Set<LearningLessonTopic>([
-    "Fundamentals",
-    "Planning",
-    "Recipes",
-    "Labels",
-    "Habits",
-    "Fasting",
-  ]);
+  const validTopics = new Set<LearningLessonTopic>(
+    LEARNING_TOPICS.filter(
+      (topic): topic is LearningLessonTopic => topic !== "All",
+    ),
+  );
   const knownCollectionIds = new Set(
     LEARNING_COLLECTIONS.map((item) => item.id),
   );

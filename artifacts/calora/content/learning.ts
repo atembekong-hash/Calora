@@ -6,6 +6,10 @@ export const LEARNING_TOPICS = [
   "Labels",
   "Habits",
   "Fasting",
+  "Hydration",
+  "Movement",
+  "Sleep",
+  "Mindset",
 ] as const;
 
 export type LearningTopic = (typeof LEARNING_TOPICS)[number];
@@ -18,6 +22,10 @@ export const LEARNING_COLLECTION_IDS = [
   "labels-with-context",
   "habits-that-fit",
   "meal-timing-basics",
+  "hydration-everyday",
+  "movement-and-recovery",
+  "sleep-and-rhythm",
+  "mindset-and-routine",
 ] as const;
 
 export type LearningCollectionId = (typeof LEARNING_COLLECTION_IDS)[number];
@@ -37,7 +45,9 @@ export type LearningIcon =
   | "repeat"
   | "shopping-bag"
   | "sun"
-  | "tag";
+  | "tag"
+  | "heart"
+  | "moon";
 
 export type LearningReviewMetadata = {
   reviewedAt: string;
@@ -160,6 +170,42 @@ export const LEARNING_COLLECTIONS: readonly LearningCollection[] = [
       "A cautious look at meal timing and fasting as personal routines, not requirements.",
     topic: "Fasting",
     icon: "clock",
+  },
+  {
+    id: "hydration-everyday",
+    title: "Hydration for real days",
+    eyebrow: "SMALL SIPS",
+    description:
+      "Simple ways to make drinks easier to remember without turning hydration into a score.",
+    topic: "Hydration",
+    icon: "droplet",
+  },
+  {
+    id: "movement-and-recovery",
+    title: "Movement and recovery",
+    eyebrow: "MOVE GENTLY",
+    description:
+      "Practical activity ideas that respect energy, access, and your changing routine.",
+    topic: "Movement",
+    icon: "activity",
+  },
+  {
+    id: "sleep-and-rhythm",
+    title: "Sleep and daily rhythm",
+    eyebrow: "WIND DOWN",
+    description:
+      "Build steadier evenings and mornings without expecting a perfect routine.",
+    topic: "Sleep",
+    icon: "moon",
+  },
+  {
+    id: "mindset-and-routine",
+    title: "Mindset and routine",
+    eyebrow: "KEEP IT KIND",
+    description:
+      "Use observations and flexible plans to support a sustainable relationship with food.",
+    topic: "Mindset",
+    icon: "heart",
   },
 ] as const;
 
@@ -287,8 +333,8 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
     id: "hydration-check-in",
     title: "Make hydration a small check-in",
     dek: "Build an easy cue for drinking without chasing a universal number.",
-    topic: "Fundamentals",
-    collectionId: "nutrition-foundations",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
     readingMinutes: 2,
     icon: "droplet",
     accent: "info",
@@ -669,6 +715,345 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
     safety: {
       heading: "Consider safety first",
       body: "Fasting is not appropriate for everyone. If you are under 18, pregnant or breastfeeding, have a history of disordered eating, manage a medical condition, or take medication affected by food timing, speak with a qualified health professional before changing your eating routine.",
+      review: medicalEducationReview,
+    },
+  },
+
+  {
+    id: "drinks-that-fit-your-day",
+    title: "Choose drinks that fit your day",
+    dek: "Use preference, access, and routine to make hydration feel less like a task.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 3,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with what is available",
+        paragraphs: [
+          "Water, tea, coffee, milk, soups, and many foods can all fit into a day. The most useful option is often one you enjoy and can reach when you need it.",
+          "You do not need a perfect beverage routine to be prepared. A drink at a familiar moment can be enough of a starting point.",
+        ],
+      },
+      {
+        heading: "Make the next choice easy",
+        paragraphs: [
+          "Keep a cup, bottle, or preferred drink where you already spend time. A visible option can remove one small barrier on a busy day.",
+        ],
+      },
+    ],
+    tryThis:
+      "Put one drink you enjoy where you will see it during your next regular routine.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "habit-cue-design"],
+    review: medicalEducationReview,
+  },
+  {
+    id: "hydration-on-busy-days",
+    title: "Hydration on busy days",
+    dek: "Build a flexible reminder around the moments that already happen.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 2,
+    icon: "repeat",
+    accent: "success",
+    sections: [
+      {
+        heading: "Use recurring cues",
+        paragraphs: [
+          "Meetings, commutes, meals, and breaks can all become gentle cues to check in. The goal is not to hit a perfect schedule, but to notice when a small pause would help.",
+        ],
+      },
+      {
+        heading: "Adapt instead of catching up",
+        paragraphs: [
+          "If a day gets away from you, start again at the next cue. There is no need to compensate or turn one missed moment into a rule.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one daily cue and pair it with a drink for the next three days.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "busy-day-backup"],
+    review: medicalEducationReview,
+  },
+  {
+    id: "movement-breaks-count",
+    title: "Movement breaks count",
+    dek: "Short walks, stretches, and daily tasks can all be meaningful ways to move.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 3,
+    icon: "activity",
+    accent: "success",
+    sections: [
+      {
+        heading: "Look for what fits today",
+        paragraphs: [
+          "Movement does not need one format to be worthwhile. A walk, a stretch, dancing, chores, mobility work, or rest can each fit differently depending on your energy and access.",
+        ],
+      },
+      {
+        heading: "Keep the threshold approachable",
+        paragraphs: [
+          "A small movement break can be easier to repeat than an ambitious plan. Choose a version that feels safe and realistic for the day in front of you.",
+        ],
+      },
+    ],
+    tryThis:
+      "Add one five-minute movement option to a regular break in your day.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["habit-cue-design", "kind-feedback-loop"],
+    review: editorialReview,
+  },
+  {
+    id: "fuel-for-your-routine",
+    title: "Fuel for your routine",
+    dek: "Plan meals and snacks around your actual schedule, not an idealized one.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 3,
+    icon: "shopping-bag",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Notice the practical moments",
+        paragraphs: [
+          "A long commute, a workout, a shift, or an errand day can change what food feels convenient. Packing a familiar option or identifying a nearby choice can make a routine easier to support.",
+        ],
+      },
+      {
+        heading: "Keep it personal",
+        paragraphs: [
+          "People have different appetites, schedules, cultures, and activity patterns. Use your own experience as useful information rather than copying someone else’s template.",
+        ],
+      },
+    ],
+    tryThis:
+      "Name one place in your routine where having a snack or meal option ready would reduce stress.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["week-with-one-anchor", "busy-day-backup"],
+    review: editorialReview,
+  },
+  {
+    id: "recovery-is-part-of-routine",
+    title: "Make room for recovery",
+    dek: "Rest and lower-energy days belong in a sustainable movement routine.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 2,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Plan for variation",
+        paragraphs: [
+          "Energy and availability change. A routine that includes lighter options, rest, and adjustment can be easier to continue than one that treats every day the same.",
+        ],
+      },
+      {
+        heading: "Use a supportive question",
+        paragraphs: [
+          "Instead of asking what you should force yourself to do, ask what amount of movement or rest would support you today.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write down one low-energy movement option and one rest option that both feel caring.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-breaks-count", "kind-feedback-loop"],
+    review: editorialReview,
+  },
+  {
+    id: "sleep-and-food-rhythm",
+    title: "Notice your sleep and food rhythm",
+    dek: "Observe patterns without turning an imperfect night into a food rule.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 3,
+    icon: "moon",
+    accent: "info",
+    sections: [
+      {
+        heading: "Patterns can be useful data",
+        paragraphs: [
+          "Sleep, meals, stress, work, and caregiving can all influence how a day feels. A short observation can help you plan with more kindness without needing to solve everything at once.",
+        ],
+      },
+      {
+        heading: "Avoid all-or-nothing rules",
+        paragraphs: [
+          "One restless night does not need a punishment plan the next day. Keep meals and routines flexible, and choose one small support you can actually use.",
+        ],
+      },
+    ],
+    tryThis:
+      "After a busy or short-sleep night, write down one practical support you want available the next day.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["busy-day-backup", "kind-feedback-loop"],
+    review: medicalEducationReview,
+  },
+  {
+    id: "gentle-evening-reset",
+    title: "Create a gentle evening reset",
+    dek: "A simple transition can make tomorrow feel easier without needing a perfect bedtime routine.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 2,
+    icon: "sun",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Choose one closing cue",
+        paragraphs: [
+          "A short cue—putting away dishes, filling a water bottle, setting out breakfast items, or writing tomorrow’s first task—can help close the day without asking for a long routine.",
+        ],
+      },
+      {
+        heading: "Let small be enough",
+        paragraphs: [
+          "The purpose is to make the next moment easier, not to earn rest. If you skip it, begin again when it is useful.",
+        ],
+      },
+    ],
+    tryThis:
+      "Pick one two-minute evening action that will help your morning feel lighter.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["habit-cue-design", "week-with-one-anchor"],
+    review: editorialReview,
+  },
+  {
+    id: "shift-the-plan-not-yourself",
+    title: "Shift the plan, not yourself",
+    dek: "When schedules change, revise the setup instead of judging the outcome.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 3,
+    icon: "calendar",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Plan for real constraints",
+        paragraphs: [
+          "Travel, illness, shift changes, children, deadlines, and social plans can all reshape a routine. A realistic plan names a backup rather than pretending those changes will not happen.",
+        ],
+      },
+      {
+        heading: "Keep the next decision small",
+        paragraphs: [
+          "When a plan changes, choose the next useful action: save a meal, set out one item, or decide on a convenient breakfast. The next step can be enough.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one fallback meal or routine for a day when your plan changes unexpectedly.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["week-with-one-anchor", "busy-day-backup"],
+    review: editorialReview,
+  },
+  {
+    id: "kind-check-in",
+    title: "Build a kinder check-in",
+    dek: "Use curiosity to learn from a day without turning observations into a grade.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 3,
+    icon: "heart",
+    accent: "success",
+    sections: [
+      {
+        heading: "Ask a useful question",
+        paragraphs: [
+          "A check-in can be as simple as asking what felt easy, what felt difficult, and what support would help next time. It does not need to turn into a score or a list of failures.",
+        ],
+      },
+      {
+        heading: "Let the answer be specific",
+        paragraphs: [
+          "A practical observation—such as needing an afternoon snack or a simpler dinner—can lead to a small change that fits your real life.",
+        ],
+      },
+    ],
+    tryThis:
+      "At the end of today, name one thing that helped and one support you would like tomorrow.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-feedback-loop", "habit-cue-design"],
+    review: editorialReview,
+  },
+  {
+    id: "make-goals-flexible",
+    title: "Make goals flexible enough to live with",
+    dek: "A goal can offer direction without becoming a rule you cannot revise.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 3,
+    icon: "check-circle",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Choose the direction, not perfection",
+        paragraphs: [
+          "A flexible goal describes what you want to practice, such as cooking at home more often or planning one lunch. It leaves room for different days, budgets, appetites, and needs.",
+        ],
+      },
+      {
+        heading: "Revise as you learn",
+        paragraphs: [
+          "If a goal is not working, the setup can change. A smaller step, different reminder, or new definition of success may make it more useful.",
+        ],
+      },
+    ],
+    tryThis:
+      "Rewrite one goal so it names a direction you can revisit, not a rule you must never change.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-feedback-loop", "week-with-one-anchor"],
+    review: editorialReview,
+  },
+  {
+    id: "food-mood-observations",
+    title: "Notice food and mood with curiosity",
+    dek: "Use gentle observations to learn what supports you, without assuming a simple cause.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 3,
+    icon: "bookmark",
+    accent: "info",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Many factors shape a day",
+        paragraphs: [
+          "Mood and energy can be affected by sleep, stress, relationships, schedules, health, food, and many other factors. A note can help you notice a pattern, but it cannot diagnose a cause.",
+        ],
+      },
+      {
+        heading: "Keep observations gentle",
+        paragraphs: [
+          "If tracking makes you feel rigid or distressed, it is okay to stop. Individualized concerns deserve support from a qualified professional rather than a self-imposed rule.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write one neutral observation about a meal or routine, using words like ‘noticed’ instead of ‘good’ or ‘bad.’",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-check-in", "calories-are-context"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Support matters",
+      body: "This general education content cannot assess mood or eating concerns. If food, body image, or mood feels distressing or hard to manage, consider reaching out to a qualified health professional or a trusted support person.",
       review: medicalEducationReview,
     },
   },

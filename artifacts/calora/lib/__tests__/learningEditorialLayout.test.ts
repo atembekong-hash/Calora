@@ -22,6 +22,10 @@ describe("Learning editorial browse layout", () => {
 
     expect(source).toContain('pathname: "/learning/[lessonId]"');
     expect(source).toContain("LessonArtwork");
+    expect(source).toContain("getLearningEditorialImage(lesson)");
+    expect(source).toContain('resizeMode="cover"');
+    expect(source).toContain("artworkCompact");
+    expect(source).toContain("lessonCardCompact: { width: 160 }");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).not.toMatch(/admob|earn cash|topapps|advert/i);
   });
