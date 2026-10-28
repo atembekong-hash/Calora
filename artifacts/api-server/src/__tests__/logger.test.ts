@@ -331,4 +331,20 @@ describe("recovery warning summaries", () => {
     productionLogger.flush();
     output.destroy();
   });
+
+  it("retains only an allowlisted error code for verifier diagnostics", async () => {
+    const { safeErrorDetails } = await import("../lib/logger.js");
+    const error = Object.assign(
+      new Error("raw Supabase key and token must never be logged"),
+      { name: "SupabaseVerifierError", code: "supabase_config_invalid" },
+    );
+    expect(safeErrorDetails(error)).toEqual({
+      errorClass: "SupabaseVerifierError",
+      errorCode: "supabase_config_invalid",
+    });
+    expect(JSON.stringify(safeErrorDetails(error))).not.toContain("raw Supabase");
+    expect(safeErrorDetails(Object.assign(new Error("bad"), { code: "raw-secret-value" }))).toEqual({
+      errorClass: "Error",
+    });
+  });
 });

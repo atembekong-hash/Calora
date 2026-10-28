@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getCoachFactAccountEligibility } from "../lib/supabase-auth.js";
+import {
+  getCoachFactAccountEligibility,
+  SupabaseVerifierError,
+} from "../lib/supabase-auth.js";
 
 const activeMetadata = {};
 
@@ -55,5 +58,21 @@ describe("Coach Fact Context account eligibility", () => {
       app_metadata: activeMetadata,
       banned_until: "2020-01-01T00:00:00.000Z",
     })).toEqual({ eligible: true, reason: "eligible" });
+  });
+});
+
+describe("Supabase verifier failure classification", () => {
+  it("uses bounded non-secret codes for configuration and auth availability failures", () => {
+    expect(new SupabaseVerifierError("supabase_config_missing")).toMatchObject({
+      name: "SupabaseVerifierError",
+      code: "supabase_config_missing",
+      message: "Supabase verifier unavailable",
+    });
+    expect(new SupabaseVerifierError("supabase_config_invalid").code).toBe(
+      "supabase_config_invalid",
+    );
+    expect(new SupabaseVerifierError("supabase_auth_unavailable").code).toBe(
+      "supabase_auth_unavailable",
+    );
   });
 });

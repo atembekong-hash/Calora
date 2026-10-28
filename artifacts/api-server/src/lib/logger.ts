@@ -29,10 +29,17 @@ export function createLogger(destination?: DestinationStream) {
 export const logger = createLogger();
 
 /** Return only bounded error classification; never serialize message, stack, cause, or provider bodies. */
-export function safeErrorDetails(error: unknown): { errorClass: string } {
+export function safeErrorDetails(error: unknown): { errorClass: string; errorCode?: string } {
   if (error instanceof Error) {
     const name = error.name.trim();
-    return { errorClass: /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) ? name : "Error" };
+    const details: { errorClass: string; errorCode?: string } = {
+      errorClass: /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) ? name : "Error",
+    };
+    const code = (error as Error & { code?: unknown }).code;
+    if (typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(code)) {
+      details.errorCode = code;
+    }
+    return details;
   }
   return { errorClass: "unknown_error" };
 }
