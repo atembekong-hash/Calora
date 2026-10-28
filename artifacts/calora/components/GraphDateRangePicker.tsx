@@ -145,7 +145,7 @@ export function GraphDateRangePicker({
       <BottomSheet
         visible={visible}
         onRequestClose={() => setVisible(false)}
-        overlayColor="rgba(0,0,0,0.42)"
+
         sheetStyle={[styles.sheet, { backgroundColor: colors.background }]}
       >
         <ScrollView

@@ -85,7 +85,7 @@ function ProgressCard() {
       style={styles.progressCard}
     >
       <View style={styles.progressIcon}>
-        <Feather name="bar-chart-2" size={21} color="#ef6b4f" />
+        <Feather name="bar-chart-2" size={21} color={colors.primary} />
       </View>
       <View style={styles.progressCopy}>
         <Text style={styles.progressTitle}>Progress</Text>
@@ -98,7 +98,7 @@ function ProgressCard() {
         </Text>
       </View>
       <View style={styles.progressArrow}>
-        <Feather name="arrow-up-right" size={18} color="#ef6b4f" />
+        <Feather name="arrow-up-right" size={18} color={colors.primary} />
       </View>
     </ScalePressable>
   );
@@ -209,7 +209,7 @@ export default function MoreScreen() {
           style={styles.learningCard}
         >
           <View style={styles.learningIcon}>
-            <Feather name="book-open" size={22} color="#7d4ee5" />
+            <Feather name="book-open" size={22} color={colors.link} />
           </View>
           <View style={styles.learningCopy}>
             <Text style={styles.learningTitle}>Learning</Text>
@@ -219,7 +219,7 @@ export default function MoreScreen() {
           </View>
           <View style={styles.learningGo}>
             <Text style={styles.learningGoText}>Explore</Text>
-            <Feather name="arrow-right" size={14} color="#7d4ee5" />
+            <Feather name="arrow-right" size={14} color={colors.link} />
           </View>
         </ScalePressable>
         <View style={styles.sectionHeading}>
@@ -319,7 +319,7 @@ export default function MoreScreen() {
           <Text style={styles.rowLabel}>{label}</Text>
           {detail ? <Text style={styles.rowDetail}>{detail}</Text> : null}
         </View>
-        <Feather name="chevron-right" size={19} color={colors.muted} />
+        <Feather name="chevron-right" size={19} color={colors.mutedForeground} />
       </ScalePressable>
     );
   }
@@ -344,7 +344,7 @@ const makeStyles = (
       fontWeight: "800",
       letterSpacing: -0.8,
     },
-    headerCaption: { color: colors.muted, fontSize: 12 * scale, marginTop: 3 },
+    headerCaption: { color: colors.mutedForeground, fontSize: 12 * scale, marginTop: 3 },
     gear: {
       height: 42,
       width: 42,
@@ -372,7 +372,7 @@ const makeStyles = (
       fontWeight: "800",
       fontSize: 15 * scale,
     },
-    welcomeSub: { color: colors.muted, fontSize: 11 * scale, marginTop: 2 },
+    welcomeSub: { color: colors.mutedForeground, fontSize: 11 * scale, marginTop: 2 },
     fastingCard: {
       minHeight: 139,
       borderRadius: 22,
@@ -439,7 +439,7 @@ const makeStyles = (
       height: 45,
       width: 45,
       borderRadius: 15,
-      backgroundColor: "rgba(239,107,79,.13)",
+      backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -450,7 +450,7 @@ const makeStyles = (
       fontWeight: "800",
     },
     progressSummary: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       marginTop: 3,
     },
@@ -458,7 +458,7 @@ const makeStyles = (
       height: 33,
       width: 33,
       borderRadius: 11,
-      backgroundColor: "rgba(239,107,79,.1)",
+      backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -466,9 +466,9 @@ const makeStyles = (
       minHeight: 94,
       borderRadius: 20,
       padding: 15,
-      backgroundColor: "#f5f1ff",
+      backgroundColor: colors.accent,
       borderWidth: 1,
-      borderColor: "#eadfff",
+      borderColor: colors.border,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
@@ -477,25 +477,25 @@ const makeStyles = (
       height: 45,
       width: 45,
       borderRadius: 15,
-      backgroundColor: "#e8deff",
+      backgroundColor: colors.secondary,
       alignItems: "center",
       justifyContent: "center",
     },
     learningCopy: { flex: 1 },
     learningTitle: {
-      color: "#2b2045",
+      color: colors.foreground,
       fontWeight: "800",
       fontSize: 16 * scale,
     },
     learningText: {
-      color: "#655a7d",
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       lineHeight: 16 * scale,
       marginTop: 3,
     },
     learningGo: { alignItems: "center", gap: 3 },
     learningGoText: {
-      color: "#7d4ee5",
+      color: colors.link,
       fontWeight: "800",
       fontSize: 11 * scale,
     },
@@ -505,7 +505,7 @@ const makeStyles = (
       fontSize: 17 * scale,
       fontWeight: "800",
     },
-    sectionCaption: { color: colors.muted, fontSize: 11 * scale },
+    sectionCaption: { color: colors.mutedForeground, fontSize: 11 * scale },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
     quickItem: {
       width: "31.7%",
@@ -557,5 +557,5 @@ const makeStyles = (
     },
     rowCopy: { flex: 1 },
     rowLabel: { color: colors.text, fontWeight: "700", fontSize: 13 * scale },
-    rowDetail: { color: colors.muted, fontSize: 10 * scale, marginTop: 2 },
+    rowDetail: { color: colors.mutedForeground, fontSize: 10 * scale, marginTop: 2 },
   });

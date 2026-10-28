@@ -31,7 +31,7 @@ export function ProfileYouSettings({
   updateProfile,
 }: {
   profile: Profile | null;
-  colors: typeof colors.light;
+  colors: typeof colors.light | typeof colors.dark;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
 }) {
   const [personalOpen, setPersonalOpen] = useState(false);
@@ -192,10 +192,10 @@ export function ProfileYouSettings({
   );
 }
 
-function Field({ label, value, setValue, colors }: { label: string; value: string; setValue: (value: string) => void; colors: typeof import('@/constants/colors').default.light }) {
+function Field({ label, value, setValue, colors }: { label: string; value: string; setValue: (value: string) => void; colors: typeof import('@/constants/colors').default.light | typeof import('@/constants/colors').default.dark }) {
   return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={label} accessibilityHint={`Enter your ${label.toLowerCase()}`} value={value} onChangeText={(nextValue) => setValue(normalizeWholeNumberInput(nextValue))} keyboardType="number-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
 }
-function OptionGroup<T extends string>({ label, items, value, onChange, colors }: { label: string; items: { key: T; label: string }[]; value: T; onChange: (next: T) => void; colors: typeof import('@/constants/colors').default.light }) {
+function OptionGroup<T extends string>({ label, items, value, onChange, colors }: { label: string; items: { key: T; label: string }[]; value: T; onChange: (next: T) => void; colors: typeof import('@/constants/colors').default.light | typeof import('@/constants/colors').default.dark }) {
   return <View style={styles.optionGroup}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><View style={styles.chips}>{items.map((item) => <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ selected: value === item.key }} onPress={() => onChange(item.key)} style={[styles.chip, { borderColor: value === item.key ? colors.primary : colors.border, backgroundColor: value === item.key ? colors.accent : colors.card }]}><Text style={[styles.chipText, { color: value === item.key ? colors.accentForeground : colors.foreground }]}>{item.label}</Text></Pressable>)}</View></View>;
 }
 

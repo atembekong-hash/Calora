@@ -12,9 +12,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCalora } from '@/context/CaloraContext';
 import { shouldDismissSheetPan } from '@/lib/sheetDismissPolicy';
 
-const DEFAULT_OVERLAY_COLOR = 'rgba(0,0,0,0.46)';
 const MIN_BOTTOM_SPACE = 32;
 const BOTTOM_CONTENT_GAP = 16;
 
@@ -37,11 +37,12 @@ export function BottomSheetFrame({
   children,
   sheetStyle,
   maxHeight = '96%',
-  overlayColor = DEFAULT_OVERLAY_COLOR,
+  overlayColor,
   onBackdropPress,
   onPanDown,
   sheetProps,
 }: BottomSheetFrameProps) {
+  const { colors } = useCalora();
   const insets = useSafeAreaInsets();
   const bottomSpace = Math.max(insets.bottom + BOTTOM_CONTENT_GAP, MIN_BOTTOM_SPACE);
   const panDownRef = React.useRef(onPanDown);
@@ -62,7 +63,7 @@ export function BottomSheetFrame({
   }), []);
 
   return (
-    <View style={[styles.backdrop, { backgroundColor: overlayColor }]}>
+    <View style={[styles.backdrop, { backgroundColor: overlayColor ?? colors.sheetOverlay }]}>
       {onBackdropPress ? (
         <Pressable
           accessibilityRole="button"
@@ -78,6 +79,8 @@ export function BottomSheetFrame({
           styles.sheet,
           sheetStyle,
           {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
             maxHeight,
             paddingBottom: bottomSpace,
           },
@@ -91,7 +94,7 @@ export function BottomSheetFrame({
           onPress={onPanDown}
           style={styles.handleTouchTarget}
         >
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: colors.sheetHandle }]} />
         </Pressable>
         {children}
       </View>
@@ -115,7 +118,7 @@ export function BottomSheet({
   transparent = true,
   sheetStyle,
   maxHeight = '96%',
-  overlayColor = DEFAULT_OVERLAY_COLOR,
+  overlayColor,
   onBackdropPress,
   dismissOnBackdropPress = true,
   dismissOnPanDown = true,
@@ -162,6 +165,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
     borderTopLeftRadius: 27,
     borderTopRightRadius: 27,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   handleTouchTarget: {
     alignItems: 'center',
@@ -170,7 +174,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   handle: {
-    backgroundColor: 'rgba(90, 102, 94, 0.48)',
     borderRadius: 2,
     height: 4,
     width: 40,

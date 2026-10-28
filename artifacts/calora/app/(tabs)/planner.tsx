@@ -1364,7 +1364,7 @@ export default function PlannerScreen() {
                     <Feather name="plus" size={14} color={colors.foreground} />
                   </Pressable>
                 </View>
-                {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text>}
+                {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text>}
               </View>
             ))}
             <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero }]}>
@@ -1788,7 +1788,7 @@ export default function PlannerScreen() {
             ))}
           </View>
           {formError && (
-            <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warning }]}>
+            <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warningForeground }]}>
               {formError}
             </Text>
           )}
@@ -1874,7 +1874,7 @@ export default function PlannerScreen() {
                 >
                   <Feather name="alert-circle" size={18} color={colors.warning} />
                   <View style={styles.programPreviewCopy}>
-                    <Text style={[styles.programPreviewLabel, { color: colors.warning }]}>PROGRAM UNAVAILABLE</Text>
+                    <Text style={[styles.programPreviewLabel, { color: colors.warningForeground }]}>PROGRAM UNAVAILABLE</Text>
                     <Text style={[styles.programPreviewDisclosure, { color: colors.foreground }]}>Your {plannerDiet} preference cannot fill every meal role for this Program. Change your dietary preference or choose another Program.</Text>
                   </View>
                 </View>
@@ -2016,7 +2016,7 @@ export default function PlannerScreen() {
                         </View>
                       )}
                       {preview.status === 'unavailable' && (
-                        <Text accessibilityLabel={`${pt.label} unavailable for ${plannerDiet}; no complete week`} style={[styles.programOptionPreviewDisclosure, { color: colors.warning }]}>
+                        <Text accessibilityLabel={`${pt.label} unavailable for ${plannerDiet}; no complete week`} style={[styles.programOptionPreviewDisclosure, { color: colors.warningForeground }]}>
                           Unavailable for your {plannerDiet} preference
                         </Text>
                       )}
@@ -2137,7 +2137,7 @@ export default function PlannerScreen() {
             ]}
           />
           {formError && (
-            <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warning }]}>
+            <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warningForeground }]}>
               {formError}
             </Text>
           )}
@@ -2814,11 +2814,6 @@ function makeStyles(f: number) {
       justifyContent: 'center',
     },
     weekRangeCopy: { alignItems: 'center', gap: 3 },
-    modalBackdrop: {
-      flex: 1,
-      justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0,0,0,0.42)',
-    },
     detailSheet: { overflow: 'hidden' },
     sheetScroll: { flexShrink: 1, minHeight: 0 },
     sheetBottomPadding: { paddingBottom: 24 },

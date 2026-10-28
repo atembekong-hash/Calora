@@ -5,6 +5,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BottomSheet } from '@/components/BottomSheet';
 
+vi.mock('@/context/CaloraContext', async () => {
+  const palette = await vi.importActual<typeof import('@/constants/colors')>('@/constants/colors');
+  return { useCalora: () => ({ colors: palette.default.light }) };
+});
+
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 12, left: 0 }),
 }));

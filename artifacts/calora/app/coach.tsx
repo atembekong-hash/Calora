@@ -1020,7 +1020,12 @@ export default function CoachScreen() {
         animationType="fade"
         onRequestClose={() => setConfirmAction(null)}
       >
-        <View style={styles.confirmBackdrop}>
+        <View
+          style={[
+            styles.confirmBackdrop,
+            { backgroundColor: colors.sheetOverlay },
+          ]}
+        >
           <View
             accessibilityViewIsModal
             style={[
@@ -1136,7 +1141,12 @@ export default function CoachScreen() {
         animationType="fade"
         onRequestClose={() => setReportTurnId(null)}
       >
-        <View style={styles.confirmBackdrop}>
+        <View
+          style={[
+            styles.confirmBackdrop,
+            { backgroundColor: colors.sheetOverlay },
+          ]}
+        >
           <View
             accessibilityViewIsModal
             style={[
@@ -1453,7 +1463,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.52)",
     padding: 22,
   },
   confirmCard: {

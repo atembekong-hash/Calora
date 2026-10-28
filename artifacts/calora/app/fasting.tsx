@@ -85,7 +85,7 @@ export default function FastingScreen() {
             >
               <View style={styles.ringCenter}>
                 <View style={styles.flame}>
-                  <Feather name="zap" size={18} color="#f08b42" />
+                  <Feather name="zap" size={18} color={colors.warning} />
                 </View>
                 <Text style={styles.eyebrow}>
                   {progress.active ? "FASTING" : "READY WHEN YOU ARE"}
@@ -107,7 +107,7 @@ export default function FastingScreen() {
             <Feather
               name={progress.active ? "sun" : "clock"}
               size={14}
-              color={colors.success}
+              color={colors.successForeground}
             />
             <Text style={styles.statusPillText}>
               {progress.active
@@ -202,7 +202,7 @@ export default function FastingScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open fasting schedule settings"
-              onPress={() => router.push("/profile")}
+              onPress={() => router.push("/profile?tab=you&open=reminders")}
             >
               <Text style={styles.link}>Manage</Text>
             </Pressable>
@@ -215,7 +215,7 @@ export default function FastingScreen() {
               <Text style={styles.rowTitle}>{activePlan.label} rhythm</Text>
               <Text style={styles.rowSubtitle}>{activePlan.description}</Text>
             </View>
-            <Feather name="chevron-right" size={20} color={colors.muted} />
+            <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
           </View>
           <View style={styles.settingsRow}>
             <View style={styles.rowIcon}>
@@ -232,9 +232,9 @@ export default function FastingScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open reminder settings"
-              onPress={() => router.push("/profile")}
+              onPress={() => router.push("/profile?tab=you&open=reminders")}
             >
-              <Feather name="chevron-right" size={20} color={colors.muted} />
+              <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
             </Pressable>
           </View>
         </View>
@@ -250,7 +250,7 @@ export default function FastingScreen() {
             completed.map((item) => (
               <View key={item.id} style={styles.historyRow}>
                 <View style={styles.historyIcon}>
-                  <Feather name="check" size={15} color={colors.success} />
+                  <Feather name="check" size={15} color={colors.successForeground} />
                 </View>
                 <View style={styles.rowCopy}>
                   <Text style={styles.rowTitle}>
@@ -272,7 +272,7 @@ export default function FastingScreen() {
             ))
           ) : (
             <View style={styles.empty}>
-              <Feather name="clock" size={22} color={colors.muted} />
+              <Feather name="clock" size={22} color={colors.mutedForeground} />
               <Text style={styles.emptyTitle}>
                 Your completed fasts will appear here
               </Text>
@@ -334,11 +334,11 @@ const makeStyles = (
       borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(240,139,66,0.14)",
+      backgroundColor: colors.warningTint,
       marginBottom: 4,
     },
     eyebrow: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontWeight: "800",
       fontSize: 10 * scale,
       letterSpacing: 1,
@@ -349,14 +349,14 @@ const makeStyles = (
       fontSize: 38 * scale,
       marginTop: 3,
     },
-    timerCaption: { color: colors.muted, fontSize: 12 * scale },
+    timerCaption: { color: colors.mutedForeground, fontSize: 12 * scale },
     statusPill: {
       flexDirection: "row",
       gap: 7,
       alignItems: "center",
       paddingHorizontal: 12,
       paddingVertical: 7,
-      backgroundColor: "rgba(36,164,104,0.11)",
+      backgroundColor: colors.successTint,
       borderRadius: 16,
     },
     statusPillText: {
@@ -379,7 +379,7 @@ const makeStyles = (
       backgroundColor: colors.border,
     },
     timeLabel: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontWeight: "800",
       fontSize: 10 * scale,
       letterSpacing: 0.7,
@@ -396,15 +396,15 @@ const makeStyles = (
       width: "100%",
       minHeight: 52,
       borderRadius: 16,
-      backgroundColor: colors.success,
+      backgroundColor: colors.hero,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
       gap: 10,
     },
-    endButton: { backgroundColor: "#ef6b4f" },
+    endButton: { backgroundColor: colors.primary },
     primaryButtonText: {
-      color: "#fff",
+      color: colors.onHero,
       fontWeight: "800",
       fontSize: 15 * scale,
     },
@@ -420,11 +420,11 @@ const makeStyles = (
       fontSize: 18 * scale,
     },
     sectionCaption: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 12 * scale,
       lineHeight: 18 * scale,
     },
-    link: { color: colors.success, fontWeight: "800", fontSize: 13 * scale },
+    link: { color: colors.link, fontWeight: "800", fontSize: 13 * scale },
     planGrid: { flexDirection: "row", gap: 9 },
     planCard: {
       flex: 1,
@@ -437,12 +437,12 @@ const makeStyles = (
       backgroundColor: colors.card,
     },
     planSelected: {
-      backgroundColor: colors.success,
+      backgroundColor: colors.hero,
       borderColor: colors.success,
     },
     planLabel: { color: colors.text, fontSize: 17 * scale, fontWeight: "800" },
-    planSub: { color: colors.muted, fontSize: 10 * scale, marginTop: 3 },
-    planSelectedText: { color: "#fff" },
+    planSub: { color: colors.mutedForeground, fontSize: 10 * scale, marginTop: 3 },
+    planSelectedText: { color: colors.onHero },
     settingsRow: {
       minHeight: 68,
       flexDirection: "row",
@@ -465,7 +465,7 @@ const makeStyles = (
     rowCopy: { flex: 1 },
     rowTitle: { color: colors.text, fontWeight: "700", fontSize: 14 * scale },
     rowSubtitle: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       lineHeight: 16 * scale,
       marginTop: 2,
@@ -501,13 +501,13 @@ const makeStyles = (
       textAlign: "center",
     },
     emptyCopy: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 12 * scale,
       textAlign: "center",
       lineHeight: 18 * scale,
     },
     disclaimer: {
-      color: colors.muted,
+      color: colors.mutedForeground,
       fontSize: 11 * scale,
       lineHeight: 16 * scale,
       paddingBottom: 12,

@@ -190,7 +190,7 @@ function CalendarPicker({
   const days = calendarMonthDays(month);
 
   return (
-    <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.calendarCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={onClose} sheetStyle={[styles.calendarCard, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.sheetScroll}
@@ -1064,7 +1064,7 @@ function MacroGoalsModal({
   };
 
   return (
-    <BottomSheet visible={visible} onRequestClose={handleClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={handleClose} sheetStyle={[styles.modalCard, { backgroundColor: colors.background }]}>
           <KeyboardAwareScrollViewCompat
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.macroGoalScrollContent}
@@ -1164,7 +1164,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
   };
 
   return (
-    <BottomSheet visible={log !== null} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.editCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={log !== null} onRequestClose={onClose} sheetStyle={[styles.editCard, { backgroundColor: colors.background }]}>
       <KeyboardAwareScrollViewCompat
         showsVerticalScrollIndicator={false}
         style={styles.sheetScroll}
@@ -1287,7 +1287,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   };
 
   return (
-    <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={onClose} sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>
         <View style={styles.modalHandle} />
         <View style={styles.modalHeading}>

@@ -418,7 +418,7 @@ export function AccountSection({
         <View
           style={[
             styles.modalBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.55)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View
@@ -565,7 +565,7 @@ export function AccountSection({
         <View
           style={[
             styles.modalBackdrop,
-            { backgroundColor: "rgba(0,0,0,0.55)" },
+            { backgroundColor: colors.sheetOverlay },
           ]}
         >
           <View

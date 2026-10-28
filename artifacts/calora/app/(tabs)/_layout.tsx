@@ -26,7 +26,7 @@ function AnimatedTabIcon({ focused, children }: { focused: boolean; children: Re
 }
 
 function ClassicTabLayout() {
-  const { colors, mode } = useCalora();
+  const { colors, mode, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const isDark = mode === 'dark';
   const isIOS = Platform.OS === 'ios';
@@ -44,7 +44,7 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
-        tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+        tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: Math.min(14, 11 * fontScale) },
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: isIOS ? 'transparent' : colors.background,
@@ -119,7 +119,7 @@ function ClassicTabLayout() {
               <View style={[styles.scanTabCircle, { backgroundColor: colors.primary, borderColor: colors.background }]}>
                 <Feather name="camera" size={24} color={colors.primaryForeground} />
               </View>
-              <Text style={[styles.scanTabLabel, { color: colors.primary }]}>Scan</Text>
+              <Text allowFontScaling maxFontSizeMultiplier={1.3} style={[styles.scanTabLabel, { color: colors.primary, fontSize: Math.min(13, 10 * fontScale) }]}>Scan</Text>
             </Pressable>
           ),
         }}

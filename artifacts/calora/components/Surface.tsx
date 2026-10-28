@@ -17,7 +17,7 @@ export function Surface({ tier = 'flat', radius = 'lg', border = true, style, ..
     <View
       style={[
         {
-          backgroundColor: tier === 'inset' ? colors.background : colors.card,
+          backgroundColor: tier === 'inset' ? colors.muted : colors.card,
           borderRadius: radiusTokens[radius],
         },
         border && {
