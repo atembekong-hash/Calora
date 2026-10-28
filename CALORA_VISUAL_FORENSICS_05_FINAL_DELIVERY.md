@@ -4,6 +4,8 @@
 
 **Implementation status: READY_FOR_PROTECTED_REVIEW.** This branch contains the centralized visual-accessibility remediation and five required reports. It does not contain a mobile build, EAS job, store submission, backend deployment, production data mutation, or credential change.
 
+Protected workflow evidence: [PR #241](https://github.com/atembekong-hash/Calora/pull/241) was opened from `fix/visual-contrast-integrity`; implementation commit `51a387e1fca7af62b34829282521be8be52e67a6` passed the required release-validation, fresh-schema, and deletion-fence checks before this final evidence update.
+
 ## What is ready
 
 - Semantic light and dark color systems with AA-tested ordinary/supporting text roles.
