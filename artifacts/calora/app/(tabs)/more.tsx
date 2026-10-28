@@ -197,8 +197,8 @@ export default function MoreScreen() {
         <FastingCard />
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
-          <View><Text style={styles.sectionTitle}>Quick access</Text><Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Edit quick access" onPress={() => router.push("/settings")} style={styles.editButton}><Text style={styles.editText}>Edit</Text><Feather name="edit-2" size={16} color={GREEN} /></Pressable>
+          <Text style={styles.sectionTitle}>Quick access</Text>
+          <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
           {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={38} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
@@ -249,11 +249,9 @@ function makeStyles(scale: number) {
     chartBars: { position: "absolute", bottom: 14, left: 14, flexDirection: "row", gap: 4, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
-    sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 3 },
+    sectionHeading: { marginTop: 3 },
     sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
-    editButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingBottom: 2 },
-    editText: { color: GREEN, fontSize: 14 * scale, fontWeight: "700" },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "31.5%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
     quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },

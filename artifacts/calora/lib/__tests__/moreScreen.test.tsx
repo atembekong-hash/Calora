@@ -167,6 +167,7 @@ describe("MoreScreen feature hierarchy", () => {
     }
 
     expect(screen.queryByRole("button", { name: "Open profile" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit quick access" })).toBeNull();
     expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(16);
     expect(screen.queryByText("Your Calora")).toBeNull();
