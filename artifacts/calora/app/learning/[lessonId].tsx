@@ -1,14 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppChrome";
 import { ScalePressable } from "@/components/ScalePressable";
@@ -67,10 +61,13 @@ function LessonEditorialHero({
     >
       <Image
         accessible={false}
-        resizeMode="cover"
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
         testID="learning-reader-editorial-photo"
+        transition={120}
       />
       <View
         pointerEvents="none"
@@ -179,9 +176,19 @@ export default function LearningLessonScreen() {
           { paddingBottom: insets.bottom + 36 },
         ]}
       >
-        <LessonEditorialHero lesson={lesson} colors={colors} />
         <View
-          style={[styles.articleHeader, { borderBottomColor: colors.border }]}
+          style={[
+            styles.articleHeroStage,
+            { backgroundColor: colors.destructiveTint },
+          ]}
+        >
+          <LessonEditorialHero lesson={lesson} colors={colors} />
+        </View>
+        <View
+          style={[
+            styles.articleHeader,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+          ]}
         >
           <View style={styles.articleTopline}>
             <LessonGlyph
@@ -232,7 +239,7 @@ export default function LearningLessonScreen() {
             accessibilityRole="header"
             style={[
               styles.articleTitle,
-              { color: colors.foreground, fontSize: 24 * fontScale },
+              { color: colors.foreground, fontSize: 22 * fontScale },
             ]}
           >
             {lesson.title}
@@ -240,7 +247,7 @@ export default function LearningLessonScreen() {
           <Text
             style={[
               styles.articleDek,
-              { color: colors.mutedForeground, fontSize: 13 * fontScale },
+              { color: colors.mutedForeground, fontSize: 12 * fontScale },
             ]}
           >
             {lesson.dek}
@@ -271,7 +278,7 @@ export default function LearningLessonScreen() {
                 accessibilityRole="header"
                 style={[
                   styles.sectionHeading,
-                  { color: colors.foreground, fontSize: 17 * fontScale },
+                  { color: colors.foreground, fontSize: 16 * fontScale },
                 ]}
               >
                 {section.heading}
@@ -281,7 +288,7 @@ export default function LearningLessonScreen() {
                   key={paragraph}
                   style={[
                     styles.paragraph,
-                    { color: colors.foreground, fontSize: 13 * fontScale },
+                    { color: colors.foreground, fontSize: 12 * fontScale },
                   ]}
                 >
                   {paragraph}
@@ -302,7 +309,7 @@ export default function LearningLessonScreen() {
                           styles.bulletText,
                           {
                             color: colors.foreground,
-                            fontSize: 12 * fontScale,
+                            fontSize: 11 * fontScale,
                           },
                         ]}
                       >
@@ -521,10 +528,13 @@ export default function LearningLessonScreen() {
                   >
                     <Image
                       accessible={false}
-                      resizeMode="cover"
+                      cachePolicy="memory-disk"
+                      contentFit="cover"
+                      priority="normal"
                       source={getLearningEditorialImage(relatedLesson)}
                       style={StyleSheet.absoluteFillObject}
                       testID="learning-related-editorial-photo"
+                      transition={120}
                     />
                     <View
                       pointerEvents="none"
@@ -574,22 +584,27 @@ export default function LearningLessonScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   content: { paddingBottom: 32 },
+  articleHeroStage: { height: 254, justifyContent: "center" },
   articlePhoto: {
-    borderRadius: 18,
-    height: 172,
-    marginHorizontal: 18,
-    marginTop: 12,
+    alignSelf: "center",
+    borderRadius: 118,
+    height: 236,
+    marginTop: 10,
     overflow: "hidden",
+    width: 236,
   },
   articlePhotoShade: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.16,
+    opacity: 0.1,
   },
   articleHeader: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    marginTop: -15,
     paddingHorizontal: 18,
     paddingBottom: 18,
-    paddingTop: 15,
+    paddingTop: 22,
   },
   articleTopline: {
     alignItems: "center",
@@ -620,12 +635,12 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontFamily: "Inter_800ExtraBold",
     letterSpacing: -0.7,
-    lineHeight: 29,
+    lineHeight: 27,
     marginTop: 5,
   },
   articleDek: {
     fontFamily: "Inter_400Regular",
-    lineHeight: 19,
+    lineHeight: 18,
     marginTop: 6,
     maxWidth: 350,
   },
@@ -645,14 +660,14 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontFamily: "Inter_800ExtraBold",
     letterSpacing: -0.35,
-    lineHeight: 22,
+    lineHeight: 21,
     marginBottom: 7,
   },
-  paragraph: { fontFamily: "Inter_400Regular", lineHeight: 19, marginTop: 8 },
+  paragraph: { fontFamily: "Inter_400Regular", lineHeight: 18, marginTop: 8 },
   bulletList: { gap: 8, marginTop: 11 },
   bulletRow: { alignItems: "flex-start", flexDirection: "row", gap: 8 },
   bulletDot: { borderRadius: 3, height: 6, marginTop: 6, width: 6 },
-  bulletText: { flex: 1, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  bulletText: { flex: 1, fontFamily: "Inter_400Regular", lineHeight: 17 },
   sectionRule: { height: StyleSheet.hairlineWidth, marginTop: 19 },
   tryCard: {
     alignItems: "flex-start",

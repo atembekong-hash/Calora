@@ -1,29 +1,28 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, expect, it } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const appPath = (name: string) => resolve(__dirname, `../../app/(tabs)/${name}.tsx`);
-const utilitySource = readFileSync(resolve(__dirname, '../hourlyHeaderImages.ts'), 'utf8');
+const appPath = (name: string) =>
+  resolve(__dirname, `../../app/(tabs)/${name}.tsx`);
 
-describe('hourly header image rotation', () => {
-  it('uses the shared hourly hook only on the remaining image-backed home header', () => {
-    const homeSource = readFileSync(appPath('index'), 'utf8');
-    const recipesSource = readFileSync(appPath('recipes'), 'utf8');
-    const insightsSource = readFileSync(appPath('insights'), 'utf8');
+describe("Today dashboard image boundary", () => {
+  it("does not retain a rotating image header or any image-loading pathway", () => {
+    const homeSource = readFileSync(appPath("index"), "utf8");
+    const recipesSource = readFileSync(appPath("recipes"), "utf8");
+    const insightsSource = readFileSync(appPath("insights"), "utf8");
 
-    expect(homeSource).toContain("useHourlyHeaderImage('home')");
-    expect(recipesSource).not.toContain('useHourlyHeaderImage');
-    expect(insightsSource).not.toContain('useHourlyHeaderImage');
-    expect(utilitySource).toContain('const HOUR_IN_MS = 60 * 60 * 1000');
-    expect(utilitySource).toContain('getHourlyHeaderSlot()');
-    expect(utilitySource).toContain("AppState.addEventListener('change'");
+    expect(homeSource).not.toContain("useHourlyHeaderImage");
+    expect(homeSource).not.toMatch(
+      /<Image(?:Background)?\b|expo-image|LinearGradient/,
+    );
+    expect(homeSource).not.toMatch(/assets\/images|\brequire\(|recipe\.image/);
+    expect(recipesSource).not.toContain("useHourlyHeaderImage");
+    expect(insightsSource).not.toContain("useHourlyHeaderImage");
   });
 
-  it('keeps the image pool scoped to the remaining intentional header surface', () => {
-    expect(utilitySource).toContain("export type HeaderImageSurface = 'home'");
-    expect(utilitySource).toContain('home: [');
-    expect(utilitySource).not.toContain('recipes: [');
-    expect(utilitySource).not.toContain('insights: [');
-    expect(utilitySource).toContain('getHourlyHeaderIndex(hourSlot, images.length)');
+  it("removes the retired Home-only hourly image utility from the shipped source tree", () => {
+    expect(existsSync(resolve(__dirname, "../hourlyHeaderImages.ts"))).toBe(
+      false,
+    );
   });
 });

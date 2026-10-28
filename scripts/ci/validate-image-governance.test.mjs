@@ -15,6 +15,7 @@ function fixtureRoot() {
   for (const directory of [
     "artifacts/calora/app",
     "artifacts/calora/components",
+    "artifacts/calora/content",
     "artifacts/calora/constants",
     "artifacts/calora/context",
     "artifacts/calora/data",
@@ -52,9 +53,9 @@ function mutateJson(root, mutate) {
 test("accepts the reviewed Calora runtime image inventory", () => {
   const result = validateImageGovernance({ root: repositoryRoot, manifestPath });
   assert.equal(result.ok, true, result.failures.join("\n"));
-  assert.equal(result.summary.bundledAssetCount, 64);
+  assert.equal(result.summary.bundledAssetCount, 108);
   assert.equal(result.summary.staticExternalImageUrlCount, 0);
-  assert.equal(result.summary.directImageRendererCount, 16);
+  assert.equal(result.summary.directImageRendererCount, 13);
 });
 
 test("requires the native splash and earliest JavaScript bootstrap to use the reviewed launch background", () => {
@@ -194,13 +195,13 @@ test("detects a constructed static external image URL used by an Image renderer"
     writeFileSync(target, `${readFileSync(target, "utf8")}\nconst CDN_BASE = 'https://cdn.example/';\nconst STATIC_FOOD_PHOTO = CDN_BASE + 'meal.jpg';\nconst GovernancePhoto = () => <Image source={{ uri: STATIC_FOOD_PHOTO }} />;\n`);
     const result = validateImageGovernance({ root, manifestPath });
     assert.equal(result.ok, false);
-    assert.match(result.failures.join("\n"), /static external image URL is missing from manifest: https:\/\/cdn\.example\/meal\.jpg/);
+    assert.match(result.failures.join("\n"), /static external image URLs are forbidden: https:\/\/cdn\.example\/meal\.jpg/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("blocks static external imagery without approved review and provenance rights", () => {
+test("blocks static external imagery even when it is documented and approved", () => {
   const root = fixtureRoot();
   try {
     const target = path.join(root, "artifacts/calora/components/FoodLogThumbnail.tsx");
@@ -212,11 +213,11 @@ test("blocks static external imagery without approved review and provenance righ
         role: "food image",
         owner: "Calora product team",
         source: "https://cdn.example/source-record",
-        provenanceLicenseStatus: "unapproved",
-        permittedUse: "none",
-        attribution: "required",
-        reviewStatus: "unreviewed",
-        reviewer: "pending",
+        provenanceLicenseStatus: "approved — fixture-only provenance",
+        permittedUse: "fixture-only test use",
+        attribution: "not required",
+        reviewStatus: "approved",
+        reviewer: "Calora product team",
         reviewDate: "2026-09-23",
         evidence: "docs/evidence/pending.md",
         renderConsumers: ["artifacts/calora/components/FoodLogThumbnail.tsx"],
@@ -233,9 +234,7 @@ test("blocks static external imagery without approved review and provenance righ
     });
     const result = validateImageGovernance({ root, manifestPath });
     assert.equal(result.ok, false);
-    const failures = result.failures.join("\n");
-    assert.match(failures, /static external image .* is not approved for release/);
-    assert.match(failures, /static external image .* lacks approved provenance and usage rights/);
+    assert.match(result.failures.join("\n"), /staticExternalImageUrls must be empty; runtime imagery must be bundled locally/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

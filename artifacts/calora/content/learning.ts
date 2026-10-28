@@ -76,6 +76,8 @@ export type LearningCta = {
 
 export type LearningLesson = {
   id: string;
+  /** Immutable local editorial visual identity for this article. */
+  imageAssetKey: string;
   title: string;
   dek: string;
   topic: LearningLessonTopic;
@@ -217,6 +219,7 @@ export const LEARNING_COLLECTIONS: readonly LearningCollection[] = [
 export const LEARNING_LESSONS: readonly LearningLesson[] = [
   {
     id: "balanced-plate-basics",
+    imageAssetKey: "balanced-plate-basics",
     title: "Build a balanced plate",
     dek: "A flexible way to think about a meal's building blocks.",
     topic: "Fundamentals",
@@ -257,6 +260,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "calories-are-context",
+    imageAssetKey: "calories-are-context",
     title: "Calories are context, not a grade",
     dek: "What a calorie number can describe—and what it cannot decide for you.",
     topic: "Fundamentals",
@@ -293,6 +297,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "macro-map",
+    imageAssetKey: "macro-map",
     title: "A simple map of macros",
     dek: "Protein, carbohydrates, and fats are categories—not a menu of rules.",
     topic: "Fundamentals",
@@ -331,6 +336,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "hydration-check-in",
+    imageAssetKey: "hydration-check-in",
     title: "Make hydration a small check-in",
     dek: "Build an easy cue for drinking without chasing a universal number.",
     topic: "Hydration",
@@ -367,6 +373,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "week-with-one-anchor",
+    imageAssetKey: "week-with-one-anchor",
     title: "Plan a week with one anchor",
     dek: "A single repeatable meal can reduce decisions without filling every slot.",
     topic: "Planning",
@@ -406,6 +413,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "shopping-list-scaffold",
+    imageAssetKey: "shopping-list-scaffold",
     title: "Build a flexible shopping list",
     dek: "Shop from a few categories instead of a rigid set of meals.",
     topic: "Planning",
@@ -444,6 +452,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "busy-day-backup",
+    imageAssetKey: "busy-day-backup",
     title: "Keep a busy-day backup",
     dek: "A fallback is not settling; it is a plan for a real day.",
     topic: "Planning",
@@ -477,6 +486,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "recipe-template",
+    imageAssetKey: "recipe-template",
     title: "Use recipes as templates",
     dek: "Keep the structure, then make practical swaps with what you have.",
     topic: "Recipes",
@@ -516,6 +526,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "leftovers-by-design",
+    imageAssetKey: "leftovers-by-design",
     title: "Make leftovers useful on purpose",
     dek: "Cook once, then leave room for a second easy decision.",
     topic: "Recipes",
@@ -549,6 +560,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "read-nutrition-facts",
+    imageAssetKey: "read-nutrition-facts",
     title: "Read Nutrition Facts with context",
     dek: "Find the serving information first, then look for the details that matter to you.",
     topic: "Labels",
@@ -583,6 +595,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "ingredient-list-first",
+    imageAssetKey: "ingredient-list-first",
     title: "Let the ingredient list tell a story",
     dek: "Use familiar language and personal preferences to compare packaged foods.",
     topic: "Labels",
@@ -616,6 +629,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "habit-cue-design",
+    imageAssetKey: "habit-cue-design",
     title: "Design a cue for a new habit",
     dek: "Attach one small action to a moment that already happens.",
     topic: "Habits",
@@ -650,6 +664,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "kind-feedback-loop",
+    imageAssetKey: "kind-feedback-loop",
     title: "Use feedback, not punishment",
     dek: "Notice what happened, adjust one thing, and keep the next step kind.",
     topic: "Habits",
@@ -683,6 +698,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fasting-basics-and-boundaries",
+    imageAssetKey: "fasting-basics-and-boundaries",
     title: "Fasting basics and boundaries",
     dek: "Meal timing is optional, and a fasting routine is not appropriate for everyone.",
     topic: "Fasting",
@@ -721,6 +737,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
 
   {
     id: "drinks-that-fit-your-day",
+    imageAssetKey: "drinks-that-fit-your-day",
     title: "Choose drinks that fit your day",
     dek: "Use preference, access, and routine to make hydration feel less like a task.",
     topic: "Hydration",
@@ -751,6 +768,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "hydration-on-busy-days",
+    imageAssetKey: "hydration-on-busy-days",
     title: "Hydration on busy days",
     dek: "Build a flexible reminder around the moments that already happen.",
     topic: "Hydration",
@@ -780,6 +798,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "movement-breaks-count",
+    imageAssetKey: "movement-breaks-count",
     title: "Movement breaks count",
     dek: "Short walks, stretches, and daily tasks can all be meaningful ways to move.",
     topic: "Movement",
@@ -809,6 +828,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fuel-for-your-routine",
+    imageAssetKey: "fuel-for-your-routine",
     title: "Fuel for your routine",
     dek: "Plan meals and snacks around your actual schedule, not an idealized one.",
     topic: "Movement",
@@ -842,6 +862,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "recovery-is-part-of-routine",
+    imageAssetKey: "recovery-is-part-of-routine",
     title: "Make room for recovery",
     dek: "Rest and lower-energy days belong in a sustainable movement routine.",
     topic: "Movement",
@@ -871,6 +892,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "sleep-and-food-rhythm",
+    imageAssetKey: "sleep-and-food-rhythm",
     title: "Notice your sleep and food rhythm",
     dek: "Observe patterns without turning an imperfect night into a food rule.",
     topic: "Sleep",
@@ -904,6 +926,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "gentle-evening-reset",
+    imageAssetKey: "gentle-evening-reset",
     title: "Create a gentle evening reset",
     dek: "A simple transition can make tomorrow feel easier without needing a perfect bedtime routine.",
     topic: "Sleep",
@@ -933,6 +956,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "shift-the-plan-not-yourself",
+    imageAssetKey: "shift-the-plan-not-yourself",
     title: "Shift the plan, not yourself",
     dek: "When schedules change, revise the setup instead of judging the outcome.",
     topic: "Sleep",
@@ -966,6 +990,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "kind-check-in",
+    imageAssetKey: "kind-check-in",
     title: "Build a kinder check-in",
     dek: "Use curiosity to learn from a day without turning observations into a grade.",
     topic: "Mindset",
@@ -995,6 +1020,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "make-goals-flexible",
+    imageAssetKey: "make-goals-flexible",
     title: "Make goals flexible enough to live with",
     dek: "A goal can offer direction without becoming a rule you cannot revise.",
     topic: "Mindset",
@@ -1024,6 +1050,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "food-mood-observations",
+    imageAssetKey: "food-mood-observations",
     title: "Notice food and mood with curiosity",
     dek: "Use gentle observations to learn what supports you, without assuming a simple cause.",
     topic: "Mindset",
@@ -1059,6 +1086,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fasting-pause-signals",
+    imageAssetKey: "fasting-pause-signals",
     title: "Know when to pause a fasting plan",
     dek: "A routine should be flexible enough to stop, change, or not begin.",
     topic: "Fasting",
@@ -1095,6 +1123,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
 
   {
     id: "variety-without-rules",
+    imageAssetKey: "variety-without-rules",
     title: "Build variety without rules",
     dek: "Use color, texture, and familiar foods to make meals more interesting—not more restrictive.",
     topic: "Fundamentals",
@@ -1129,6 +1158,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "make-a-meal-satisfying",
+    imageAssetKey: "make-a-meal-satisfying",
     title: "Make a meal satisfying",
     dek: "Use taste, timing, and staying power as useful clues—not food rules.",
     topic: "Fundamentals",
@@ -1158,6 +1188,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "make-the-next-step-specific",
+    imageAssetKey: "make-the-next-step-specific",
     title: "Make the next step specific",
     dek: "Give one useful action a time, place, and cue so it is easier to remember.",
     topic: "Planning",
@@ -1191,6 +1222,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "plan-for-the-plan-to-change",
+    imageAssetKey: "plan-for-the-plan-to-change",
     title: "Plan for the plan to change",
     dek: "A backup choice can keep a schedule shift from becoming a full reset.",
     topic: "Planning",
@@ -1224,6 +1256,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "build-a-bowl-formula",
+    imageAssetKey: "build-a-bowl-formula",
     title: "Use a build-a-bowl formula",
     dek: "Combine a base, something colorful, a protein choice, and flavor in your own way.",
     topic: "Recipes",
@@ -1257,6 +1290,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "one-small-recipe-swap",
+    imageAssetKey: "one-small-recipe-swap",
     title: "Try one small recipe swap",
     dek: "Change one ingredient at a time so you can learn what still works for you.",
     topic: "Recipes",
@@ -1290,6 +1324,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "safe-prep-cook-and-save",
+    imageAssetKey: "safe-prep-cook-and-save",
     title: "Prep, cook, and save safely",
     dek: "Keep food safety part of the recipe routine, especially with raw foods and leftovers.",
     topic: "Recipes",
@@ -1329,6 +1364,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "serving-size-reality-check",
+    imageAssetKey: "serving-size-reality-check",
     title: "Check the serving-size context",
     dek: "See what a label describes before comparing the numbers on it.",
     topic: "Labels",
@@ -1362,6 +1398,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "compare-with-percent-daily-value",
+    imageAssetKey: "compare-with-percent-daily-value",
     title: "Compare labels with % Daily Value",
     dek: "Use one label tool to compare similar products—not to rank your whole diet.",
     topic: "Labels",
@@ -1395,6 +1432,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "allergen-and-ingredient-scan",
+    imageAssetKey: "allergen-and-ingredient-scan",
     title: "Scan ingredients with a purpose",
     dek: "Use package details for an ingredient or preference you actually need to check.",
     topic: "Labels",
@@ -1428,6 +1466,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "anchor-one-small-action",
+    imageAssetKey: "anchor-one-small-action",
     title: "Anchor one small action",
     dek: "Attach a useful action to a stable part of your day instead of relying on willpower.",
     topic: "Habits",
@@ -1457,6 +1496,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "make-the-plan-easier-to-do",
+    imageAssetKey: "make-the-plan-easier-to-do",
     title: "Make the plan easier to do",
     dek: "Remove one point of friction before expecting yourself to follow through.",
     topic: "Habits",
@@ -1490,6 +1530,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "notice-progress-without-perfection",
+    imageAssetKey: "notice-progress-without-perfection",
     title: "Notice progress without perfection",
     dek: "Use a simple private check-in to learn what supports a routine.",
     topic: "Habits",
@@ -1519,6 +1560,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fasting-defined-without-hype",
+    imageAssetKey: "fasting-defined-without-hype",
     title: "Define fasting without hype",
     dek: "Meal timing is one optional pattern, not a measure of discipline or health.",
     topic: "Fasting",
@@ -1557,6 +1599,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fasting-and-real-life",
+    imageAssetKey: "fasting-and-real-life",
     title: "Keep fasting flexible in real life",
     dek: "A social meal, shift change, or hungry day is information—not a reason to push through.",
     topic: "Fasting",
@@ -1592,6 +1635,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "fasting-personal-guidance",
+    imageAssetKey: "fasting-personal-guidance",
     title: "Know when to get personal guidance",
     dek: "Some questions about meal timing belong with a clinician, not an app timer.",
     topic: "Fasting",
@@ -1630,6 +1674,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "hot-and-active-day-hydration",
+    imageAssetKey: "hot-and-active-day-hydration",
     title: "Match drinks to a hot or active day",
     dek: "Plan easy access to fluids when heat, activity, or illness changes the usual routine.",
     topic: "Hydration",
@@ -1665,6 +1710,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "recognize-dehydration-signals",
+    imageAssetKey: "recognize-dehydration-signals",
     title: "Recognize when to check in",
     dek: "Notice concerning dehydration signals without trying to diagnose yourself from a single cue.",
     topic: "Hydration",
@@ -1700,6 +1746,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "movement-snacks",
+    imageAssetKey: "movement-snacks",
     title: "Make room for movement snacks",
     dek: "A few comfortable minutes can fit between the larger parts of a real day.",
     topic: "Movement",
@@ -1735,6 +1782,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "build-a-balanced-movement-week",
+    imageAssetKey: "build-a-balanced-movement-week",
     title: "Build a flexible movement week",
     dek: "Mix options you enjoy with recovery instead of copying an idealized workout plan.",
     topic: "Movement",
@@ -1770,6 +1818,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "steady-sleep-window",
+    imageAssetKey: "steady-sleep-window",
     title: "Build a steadier sleep window",
     dek: "Use a realistic wake-time anchor to make nights and mornings more predictable.",
     topic: "Sleep",
@@ -1805,6 +1854,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "shape-a-calmer-sleep-runway",
+    imageAssetKey: "shape-a-calmer-sleep-runway",
     title: "Shape a calmer sleep runway",
     dek: "Use a short pre-bed transition and a supportive space without chasing a perfect routine.",
     topic: "Sleep",
@@ -1840,6 +1890,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "turn-not-yet-into-next-step",
+    imageAssetKey: "turn-not-yet-into-next-step",
     title: "Turn ‘not yet’ into a next step",
     dek: "Make a challenge specific enough to practice instead of using it as a verdict about yourself.",
     topic: "Mindset",
@@ -1869,6 +1920,7 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
   },
   {
     id: "pause-notice-choose",
+    imageAssetKey: "pause-notice-choose",
     title: "Pause, notice, choose",
     dek: "A short nonjudgmental pause can make room for one supportive next action.",
     topic: "Mindset",

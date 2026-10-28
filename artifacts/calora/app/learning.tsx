@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -118,10 +118,13 @@ function LessonArtwork({
     >
       <Image
         accessible={false}
-        resizeMode="cover"
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
         testID="learning-lesson-editorial-photo"
+        transition={120}
       />
       <View style={[styles.artworkTint, { backgroundColor: tone.shape }]} />
       <View style={[styles.artTopicPill, { backgroundColor: colors.card }]}>
@@ -192,6 +195,7 @@ function EditorialLessonCard({
   onOpen,
   onToggleSaved,
   compact = false,
+  grid = false,
 }: {
   lesson: LearningLesson;
   colors: CaloraColors;
@@ -201,12 +205,14 @@ function EditorialLessonCard({
   onOpen: () => void;
   onToggleSaved: () => void;
   compact?: boolean;
+  grid?: boolean;
 }) {
   return (
     <View
       style={[
         styles.lessonCard,
         compact && styles.lessonCardCompact,
+        grid && styles.lessonCardGrid,
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
@@ -217,7 +223,11 @@ function EditorialLessonCard({
         onPress={onOpen}
         style={styles.lessonMainPressable}
       >
-        <LessonArtwork lesson={lesson} colors={colors} compact={compact} />
+        <LessonArtwork
+          lesson={lesson}
+          colors={colors}
+          compact={compact || grid}
+        />
         <View style={styles.lessonCopy}>
           <View style={styles.lessonMetaRow}>
             <Text
@@ -242,13 +252,13 @@ function EditorialLessonCard({
               styles.lessonTitle,
               {
                 color: colors.foreground,
-                fontSize: (compact ? 14 : 15) * fontScale,
+                fontSize: (compact || grid ? 13 : 14) * fontScale,
               },
             ]}
           >
             {lesson.title}
           </Text>
-          {!compact ? (
+          {!compact && !grid ? (
             <Text
               numberOfLines={2}
               style={[
@@ -314,10 +324,13 @@ function FeaturedLessonCard({
     >
       <Image
         accessible={false}
-        resizeMode="cover"
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
         testID="learning-featured-editorial-photo"
+        transition={120}
       />
       <View
         style={[styles.featuredPhotoTint, { backgroundColor: colors.hero }]}
@@ -625,7 +638,7 @@ export default function LearningScreen() {
               pagingEnabled
               decelerationRate="fast"
               showsHorizontalScrollIndicator={false}
-              snapToInterval={280}
+              snapToInterval={336}
               contentContainerStyle={styles.featuredRail}
             >
               {featured.map((lesson, index) => (
@@ -782,6 +795,7 @@ export default function LearningScreen() {
                           onToggleSaved={() =>
                             toggleSavedLearningLesson(lesson.id)
                           }
+                          grid
                         />
                       ))}
                     </View>
@@ -913,14 +927,14 @@ const styles = StyleSheet.create({
   featuredCard: {
     borderRadius: 20,
     borderWidth: 1,
-    height: 184,
+    height: 176,
     overflow: "hidden",
     padding: 14,
-    width: 286,
+    width: 326,
   },
   featuredPhotoTint: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.24,
+    opacity: 0.08,
   },
   featuredTopline: {
     alignItems: "center",
@@ -928,7 +942,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   featuredCopy: {
-    backgroundColor: "rgba(10, 31, 22, 0.76)",
+    backgroundColor: "rgba(10, 31, 22, 0.54)",
     borderRadius: 13,
     marginTop: "auto",
     paddingHorizontal: 10,
@@ -1014,21 +1028,30 @@ const styles = StyleSheet.create({
   },
   seeAllText: { fontFamily: "Inter_700Bold" },
   lessonRail: { gap: 10, paddingRight: 18, paddingTop: 10 },
-  filteredList: { gap: 10, marginTop: 13 },
+  filteredList: {
+    columnGap: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 13,
+    rowGap: 10,
+  },
   lessonCard: {
     borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
     width: "100%",
   },
-  lessonCardCompact: { width: 160 },
+  lessonCardCompact: { width: 158 },
+  // Two 48% cards plus the 10pt gap remain inside the 18pt-padded content
+  // width even on 320pt devices; 48.5% could wrap a card at narrow widths.
+  lessonCardGrid: { width: "48%" },
   lessonMainPressable: { minHeight: 0 },
   artwork: {
     height: 124,
     overflow: "hidden",
     position: "relative",
   },
-  artworkCompact: { height: 102 },
+  artworkCompact: { aspectRatio: 1, height: undefined },
   artworkTint: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.04,

@@ -10,6 +10,7 @@ const IMAGE_EXTENSION = /\.(?:png|jpe?g|webp|gif|svg)$/i;
 const SOURCE_DIRECTORIES = [
   "artifacts/calora/app",
   "artifacts/calora/components",
+  "artifacts/calora/content",
   "artifacts/calora/constants",
   "artifacts/calora/context",
   "artifacts/calora/data",
@@ -18,11 +19,11 @@ const SOURCE_DIRECTORIES = [
 ];
 const SKIPPED_SOURCE_PATH = /(?:^|\/)(?:__tests__|node_modules)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/;
 export const IMAGE_PERFORMANCE_BUDGET = Object.freeze({
-  maximumAssetCount: 64,
+  maximumAssetCount: 112,
   maximumCompressedBytesPerAsset: 900_000,
-  maximumCompressedBytesTotal: 14 * 1024 * 1024,
+  maximumCompressedBytesTotal: 16 * 1024 * 1024,
   maximumPixelsPerAsset: 1_600_000,
-  maximumDecodedRgbaBytesTotal: 256 * 1024 * 1024,
+  maximumDecodedRgbaBytesTotal: 320 * 1024 * 1024,
 });
 
 function normalizePath(value) {
@@ -553,51 +554,12 @@ export function validateImageGovernance({
   }
 
   const staticUrls = manifest.staticExternalImageUrls.map((entry) => entry?.url);
-  if (uniqueStrings(staticUrls).length !== staticUrls.length) {
-    errorFor(failures, "staticExternalImageUrls contains duplicate URLs");
+  if (staticUrls.length > 0) {
+    errorFor(failures, "staticExternalImageUrls must be empty; runtime imagery must be bundled locally");
   }
-  for (const entry of manifest.staticExternalImageUrls) {
-    if (!nonEmptyString(entry?.url) || !/^https:\/\//.test(entry.url)) {
-      errorFor(failures, `static external image has an invalid URL: ${String(entry?.url)}`);
-      continue;
-    }
-    for (const field of [
-      "role",
-      "owner",
-      "source",
-      "provenanceLicenseStatus",
-      "permittedUse",
-      "attribution",
-      "reviewStatus",
-      "reviewer",
-      "reviewDate",
-      "evidence",
-    ]) {
-      if (!nonEmptyString(entry[field])) {
-        errorFor(failures, `static external image ${entry.url} is missing ${field}`);
-      }
-    }
-    if (entry.reviewStatus !== "approved") {
-      errorFor(failures, `static external image ${entry.url} is not approved for release`);
-    }
-    if (!String(entry.provenanceLicenseStatus ?? "").startsWith("approved")) {
-      errorFor(failures, `static external image ${entry.url} lacks approved provenance and usage rights`);
-    }
-    if (!Array.isArray(entry.renderConsumers) || entry.renderConsumers.length === 0) {
-      errorFor(failures, `static external image ${entry.url} must declare renderConsumers`);
-    }
-  }
-  const staticUrlSet = new Set(staticUrls);
   const detectedStaticUrls = collectStaticExternalImageUrls(root);
   for (const url of detectedStaticUrls) {
-    if (!staticUrlSet.has(url)) {
-      errorFor(failures, `static external image URL is missing from manifest: ${url}`);
-    }
-  }
-  for (const url of staticUrlSet) {
-    if (!detectedStaticUrls.includes(url)) {
-      errorFor(failures, `manifest static external image URL is not rendered: ${url}`);
-    }
+    errorFor(failures, `static external image URLs are forbidden: ${url}`);
   }
 
   const rendererIds = manifest.directImageRenderers.map((renderer) => renderer?.id);

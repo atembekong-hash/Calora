@@ -1,7 +1,5 @@
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,7 +20,6 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
-import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { StepMilestoneCelebration } from '@/components/StepMilestoneCelebration';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -38,48 +35,8 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { formatLogTime } from '@/lib/dates';
-import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import { normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
 
-function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-  }, [recipe.id, recipe.image]);
-  const fallbackRole = recipeImageRole({
-    name: recipe.name,
-    category: recipe.category,
-    tags: recipe.tags,
-  });
-  const fallbackImages = {
-    breakfast: require('../../assets/images/food-fallback-breakfast.jpg'),
-    drink: require('../../assets/images/food-fallback-drink.jpg'),
-    main: require('../../assets/images/food-fallback-main.jpg'),
-    snack: require('../../assets/images/food-fallback-snack.jpg'),
-  } as const;
-  const fallbackActive = !recipe.image || failed;
-  return (
-    <View style={styles.recipeWidgetImageFrame}>
-      <Image
-        accessibilityLabel={`${recipe.name} ${fallbackActive ? `${fallbackRole} fallback image` : 'recipe image'}`}
-        source={recipe.image && !failed ? { uri: recipe.image } : fallbackImages[fallbackRole]}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        onError={() => setFailed(true)}
-        placeholder={fallbackImages[fallbackRole]}
-        recyclingKey={`${recipe.id}:${recipe.image ?? `fallback-${fallbackRole}`}`}
-        style={styles.recipeWidgetImage}
-      />
-      {fallbackActive && (
-        <View accessible accessibilityLabel={`${recipe.name} is using a ${fallbackRole} fallback image`} style={styles.recipeWidgetImageNotice}>
-          <Feather name="image" size={11} color="#ffffff" />
-          <Text style={styles.recipeWidgetImageNoticeText}>Fallback image</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
@@ -102,7 +59,6 @@ import {
 } from '@/lib/intelligence';
 import { burnedStatusForDay } from '@/lib/health/burnedStatus';
 import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
-import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { ConfirmedDeletionControl } from '@/components/ConfirmedDeletionControl';
 import { isLiveSessionOnly, type LiveStepTrackingState } from '@/lib/steps/stepTracking';
 import { deriveFastingProgress, formatFastingDuration } from '@/lib/fasting';
@@ -549,8 +505,9 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
           }}
           renderItem={({ item: recipe }) => (
             <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: colors.hero }]}>
-              <RecipeWidgetImage recipe={recipe} />
-              <LinearGradient colors={['rgba(18,34,24,0.08)', 'rgba(18,34,24,0.88)']} style={StyleSheet.absoluteFillObject} />
+              <View style={[styles.recipeWidgetGlyph, { backgroundColor: colors.accent }]}>
+                <Feather name="book-open" size={22} color={colors.accentForeground} />
+              </View>
               <View style={styles.recipeWidgetCopy}>
                 <Text style={styles.recipeWidgetEyebrow}>{recipe.area ? `${recipe.area.toUpperCase()} · OPEN SOURCE` : 'OPEN SOURCE RECIPE'}</Text>
                 <Text numberOfLines={2} style={styles.recipeWidgetTitle}>{recipe.name}</Text>
@@ -994,7 +951,9 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
     : log.time;
   return (
     <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
-      <FoodLogThumbnail log={log} />
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.mealRowGlyph, { backgroundColor: colors.muted }]}>
+        <Feather name={log.meal === 'Breakfast' ? 'sun' : log.meal === 'Dinner' ? 'moon' : 'coffee'} size={16} color={colors.primary} />
+      </View>
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
@@ -1600,13 +1559,12 @@ function DashboardFastingCard({
 export default function HomeScreen() {
   const {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
-    livingState, fontScale, profilePhotoUri, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
+    livingState, fontScale, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
     startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated, hydrationError, retryHydration, isRetrying,
     updateProfile, dashboardPreferences,
   } = useCalora();
   const insets = useSafeAreaInsets();
-  const homeHeaderImage = useHourlyHeaderImage('home');
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1851,13 +1809,7 @@ export default function HomeScreen() {
               onPress={() => router.navigate('/(tabs)/profile')}
               style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border, overflow: 'hidden' }]}
             >
-              <ProfilePhoto
-                uri={profilePhotoUri}
-                size={38}
-                accessibilityLabel="Profile photo"
-                style={{ borderRadius: 14 }}
-                fallback={<Text style={[styles.homeHeaderAvatarText, { color: colors.foreground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
-              />
+              <Feather name="user" size={18} color={colors.foreground} />
             </Pressable>
           </View>
         }
@@ -1873,8 +1825,6 @@ export default function HomeScreen() {
           <Text style={[styles.dashboardCustomLinkText, { color: colors.primary }]}>Customize Today</Text>
         </Pressable>
         <View style={styles.homeHeader}>
-           <Image key={homeHeaderImage.hourSlot} source={homeHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
-          <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
                 <View style={[styles.homeHeaderBadge, { transform: [{ translateX: -8 }, { translateY: -8 }] }]}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /></View>
@@ -2073,7 +2023,7 @@ export default function HomeScreen() {
               <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
             </ScalePressable>
           </View>
-          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
+          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={[styles.emptyDiaryGlyph, { backgroundColor: colors.muted }]}><Feather name="calendar" size={22} color={colors.primary} /></View><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
           {mealOrder.map((meal) => {
             const mealLogs = selectedLogs.filter((log) => log.meal === meal);
             if (!mealLogs.length) return null;
@@ -2257,10 +2207,7 @@ function makeStyles(f: number) {
   recipeWidgetNavButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
   recipeWidgetCard: { height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
-  recipeWidgetImageFrame: { ...StyleSheet.absoluteFillObject },
-  recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
-  recipeWidgetImageNotice: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: 'rgba(18,34,24,0.72)' },
-  recipeWidgetImageNoticeText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  recipeWidgetGlyph: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', margin: 14 },
   recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: 14 },
   recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
   recipeWidgetTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, lineHeight: 24, letterSpacing: -0.4, maxWidth: 260 },
@@ -2349,6 +2296,7 @@ function makeStyles(f: number) {
   logCardHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth },
   mealGroup: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 1.2, marginTop: 16, marginBottom: 4, textTransform: 'uppercase' },
   mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  mealRowGlyph: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1, minWidth: 0 },
   mealName: { fontFamily: 'Inter_600SemiBold', fontSize: 14 * f },
   mealMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
@@ -2356,7 +2304,7 @@ function makeStyles(f: number) {
   mealCalories: { fontFamily: 'Inter_800ExtraBold', fontSize: 16 * f },
   kcalLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginLeft: -8, marginTop: 20 },
   emptyDiary: { alignItems: 'center', paddingVertical: 28, gap: 6 },
-   emptyDiaryVisual: { width: '100%', height: 74, borderRadius: 16, overflow: 'hidden', marginBottom: 10 },
+   emptyDiaryGlyph: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: 4 },
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },

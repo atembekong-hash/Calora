@@ -19,16 +19,21 @@ describe("Learning editorial browse layout", () => {
     expect(source).toContain("lessonRail");
   });
 
-  it("keeps original visual treatments local and preserves the canonical reader route", () => {
+  it("keeps original visual treatments local, preserves the canonical reader route, and fits its grid on narrow screens", () => {
     const source = learningSource();
 
     expect(source).toContain('pathname: "/learning/[lessonId]"');
     expect(source).toContain("LessonArtwork");
     expect(source).toContain("getLearningEditorialImage(lesson)");
-    expect(source).toContain('resizeMode="cover"');
+    expect(source).toContain('cachePolicy="memory-disk"');
+    expect(source).toContain('contentFit="cover"');
     expect(source).toContain("artworkCompact");
-    expect(source).toContain("lessonCardCompact: { width: 160 }");
-    expect(source).toContain("opacity: 0.24");
+    expect(source).toContain("lessonCardGrid");
+    expect(source).toContain('flexWrap: "wrap"');
+    expect(source).toContain('lessonCardGrid: { width: "48%" }');
+    expect(source).toContain("Two 48% cards plus the 10pt gap");
+    expect(source).toContain("aspectRatio: 1");
+    expect(source).toContain("opacity: 0.08");
     expect(source).toContain("opacity: 0.04");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).not.toMatch(/admob|earn cash|topapps|advert/i);
@@ -42,7 +47,11 @@ describe("Learning editorial browse layout", () => {
     expect(source).toContain('testID="learning-reader-editorial-photo"');
     expect(source).toContain('testID="learning-related-editorial-photo"');
     expect(source).toContain("articlePhoto: {");
-    expect(source).toContain("opacity: 0.16");
+    expect(source).toContain("height: 236");
+    expect(source).toContain("borderRadius: 118");
+    expect(source).toContain("articleHeroStage");
+    expect(source).toContain("borderTopLeftRadius: 26");
+    expect(source).toContain("opacity: 0.1");
     expect(source).not.toMatch(/https?:\/\//i);
   });
 
