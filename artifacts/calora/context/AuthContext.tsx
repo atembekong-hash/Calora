@@ -43,7 +43,6 @@ import {
   getSafeSessionStorageErrorCategory,
 } from '@/lib/supabaseSessionStorage';
 import type { PostAuthIntent } from '@/lib/postAuthNavigation';
-import { withTimeout } from '@/lib/withTimeout';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,8 +91,6 @@ export type AuthContextValue = AuthState & AuthActions;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const SESSION_RESTORE_TIMEOUT_MS = 12_000;
-
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
@@ -131,11 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRestoreError(null);
 
     try {
-      const { data, error } = await withTimeout(
-        supabase.auth.getSession(),
-        SESSION_RESTORE_TIMEOUT_MS,
-        'Supabase session restore',
-      );
+      const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
       // Auth events win over an older read (for example while a callback or
       // refresh completes), preserving the existing stale-bootstrap protection.
