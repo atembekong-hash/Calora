@@ -239,7 +239,7 @@ function makeStyles(scale: number) {
     fastingLeaves: { position: "absolute", right: 12, top: 8, opacity: 0.7, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 14, right: 14, bottom: 14, flexDirection: "row", gap: 8 },
     featureRow: { flexDirection: "row", gap: 14 },
-    featureCard: { flex: 1, minHeight: 196, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
+    featureCard: { flex: 1, minHeight: 156.8, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
     progressCard: { backgroundColor: "#3b2b22" },
     learningCard: { backgroundColor: "#262148" },
     featureShade: { ...StyleSheet.absoluteFillObject },
