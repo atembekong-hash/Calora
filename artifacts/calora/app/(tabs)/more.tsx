@@ -120,7 +120,6 @@ function MiniStat({
         <Text style={styles.miniStatLabel}>{label}</Text>
         <Text style={styles.miniStatCaption}>{caption}</Text>
       </View>
-      <Feather name="chevron-right" size={16} color={MUTED} />
     </Pressable>
   );
 }
