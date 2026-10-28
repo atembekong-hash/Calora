@@ -64,9 +64,14 @@ vi.mock("react-native", () => {
         children,
       );
   return {
+    Image: ({ source: _source, style: _style, testID, ...props }: any) =>
+      React.createElement("img", {
+        ...props,
+        ...(testID ? { "data-testid": testID } : {}),
+      }),
     Pressable: element("button"),
     ScrollView: element("div"),
-    StyleSheet: { create: (styles: any) => styles },
+    StyleSheet: { create: (styles: any) => styles, absoluteFillObject: {} },
     Text: element("span"),
     View: element("div"),
   };
@@ -113,6 +118,7 @@ describe("MoreScreen feature hierarchy", () => {
   it("uses the three feature cards as the unique Fasting, Progress, and Learning routes", () => {
     render(<MoreScreen />);
 
+    expect(screen.getAllByTestId("more-editorial-photo")).toHaveLength(3);
     const primaryRoutes = [
       ["Open Fasting", "/fasting"],
       ["Open Progress", "/(tabs)/insights"],

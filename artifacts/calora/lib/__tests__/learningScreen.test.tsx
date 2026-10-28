@@ -208,6 +208,10 @@ describe("LearningLessonScreen route", () => {
   it("renders safety framing and opens the existing Fasting feature", () => {
     render(<LearningLessonScreen />);
 
+    expect(screen.getByTestId("learning-reader-editorial-photo")).toBeTruthy();
+    expect(
+      screen.getAllByTestId("learning-related-editorial-photo").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Consider safety first")).toBeTruthy();
     expect(
       screen.getByText(/does not replace individualized medical advice/),
