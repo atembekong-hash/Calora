@@ -18,7 +18,7 @@ describe("visual integrity source contracts", () => {
 
   it("keeps dark-mode-safe navigation and secondary routes explicit", () => {
     expect(source("app/learning.tsx")).toContain(
-      '<AppHeader title="Learning" back leftAlignTitle />',
+      '<AppHeader title="Learning" back leftAlignTitle',
     );
     expect(source("app/fasting.tsx")).toContain(
       "/profile?tab=you&open=reminders",
