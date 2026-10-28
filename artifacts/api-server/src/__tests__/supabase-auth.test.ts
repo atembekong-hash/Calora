@@ -70,4 +70,18 @@ describe("Coach Fact Context account eligibility", () => {
     if (originalAnonKey === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalAnonKey;
   });
+
+  it("fails closed without throwing when the public verifier configuration is malformed", async () => {
+    const originalUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const originalAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.EXPO_PUBLIC_SUPABASE_URL = "not-a-supabase-url";
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = "synthetic-anon-key";
+
+    await expect(verifyBearerToken({ headers: {} } as never)).resolves.toBeNull();
+
+    if (originalUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    else process.env.EXPO_PUBLIC_SUPABASE_URL = originalUrl;
+    if (originalAnonKey === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalAnonKey;
+  });
 });
