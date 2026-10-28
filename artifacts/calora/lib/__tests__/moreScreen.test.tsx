@@ -139,6 +139,7 @@ describe("MoreScreen feature hierarchy", () => {
 
     expect(source).toContain("const moreEditorialImages");
     expect(source).toContain('testID="more-editorial-photo"');
+    expect(source).toContain('resizeMode="contain"');
     expect(source).toContain("articles/fasting-basics-and-boundaries.jpg");
     expect(source).toContain("articles/balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);

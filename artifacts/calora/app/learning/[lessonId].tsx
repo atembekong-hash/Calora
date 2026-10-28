@@ -57,12 +57,12 @@ function LessonEditorialHero({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={styles.articlePhoto}
+      style={[styles.articlePhoto, { backgroundColor: colors.card }]}
     >
       <Image
         accessible={false}
         cachePolicy="memory-disk"
-        contentFit="cover"
+        contentFit="contain"
         priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
@@ -524,12 +524,15 @@ export default function LearningLessonScreen() {
                   <View
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
-                    style={styles.relatedPhoto}
+                    style={[
+                      styles.relatedPhoto,
+                      { backgroundColor: colors.card },
+                    ]}
                   >
                     <Image
                       accessible={false}
                       cachePolicy="memory-disk"
-                      contentFit="cover"
+                      contentFit="contain"
                       priority="normal"
                       source={getLearningEditorialImage(relatedLesson)}
                       style={StyleSheet.absoluteFillObject}
@@ -584,14 +587,14 @@ export default function LearningLessonScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   content: { paddingBottom: 32 },
-  articleHeroStage: { height: 254, justifyContent: "center" },
+  articleHeroStage: { height: 224, justifyContent: "center" },
   articlePhoto: {
     alignSelf: "center",
-    borderRadius: 118,
-    height: 236,
+    borderRadius: 102,
+    height: 204,
     marginTop: 10,
     overflow: "hidden",
-    width: 236,
+    width: 204,
   },
   articlePhotoShade: {
     ...StyleSheet.absoluteFillObject,

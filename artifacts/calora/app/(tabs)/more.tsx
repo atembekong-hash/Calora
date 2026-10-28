@@ -28,7 +28,7 @@ function MoreEditorialPhoto({ source }: { source: number }) {
   return (
     <Image
       accessible={false}
-      resizeMode="cover"
+      resizeMode="contain"
       source={source}
       style={StyleSheet.absoluteFillObject}
       testID="more-editorial-photo"
