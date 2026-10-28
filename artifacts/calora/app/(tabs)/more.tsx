@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,18 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScalePressable } from "@/components/ScalePressable";
-import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { useCalora } from "@/context/CaloraContext";
 import { dateKey } from "@/lib/dates";
 import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
 import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
-
-const moreEditorialImages = {
-  fasting: require("../../assets/images/learning/articles/fasting-basics-and-boundaries.jpg"),
-  progress: require("../../assets/images/calora-insights-header.jpg"),
-  learning: require("../../assets/images/learning/articles/balanced-plate-basics.jpg"),
-} as const;
 
 const SURFACE = "#10231f";
 const SURFACE_RAISED = "#153129";
@@ -32,18 +24,6 @@ const MUTED = "#9ab1a7";
 const GREEN = "#45e29b";
 const ORANGE = "#ff876c";
 const PURPLE = "#9d77ff";
-
-function MoreEditorialPhoto({ source }: { source: number }) {
-  return (
-    <Image
-      accessible={false}
-      resizeMode="contain"
-      source={source}
-      style={StyleSheet.absoluteFillObject}
-      testID="more-editorial-photo"
-    />
-  );
-}
 
 function IconBox({
   color,
@@ -78,8 +58,6 @@ function FastingCard() {
 
   return (
     <View style={styles.fastingCard}>
-      <MoreEditorialPhoto source={moreEditorialImages.fasting} />
-      <View pointerEvents="none" style={styles.fastingShade} />
       <Pressable accessibilityRole="button" accessibilityLabel="Open Fasting" onPress={() => router.push("/fasting")} style={styles.fastingMainPressable}>
       <View style={styles.fastRingOuter}>
         <View
@@ -142,7 +120,6 @@ function MiniStat({
         <Text style={styles.miniStatLabel}>{label}</Text>
         <Text style={styles.miniStatCaption}>{caption}</Text>
       </View>
-      <Feather name="chevron-right" size={16} color={MUTED} />
     </Pressable>
   );
 }
@@ -159,8 +136,6 @@ function ProgressCard() {
       onPress={() => router.push("/(tabs)/insights")}
       style={[styles.featureCard, styles.progressCard]}
     >
-      <MoreEditorialPhoto source={moreEditorialImages.progress} />
-      <View style={[styles.featureShade, { backgroundColor: "rgba(59, 36, 24, .72)" }]} />
       <IconBox color={ORANGE} icon="bar-chart-2" />
       <Text style={styles.featureTitle}>Progress</Text>
       <Text style={styles.featureSubtitle}>
@@ -184,8 +159,6 @@ function LearningCard() {
       onPress={() => router.push("/learning")}
       style={[styles.featureCard, styles.learningCard]}
     >
-      <MoreEditorialPhoto source={moreEditorialImages.learning} />
-      <View style={[styles.featureShade, { backgroundColor: "rgba(32, 27, 73, .72)" }]} />
       <IconBox color={PURPLE} icon="book-open" />
       <Text style={styles.featureTitle}>Learning</Text>
       <Text style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
@@ -196,7 +169,7 @@ function LearningCard() {
 }
 
 export default function MoreScreen() {
-  const { fontScale, profile, profilePhotoUri } = useCalora();
+  const { fontScale } = useCalora();
   const styles = makeStyles(fontScale);
   const quick = useMemo(() => [
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
@@ -207,13 +180,8 @@ export default function MoreScreen() {
     { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
     { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
+    { label: "Recipes", icon: "book-open" as const, route: "/recipes", tint: ORANGE },
   ], []);
-  const lower = [
-    { label: "Settings & profile", caption: "Appearance, units, notifications and more", icon: "user" as const, route: "/settings", tint: "#71cfac" },
-    { label: "Health & privacy", caption: "Data, permissions, export and account", icon: "shield" as const, route: "/profile?tab=account&open=health", tint: "#8bd9c0" },
-    { label: "Help & support", caption: "FAQs, contact and legal", icon: "help-circle" as const, route: "/profile?tab=account&open=help", tint: "#b8c7c0" },
-  ];
-
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -226,25 +194,14 @@ export default function MoreScreen() {
             <Feather name="settings" size={22} color={TEXT} />
           </Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={styles.welcome}>
-          <ProfilePhoto uri={profilePhotoUri} size={50} accessibilityLabel="Profile photo" fallback={<View style={styles.avatarFallback}><Text style={styles.avatarLetter}>{profile?.name?.charAt(0) ?? "C"}</Text></View>} />
-          <View style={styles.welcomeCopy}>
-            <Text style={styles.welcomeTitle}>{profile?.name ? `Hi, ${profile.name.split(" ")[0]}` : "Hi, there"}</Text>
-            <Text style={styles.welcomeSub}>Your tools, preferences, and progress in one place</Text>
-          </View>
-          <Feather name="chevron-right" size={24} color={TEXT} />
-        </Pressable>
         <FastingCard />
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
-          <View><Text style={styles.sectionTitle}>Quick access</Text><Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Edit quick access" onPress={() => router.push("/settings")} style={styles.editButton}><Text style={styles.editText}>Edit</Text><Feather name="edit-2" size={16} color={GREEN} /></Pressable>
+          <Text style={styles.sectionTitle}>Quick access</Text>
+          <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
-          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={38} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
-        </View>
-        <View style={styles.lowerPanel}>
-          {lower.map((item, index) => <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={[styles.lowerRow, index > 0 && styles.lowerRowBorder]}><IconBox color={item.tint} icon={item.icon} size={40} /><View style={styles.lowerCopy}><Text style={styles.lowerTitle}>{item.label}</Text><Text style={styles.lowerCaption}>{item.caption}</Text></View><Feather name="chevron-right" size={22} color={TEXT} /></Pressable>)}
+          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={30} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -267,13 +224,7 @@ function makeStyles(scale: number) {
     headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
     headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
     gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
-    welcome: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 14 },
-    avatarFallback: { width: 50, height: 50, borderRadius: 25, backgroundColor: GREEN, alignItems: "center", justifyContent: "center" },
-    avatarLetter: { color: "#063523", fontSize: 20 * scale, fontWeight: "800" },
-    welcomeCopy: { flex: 1 },
-    welcomeTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
-    welcomeSub: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
-    fastingCard: { minHeight: 270, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
+    fastingCard: { minHeight: 216, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
     fastingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4, 42, 32, .56)" },
     fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
     fastRingOuter: { height: 116, width: 116, borderRadius: 58, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 18, top: 34 },
@@ -288,7 +239,7 @@ function makeStyles(scale: number) {
     fastingLeaves: { position: "absolute", right: 12, top: 8, opacity: 0.7, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 14, right: 14, bottom: 14, flexDirection: "row", gap: 8 },
     featureRow: { flexDirection: "row", gap: 14 },
-    featureCard: { flex: 1, minHeight: 196, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
+    featureCard: { flex: 1, minHeight: 156.8, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
     progressCard: { backgroundColor: "#3b2b22" },
     learningCard: { backgroundColor: "#262148" },
     featureShade: { ...StyleSheet.absoluteFillObject },
@@ -298,13 +249,11 @@ function makeStyles(scale: number) {
     chartBars: { position: "absolute", bottom: 14, left: 14, flexDirection: "row", gap: 4, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
-    sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 3 },
+    sectionHeading: { marginTop: 3 },
     sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
-    editButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingBottom: 2 },
-    editText: { color: GREEN, fontSize: 14 * scale, fontWeight: "700" },
-    quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-    quickItem: { width: "23.2%", minHeight: 104, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 8, padding: 8 },
+    quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
+    quickItem: { width: "31.5%", minHeight: 62.4, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
     quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
     lowerPanel: { borderRadius: 21, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14 },
     lowerRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 12 },

@@ -118,7 +118,7 @@ describe("MoreScreen feature hierarchy", () => {
   it("uses the three feature cards as the unique Fasting, Progress, and Learning routes", () => {
     render(<MoreScreen />);
 
-    expect(screen.getAllByTestId("more-editorial-photo")).toHaveLength(3);
+    expect(screen.queryAllByTestId("more-editorial-photo")).toHaveLength(0);
     const primaryRoutes = [
       ["Open Fasting", "/fasting"],
       ["Open Progress", "/(tabs)/insights"],
@@ -131,19 +131,24 @@ describe("MoreScreen feature hierarchy", () => {
     }
   });
 
-  it("keeps editorial photography local and primary-card typography compact", () => {
+  it("keeps the three primary cards photo-free and typography compact", () => {
     const source = readFileSync(
       resolve(__dirname, "../../app/(tabs)/more.tsx"),
       "utf8",
     );
 
-    expect(source).toContain("const moreEditorialImages");
-    expect(source).toContain('testID="more-editorial-photo"');
-    expect(source).toContain('resizeMode="contain"');
-    expect(source).toContain("articles/fasting-basics-and-boundaries.jpg");
-    expect(source).toContain("articles/balanced-plate-basics.jpg");
+    expect(source).not.toContain("const moreEditorialImages");
+    expect(source).not.toContain('testID="more-editorial-photo"');
+    expect(source).not.toContain("fasting-basics-and-boundaries.jpg");
+    expect(source).not.toContain("calora-insights-header.jpg");
+    expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
-    expect(source).toContain("fontSize: 20 * scale");
+    expect(source).toContain("fastingCard: { minHeight: 216");
+    expect(source).toContain("featureCard: { flex: 1, minHeight: 156.8");
+    expect(source).toContain('quickItem: { width: "31.5%", minHeight: 62.4');
+    expect(source).toContain('icon={item.icon} size={30}');
+    const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
+    expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 15 * scale");
   });
 
@@ -157,12 +162,17 @@ describe("MoreScreen feature hierarchy", () => {
       ["Open Calora Pro", "/profile?tab=membership"],
       ["Open Goals", "/profile?tab=you&open=goals"],
       ["Open Health sync", "/profile?tab=account&open=health"],
+      ["Open Recipes", "/recipes"],
     ] as const;
     for (const [label, route] of quickRoutes) {
       fireEvent.click(screen.getByRole("button", { name: label }));
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
+    expect(screen.queryByRole("button", { name: "Open profile" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit quick access" })).toBeNull();
+    expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(16);
     expect(screen.queryByText("Your Calora")).toBeNull();
   });
 
@@ -184,6 +194,7 @@ describe("MoreScreen feature hierarchy", () => {
       "utf8",
     );
 
+    expect(source).toContain('width: "31.5%"');
     expect(source).toContain("log.date === dateKey()");
     expect(source).not.toContain("new Date().toISOString().slice(0, 10)");
   });
