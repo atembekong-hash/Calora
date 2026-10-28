@@ -20,7 +20,7 @@ import {
 
 describe("Learning catalog", () => {
   it("has a complete, unique initial editorial library across required topics", () => {
-    expect(LEARNING_LESSONS).toHaveLength(15);
+    expect(LEARNING_LESSONS).toHaveLength(26);
     expect(new Set(LEARNING_LESSONS.map((lesson) => lesson.id)).size).toBe(
       LEARNING_LESSONS.length,
     );
@@ -36,7 +36,12 @@ describe("Learning catalog", () => {
   it("searches titles, editorial body copy, and collections with topic filters", () => {
     expect(
       searchLearningLessons({ query: "water" }).map((lesson) => lesson.id),
-    ).toEqual(["hydration-check-in", "habit-cue-design"]);
+    ).toEqual([
+      "hydration-check-in",
+      "habit-cue-design",
+      "drinks-that-fit-your-day",
+      "gentle-evening-reset",
+    ]);
     expect(
       searchLearningLessons({ query: "nutrition facts", topic: "Labels" }).map(
         (lesson) => lesson.id,
@@ -87,6 +92,7 @@ describe("Learning catalog", () => {
       "calories-are-context",
       "hydration-check-in",
       "fasting-basics-and-boundaries",
+      "food-mood-observations",
       "fasting-pause-signals",
     ]);
     for (const lesson of medicalAdjacent) {
@@ -152,11 +158,11 @@ describe("Learning reader state", () => {
       completed.progressByLessonId["balanced-plate-basics"]?.completed,
     ).toBe(true);
     expect(journey).toMatchObject({
-      totalLessons: 15,
+      totalLessons: 26,
       startedLessons: 1,
       completedLessons: 1,
       savedLessons: 1,
-      percentComplete: 7,
+      percentComplete: 4,
     });
   });
 

@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,7 @@ import {
   groupLearningLessonsByCollection,
   searchLearningLessons,
 } from "@/lib/learning";
+import { getLearningEditorialImage } from "@/lib/learningImages";
 
 type CaloraColors = ReturnType<typeof useCalora>["colors"];
 
@@ -108,56 +110,29 @@ function LessonArtwork({
   compact?: boolean;
 }) {
   const tone = editorialTone(lesson.accent, colors);
-  const artSize = compact ? 120 : 152;
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.artwork, { backgroundColor: tone.background }]}
+      style={[styles.artwork, compact && styles.artworkCompact]}
     >
-      <View
-        style={[
-          styles.artRing,
-          {
-            borderColor: tone.shape,
-            height: artSize,
-            width: artSize,
-          },
-        ]}
+      <Image
+        accessible={false}
+        resizeMode="cover"
+        source={getLearningEditorialImage(lesson)}
+        style={StyleSheet.absoluteFillObject}
+        testID="learning-lesson-editorial-photo"
       />
-      <View
-        style={[
-          styles.artOrb,
-          {
-            backgroundColor: tone.shape,
-            height: compact ? 44 : 54,
-            width: compact ? 44 : 54,
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.artIcon,
-          {
-            backgroundColor: colors.card,
-            borderColor: `${tone.shape}33`,
-            height: compact ? 52 : 64,
-            width: compact ? 52 : 64,
-          },
-        ]}
-      >
-        <TopicIcon
-          icon={lesson.icon}
-          color={tone.icon}
-          size={compact ? 22 : 27}
-        />
+      <View style={[styles.artworkTint, { backgroundColor: tone.shape }]} />
+      <View style={[styles.artTopicPill, { backgroundColor: colors.card }]}>
+        <TopicIcon icon={lesson.icon} color={tone.icon} size={13} />
+        <Text
+          numberOfLines={1}
+          style={[styles.artTopic, { color: colors.foreground }]}
+        >
+          {lesson.topic.toUpperCase()}
+        </Text>
       </View>
-      <Text
-        numberOfLines={1}
-        style={[styles.artTopic, { color: tone.foreground }]}
-      >
-        {lesson.topic.toUpperCase()}
-      </Text>
     </View>
   );
 }
@@ -262,7 +237,7 @@ function EditorialLessonCard({
             />
           </View>
           <Text
-            numberOfLines={compact ? 3 : 2}
+            numberOfLines={compact ? 2 : 2}
             style={[
               styles.lessonTitle,
               {
@@ -294,7 +269,7 @@ function EditorialLessonCard({
         onPress={onToggleSaved}
         style={[
           styles.saveControl,
-          { backgroundColor: saved ? colors.primary : colors.muted },
+          { backgroundColor: saved ? colors.primary : colors.card },
         ]}
       >
         <Feather
@@ -334,46 +309,27 @@ function FeaturedLessonCard({
       onPress={onOpen}
       style={[
         styles.featuredCard,
-        {
-          backgroundColor: index % 2 === 0 ? tone.background : colors.hero,
-          borderColor: index % 2 === 0 ? `${tone.shape}55` : colors.hero,
-        },
+        { backgroundColor: colors.hero, borderColor: tone.shape },
       ]}
     >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[
-          styles.featuredShapeLarge,
-          {
-            backgroundColor: index % 2 === 0 ? tone.shape : colors.accent,
-            opacity: index % 2 === 0 ? 0.18 : 0.22,
-          },
-        ]}
+      <Image
+        accessible={false}
+        resizeMode="cover"
+        source={getLearningEditorialImage(lesson)}
+        style={StyleSheet.absoluteFillObject}
+        testID="learning-featured-editorial-photo"
       />
       <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[
-          styles.featuredShapeSmall,
-          { backgroundColor: index % 2 === 0 ? tone.shape : colors.heroMuted },
-        ]}
+        style={[styles.featuredPhotoTint, { backgroundColor: colors.hero }]}
       />
       <View style={styles.featuredTopline}>
         <View
           style={[
             styles.featuredIcon,
-            {
-              backgroundColor: index % 2 === 0 ? colors.card : colors.accent,
-              borderColor: index % 2 === 0 ? `${tone.shape}55` : colors.accent,
-            },
+            { backgroundColor: colors.card, borderColor: `${tone.shape}77` },
           ]}
         >
-          <TopicIcon
-            icon={lesson.icon}
-            color={index % 2 === 0 ? tone.icon : colors.accentForeground}
-            size={21}
-          />
+          <TopicIcon icon={lesson.icon} color={tone.icon} size={18} />
         </View>
         <ProgressMark
           lesson={lesson}
@@ -383,41 +339,34 @@ function FeaturedLessonCard({
           fontScale={fontScale}
         />
       </View>
-      <Text
-        style={[
-          styles.featuredMeta,
-          {
-            color: index % 2 === 0 ? tone.foreground : colors.heroMuted,
-            fontSize: 10 * fontScale,
-          },
-        ]}
-      >
-        {lesson.topic.toUpperCase()} · {lesson.readingMinutes} MIN
-      </Text>
-      <Text
-        numberOfLines={3}
-        style={[
-          styles.featuredTitle,
-          {
-            color: index % 2 === 0 ? colors.foreground : colors.onHero,
-            fontSize: 22 * fontScale,
-          },
-        ]}
-      >
-        {lesson.title}
-      </Text>
-      <Text
-        numberOfLines={2}
-        style={[
-          styles.featuredDek,
-          {
-            color: index % 2 === 0 ? colors.mutedForeground : colors.heroMuted,
-            fontSize: 13 * fontScale,
-          },
-        ]}
-      >
-        {lesson.dek}
-      </Text>
+      <View style={styles.featuredCopy}>
+        <Text
+          style={[
+            styles.featuredMeta,
+            { color: colors.heroMuted, fontSize: 10 * fontScale },
+          ]}
+        >
+          {lesson.topic.toUpperCase()} · {lesson.readingMinutes} MIN
+        </Text>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.featuredTitle,
+            { color: colors.onHero, fontSize: 20 * fontScale },
+          ]}
+        >
+          {lesson.title}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.featuredDek,
+            { color: colors.heroMuted, fontSize: 12 * fontScale },
+          ]}
+        >
+          {lesson.dek}
+        </Text>
+      </View>
     </ScalePressable>
   );
 }
@@ -671,26 +620,6 @@ export default function LearningScreen() {
 
         {isBrowsingAll ? (
           <>
-            <View style={styles.heroIntro}>
-              <Text
-                style={[
-                  styles.heroTitle,
-                  { color: colors.foreground, fontSize: 28 * fontScale },
-                ]}
-              >
-                Make health feel more understandable.
-              </Text>
-              <Text
-                style={[
-                  styles.heroBody,
-                  { color: colors.mutedForeground, fontSize: 14 * fontScale },
-                ]}
-              >
-                Practical, original notes for everyday food, planning, habits,
-                and optional fasting education.
-              </Text>
-            </View>
-
             <ScrollView
               horizontal
               pagingEnabled
@@ -945,17 +874,17 @@ export default function LearningScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 16 },
+  content: { paddingHorizontal: 18, paddingTop: 12 },
   headerBookmark: {
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 15,
     height: 36,
     justifyContent: "center",
     width: 36,
   },
   searchField: {
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 15,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
@@ -968,100 +897,76 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingVertical: 0,
   },
-  topicList: { gap: 8, paddingBottom: 14, paddingRight: 20, paddingTop: 14 },
+  topicList: { gap: 8, paddingBottom: 10, paddingRight: 18, paddingTop: 10 },
   topicChip: {
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 15,
     borderWidth: 1,
     flexDirection: "row",
     gap: 7,
     justifyContent: "center",
-    minHeight: 38,
-    paddingHorizontal: 13,
+    minHeight: 34,
+    paddingHorizontal: 11,
   },
   topicChipText: { fontFamily: "Inter_600SemiBold" },
-  heroIntro: { marginTop: 8 },
-  heroTitle: {
-    fontFamily: "Inter_800ExtraBold",
-    letterSpacing: -0.85,
-    lineHeight: 33,
-    maxWidth: 330,
-  },
-  heroBody: {
-    fontFamily: "Inter_400Regular",
-    lineHeight: 20,
-    marginTop: 7,
-    maxWidth: 340,
-  },
-  featuredRail: { gap: 12, paddingBottom: 6, paddingRight: 20, paddingTop: 17 },
+  featuredRail: { gap: 10, paddingBottom: 4, paddingRight: 18, paddingTop: 4 },
   featuredCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    height: 250,
+    height: 184,
     overflow: "hidden",
-    padding: 18,
-    width: 268,
+    padding: 14,
+    width: 286,
   },
-  featuredShapeLarge: {
-    borderRadius: 180,
-    height: 260,
-    position: "absolute",
-    right: -105,
-    top: -80,
-    width: 260,
-  },
-  featuredShapeSmall: {
-    borderRadius: 40,
-    bottom: -24,
-    height: 80,
-    position: "absolute",
-    right: 28,
-    transform: [{ rotate: "-22deg" }],
-    width: 80,
+  featuredPhotoTint: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.72,
   },
   featuredTopline: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  featuredCopy: { marginTop: "auto" },
   featuredIcon: {
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 15,
     borderWidth: 1,
-    height: 42,
+    height: 34,
     justifyContent: "center",
-    width: 42,
+    width: 34,
   },
   featuredMeta: {
     fontFamily: "Inter_700Bold",
     letterSpacing: 0.8,
-    marginTop: 25,
+    marginTop: 0,
   },
   featuredTitle: {
     fontFamily: "Inter_800ExtraBold",
-    letterSpacing: -0.65,
-    lineHeight: 26,
-    marginTop: 6,
-    maxWidth: 218,
+    letterSpacing: -0.45,
+    lineHeight: 24,
+    marginTop: 5,
+    maxWidth: 238,
   },
   featuredDek: {
     fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-    marginTop: 7,
-    maxWidth: 220,
+    lineHeight: 16,
+    marginTop: 4,
+    maxWidth: 245,
   },
   heroCaptionRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
     justifyContent: "space-between",
-    marginBottom: 17,
+    marginBottom: 13,
+    marginTop: 5,
   },
   heroCaption: { flex: 1, fontFamily: "Inter_400Regular", lineHeight: 16 },
   progressCaption: { fontFamily: "Inter_700Bold" },
   filterSummary: {
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 15,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
@@ -1080,7 +985,7 @@ const styles = StyleSheet.create({
   filterSummaryTitle: { fontFamily: "Inter_700Bold" },
   filterSummaryBody: { fontFamily: "Inter_400Regular", marginTop: 1 },
   clearFilterText: { fontFamily: "Inter_700Bold" },
-  collectionList: { gap: 31 },
+  collectionList: { gap: 25 },
   collectionGroup: { position: "relative" },
   sectionHeader: {
     alignItems: "flex-end",
@@ -1102,7 +1007,7 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
   seeAllText: { fontFamily: "Inter_700Bold" },
-  lessonRail: { gap: 12, paddingRight: 20, paddingTop: 13 },
+  lessonRail: { gap: 10, paddingRight: 18, paddingTop: 10 },
   filteredList: { gap: 10, marginTop: 13 },
   lessonCard: {
     borderRadius: 20,
@@ -1110,44 +1015,34 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: "100%",
   },
-  lessonCardCompact: { width: 194 },
-  lessonMainPressable: { minHeight: 110 },
+  lessonCardCompact: { width: 160 },
+  lessonMainPressable: { minHeight: 0 },
   artwork: {
-    alignItems: "center",
-    height: 116,
-    justifyContent: "center",
+    height: 124,
     overflow: "hidden",
     position: "relative",
   },
-  artRing: {
-    borderRadius: 100,
-    borderWidth: 14,
-    opacity: 0.16,
-    position: "absolute",
-    right: -28,
-    top: -35,
+  artworkCompact: { height: 102 },
+  artworkTint: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.12,
   },
-  artOrb: {
-    borderRadius: 99,
-    bottom: -18,
-    left: -10,
-    opacity: 0.18,
-    position: "absolute",
-  },
-  artIcon: {
+  artTopicPill: {
     alignItems: "center",
-    borderRadius: 22,
-    borderWidth: 1,
-    justifyContent: "center",
+    alignSelf: "flex-start",
+    borderRadius: 99,
+    flexDirection: "row",
+    gap: 4,
+    margin: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   artTopic: {
-    bottom: 9,
     fontFamily: "Inter_700Bold",
-    fontSize: 9,
-    letterSpacing: 0.8,
-    position: "absolute",
+    fontSize: 8,
+    letterSpacing: 0.55,
   },
-  lessonCopy: { minHeight: 115, padding: 13, paddingRight: 42 },
+  lessonCopy: { minHeight: 82, padding: 10, paddingRight: 12 },
   lessonMetaRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -1158,19 +1053,19 @@ const styles = StyleSheet.create({
   lessonTitle: {
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.28,
-    lineHeight: 21,
-    marginTop: 7,
+    lineHeight: 19,
+    marginTop: 5,
   },
-  lessonDek: { fontFamily: "Inter_400Regular", lineHeight: 18, marginTop: 5 },
+  lessonDek: { fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 4 },
   saveControl: {
     alignItems: "center",
-    borderRadius: 15,
-    height: 30,
+    borderRadius: 14,
+    height: 28,
     justifyContent: "center",
     position: "absolute",
-    right: 12,
-    top: 128,
-    width: 30,
+    right: 8,
+    top: 8,
+    width: 28,
   },
   statusPill: {
     alignItems: "center",
@@ -1190,7 +1085,7 @@ const styles = StyleSheet.create({
   },
   collectionAccentLine: {
     borderRadius: 99,
-    bottom: -15,
+    bottom: -12,
     height: 3,
     left: 0,
     opacity: 0.45,
@@ -1207,9 +1102,9 @@ const styles = StyleSheet.create({
   emptyGlyph: {
     alignItems: "center",
     borderRadius: 15,
-    height: 42,
+    height: 34,
     justifyContent: "center",
-    width: 42,
+    width: 34,
   },
   emptyTitle: { fontFamily: "Inter_700Bold", marginTop: 11 },
   emptyText: {

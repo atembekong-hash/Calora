@@ -1231,6 +1231,132 @@
       "width": 1024,
       "height": 1024,
       "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/balanced-meal-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Healthy Meals search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "862172823e7aea6730780e7462a0b5b9bac4476ada84aba2b2b088599c207cba",
+      "width": 720,
+      "height": 480,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/coffee-morning-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Coffee Morning search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "043500d1bdce8b43828309580eb1437f87e3865263a0504ed66c502a913ae213",
+      "width": 481,
+      "height": 720,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/colorful-plate-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Balanced Meal search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "6e1ebc02a922e15c73490b403db28c6a1bf09271f37a26262fa7c74329e0ed01",
+      "width": 720,
+      "height": 480,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/grain-bowl-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Balanced Meal search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "eafcc890acb4288915f63146dcf65a941b472aab23448438349d829affc1a166",
+      "width": 540,
+      "height": 720,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/tea-journal-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Morning Tea search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "8237f8b9217a476a0d694db4cc65ecb7b30cbb3307d27c4113e598dc32c52244",
+      "width": 720,
+      "height": 576,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/wellness-yoga-unsplash-mobile.jpg",
+      "owner": "Calora product team (licensed Unsplash editorial asset; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 licensed Unsplash editorial photograph; commercial and non-commercial Calora product use permitted under the Unsplash License; documentary source record retained locally",
+      "reviewStatus": "approved",
+      "role": "Learning editorial photograph",
+      "renderConsumers": [
+        "artifacts/calora/lib/learningImages.ts: collectionImages and lessonImageOverrides",
+        "artifacts/calora/app/learning.tsx: LessonArtwork and FeaturedLessonCard"
+      ],
+      "source": "Unsplash Health and Wellness search result; source/license record: artifacts/calora/assets/images/learning/ASSET_SOURCES.md; license: https://unsplash.com/license",
+      "creator": "Original Unsplash contributor; image selected as a licensed editorial asset for Calora",
+      "permittedUse": "Calora mobile application, website previews, QA evidence, and Calora release materials",
+      "attribution": "Attribution is appreciated under the Unsplash License; local source and license record retained in ASSET_SOURCES.md",
+      "reviewer": "Manus visual and source review for Calora",
+      "reviewDate": "2026-10-28",
+      "sha256": "7b1865dd1c3861fb7988a6141fe8b5273be918739693ea7bb0906d3382cdd091",
+      "width": 720,
+      "height": 720,
+      "format": "JPEG"
     }
   ],
   "staticExternalImageUrls": [],
@@ -1333,6 +1459,24 @@
       "role": "account-scoped local profile image",
       "owner": "Calora product team",
       "reviewStatus": "reviewed renderer registration"
+    },
+    {
+      "id": "learning-lesson-editorial-photo",
+      "path": "artifacts/calora/app/learning.tsx",
+      "anchor": "testID=\"learning-lesson-editorial-photo\"",
+      "classification": "decorative",
+      "role": "local editorial photo behind a lesson card; lesson title and metadata remain the accessible content",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative primitive"
+    },
+    {
+      "id": "learning-featured-editorial-photo",
+      "path": "artifacts/calora/app/learning.tsx",
+      "anchor": "testID=\"learning-featured-editorial-photo\"",
+      "classification": "decorative",
+      "role": "local editorial photo behind a featured Learning card; card label and metadata remain the accessible content",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative primitive"
     }
   ]
 }
