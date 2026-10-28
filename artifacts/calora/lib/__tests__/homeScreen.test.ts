@@ -95,8 +95,8 @@ describe('living-state-action button — static render guarantee', () => {
   });
 });
 
-describe('Home profile avatar renderer', () => {
-  it('routes the header avatar through ProfilePhoto rather than directly rendering profilePhotoUri', async () => {
+describe('Today dashboard visual-source boundary', () => {
+  it('keeps the profile shortcut as an image-free semantic control', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -107,10 +107,24 @@ describe('Home profile avatar renderer', () => {
     const avatarEnd = source.indexOf('</Pressable>', avatarStart);
     const avatarSection = source.slice(avatarStart, avatarEnd);
 
-    expect(source).toContain("import { ProfilePhoto } from '@/components/ProfilePhoto'");
-    expect(avatarSection).toContain('<ProfilePhoto');
-    expect(avatarSection).toContain('uri={profilePhotoUri}');
-    expect(avatarSection).not.toContain('<Image source={{ uri: profilePhotoUri }}');
+    expect(avatarSection).toContain('<Feather name="user"');
+    expect(avatarSection).not.toMatch(/Image|ProfilePhoto|uri=|source=/);
+  });
+
+  it('does not render photos, remote image locators, or local asset requires anywhere in Today', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).not.toMatch(/<Image(?:Background)?\b|expo-image|LinearGradient/);
+    expect(source).not.toMatch(/assets\/images|\brequire\(|recipe\.image|ProfilePhoto|FoodLogThumbnail/);
+    expect(source).not.toContain('useHourlyHeaderImage');
+    expect(source).toContain('styles.recipeWidgetGlyph');
+    expect(source).toContain('styles.mealRowGlyph');
+    expect(source).toContain('styles.emptyDiaryGlyph');
   });
 });
 

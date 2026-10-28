@@ -86,6 +86,13 @@ vi.mock("react-native", () => {
     View: element("div"),
   };
 });
+vi.mock("expo-image", () => ({
+  Image: ({ source: _source, style: _style, testID, ...props }: any) =>
+    React.createElement("img", {
+      ...props,
+      ...(testID ? { "data-testid": testID } : {}),
+    }),
+}));
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("expo-router", () => ({
   router: harness.router,

@@ -131,6 +131,21 @@ describe("MoreScreen feature hierarchy", () => {
     }
   });
 
+  it("keeps editorial photography local and primary-card typography compact", () => {
+    const source = readFileSync(
+      resolve(__dirname, "../../app/(tabs)/more.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("const moreEditorialImages");
+    expect(source).toContain('testID="more-editorial-photo"');
+    expect(source).toContain("articles/fasting-basics-and-boundaries.jpg");
+    expect(source).toContain("articles/balanced-plate-basics.jpg");
+    expect(source).not.toMatch(/https?:\/\//i);
+    expect(source).toContain("fontSize: 20 * scale");
+    expect(source).toContain("fontSize: 15 * scale");
+  });
+
   it("keeps supporting destinations compact and does not duplicate primary routes", () => {
     render(<MoreScreen />);
 

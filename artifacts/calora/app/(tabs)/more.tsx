@@ -19,9 +19,9 @@ import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
 
 const moreEditorialImages = {
-  fasting: require("../../assets/images/learning/coffee-morning-unsplash-mobile.jpg"),
+  fasting: require("../../assets/images/learning/articles/fasting-basics-and-boundaries.jpg"),
   progress: require("../../assets/images/calora-insights-header.jpg"),
-  learning: require("../../assets/images/learning/balanced-meal-unsplash-mobile.jpg"),
+  learning: require("../../assets/images/learning/articles/balanced-plate-basics.jpg"),
 } as const;
 
 function MoreEditorialPhoto({ source }: { source: number }) {
@@ -293,7 +293,7 @@ const makeStyles = (
     },
     headerTitle: {
       color: colors.text,
-      fontSize: 23 * scale,
+      fontSize: 20 * scale,
       fontWeight: "800",
       letterSpacing: -0.55,
     },
@@ -371,7 +371,7 @@ const makeStyles = (
     fastTitle: { color: "#d9f1e0", fontSize: 10 * scale, fontWeight: "800" },
     fastMain: {
       color: "#fff",
-      fontSize: 17 * scale,
+      fontSize: 15 * scale,
       fontWeight: "800",
       marginTop: 2,
     },
@@ -424,7 +424,7 @@ const makeStyles = (
     },
     progressTitle: {
       color: colors.text,
-      fontSize: 14 * scale,
+      fontSize: 13 * scale,
       fontWeight: "800",
     },
     progressSummary: {
@@ -475,7 +475,7 @@ const makeStyles = (
     learningTitle: {
       color: colors.foreground,
       fontWeight: "800",
-      fontSize: 14 * scale,
+      fontSize: 13 * scale,
     },
     learningText: {
       color: colors.mutedForeground,
@@ -492,7 +492,7 @@ const makeStyles = (
     sectionHeading: { marginTop: 7, gap: 2 },
     sectionTitle: {
       color: colors.text,
-      fontSize: 15 * scale,
+      fontSize: 14 * scale,
       fontWeight: "800",
     },
     sectionCaption: { color: colors.mutedForeground, fontSize: 10 * scale },
