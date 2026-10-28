@@ -40,6 +40,16 @@ describe("Learning catalog", () => {
     expect(getLearningCatalogIssues()).toEqual([]);
   });
 
+  it("keeps every lesson structured with substantial practical copy", () => {
+    for (const lesson of LEARNING_LESSONS) {
+      expect(lesson.sections.length).toBeGreaterThanOrEqual(3);
+      const expandedSection = lesson.sections[lesson.sections.length - 1];
+      expect(expandedSection?.paragraphs.length).toBeGreaterThanOrEqual(2);
+      expect(expandedSection?.bullets?.length).toBeGreaterThanOrEqual(2);
+      expect(lesson.tryThis.length).toBeGreaterThanOrEqual(90);
+    }
+  });
+
   it("searches titles, editorial body copy, and collections with topic filters", () => {
     expect(
       searchLearningLessons({ query: "water" }).map((lesson) => lesson.id),
