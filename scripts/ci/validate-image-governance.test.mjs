@@ -54,7 +54,7 @@ test("accepts the reviewed Calora runtime image inventory", () => {
   assert.equal(result.ok, true, result.failures.join("\n"));
   assert.equal(result.summary.bundledAssetCount, 64);
   assert.equal(result.summary.staticExternalImageUrlCount, 0);
-  assert.equal(result.summary.directImageRendererCount, 13);
+  assert.equal(result.summary.directImageRendererCount, 16);
 });
 
 test("requires the native splash and earliest JavaScript bootstrap to use the reviewed launch background", () => {

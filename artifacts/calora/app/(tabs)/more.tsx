@@ -1,7 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScalePressable } from "@/components/ScalePressable";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
@@ -10,6 +17,24 @@ import { dateKey } from "@/lib/dates";
 import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
 import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
+
+const moreEditorialImages = {
+  fasting: require("../../assets/images/learning/coffee-morning-unsplash-mobile.jpg"),
+  progress: require("../../assets/images/calora-insights-header.jpg"),
+  learning: require("../../assets/images/learning/balanced-meal-unsplash-mobile.jpg"),
+} as const;
+
+function MoreEditorialPhoto({ source }: { source: number }) {
+  return (
+    <Image
+      accessible={false}
+      resizeMode="cover"
+      source={source}
+      style={StyleSheet.absoluteFillObject}
+      testID="more-editorial-photo"
+    />
+  );
+}
 
 function FastingCard() {
   const { fasting, colors, fontScale } = useCalora();
@@ -32,6 +57,8 @@ function FastingCard() {
       onPress={() => router.push("/fasting")}
       style={styles.fastingCard}
     >
+      <MoreEditorialPhoto source={moreEditorialImages.fasting} />
+      <View pointerEvents="none" style={styles.fastingPhotoOverlay} />
       <View style={styles.fastRing}>
         <View
           style={[
@@ -83,6 +110,8 @@ function ProgressCard() {
       onPress={() => router.push("/(tabs)/insights")}
       style={styles.progressCard}
     >
+      <MoreEditorialPhoto source={moreEditorialImages.progress} />
+      <View pointerEvents="none" style={styles.progressPhotoOverlay} />
       <View style={styles.progressIcon}>
         <Feather name="bar-chart-2" size={21} color={colors.primary} />
       </View>
@@ -201,6 +230,8 @@ export default function MoreScreen() {
           onPress={() => router.push("/learning")}
           style={styles.learningCard}
         >
+          <MoreEditorialPhoto source={moreEditorialImages.learning} />
+          <View pointerEvents="none" style={styles.learningPhotoOverlay} />
           <View style={styles.learningIcon}>
             <Feather name="book-open" size={22} color={colors.link} />
           </View>
@@ -262,14 +293,14 @@ const makeStyles = (
     },
     headerTitle: {
       color: colors.text,
-      fontSize: 28 * scale,
+      fontSize: 23 * scale,
       fontWeight: "800",
-      letterSpacing: -0.8,
+      letterSpacing: -0.55,
     },
     headerCaption: {
       color: colors.mutedForeground,
-      fontSize: 12 * scale,
-      marginTop: 3,
+      fontSize: 10 * scale,
+      marginTop: 2,
     },
     gear: {
       height: 42,
@@ -281,7 +312,7 @@ const makeStyles = (
       borderWidth: 1,
       borderColor: colors.border,
     },
-    content: { padding: 20, paddingTop: 0, paddingBottom: 42, gap: 14 },
+    content: { padding: 18, paddingTop: 0, paddingBottom: 36, gap: 11 },
     welcome: { flexDirection: "row", gap: 11, alignItems: "center" },
     avatarFallback: {
       width: 42,
@@ -291,175 +322,204 @@ const makeStyles = (
       alignItems: "center",
       justifyContent: "center",
     },
-    avatarLetter: { color: "#fff", fontSize: 16 * scale, fontWeight: "800" },
+    avatarLetter: { color: "#fff", fontSize: 14 * scale, fontWeight: "800" },
     welcomeCopy: { flex: 1 },
     welcomeTitle: {
       color: colors.text,
       fontWeight: "800",
-      fontSize: 15 * scale,
+      fontSize: 14 * scale,
     },
     welcomeSub: {
       color: colors.mutedForeground,
-      fontSize: 11 * scale,
+      fontSize: 10 * scale,
       marginTop: 2,
     },
     fastingCard: {
-      minHeight: 139,
-      borderRadius: 22,
-      padding: 17,
+      minHeight: 122,
+      borderRadius: 19,
+      padding: 14,
       backgroundColor: "#123f33",
       flexDirection: "row",
       alignItems: "center",
-      gap: 13,
+      gap: 11,
       overflow: "hidden",
+      position: "relative",
+    },
+    fastingPhotoOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(10, 50, 38, 0.48)",
     },
     fastRing: {
-      width: 78,
-      height: 78,
-      borderRadius: 39,
+      width: 68,
+      height: 68,
+      borderRadius: 34,
       backgroundColor: "rgba(255,255,255,.09)",
       alignItems: "center",
       justifyContent: "center",
     },
     fastRingProgress: {
-      width: 66,
-      height: 66,
-      borderRadius: 33,
-      borderWidth: 6,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      borderWidth: 5,
       borderLeftColor: "rgba(255,255,255,.25)",
       alignItems: "center",
       justifyContent: "center",
       transform: [{ rotate: "-35deg" }],
     },
     fastCopy: { flex: 1 },
-    fastTitle: { color: "#d9f1e0", fontSize: 12 * scale, fontWeight: "800" },
+    fastTitle: { color: "#d9f1e0", fontSize: 10 * scale, fontWeight: "800" },
     fastMain: {
       color: "#fff",
-      fontSize: 21 * scale,
+      fontSize: 17 * scale,
       fontWeight: "800",
       marginTop: 2,
     },
     fastSubtitle: {
       color: "#b3d3bf",
-      fontSize: 10 * scale,
-      lineHeight: 15 * scale,
-      marginTop: 5,
+      fontSize: 9 * scale,
+      lineHeight: 13 * scale,
+      marginTop: 3,
     },
     fastAction: {
       position: "absolute",
-      right: 15,
-      bottom: 14,
+      right: 13,
+      bottom: 11,
       flexDirection: "row",
       gap: 4,
       alignItems: "center",
     },
-    fastActionText: { color: "#fff", fontSize: 11 * scale, fontWeight: "800" },
+    fastActionText: { color: "#fff", fontSize: 10 * scale, fontWeight: "800" },
     progressCard: {
-      minHeight: 86,
-      borderRadius: 20,
-      padding: 14,
+      minHeight: 78,
+      borderRadius: 18,
+      padding: 12,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      overflow: "hidden",
+      position: "relative",
+    },
+    progressPhotoOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(244, 250, 247, 0.46)",
     },
     progressIcon: {
-      height: 45,
-      width: 45,
-      borderRadius: 15,
+      height: 40,
+      width: 40,
+      borderRadius: 13,
       backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
-    progressCopy: { flex: 1 },
+    progressCopy: {
+      flex: 1,
+      backgroundColor: "rgba(255,255,255,0.76)",
+      borderRadius: 11,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+    },
     progressTitle: {
       color: colors.text,
-      fontSize: 16 * scale,
+      fontSize: 14 * scale,
       fontWeight: "800",
     },
     progressSummary: {
       color: colors.mutedForeground,
-      fontSize: 11 * scale,
-      marginTop: 3,
+      fontSize: 10 * scale,
+      marginTop: 2,
     },
     progressArrow: {
-      height: 33,
-      width: 33,
-      borderRadius: 11,
+      height: 30,
+      width: 30,
+      borderRadius: 10,
       backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
     learningCard: {
-      minHeight: 94,
-      borderRadius: 20,
-      padding: 15,
+      minHeight: 84,
+      borderRadius: 18,
+      padding: 12,
       backgroundColor: colors.accent,
       borderWidth: 1,
       borderColor: colors.border,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      overflow: "hidden",
+      position: "relative",
+    },
+    learningPhotoOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(224, 243, 233, 0.42)",
     },
     learningIcon: {
-      height: 45,
-      width: 45,
-      borderRadius: 15,
+      height: 40,
+      width: 40,
+      borderRadius: 13,
       backgroundColor: colors.secondary,
       alignItems: "center",
       justifyContent: "center",
     },
-    learningCopy: { flex: 1 },
+    learningCopy: {
+      flex: 1,
+      backgroundColor: "rgba(255,255,255,0.76)",
+      borderRadius: 11,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+    },
     learningTitle: {
       color: colors.foreground,
       fontWeight: "800",
-      fontSize: 16 * scale,
+      fontSize: 14 * scale,
     },
     learningText: {
       color: colors.mutedForeground,
-      fontSize: 11 * scale,
-      lineHeight: 16 * scale,
-      marginTop: 3,
+      fontSize: 10 * scale,
+      lineHeight: 14 * scale,
+      marginTop: 2,
     },
     learningGo: { alignItems: "center", gap: 3 },
     learningGoText: {
       color: colors.link,
       fontWeight: "800",
-      fontSize: 11 * scale,
+      fontSize: 10 * scale,
     },
-    sectionHeading: { marginTop: 8, gap: 2 },
+    sectionHeading: { marginTop: 7, gap: 2 },
     sectionTitle: {
       color: colors.text,
-      fontSize: 17 * scale,
+      fontSize: 15 * scale,
       fontWeight: "800",
     },
-    sectionCaption: { color: colors.mutedForeground, fontSize: 11 * scale },
+    sectionCaption: { color: colors.mutedForeground, fontSize: 10 * scale },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
     quickItem: {
       width: "31.7%",
-      minHeight: 82,
-      borderRadius: 16,
+      minHeight: 76,
+      borderRadius: 15,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
-      gap: 7,
+      gap: 6,
       padding: 7,
     },
     quickIcon: {
-      height: 32,
-      width: 32,
-      borderRadius: 11,
+      height: 30,
+      width: 30,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
     },
     quickLabel: {
       color: colors.text,
       fontWeight: "700",
-      fontSize: 10 * scale,
+      fontSize: 9 * scale,
       textAlign: "center",
     },
   });

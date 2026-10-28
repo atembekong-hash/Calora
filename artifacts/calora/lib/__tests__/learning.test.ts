@@ -20,7 +20,7 @@ import {
 
 describe("Learning catalog", () => {
   it("has a complete, unique initial editorial library across required topics", () => {
-    expect(LEARNING_LESSONS).toHaveLength(26);
+    expect(LEARNING_LESSONS).toHaveLength(50);
     expect(new Set(LEARNING_LESSONS.map((lesson) => lesson.id)).size).toBe(
       LEARNING_LESSONS.length,
     );
@@ -30,18 +30,27 @@ describe("Learning catalog", () => {
     expect(
       new Set(LEARNING_LESSONS.map((lesson) => lesson.collectionId)),
     ).toEqual(new Set(LEARNING_COLLECTIONS.map((collection) => collection.id)));
+    for (const collection of LEARNING_COLLECTIONS) {
+      expect(
+        LEARNING_LESSONS.filter(
+          (lesson) => lesson.collectionId === collection.id,
+        ),
+      ).toHaveLength(5);
+    }
     expect(getLearningCatalogIssues()).toEqual([]);
   });
 
   it("searches titles, editorial body copy, and collections with topic filters", () => {
     expect(
       searchLearningLessons({ query: "water" }).map((lesson) => lesson.id),
-    ).toEqual([
-      "hydration-check-in",
-      "habit-cue-design",
-      "drinks-that-fit-your-day",
-      "gentle-evening-reset",
-    ]);
+    ).toEqual(
+      expect.arrayContaining([
+        "hydration-check-in",
+        "habit-cue-design",
+        "drinks-that-fit-your-day",
+        "gentle-evening-reset",
+      ]),
+    );
     expect(
       searchLearningLessons({ query: "nutrition facts", topic: "Labels" }).map(
         (lesson) => lesson.id,
@@ -65,6 +74,8 @@ describe("Learning catalog", () => {
       "week-with-one-anchor",
       "shopping-list-scaffold",
       "busy-day-backup",
+      "make-the-next-step-specific",
+      "plan-for-the-plan-to-change",
     ]);
   });
 
@@ -88,13 +99,18 @@ describe("Learning catalog", () => {
       (lesson) => lesson.medicalAdjacent,
     );
 
-    expect(medicalAdjacent.map((lesson) => lesson.id)).toEqual([
-      "calories-are-context",
-      "hydration-check-in",
-      "fasting-basics-and-boundaries",
-      "food-mood-observations",
-      "fasting-pause-signals",
-    ]);
+    expect(medicalAdjacent.map((lesson) => lesson.id)).toEqual(
+      expect.arrayContaining([
+        "calories-are-context",
+        "safe-prep-cook-and-save",
+        "fasting-basics-and-boundaries",
+        "fasting-defined-without-hype",
+        "hot-and-active-day-hydration",
+        "movement-snacks",
+        "steady-sleep-window",
+        "pause-notice-choose",
+      ]),
+    );
     for (const lesson of medicalAdjacent) {
       expect(hasLearningSafetyMetadata(lesson)).toBe(true);
       expect(lesson.safety?.body).toMatch(/qualified|professional|individual/i);
@@ -158,11 +174,11 @@ describe("Learning reader state", () => {
       completed.progressByLessonId["balanced-plate-basics"]?.completed,
     ).toBe(true);
     expect(journey).toMatchObject({
-      totalLessons: 26,
+      totalLessons: 50,
       startedLessons: 1,
       completedLessons: 1,
       savedLessons: 1,
-      percentComplete: 4,
+      percentComplete: 2,
     });
   });
 

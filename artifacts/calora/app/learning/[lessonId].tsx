@@ -1,7 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppChrome";
 import { ScalePressable } from "@/components/ScalePressable";
@@ -13,6 +20,7 @@ import {
   getRelatedLearningLessons,
   hasLearningSafetyMetadata,
 } from "@/lib/learning";
+import { getLearningEditorialImage } from "@/lib/learningImages";
 
 function iconColor(
   accent: LearningLesson["accent"],
@@ -39,6 +47,34 @@ function LessonGlyph({
         name={icon as React.ComponentProps<typeof Feather>["name"]}
         size={21}
         color={iconColor(accent, colors)}
+      />
+    </View>
+  );
+}
+
+function LessonEditorialHero({
+  lesson,
+  colors,
+}: {
+  lesson: LearningLesson;
+  colors: ReturnType<typeof useCalora>["colors"];
+}) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.articlePhoto}
+    >
+      <Image
+        accessible={false}
+        resizeMode="cover"
+        source={getLearningEditorialImage(lesson)}
+        style={StyleSheet.absoluteFillObject}
+        testID="learning-reader-editorial-photo"
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.articlePhotoShade, { backgroundColor: colors.hero }]}
       />
     </View>
   );
@@ -91,7 +127,7 @@ export default function LearningLessonScreen() {
           <Text
             style={[
               styles.missingTitle,
-              { color: colors.foreground, fontSize: 19 * fontScale },
+              { color: colors.foreground, fontSize: 17 * fontScale },
             ]}
           >
             Lesson unavailable
@@ -99,7 +135,7 @@ export default function LearningLessonScreen() {
           <Text
             style={[
               styles.missingBody,
-              { color: colors.mutedForeground, fontSize: 14 * fontScale },
+              { color: colors.mutedForeground, fontSize: 12 * fontScale },
             ]}
           >
             This lesson may have moved. Browse the Learning library to choose
@@ -114,7 +150,7 @@ export default function LearningLessonScreen() {
             <Text
               style={[
                 styles.primaryButtonText,
-                { color: colors.primaryForeground, fontSize: 14 * fontScale },
+                { color: colors.primaryForeground, fontSize: 12 * fontScale },
               ]}
             >
               Browse Learning
@@ -143,6 +179,7 @@ export default function LearningLessonScreen() {
           { paddingBottom: insets.bottom + 36 },
         ]}
       >
+        <LessonEditorialHero lesson={lesson} colors={colors} />
         <View
           style={[styles.articleHeader, { borderBottomColor: colors.border }]}
         >
@@ -172,7 +209,7 @@ export default function LearningLessonScreen() {
                   styles.bookmarkText,
                   {
                     color: saved ? colors.primaryForeground : colors.foreground,
-                    fontSize: 12 * fontScale,
+                    fontSize: 11 * fontScale,
                   },
                 ]}
               >
@@ -195,7 +232,7 @@ export default function LearningLessonScreen() {
             accessibilityRole="header"
             style={[
               styles.articleTitle,
-              { color: colors.foreground, fontSize: 29 * fontScale },
+              { color: colors.foreground, fontSize: 24 * fontScale },
             ]}
           >
             {lesson.title}
@@ -203,7 +240,7 @@ export default function LearningLessonScreen() {
           <Text
             style={[
               styles.articleDek,
-              { color: colors.mutedForeground, fontSize: 16 * fontScale },
+              { color: colors.mutedForeground, fontSize: 13 * fontScale },
             ]}
           >
             {lesson.dek}
@@ -218,7 +255,7 @@ export default function LearningLessonScreen() {
               <Text
                 style={[
                   styles.completedPillText,
-                  { color: colors.accentForeground, fontSize: 12 * fontScale },
+                  { color: colors.accentForeground, fontSize: 10 * fontScale },
                 ]}
               >
                 Marked complete
@@ -234,7 +271,7 @@ export default function LearningLessonScreen() {
                 accessibilityRole="header"
                 style={[
                   styles.sectionHeading,
-                  { color: colors.foreground, fontSize: 20 * fontScale },
+                  { color: colors.foreground, fontSize: 17 * fontScale },
                 ]}
               >
                 {section.heading}
@@ -244,7 +281,7 @@ export default function LearningLessonScreen() {
                   key={paragraph}
                   style={[
                     styles.paragraph,
-                    { color: colors.foreground, fontSize: 15 * fontScale },
+                    { color: colors.foreground, fontSize: 13 * fontScale },
                   ]}
                 >
                   {paragraph}
@@ -265,7 +302,7 @@ export default function LearningLessonScreen() {
                           styles.bulletText,
                           {
                             color: colors.foreground,
-                            fontSize: 14 * fontScale,
+                            fontSize: 12 * fontScale,
                           },
                         ]}
                       >
@@ -306,7 +343,7 @@ export default function LearningLessonScreen() {
               <Text
                 style={[
                   styles.tryText,
-                  { color: colors.foreground, fontSize: 14 * fontScale },
+                  { color: colors.foreground, fontSize: 12 * fontScale },
                 ]}
               >
                 {lesson.tryThis}
@@ -329,7 +366,7 @@ export default function LearningLessonScreen() {
                 <Text
                   style={[
                     styles.safetyTitle,
-                    { color: colors.foreground, fontSize: 14 * fontScale },
+                    { color: colors.foreground, fontSize: 12 * fontScale },
                   ]}
                 >
                   {lesson.safety.heading}
@@ -337,7 +374,7 @@ export default function LearningLessonScreen() {
                 <Text
                   style={[
                     styles.safetyText,
-                    { color: colors.mutedForeground, fontSize: 13 * fontScale },
+                    { color: colors.mutedForeground, fontSize: 12 * fontScale },
                   ]}
                 >
                   {lesson.safety.body}
@@ -352,7 +389,7 @@ export default function LearningLessonScreen() {
               <Text
                 style={[
                   styles.reviewTitle,
-                  { color: colors.foreground, fontSize: 12 * fontScale },
+                  { color: colors.foreground, fontSize: 11 * fontScale },
                 ]}
               >
                 Editorial review
@@ -360,7 +397,7 @@ export default function LearningLessonScreen() {
               <Text
                 style={[
                   styles.reviewText,
-                  { color: colors.mutedForeground, fontSize: 11 * fontScale },
+                  { color: colors.mutedForeground, fontSize: 10 * fontScale },
                 ]}
               >
                 Reviewed {review.reviewedAt} · {review.reviewedBy}.{" "}
@@ -372,7 +409,7 @@ export default function LearningLessonScreen() {
           <Text
             style={[
               styles.educationNote,
-              { color: colors.mutedForeground, fontSize: 11 * fontScale },
+              { color: colors.mutedForeground, fontSize: 10 * fontScale },
             ]}
           >
             Calora Learning is for general education and does not replace
@@ -389,7 +426,7 @@ export default function LearningLessonScreen() {
             <Text
               style={[
                 styles.primaryButtonText,
-                { color: colors.primaryForeground, fontSize: 14 * fontScale },
+                { color: colors.primaryForeground, fontSize: 12 * fontScale },
               ]}
             >
               {lesson.cta.label}
@@ -429,7 +466,7 @@ export default function LearningLessonScreen() {
                   color: completed
                     ? colors.accentForeground
                     : colors.foreground,
-                  fontSize: 14 * fontScale,
+                  fontSize: 12 * fontScale,
                 },
               ]}
             >
@@ -452,7 +489,7 @@ export default function LearningLessonScreen() {
               accessibilityRole="header"
               style={[
                 styles.relatedTitle,
-                { color: colors.foreground, fontSize: 20 * fontScale },
+                { color: colors.foreground, fontSize: 17 * fontScale },
               ]}
             >
               Related notes
@@ -478,19 +515,23 @@ export default function LearningLessonScreen() {
                   ]}
                 >
                   <View
-                    style={[
-                      styles.relatedGlyph,
-                      { backgroundColor: colors.muted },
-                    ]}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    style={styles.relatedPhoto}
                   >
-                    <Feather
-                      name={
-                        relatedLesson.icon as React.ComponentProps<
-                          typeof Feather
-                        >["name"]
-                      }
-                      size={16}
-                      color={iconColor(relatedLesson.accent, colors)}
+                    <Image
+                      accessible={false}
+                      resizeMode="cover"
+                      source={getLearningEditorialImage(relatedLesson)}
+                      style={StyleSheet.absoluteFillObject}
+                      testID="learning-related-editorial-photo"
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.relatedPhotoShade,
+                        { backgroundColor: colors.hero },
+                      ]}
                     />
                   </View>
                   <View style={styles.relatedCopy}>
@@ -509,7 +550,7 @@ export default function LearningLessonScreen() {
                     <Text
                       style={[
                         styles.relatedLessonTitle,
-                        { color: colors.foreground, fontSize: 14 * fontScale },
+                        { color: colors.foreground, fontSize: 12 * fontScale },
                       ]}
                     >
                       {relatedLesson.title}
@@ -532,12 +573,23 @@ export default function LearningLessonScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { paddingBottom: 36 },
+  content: { paddingBottom: 32 },
+  articlePhoto: {
+    borderRadius: 18,
+    height: 172,
+    marginHorizontal: 18,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+  articlePhotoShade: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.16,
+  },
   articleHeader: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 20,
-    paddingBottom: 23,
-    paddingTop: 19,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 15,
   },
   articleTopline: {
     alignItems: "center",
@@ -546,10 +598,10 @@ const styles = StyleSheet.create({
   },
   glyph: {
     alignItems: "center",
-    borderRadius: 15,
-    height: 48,
+    borderRadius: 13,
+    height: 42,
     justifyContent: "center",
-    width: 48,
+    width: 42,
   },
   bookmarkButton: {
     alignItems: "center",
@@ -562,19 +614,19 @@ const styles = StyleSheet.create({
   bookmarkText: { fontFamily: "Inter_700Bold" },
   articleEyebrow: {
     fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
-    marginTop: 18,
+    letterSpacing: 0.85,
+    marginTop: 14,
   },
   articleTitle: {
     fontFamily: "Inter_800ExtraBold",
-    letterSpacing: -0.95,
-    lineHeight: 35,
-    marginTop: 6,
+    letterSpacing: -0.7,
+    lineHeight: 29,
+    marginTop: 5,
   },
   articleDek: {
     fontFamily: "Inter_400Regular",
-    lineHeight: 23,
-    marginTop: 8,
+    lineHeight: 19,
+    marginTop: 6,
     maxWidth: 350,
   },
   completedPill: {
@@ -588,50 +640,50 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   completedPillText: { fontFamily: "Inter_700Bold" },
-  articleBody: { paddingHorizontal: 20, paddingTop: 24 },
-  section: { marginBottom: 23 },
+  articleBody: { paddingHorizontal: 18, paddingTop: 19 },
+  section: { marginBottom: 19 },
   sectionHeading: {
     fontFamily: "Inter_800ExtraBold",
-    letterSpacing: -0.45,
-    lineHeight: 25,
-    marginBottom: 9,
+    letterSpacing: -0.35,
+    lineHeight: 22,
+    marginBottom: 7,
   },
-  paragraph: { fontFamily: "Inter_400Regular", lineHeight: 23, marginTop: 10 },
-  bulletList: { gap: 10, marginTop: 14 },
-  bulletRow: { alignItems: "flex-start", flexDirection: "row", gap: 10 },
-  bulletDot: { borderRadius: 4, height: 7, marginTop: 7, width: 7 },
-  bulletText: { flex: 1, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  sectionRule: { height: StyleSheet.hairlineWidth, marginTop: 23 },
+  paragraph: { fontFamily: "Inter_400Regular", lineHeight: 19, marginTop: 8 },
+  bulletList: { gap: 8, marginTop: 11 },
+  bulletRow: { alignItems: "flex-start", flexDirection: "row", gap: 8 },
+  bulletDot: { borderRadius: 3, height: 6, marginTop: 6, width: 6 },
+  bulletText: { flex: 1, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  sectionRule: { height: StyleSheet.hairlineWidth, marginTop: 19 },
   tryCard: {
     alignItems: "flex-start",
-    borderRadius: 19,
+    borderRadius: 16,
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     marginTop: 2,
-    padding: 16,
+    padding: 13,
   },
   tryGlyph: {
     alignItems: "center",
-    borderRadius: 13,
-    height: 39,
+    borderRadius: 11,
+    height: 34,
     justifyContent: "center",
-    width: 39,
+    width: 34,
   },
   tryCopy: { flex: 1 },
   tryEyebrow: { fontFamily: "Inter_700Bold", letterSpacing: 0.9 },
-  tryText: { fontFamily: "Inter_400Regular", lineHeight: 20, marginTop: 5 },
+  tryText: { fontFamily: "Inter_400Regular", lineHeight: 18, marginTop: 4 },
   safetyCard: {
     alignItems: "flex-start",
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 11,
-    marginTop: 13,
-    padding: 16,
+    gap: 10,
+    marginTop: 11,
+    padding: 13,
   },
   safetyCopy: { flex: 1 },
   safetyTitle: { fontFamily: "Inter_700Bold" },
-  safetyText: { fontFamily: "Inter_400Regular", lineHeight: 19, marginTop: 4 },
+  safetyText: { fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 3 },
   reviewCard: {
     alignItems: "flex-start",
     borderRadius: 15,
@@ -651,56 +703,59 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    borderRadius: 15,
+    borderRadius: 14,
     flexDirection: "row",
-    gap: 8,
+    gap: 7,
     justifyContent: "center",
-    marginTop: 20,
-    minHeight: 51,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    minHeight: 46,
+    paddingHorizontal: 14,
   },
   primaryButtonText: { fontFamily: "Inter_700Bold" },
   completeButton: {
     alignItems: "center",
-    borderRadius: 15,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 8,
+    gap: 7,
     justifyContent: "center",
-    marginTop: 10,
-    minHeight: 49,
-    paddingHorizontal: 16,
+    marginTop: 9,
+    minHeight: 45,
+    paddingHorizontal: 14,
   },
   completeButtonText: { fontFamily: "Inter_700Bold" },
-  relatedSection: { marginTop: 28, paddingHorizontal: 20 },
-  relatedEyebrow: { fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  relatedSection: { marginTop: 23, paddingHorizontal: 18 },
+  relatedEyebrow: { fontFamily: "Inter_700Bold", letterSpacing: 0.85 },
   relatedTitle: {
     fontFamily: "Inter_800ExtraBold",
-    letterSpacing: -0.45,
-    marginTop: 3,
+    letterSpacing: -0.35,
+    marginTop: 2,
   },
-  relatedList: { gap: 9, marginTop: 13 },
+  relatedList: { gap: 8, marginTop: 10 },
   relatedCard: {
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
-    minHeight: 67,
-    padding: 11,
+    gap: 9,
+    minHeight: 61,
+    padding: 9,
   },
-  relatedGlyph: {
-    alignItems: "center",
-    borderRadius: 11,
-    height: 36,
-    justifyContent: "center",
-    width: 36,
+  relatedPhoto: {
+    borderRadius: 10,
+    height: 42,
+    overflow: "hidden",
+    width: 42,
+  },
+  relatedPhotoShade: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.1,
   },
   relatedCopy: { flex: 1 },
   relatedMeta: { fontFamily: "Inter_700Bold", letterSpacing: 0.65 },
   relatedLessonTitle: {
     fontFamily: "Inter_700Bold",
-    lineHeight: 18,
+    lineHeight: 16,
     marginTop: 2,
   },
   missingPage: { flex: 1 },

@@ -103,7 +103,7 @@ export type LearningCollection = {
 };
 
 const editorialReview: LearningReviewMetadata = {
-  reviewedAt: "2026-10-27",
+  reviewedAt: "2026-10-28",
   reviewedBy: "Calora editorial team",
   reviewStatus: "current",
   sourceNote:
@@ -111,7 +111,7 @@ const editorialReview: LearningReviewMetadata = {
 };
 
 const medicalEducationReview: LearningReviewMetadata = {
-  reviewedAt: "2026-10-27",
+  reviewedAt: "2026-10-28",
   reviewedBy: "Calora editorial team",
   reviewStatus: "current",
   sourceNote:
@@ -1089,6 +1089,816 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
     safety: {
       heading: "Get individual guidance when needed",
       body: "This lesson cannot tell you whether fasting is suitable for you. If you have health concerns, are managing a condition, or are unsure about medication and meal timing, consult a qualified health professional before starting or continuing a fasting routine.",
+      review: medicalEducationReview,
+    },
+  },
+
+  {
+    id: "variety-without-rules",
+    title: "Build variety without rules",
+    dek: "Use color, texture, and familiar foods to make meals more interesting—not more restrictive.",
+    topic: "Fundamentals",
+    collectionId: "nutrition-foundations",
+    readingMinutes: 3,
+    icon: "layers",
+    accent: "success",
+    sections: [
+      {
+        heading: "Think across a week",
+        paragraphs: [
+          "Variety can come from different vegetables, fruit, grains, proteins, flavors, and ways of cooking. It does not require a perfect plate at every meal or a long list of unfamiliar ingredients.",
+          "Fresh, frozen, canned, and shelf-stable foods can all make variety more available. Culture, budget, access, allergies, and personal preference belong in the decision.",
+        ],
+      },
+      {
+        heading: "Add, do not grade",
+        paragraphs: [
+          "A useful approach is to ask what one addition could bring to a meal: color, crunch, a familiar protein, or a favorite fruit. The goal is a meal that works for you, not a scorecard.",
+        ],
+      },
+    ],
+    tryThis:
+      "At one meal this week, add one familiar plant food or a different texture and notice what you enjoy about it.",
+    cta: {
+      label: "Browse recipe ideas",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["balanced-plate-basics", "macro-map"],
+    review: editorialReview,
+  },
+  {
+    id: "make-a-meal-satisfying",
+    title: "Make a meal satisfying",
+    dek: "Use taste, timing, and staying power as useful clues—not food rules.",
+    topic: "Fundamentals",
+    collectionId: "nutrition-foundations",
+    readingMinutes: 3,
+    icon: "heart",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Satisfaction is practical information",
+        paragraphs: [
+          "A meal can be easier to return to when it has enough flavor, texture, and substance for the moment. What feels satisfying can change with appetite, schedule, culture, activity, and the foods you have on hand.",
+        ],
+      },
+      {
+        heading: "Notice one helpful detail",
+        paragraphs: [
+          "Instead of judging a meal, notice a specific detail: perhaps it was convenient, filling enough for the afternoon, easy to share, or something you want to make again. That observation can guide the next choice.",
+        ],
+      },
+    ],
+    tryThis:
+      "After one meal, name one detail you would keep and one optional change that could make it fit your day even better.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["balanced-plate-basics", "calories-are-context"],
+    review: editorialReview,
+  },
+  {
+    id: "make-the-next-step-specific",
+    title: "Make the next step specific",
+    dek: "Give one useful action a time, place, and cue so it is easier to remember.",
+    topic: "Planning",
+    collectionId: "plan-with-less-pressure",
+    readingMinutes: 2,
+    icon: "check-circle",
+    accent: "success",
+    sections: [
+      {
+        heading: "Shrink the plan",
+        paragraphs: [
+          "A broad intention can be hard to begin. A smaller plan names what you will do, when it can happen, and where the needed item will be. It can be as simple as adding a snack to your bag before a commute.",
+        ],
+      },
+      {
+        heading: "Use a cue already in your day",
+        paragraphs: [
+          "Connect the action to something that already happens, such as making coffee, ending a meeting, or putting away groceries. A familiar cue can lower the work of remembering.",
+        ],
+      },
+    ],
+    tryThis:
+      "Complete this sentence: ‘When I ___, I will ___ at ___.’ Keep the action small enough to try this week.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["week-with-one-anchor", "habit-cue-design"],
+    review: editorialReview,
+  },
+  {
+    id: "plan-for-the-plan-to-change",
+    title: "Plan for the plan to change",
+    dek: "A backup choice can keep a schedule shift from becoming a full reset.",
+    topic: "Planning",
+    collectionId: "plan-with-less-pressure",
+    readingMinutes: 3,
+    icon: "repeat",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Name a likely barrier",
+        paragraphs: [
+          "Time, weather, energy, availability, invitations, and changing work can all alter a plan. Naming one predictable barrier makes it easier to choose a backup before you are already rushed.",
+        ],
+      },
+      {
+        heading: "Keep the backup genuinely easy",
+        paragraphs: [
+          "A fallback can be leftovers, a nearby option, a freezer meal, a different shopping choice, or a simpler version of the original plan. It does not need to match the first idea exactly to be useful.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write one if–then note: ‘If my first plan is not workable, then I will ___.’ Put it beside the plan it supports.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["busy-day-backup", "kind-feedback-loop"],
+    review: editorialReview,
+  },
+  {
+    id: "build-a-bowl-formula",
+    title: "Use a build-a-bowl formula",
+    dek: "Combine a base, something colorful, a protein choice, and flavor in your own way.",
+    topic: "Recipes",
+    collectionId: "cook-with-flexibility",
+    readingMinutes: 3,
+    icon: "layers",
+    accent: "success",
+    sections: [
+      {
+        heading: "Choose a flexible structure",
+        paragraphs: [
+          "A bowl, salad, wrap, or skillet can start with a grain or starchy vegetable, a colorful fruit or vegetable, and a protein food such as beans, lentils, eggs, tofu, fish, meat, yogurt, or another favorite.",
+        ],
+      },
+      {
+        heading: "Let flavor make it yours",
+        paragraphs: [
+          "Herbs, spices, citrus, sauces, crunchy toppings, and a familiar seasoning can make a simple formula feel personal. Use what is available and repeat combinations that work for your household.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one item from each part of the formula and save the combination as a low-effort meal idea.",
+    cta: {
+      label: "Explore recipes",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["balanced-plate-basics", "recipe-template"],
+    review: editorialReview,
+  },
+  {
+    id: "one-small-recipe-swap",
+    title: "Try one small recipe swap",
+    dek: "Change one ingredient at a time so you can learn what still works for you.",
+    topic: "Recipes",
+    collectionId: "cook-with-flexibility",
+    readingMinutes: 3,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Keep the recipe recognizable",
+        paragraphs: [
+          "A small swap can be adding a vegetable you like, using beans in a familiar meal, choosing a different grain, or trying herbs and citrus for flavor. One change is enough to learn from.",
+        ],
+      },
+      {
+        heading: "Make a note for next time",
+        paragraphs: [
+          "Notice texture, flavor, cost, timing, and whether the swap felt practical. A change does not have to become a permanent rule; it can simply be another option in your kitchen.",
+        ],
+      },
+    ],
+    tryThis:
+      "Pick a recipe you already know and write down one optional swap you would feel comfortable trying.",
+    cta: {
+      label: "Explore recipes",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["recipe-template", "leftovers-by-design"],
+    review: editorialReview,
+  },
+  {
+    id: "safe-prep-cook-and-save",
+    title: "Prep, cook, and save safely",
+    dek: "Keep food safety part of the recipe routine, especially with raw foods and leftovers.",
+    topic: "Recipes",
+    collectionId: "cook-with-flexibility",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "warning",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Separate the jobs",
+        paragraphs: [
+          "Start with clean hands and surfaces. Keep raw animal foods and their utensils away from ready-to-eat foods, then clean the workspace before moving on to the next task.",
+        ],
+      },
+      {
+        heading: "Make storage part of the plan",
+        paragraphs: [
+          "Follow package and local food-safety guidance for cooking and storage. Refrigerate perishable leftovers promptly in practical portions so a future meal stays easy to use.",
+        ],
+      },
+    ],
+    tryThis:
+      "Before your next cook, choose a separate prep space for raw ingredients and decide how you will label or portion leftovers.",
+    cta: {
+      label: "Browse recipe ideas",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["leftovers-by-design", "recipe-template"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Food safety first",
+      body: "This is general education, not individualized food-safety advice. Follow current package and local public-health guidance, especially for pregnancy, immune concerns, allergies, or a qualified health professional’s dietary directions.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "serving-size-reality-check",
+    title: "Check the serving-size context",
+    dek: "See what a label describes before comparing the numbers on it.",
+    topic: "Labels",
+    collectionId: "labels-with-context",
+    readingMinutes: 3,
+    icon: "pie-chart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Read the package setup",
+        paragraphs: [
+          "Nutrition information is listed for a stated serving amount, and a package can contain more than one serving. The label describes that setup; it is not an instruction about how much you must eat.",
+        ],
+      },
+      {
+        heading: "Compare like with like",
+        paragraphs: [
+          "When you compare two products, look at their serving information first. It can explain why two numbers that look similar actually describe different amounts of food.",
+        ],
+      },
+    ],
+    tryThis:
+      "Pick one packaged food, find its servings per container, and make one neutral note about the difference between a serving and the whole package.",
+    cta: {
+      label: "Explore recipes",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["read-nutrition-facts", "ingredient-list-first"],
+    review: editorialReview,
+  },
+  {
+    id: "compare-with-percent-daily-value",
+    title: "Compare labels with % Daily Value",
+    dek: "Use one label tool to compare similar products—not to rank your whole diet.",
+    topic: "Labels",
+    collectionId: "labels-with-context",
+    readingMinutes: 3,
+    icon: "activity",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Choose one reason to compare",
+        paragraphs: [
+          "Percent Daily Value can help you compare similar products on the same serving basis. You might look at fiber, sodium, added sugars, or another detail that matters for the choice in front of you.",
+        ],
+      },
+      {
+        heading: "Keep the comparison small",
+        paragraphs: [
+          "One number cannot tell the whole story of a food or a meal. Use the label alongside taste, price, ingredients, access, and how you plan to use the product.",
+        ],
+      },
+    ],
+    tryThis:
+      "Compare two similar products on one label detail and name one practical reason either option could fit your day.",
+    cta: {
+      label: "Browse recipe ideas",
+      route: "/(tabs)/recipes",
+      feature: "recipes",
+    },
+    relatedLessonIds: ["read-nutrition-facts", "serving-size-reality-check"],
+    review: editorialReview,
+  },
+  {
+    id: "allergen-and-ingredient-scan",
+    title: "Scan ingredients with a purpose",
+    dek: "Use package details for an ingredient or preference you actually need to check.",
+    topic: "Labels",
+    collectionId: "labels-with-context",
+    readingMinutes: 3,
+    icon: "tag",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with your question",
+        paragraphs: [
+          "You might read an ingredient list to compare flavors, find an ingredient you avoid, or understand what a packaged item contains. A focused question keeps the label useful instead of overwhelming.",
+        ],
+      },
+      {
+        heading: "Use the full package information",
+        paragraphs: [
+          "Ingredient order, allergen statements, and preparation instructions each offer different information. Front-of-package phrases can be useful prompts, but they do not replace the full label.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one package and locate its ingredient list and allergen statement before deciding what information matters to you.",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["ingredient-list-first", "read-nutrition-facts"],
+    review: editorialReview,
+  },
+  {
+    id: "anchor-one-small-action",
+    title: "Anchor one small action",
+    dek: "Attach a useful action to a stable part of your day instead of relying on willpower.",
+    topic: "Habits",
+    collectionId: "habits-that-fit",
+    readingMinutes: 3,
+    icon: "sun",
+    accent: "success",
+    sections: [
+      {
+        heading: "Choose the smallest useful version",
+        paragraphs: [
+          "A habit can begin with filling a bottle, checking a grocery note, saving one recipe, or setting out tomorrow’s breakfast item. The first version should feel possible on an ordinary day.",
+        ],
+      },
+      {
+        heading: "Give it a dependable home",
+        paragraphs: [
+          "Pair the action with something that already happens in the same place or time. Repetition can make a cue easier to notice, but a missed day is simply information about the setup.",
+        ],
+      },
+    ],
+    tryThis:
+      "Name one cue you already have and one action that takes less than two minutes to pair with it.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["habit-cue-design", "hydration-check-in"],
+    review: editorialReview,
+  },
+  {
+    id: "make-the-plan-easier-to-do",
+    title: "Make the plan easier to do",
+    dek: "Remove one point of friction before expecting yourself to follow through.",
+    topic: "Habits",
+    collectionId: "habits-that-fit",
+    readingMinutes: 3,
+    icon: "layers",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Look for the friction",
+        paragraphs: [
+          "A routine can be difficult because the item is out of sight, the action takes too long, the timing is awkward, or the first step is unclear. That is a setup problem you can experiment with.",
+        ],
+      },
+      {
+        heading: "Design a backup cue",
+        paragraphs: [
+          "Choose a simple if–then option for days when the first cue disappears. A second cue, an easier version, or a ready-to-use item can keep a routine flexible.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write one if–then backup for a routine: ‘If my usual cue is unavailable, then I will ___.’",
+    cta: {
+      label: "Open weekly planner",
+      route: "/(tabs)/planner",
+      feature: "planner",
+    },
+    relatedLessonIds: ["kind-feedback-loop", "busy-day-backup"],
+    review: editorialReview,
+  },
+  {
+    id: "notice-progress-without-perfection",
+    title: "Notice progress without perfection",
+    dek: "Use a simple private check-in to learn what supports a routine.",
+    topic: "Habits",
+    collectionId: "habits-that-fit",
+    readingMinutes: 3,
+    icon: "bookmark",
+    accent: "info",
+    sections: [
+      {
+        heading: "Track one useful signal",
+        paragraphs: [
+          "A checkmark, a short note, or a reminder can show you when an action was easy, missed, or adapted. The purpose is to see patterns, not to create a streak you are afraid to break.",
+        ],
+      },
+      {
+        heading: "Review with kindness",
+        paragraphs: [
+          "At the end of a few days, ask what helped, what got in the way, and whether the action should stay, shrink, move, or change. Support from a trusted person can be optional, not required.",
+        ],
+      },
+    ],
+    tryThis:
+      "For three days, make one private checkmark when your small action happens, then write one sentence about what made it easier.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-feedback-loop", "anchor-one-small-action"],
+    review: editorialReview,
+  },
+  {
+    id: "fasting-defined-without-hype",
+    title: "Define fasting without hype",
+    dek: "Meal timing is one optional pattern, not a measure of discipline or health.",
+    topic: "Fasting",
+    collectionId: "meal-timing-basics",
+    readingMinutes: 4,
+    icon: "clock",
+    accent: "warning",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Understand the choice",
+        paragraphs: [
+          "Fasting describes planned time without caloric intake, but people use the word for very different patterns. It is not required for nourishment, and a longer or stricter window is not automatically better.",
+        ],
+      },
+      {
+        heading: "Observe before changing",
+        paragraphs: [
+          "You can notice your ordinary meal timing, work, sleep, social meals, hunger, and energy without changing anything. That observation may show that no new fasting routine is needed.",
+        ],
+      },
+    ],
+    tryThis:
+      "For one day, notice your usual eating rhythm without trying to lengthen a gap or compensate for a meal.",
+    cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
+    relatedLessonIds: [
+      "fasting-basics-and-boundaries",
+      "fasting-pause-signals",
+    ],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Optional, not universal",
+      body: "Fasting is not suitable for everyone. If you have a medical condition, take medication affected by meals, are pregnant or breastfeeding, are under 18, or have a history of disordered eating, consult a qualified health professional before changing meal timing.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "fasting-and-real-life",
+    title: "Keep fasting flexible in real life",
+    dek: "A social meal, shift change, or hungry day is information—not a reason to push through.",
+    topic: "Fasting",
+    collectionId: "meal-timing-basics",
+    readingMinutes: 3,
+    icon: "calendar",
+    accent: "info",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Routines must fit the day",
+        paragraphs: [
+          "Work, travel, caregiving, celebrations, sleep changes, and access to food can all shape when eating feels practical. A routine that cannot flex may create more stress than support.",
+        ],
+      },
+      {
+        heading: "Keep nourishment ordinary",
+        paragraphs: [
+          "Choosing to eat outside a plan does not require a correction later. Return to your next regular meal or snack when it makes sense, and keep drinks and daily needs in view.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write one permission statement: ‘I can change this timing plan when my day, social life, or needs change.’",
+    cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
+    relatedLessonIds: ["fasting-pause-signals", "week-with-one-anchor"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Do not push through symptoms",
+      body: "This general education lesson cannot assess whether fasting is safe for you. End a fasting plan and seek a qualified health professional’s advice if it feels physically or emotionally unsafe, especially with ongoing dizziness, fainting, or medication questions.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "fasting-personal-guidance",
+    title: "Know when to get personal guidance",
+    dek: "Some questions about meal timing belong with a clinician, not an app timer.",
+    topic: "Fasting",
+    collectionId: "meal-timing-basics",
+    readingMinutes: 3,
+    icon: "book-open",
+    accent: "warning",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Bring the whole context",
+        paragraphs: [
+          "Medication schedules, health conditions, pregnancy or breastfeeding, injury, eating concerns, and changing energy needs can make meal timing more personal. A general guide cannot account for those details.",
+        ],
+      },
+      {
+        heading: "Ask a practical question",
+        paragraphs: [
+          "If you seek guidance, ask how meal timing interacts with your existing care, medication, sleep, activity, and daily responsibilities. The safest plan may be a different pattern—or no fasting plan at all.",
+        ],
+      },
+    ],
+    tryThis:
+      "If meal timing raises a health or medication question, write it down for a qualified professional instead of testing it alone.",
+    cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
+    relatedLessonIds: [
+      "fasting-basics-and-boundaries",
+      "fasting-defined-without-hype",
+    ],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Individual advice matters",
+      body: "Do not use this lesson to change medication, manage a condition, or start a restrictive eating pattern. Consult a qualified health professional for individualized guidance before changing meal timing when health factors apply.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "hot-and-active-day-hydration",
+    title: "Match drinks to a hot or active day",
+    dek: "Plan easy access to fluids when heat, activity, or illness changes the usual routine.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 3,
+    icon: "sun",
+    accent: "warning",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Context changes the routine",
+        paragraphs: [
+          "Heat, prolonged activity, sweating, fever, vomiting, and diarrhea can change how prepared you feel with drinks. A helpful plan is about access and regular check-ins, not a universal bottle count.",
+        ],
+      },
+      {
+        heading: "Set up the next interval",
+        paragraphs: [
+          "Before a hot commute, an active errand, or time outdoors, choose where a drink will be available and when you can pause. Start again at the next opportunity if a plan changes.",
+        ],
+      },
+    ],
+    tryThis:
+      "For one upcoming hot or active period, decide where your preferred drink will be and one moment you can check in.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "hydration-on-busy-days"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Needs can be personal",
+      body: "This is general education, not a fluid prescription. If you have heart, kidney, or other health concerns, take medicines that affect fluid balance, or have ongoing illness, ask a qualified health professional about fluids and activity.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "recognize-dehydration-signals",
+    title: "Recognize when to check in",
+    dek: "Notice concerning dehydration signals without trying to diagnose yourself from a single cue.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 3,
+    icon: "droplet",
+    accent: "warning",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Look at the bigger picture",
+        paragraphs: [
+          "Thirst, dry mouth, fatigue, dizziness, less frequent urination, or darker urine can be reasons to pause and consider fluids, heat, activity, and illness. One sign alone cannot diagnose dehydration.",
+        ],
+      },
+      {
+        heading: "Choose a safer next step",
+        paragraphs: [
+          "Move to a cooler setting if heat is involved, take a break, and seek help when symptoms are concerning, persistent, or make it hard to keep fluids down. An app lesson should not replace assessment.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write down one trusted person, local service, or qualified professional you could contact if illness or heat-related symptoms feel concerning.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "hot-and-active-day-hydration"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Get urgent help for serious symptoms",
+      body: "Confusion, fainting, difficulty breathing, severe weakness, or inability to keep fluids down may need urgent care. Seek a qualified health professional’s guidance for persistent symptoms or personal fluid needs.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "movement-snacks",
+    title: "Make room for movement snacks",
+    dek: "A few comfortable minutes can fit between the larger parts of a real day.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 3,
+    icon: "activity",
+    accent: "success",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Short bouts still count",
+        paragraphs: [
+          "Walking, wheeling, gentle mobility, standing, chores, dancing, and other everyday movement can be divided across a day. You do not need a full workout block for a movement choice to be meaningful.",
+        ],
+      },
+      {
+        heading: "Choose comfort and access",
+        paragraphs: [
+          "Pick an option that suits your space, energy, ability, and surroundings. A brief change of position or an accessible route can be enough for today.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one sitting-heavy moment and add a short, comfortable movement option you can stop or adapt at any time.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-breaks-count", "recovery-is-part-of-routine"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Start gently",
+      body: "Adapt movement to your ability and current health. Stop for pain, dizziness, feeling unwell, chest pressure, fainting, or severe shortness of breath, and seek guidance from a qualified health professional when needed.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "build-a-balanced-movement-week",
+    title: "Build a flexible movement week",
+    dek: "Mix options you enjoy with recovery instead of copying an idealized workout plan.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 4,
+    icon: "calendar",
+    accent: "info",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Create a menu, not a mandate",
+        paragraphs: [
+          "A week can include aerobic activity, strengthening, mobility, play, active travel, household movement, and rest. Listing a few options lets you choose what suits a particular day instead of treating one format as required.",
+        ],
+      },
+      {
+        heading: "Leave room to adjust",
+        paragraphs: [
+          "Energy, weather, work, caregiving, injury, and access can all change a plan. Replacing, shortening, or resting is an adjustment—not a failed week.",
+        ],
+      },
+    ],
+    tryThis:
+      "Write down two movement options and one recovery option that fit your own space, schedule, and current energy.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-breaks-count", "recovery-is-part-of-routine"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Personalize intensity",
+      body: "This lesson does not prescribe exercise. If you have symptoms, a recent injury or surgery, a health condition, pregnancy or postpartum concerns, or questions about activity, consult a qualified health professional before making substantial changes.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "steady-sleep-window",
+    title: "Build a steadier sleep window",
+    dek: "Use a realistic wake-time anchor to make nights and mornings more predictable.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 3,
+    icon: "moon",
+    accent: "info",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Start with a realistic anchor",
+        paragraphs: [
+          "A repeatable wake time can give a day some structure, even when bedtime shifts. The aim is a steadier rhythm that respects work, caregiving, travel, and the fact that some nights do not go as planned.",
+        ],
+      },
+      {
+        heading: "Protect the opportunity, not perfection",
+        paragraphs: [
+          "Give yourself enough room for rest when you can, then return to the next helpful cue after a disrupted night. A single short night does not require a strict correction the next day.",
+        ],
+      },
+    ],
+    tryThis:
+      "Choose one realistic wake-time anchor for the next three days and note whether it makes the morning feel more predictable.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["gentle-evening-reset", "sleep-and-food-rhythm"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Sleep concerns deserve support",
+      body: "This lesson is general education, not diagnosis or treatment. Do not drive or operate equipment when drowsy, and talk with a qualified health professional about persistent, severe, or safety-affecting sleep concerns.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "shape-a-calmer-sleep-runway",
+    title: "Shape a calmer sleep runway",
+    dek: "Use a short pre-bed transition and a supportive space without chasing a perfect routine.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 3,
+    icon: "moon",
+    accent: "success",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Choose one transition",
+        paragraphs: [
+          "A short wind-down can be dimming screens, doing a quiet activity, preparing one item for morning, or making the room feel calmer. Choose a version that fits your household and does not turn rest into another task to perform.",
+        ],
+      },
+      {
+        heading: "Let the environment help",
+        paragraphs: [
+          "A dark, quiet, and comfortable space may be useful when it is available, but no room needs to be perfect. Small changes such as a routine light cue or a consistent place for devices can be enough.",
+        ],
+      },
+    ],
+    tryThis:
+      "Try one 10-minute transition before bed this week and keep only the part that feels genuinely calming or practical.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["gentle-evening-reset", "steady-sleep-window"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Keep expectations gentle",
+      body: "A wind-down routine cannot diagnose or treat a sleep condition. If sleep problems persist, breathing concerns occur, or daytime sleepiness affects safety, seek a qualified health professional’s guidance.",
+      review: medicalEducationReview,
+    },
+  },
+  {
+    id: "turn-not-yet-into-next-step",
+    title: "Turn ‘not yet’ into a next step",
+    dek: "Make a challenge specific enough to practice instead of using it as a verdict about yourself.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 3,
+    icon: "check-circle",
+    accent: "success",
+    sections: [
+      {
+        heading: "Name the skill, not your worth",
+        paragraphs: [
+          "A difficult routine can reflect missing time, tools, support, practice, or a strategy that does not fit. Reframing the problem as a skill or setup question leaves room to learn without promising that effort alone solves everything.",
+        ],
+      },
+      {
+        heading: "Practice a five-minute version",
+        paragraphs: [
+          "Choose a next action that is small enough to try: save one recipe, prepare one ingredient, write one reminder, or ask one person for help. You can revise the step when you learn more.",
+        ],
+      },
+    ],
+    tryThis:
+      "Rewrite one ‘I can’t’ thought as ‘I can’t do this yet, so my next small step is ___.’",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["make-goals-flexible", "kind-check-in"],
+    review: editorialReview,
+  },
+  {
+    id: "pause-notice-choose",
+    title: "Pause, notice, choose",
+    dek: "A short nonjudgmental pause can make room for one supportive next action.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 3,
+    icon: "heart",
+    accent: "info",
+    medicalAdjacent: true,
+    sections: [
+      {
+        heading: "Notice without solving everything",
+        paragraphs: [
+          "For a moment, notice what you can sense, name a feeling if you want to, and acknowledge the situation without grading it. The goal is awareness, not a perfect calm state.",
+        ],
+      },
+      {
+        heading: "Choose one gentle response",
+        paragraphs: [
+          "A next action might be a pause, a glass of water, a short walk, a note, a meal plan change, or reaching out to someone trusted. If a practice feels more distressing than helpful, choose a different support.",
+        ],
+      },
+    ],
+    tryThis:
+      "Take 60 seconds to name one feeling and one small supportive action you can choose next—without needing to explain or fix the whole day.",
+    cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-check-in", "food-mood-observations"],
+    review: medicalEducationReview,
+    safety: {
+      heading: "Support is available",
+      body: "This general education exercise is not mental-health treatment. Stop if it increases distress, use another support, and contact a qualified health professional or local urgent service if mood or safety concerns interfere with daily life.",
       review: medicalEducationReview,
     },
   },
