@@ -143,6 +143,26 @@ describe('AuthProvider bootstrap ordering', () => {
     });
   });
 
+  it('settles a never-resolving session restore into explicit recovery state', async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <AuthProvider>
+          <AuthState />
+        </AuthProvider>,
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12_000);
+      });
+
+      expect(screen.getByTestId('restore-state').textContent).toBe('failed:session_restore');
+      expect(screen.getByTestId('identity-state').textContent).toBe('signed-out');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('adopts successful email and signup sessions without waiting for a listener event', async () => {
     getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
     signInWithEmailMock.mockResolvedValue({ success: true, session: { user: { id: 'email-user' } } });
