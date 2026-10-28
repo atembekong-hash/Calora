@@ -3,7 +3,7 @@
 **Author:** Manus AI
 **Review date:** 2026-10-28
 
-The expanded Calora Learning library contains 50 general-education lessons, with five lessons in each canonical topic. The topics below were reviewed against the cited public-health sources. Content avoids universal targets, diagnostic claims, and promised outcomes. Medical-adjacent lessons retain explicit qualified-professional referral and safety boundaries.
+The expanded Calora Learning library contains 50 general-education lessons, with five lessons in each canonical topic. Each lesson now uses at least three sections, with a practical expansion section, concrete bullets, and a longer `Try this` prompt. The topics below were reviewed against the cited public-health sources. Content avoids universal targets, diagnostic claims, and promised outcomes. Medical-adjacent lessons retain explicit qualified-professional referral and safety boundaries.
 
 ## Topics reviewed
 
