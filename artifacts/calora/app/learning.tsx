@@ -114,12 +114,16 @@ function LessonArtwork({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.artwork, compact && styles.artworkCompact]}
+      style={[
+        styles.artwork,
+        { backgroundColor: colors.card },
+        compact && styles.artworkCompact,
+      ]}
     >
       <Image
         accessible={false}
         cachePolicy="memory-disk"
-        contentFit="cover"
+        contentFit="contain"
         priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}
@@ -325,7 +329,7 @@ function FeaturedLessonCard({
       <Image
         accessible={false}
         cachePolicy="memory-disk"
-        contentFit="cover"
+        contentFit="contain"
         priority="high"
         source={getLearningEditorialImage(lesson)}
         style={StyleSheet.absoluteFillObject}

@@ -26,7 +26,7 @@ describe("Learning editorial browse layout", () => {
     expect(source).toContain("LessonArtwork");
     expect(source).toContain("getLearningEditorialImage(lesson)");
     expect(source).toContain('cachePolicy="memory-disk"');
-    expect(source).toContain('contentFit="cover"');
+    expect(source).toContain('contentFit="contain"');
     expect(source).toContain("artworkCompact");
     expect(source).toContain("lessonCardGrid");
     expect(source).toContain('flexWrap: "wrap"');
@@ -47,8 +47,8 @@ describe("Learning editorial browse layout", () => {
     expect(source).toContain('testID="learning-reader-editorial-photo"');
     expect(source).toContain('testID="learning-related-editorial-photo"');
     expect(source).toContain("articlePhoto: {");
-    expect(source).toContain("height: 236");
-    expect(source).toContain("borderRadius: 118");
+    expect(source).toContain("height: 204");
+    expect(source).toContain("borderRadius: 102");
     expect(source).toContain("articleHeroStage");
     expect(source).toContain("borderTopLeftRadius: 26");
     expect(source).toContain("opacity: 0.1");

@@ -95,7 +95,7 @@ describe("Learning editorial image identity", () => {
 
     expect(screen).toContain("getLearningEditorialImage(lesson)");
     expect(screen).toContain('cachePolicy="memory-disk"');
-    expect(screen).toContain('contentFit="cover"');
+    expect(screen).toContain('contentFit="contain"');
     expect(screen).toContain('testID="learning-lesson-editorial-photo"');
     expect(screen).toContain('testID="learning-featured-editorial-photo"');
     expect(reader).toContain("getLearningEditorialImage(lesson)");
