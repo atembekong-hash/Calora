@@ -174,12 +174,12 @@ export default function MoreScreen() {
   const quick = useMemo(() => [
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
-    { label: "Reminders", icon: "bell" as const, route: "/notifications", tint: "#f3b33f" },
+    { label: "Reminders", icon: "bell" as const, route: "/profile?tab=you&open=reminders", tint: "#f3b33f" },
     { label: "Calora Pro", icon: "award" as const, route: "/profile?tab=membership", tint: "#f2c04d" },
     { label: "Meal plan", icon: "calendar" as const, route: "/planner", tint: "#a78bfa" },
     { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
-    { label: "Health sync", icon: "heart" as const, route: "/settings", tint: GREEN },
+    { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
     { label: "Recipes", icon: "book-open" as const, route: "/recipes", tint: ORANGE },
   ], []);
   return (
@@ -190,7 +190,7 @@ export default function MoreScreen() {
             <Text style={styles.headerTitle}>More</Text>
             <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push("/settings")} style={styles.gear}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open settings and profile" onPress={() => router.push("/profile")} style={styles.gear}>
             <Feather name="settings" size={22} color={TEXT} />
           </Pressable>
         </View>
