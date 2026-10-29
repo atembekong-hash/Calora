@@ -146,16 +146,19 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("calora-insights-header.jpg");
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
-    expect(source).toContain("fastingCard: { height: 155.52");
+    expect(source).toContain("fastingCard: { height: 139.97");
     expect(source).toContain('backgroundColor: "#0a352b"');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
-    expect(source).toContain("fastRingOuter: { height: 70, width: 70");
+    expect(source).toContain("fastRingOuter: { height: 62, width: 62");
     expect(source).toContain("fastCopy: { flex: 1, minWidth: 0");
     expect(source).toContain("numberOfLines={2} style={styles.fastSubtitle}");
-    expect(source).toContain("featureCard: { flex: 1, height: 112.9");
-    expect(source).toContain("featureTitle: { color: TEXT, fontSize: 15.5 * scale");
-    expect(source).toContain('quickItem: { width: "31.5%", minHeight: 62.4');
-    expect(source).toContain('icon={item.icon} size={30}');
+    expect(source).toContain("featureCard: { flex: 1, height: 101.61");
+    expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
+    expect(source).toContain("featureTitle: { color: TEXT, fontSize: 14.5 * scale");
+    expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
+    expect(source).toContain('icon={item.icon} size={26}');
+    expect(source).toContain('name="settings" size={18}');
+    expect(source).not.toContain("Shortcuts to the things you use most");
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 14 * scale");
@@ -205,7 +208,7 @@ describe("MoreScreen feature hierarchy", () => {
       "utf8",
     );
 
-    expect(source).toContain('width: "31.5%"');
+    expect(source).toContain('width: "33%"');
     expect(source).toContain("log.date === dateKey()");
     expect(source).not.toContain("new Date().toISOString().slice(0, 10)");
   });
