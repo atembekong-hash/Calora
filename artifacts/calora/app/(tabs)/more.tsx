@@ -40,14 +40,14 @@ function IconBox({
 }
 
 function FastingCard() {
-  const { fasting, fontScale } = useCalora();
+  const { fasting, fontScale, colors } = useCalora();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
   const progress = deriveFastingProgress(fasting, now);
-  const styles = makeStyles(fontScale);
+  const styles = makeStyles(fontScale, colors);
   const subtitle = progress.active
     ? progress.remainingMs > 0
       ? `${formatFastingDuration(progress.remainingMs)} left in your ${progress.plannedHours}-hour window`
@@ -92,21 +92,23 @@ function FastingCard() {
         <Feather name="feather" size={44} color="rgba(69,226,155,.16)" />
       </View>
       <View style={styles.miniStats}>
-        <MiniStat icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
-        <MiniStat icon="bar-chart-2" label="History" caption={`${fasting.history.length} completed`} color="#5dd4a5" route="/fasting" />
-        <MiniStat icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/profile?tab=you&open=reminders" />
+        <MiniStat colors={colors} icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
+        <MiniStat colors={colors} icon="bar-chart-2" label="History" caption={`${fasting.history.length} completed`} color="#5dd4a5" route="/fasting" />
+        <MiniStat colors={colors} icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/profile?tab=you&open=reminders" />
       </View>
     </View>
   );
 }
 
 function MiniStat({
+  colors,
   icon,
   label,
   caption,
   color,
   route,
 }: {
+  colors: ReturnType<typeof useCalora>["colors"];
   icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
   caption: string;
@@ -114,19 +116,19 @@ function MiniStat({
   route: string;
 }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`Open fasting ${label}`} onPress={() => router.push(route as never)} style={styles.miniStat}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Open fasting ${label}`} onPress={() => router.push(route as never)} style={[styles.miniStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Feather name={icon} size={18} color={color} />
       <View style={styles.miniStatCopy}>
-        <Text numberOfLines={1} style={styles.miniStatLabel}>{label}</Text>
-        <Text numberOfLines={1} style={styles.miniStatCaption}>{caption}</Text>
+        <Text numberOfLines={1} style={[styles.miniStatLabel, { color: colors.foreground }]}>{label}</Text>
+        <Text numberOfLines={1} style={[styles.miniStatCaption, { color: colors.mutedForeground }]}>{caption}</Text>
       </View>
     </Pressable>
   );
 }
 
 function ProgressCard() {
-  const { weights, profile, logs, fontScale } = useCalora();
-  const styles = makeStyles(fontScale);
+  const { weights, profile, logs, fontScale, colors } = useCalora();
+  const styles = makeStyles(fontScale, colors);
   const latest = selectProgressWeightSummary(weights).latestRecord;
   const todayLogs = logs.filter((log) => log.date === dateKey());
   return (
@@ -150,8 +152,8 @@ function ProgressCard() {
 }
 
 function LearningCard() {
-  const { fontScale } = useCalora();
-  const styles = makeStyles(fontScale);
+  const { fontScale, colors } = useCalora();
+  const styles = makeStyles(fontScale, colors);
   return (
     <ScalePressable
       accessibilityRole="button"
@@ -169,8 +171,8 @@ function LearningCard() {
 }
 
 export default function MoreScreen() {
-  const { fontScale } = useCalora();
-  const styles = makeStyles(fontScale);
+  const { fontScale, colors } = useCalora();
+  const styles = makeStyles(fontScale, colors);
   const quick = useMemo(() => [
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
@@ -216,14 +218,14 @@ const styles = {
   miniStatCaption: { color: MUTED, fontSize: 8, marginTop: 1 },
 };
 
-function makeStyles(scale: number) {
+function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"]) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: "#081612" },
+    safe: { flex: 1, backgroundColor: colors.background },
     content: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 124, gap: 13 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    headerTitle: { color: TEXT, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -0.8 },
-    headerCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 1 },
-    gear: { height: 50, width: 50, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
+    headerTitle: { color: colors.foreground, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -0.8 },
+    headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
+    gear: { height: 50, width: 50, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     fastingCard: { minHeight: 172.8, borderRadius: 20, padding: 12, paddingBottom: 60, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 92 },
@@ -252,7 +254,7 @@ function makeStyles(scale: number) {
     sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
-    quickItem: { width: "31.5%", minHeight: 62.4, borderRadius: 17, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
-    quickLabel: { color: TEXT, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
+    quickItem: { width: "31.5%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 4, padding: 6 },
+    quickLabel: { color: colors.foreground, fontSize: 11 * scale, fontWeight: "700", textAlign: "center" },
   });
 }
