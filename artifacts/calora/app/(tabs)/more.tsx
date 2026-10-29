@@ -55,8 +55,15 @@ function FastingCard() {
     : "Choose a flexible fasting schedule.";
 
   return (
-    <View style={styles.fastingCard}>
+      <View style={styles.fastingCard}>
       <Pressable accessibilityRole="button" accessibilityLabel="Open Fasting" onPress={() => router.push("/fasting")} style={styles.fastingMainPressable}>
+        <View style={styles.fastLabelRow}>
+          <Text style={styles.fastTitle}>Fasting</Text>
+          <View style={styles.statusPill}>
+            <Feather name="sun" size={11} color={GREEN} />
+            <Text numberOfLines={1} style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
+          </View>
+        </View>
         <View style={styles.fastTopRow}>
           <View style={styles.fastRingOuter}>
             <View
@@ -73,15 +80,10 @@ function FastingCard() {
             </View>
           </View>
           <View style={styles.fastCopy}>
-            <View style={styles.statusPill}>
-              <Feather name="sun" size={11} color={GREEN} />
-              <Text numberOfLines={1} style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
-            </View>
-            <Text style={styles.fastTitle}>Fasting</Text>
             <Text style={styles.fastMain} numberOfLines={1}>
               {progress.active ? formatFastingDuration(progress.elapsedMs) : "Set your rhythm"}
             </Text>
-            <Text numberOfLines={2} style={styles.fastSubtitle}>{subtitle}</Text>
+            <Text numberOfLines={1} style={styles.fastSubtitle}>{subtitle}</Text>
           </View>
           <View style={styles.fastAction}>
             <Feather name="chevron-right" size={22} color={TEXT} />
@@ -204,6 +206,7 @@ export default function MoreScreen() {
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
           <Text style={styles.sectionTitle}>Quick access</Text>
+          <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
           {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={26} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
@@ -232,14 +235,15 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     fastingCard: { height: 153.97, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
+    fastLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 2 },
     fastRingOuter: { height: 62, width: 62, flexShrink: 0, borderRadius: 31, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
     fastRing: { height: 52, width: 52, borderRadius: 26, borderWidth: 6, borderLeftColor: "#456b5f", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
-    fastCopy: { flex: 1, minWidth: 0, paddingTop: 2 },
-    statusPill: { alignSelf: "flex-start", maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
+    fastCopy: { flex: 1, minWidth: 0, paddingTop: 0 },
+    statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
     statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
-    fastTitle: { color: TEXT, fontSize: 14 * scale, fontWeight: "800", marginTop: 3 },
+    fastTitle: { color: TEXT, fontSize: 14 * scale, fontWeight: "800" },
     fastMain: { color: TEXT, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1 },
-    fastSubtitle: { color: "#b8d3c8", fontSize: 10 * scale, lineHeight: 12 * scale, maxWidth: 145 },
+    fastSubtitle: { color: "#b8d3c8", fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
     fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 8, right: 8, bottom: 8, flexDirection: "row", gap: 4 },
