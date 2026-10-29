@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -18,6 +18,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, buildShoppingItems, getPlannerWeekStart, plannerDate, plannerMealTypes, plannerWeekDaysForDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { SaveAsMealButton } from '@/components/SaveAsMealButton';
 import { BottomSheet } from '@/components/BottomSheet';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
@@ -291,7 +292,7 @@ function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe;
   );
 }
 
-export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; fixedHeight?: number; compact?: boolean }) {
+export function RecipeCard({ recipe, colors, saved, onPress, onSave, onSaveAsMeal, saveAsMealDisabled = false, imageHeight = 160, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; onSaveAsMeal?: () => void; saveAsMealDisabled?: boolean; imageHeight?: number; fixedHeight?: number; compact?: boolean }) {
   return (
     <Surface tier="flat" radius="lg" style={[styles.recipeCard, fixedHeight ? { height: fixedHeight } : null]}>
       <View style={fixedHeight ? styles.recipeCardInner : undefined}>
@@ -309,9 +310,12 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
             </View>
           </View>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
-          <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
-        </Pressable>
+        <View style={styles.cardActionStack}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
+            <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
+          </Pressable>
+          {onSaveAsMeal ? <SaveAsMealButton colors={colors} onPress={onSaveAsMeal} disabled={saveAsMealDisabled} compact accessibilityLabel={saveAsMealDisabled ? `Save ${recipe.name} as meal unavailable` : `Save ${recipe.name} as meal`} /> : null}
+        </View>
       </View>
     </Surface>
   );
@@ -1421,7 +1425,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
 }
 
 export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
@@ -1818,6 +1822,19 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
               </Pressable>
               <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                 <Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={canLog ? `Save ${detail.name} as meal` : `Save ${detail.name} as meal unavailable`}
+                disabled={!canLog}
+                onPress={() => {
+                  if (!canLog || scaledKcal === null || scaledProtein === null || scaledCarbs === null || scaledFat === null) return;
+                  saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat });
+                  Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
+                }}
+                style={[styles.closeButton, { backgroundColor: colors.muted, opacity: canLog ? 1 : 0.45 }]}
+              >
+                <Feather name="bookmark" size={17} color={colors.primary} />
               </Pressable>
             </View>
             <RecipeImage recipe={detail} height={210} />
@@ -2813,11 +2830,18 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
 }
 
 export default function RecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe, fontScale, plannerMeals, shoppingItems, toggleShoppingItemByName } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, restoreRecipe, fontScale, plannerMeals, shoppingItems, toggleShoppingItemByName } = useCalora();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
+  const saveRecipeAsMeal = useCallback((recipe: BrowseRecipe) => {
+    if (!hasCompleteNutrition(recipe)) return;
+    const { calories, proteinG, carbsG, fatG } = recipe;
+    if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
+    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG });
+    Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
+  }, [saveMeal]);
   // Pre-warm the detail query during the modal's slide-up animation (~350 ms).
   // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
   // TheMealDB fetch resolves before the user finishes reading the recipe header.
@@ -3272,6 +3296,8 @@ export default function RecipesScreen() {
             compact
             onPress={() => handleCardPress(item.recipe)}
             onSave={() => toggleSavedRecipe(recipeKey(item.recipe))}
+            onSaveAsMeal={() => saveRecipeAsMeal(item.recipe)}
+            saveAsMealDisabled={!hasCompleteNutrition(item.recipe)}
           />
         </View>
       )}
@@ -3319,7 +3345,7 @@ export default function RecipesScreen() {
                 <ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>
                   {savedDiscoverRecipes.map((recipe) => (
                     <View key={recipeKey(recipe)} style={{ width: 220 }}>
-                      <RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} />
+                      <RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} onSaveAsMeal={() => saveRecipeAsMeal(recipe)} saveAsMealDisabled={!hasCompleteNutrition(recipe)} />
                     </View>
                   ))}
                 </ScrollView>
@@ -3991,15 +4017,13 @@ function makeStyles(f: number) {
       fontSize: 10 * f,
     },
     saveButton: {
-      position: 'absolute',
-      right: 8,
-      top: 8,
       width: 44,
       height: 44,
       borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    cardActionStack: { position: 'absolute', right: 8, top: 8, gap: 6 },
     cardContent: { padding: 10, flex: 1, justifyContent: 'space-between' },
     compactCardContent: {
       paddingHorizontal: 8,

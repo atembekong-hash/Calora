@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { Children, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -13,6 +13,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { SaveAsMealButton } from '@/components/SaveAsMealButton';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -42,6 +43,7 @@ function MemoryRow({
   colors,
   onForget,
   onEdit,
+  onSave,
   foodLog,
 }: {
   icon: keyof typeof Feather.glyphMap;
@@ -51,6 +53,7 @@ function MemoryRow({
   colors: ReturnType<typeof useCalora>['colors'];
   onForget: () => void;
   onEdit?: () => void;
+  onSave?: () => void;
   foodLog?: FoodLog;
 }) {
   const stale = lastActiveDate ? isStaleDate(lastActiveDate) : false;
@@ -84,6 +87,7 @@ function MemoryRow({
             <Feather name="edit-2" size={14} color={colors.foreground} />
           </Pressable>
         )}
+        {onSave && <SaveAsMealButton colors={colors} compact onPress={onSave} accessibilityLabel={`Save ${title} as meal`} />}
         <Pressable accessibilityLabel={`Forget ${title}`} onPress={onForget} style={[styles.iconAction, { backgroundColor: colors.muted }]}>
           <Feather name="eye-off" size={14} color={colors.foreground} />
         </Pressable>
@@ -95,7 +99,7 @@ function MemoryRow({
 const UNDO_WINDOW_MS = 7000;
 
 export default function LivingMemoryScreen() {
-  const { colors, livingMemory, logs, plannerMeals, updateLog, forgetLivingObservation } = useCalora();
+  const { colors, livingMemory, logs, plannerMeals, updateLog, forgetLivingObservation, saveMeal } = useCalora();
   const insets = useSafeAreaInsets();
 
   // Increment on every focus event so staleness labels re-evaluate when the
@@ -331,6 +335,10 @@ export default function LivingMemoryScreen() {
                       colors={colors}
                       foodLog={log}
                       onEdit={log ? () => startEdit(log) : undefined}
+                      onSave={log ? () => {
+                        saveMeal({ name: log.name, kind: 'meal', foodIds: log.sourceRecipeId ? [log.sourceRecipeId] : [], calories: log.calories, protein: log.protein, carbs: log.carbs, fat: log.fat });
+                        Alert.alert('Meal saved', `${log.name} is ready to log from Saved meals.`);
+                      } : undefined}
                       onForget={() => forget('meal', row.id, label)}
                     />
                   );

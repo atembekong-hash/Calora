@@ -1,7 +1,7 @@
 import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -257,7 +257,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, persistenceError, retryPersistence, fontScale } = useCalora();
+  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, persistenceError, retryPersistence, fontScale, saveMeal } = useCalora();
   const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -1413,6 +1413,18 @@ export default function PlannerScreen() {
                 <Pressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
                   <Feather name="plus" size={16} color={colors.primaryForeground} />
                   <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Save ${detail.name} as meal`}
+                  onPress={() => {
+                    saveMeal({ name: detail.name, kind: 'meal', foodIds: detail.recipeId ? [detail.recipeId] : [], calories: detail.calories, protein: detail.proteinG, carbs: detail.carbsG, fat: detail.fatG });
+                    Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
+                  }}
+                  style={[styles.dismissButton, { borderColor: colors.primary, borderWidth: 1, marginTop: 10 }]}
+                >
+                  <Feather name="bookmark" size={16} color={colors.primary} />
+                  <Text style={[styles.dismissText, { color: colors.primary }]}>Save as meal</Text>
                 </Pressable>
               </ScrollView>
             </>

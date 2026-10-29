@@ -362,6 +362,10 @@ export default function ProfileScreen() {
   const [savedMealFat, setSavedMealFat] = useState("");
   const [savedMealError, setSavedMealError] = useState("");
 
+  useEffect(() => {
+    if (open === "saved-meal") setSavedMealModal(true);
+  }, [open]);
+
   // Profile edit modal
   const [profileEditModal, setProfileEditModal] = useState(false);
   const [profileEditError, setProfileEditError] = useState("");

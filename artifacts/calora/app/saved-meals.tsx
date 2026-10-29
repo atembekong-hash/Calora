@@ -41,7 +41,21 @@ export default function SavedMealsScreen() {
   };
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <AppHeader title="Saved meals" onBack={() => router.back()} />
+      <AppHeader
+        title="Saved meals"
+        onBack={() => router.back()}
+        action={(
+          <ScalePressable
+            accessibilityRole="button"
+            accessibilityLabel="Create saved meal"
+            onPress={() => router.push("/profile?tab=you&open=saved-meal")}
+            style={styles.headerCreate}
+          >
+            <Feather name="plus" size={15} color={colors.primaryForeground} />
+            <Text style={styles.headerCreateText}>Create</Text>
+          </ScalePressable>
+        )}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -138,6 +152,15 @@ export default function SavedMealsScreen() {
               <Text style={styles.browseText}>Browse recipes</Text>
               <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
             </ScalePressable>
+            <ScalePressable
+              style={[styles.browse, styles.createEmptyButton]}
+              onPress={() => router.push("/profile?tab=you&open=saved-meal")}
+              accessibilityRole="button"
+              accessibilityLabel="Create saved meal"
+            >
+              <Feather name="plus" size={16} color={colors.primary} />
+              <Text style={styles.createEmptyText}>Create saved meal</Text>
+            </ScalePressable>
           </View>
         )}
       </ScrollView>
@@ -150,6 +173,20 @@ const makeStyles = (
 ) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
+    headerCreate: {
+      minHeight: 36,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      backgroundColor: colors.primary,
+    },
+    headerCreateText: {
+      color: colors.primaryForeground,
+      fontSize: 12 * scale,
+      fontWeight: "800",
+    },
     content: { padding: 20, gap: 16, paddingBottom: 42 },
     intro: {
       color: colors.mutedForeground,
@@ -255,4 +292,6 @@ const makeStyles = (
       gap: 8,
     },
     browseText: { color: colors.primaryForeground, fontWeight: "800", fontSize: 13 * scale },
+    createEmptyButton: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary },
+    createEmptyText: { color: colors.primary, fontWeight: "800", fontSize: 13 * scale },
   });
