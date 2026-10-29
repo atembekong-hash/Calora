@@ -338,7 +338,7 @@ export function reconcileGeneratedRecipeMedia(
   renewalWindowMs?: number,
 ): GeneratedRecipeImagePatch {
   const patch = patchForRecipeMedia(photo);
-  const renderedAndCurrent = clientState(recipe.imageStatus) === 'rendered'
+  const acceptedAndCurrent = recipe.imageReviewState === 'accepted'
     && Boolean(recipe.image)
     && recipe.imageId === patch.imageId
     && recipe.imageMediaId === patch.imageMediaId
@@ -362,12 +362,12 @@ export function reconcileGeneratedRecipeMedia(
     };
   }
 
-  if (renderedAndCurrent && currentLocator.action === 'skip' && currentLocator.reason === 'fresh') {
+  if (acceptedAndCurrent && currentLocator.action === 'skip' && currentLocator.reason === 'fresh') {
     return {
       ...patch,
       image: recipe.image,
       imageUrlExpiresAt: recipe.imageUrlExpiresAt,
-      imageStatus: 'rendered',
+      imageStatus: recipe.imageStatus === 'rendered' ? 'rendered' : 'url_ready',
     };
   }
   return patch;
