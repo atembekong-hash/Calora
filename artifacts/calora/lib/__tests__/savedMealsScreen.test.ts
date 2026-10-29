@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { savedMealCategory } from '@/lib/savedMealCategory';
+import type { SavedMeal } from '@/context/CaloraContext';
 
 const source = (file: string) => readFileSync(resolve(__dirname, '../../', file), 'utf8');
 
@@ -35,5 +37,21 @@ describe('saved meal entry points', () => {
     expect(source('app/restaurants.tsx')).toContain('Save ${detail.name} as meal');
     expect(source('app/saved-recipes.tsx')).toContain('onSaveAsMeal={saveRecipeAsMeal}');
     expect(source('app/memory.tsx')).toContain('Save ${title} as meal');
+  });
+
+  it('resolves saved-meal categories for filtering, including legacy records', () => {
+    const tofu: SavedMeal = {
+      id: 'saved-tofu', name: 'Tofu vegetable stir-fry', kind: 'recipe',
+      foodIds: ['stir-fry'], calories: 540, protein: 27, carbs: 67, fat: 18,
+    };
+    const legacy: SavedMeal = {
+      id: 'legacy-meal', name: 'Example chicken bowl', kind: 'meal',
+      foodIds: [], calories: 520, protein: 38, carbs: 42, fat: 16,
+    };
+
+    expect(savedMealCategory(tofu)).toBe('Dinner');
+    expect(savedMealCategory(legacy)).toBe('Lunch');
+    expect(source('app/saved-meals.tsx')).toContain('savedMealCategory(meal) === mealType');
+    expect(source('app/saved-meals.tsx')).toContain('No ${mealType.toLowerCase()} meals yet');
   });
 });

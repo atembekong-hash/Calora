@@ -202,7 +202,7 @@ export type MoodLog = Record<string, Mood>;
 export type DailyActivity = 'rest' | 'light' | 'moderate' | 'high';
 export type ActivityLog = Record<string, DailyActivity>;
 export type ActivityMinutesLog = Record<string, number>;
-export type SavedMeal = { id: string; name: string; kind: 'meal' | 'recipe'; foodIds: string[]; calories: number; protein: number; carbs: number; fat: number };
+export type SavedMeal = { id: string; name: string; kind: 'meal' | 'recipe'; foodIds: string[]; calories: number; protein: number; carbs: number; fat: number; mealType?: MealType };
 export type CaloraRecipe = {
   id: string;
   name: string;

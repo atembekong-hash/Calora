@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppChrome";
 import { ScalePressable } from "@/components/ScalePressable";
 import { dateKey, formatLogTime } from "@/lib/dates";
+import { savedMealCategory } from "@/lib/savedMealCategory";
 import {
   useCalora,
   type MealType,
@@ -19,6 +20,9 @@ export default function SavedMealsScreen() {
     useCalora();
   const [mealType, setMealType] = useState<MealType>("Lunch");
   const styles = makeStyles(colors, fontScale);
+  const visibleSavedMeals = savedMeals.filter(
+    (meal) => savedMealCategory(meal) === mealType,
+  );
   const logSavedMeal = (meal: SavedMeal) => {
     addLog({
       name: meal.name,
@@ -87,8 +91,8 @@ export default function SavedMealsScreen() {
             </ScalePressable>
           ))}
         </View>
-        {savedMeals.length ? (
-          savedMeals.map((meal) => (
+        {visibleSavedMeals.length ? (
+          visibleSavedMeals.map((meal) => (
             <View key={meal.id} style={styles.card}>
               <View style={styles.icon}>
                 <Feather
@@ -139,10 +143,15 @@ export default function SavedMealsScreen() {
             <View style={styles.emptyIcon}>
               <Feather name="bookmark" size={26} color={colors.successForeground} />
             </View>
-            <Text style={styles.emptyTitle}>No saved meals yet</Text>
+            <Text style={styles.emptyTitle}>
+              {savedMeals.length
+                ? `No ${mealType.toLowerCase()} meals yet`
+                : "No saved meals yet"}
+            </Text>
             <Text style={styles.emptyCopy}>
-              Save a meal from your diary or a recipe to log it again without
-              rebuilding its nutrition.
+              {savedMeals.length
+                ? `Save or categorize a meal for ${mealType.toLowerCase()} to find it here.`
+                : "Save a meal from your diary or a recipe to log it again without rebuilding its nutrition."}
             </Text>
             <ScalePressable
               style={styles.browse}
