@@ -71,9 +71,8 @@ export default function DashboardLayoutScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.intro}>
-          Choose which insights appear on Today, arrange them in your preferred
-          order, and pick a compact or expanded display when available. Your
-          choices stay on this device.
+          Make Today your own. Choose which widgets appear and arrange them in
+          the order that works best for you. Your choices stay on this device.
         </Text>
         {dashboardPreferences.order
           .filter(
@@ -156,7 +155,11 @@ export default function DashboardLayoutScreen() {
                       }
                       style={[
                         styles.iconButton,
-                        index === dashboardPreferences.order.length - 1 &&
+                        index ===
+                          dashboardPreferences.order.filter((candidate) =>
+                            CONFIGURABLE_DASHBOARD_WIDGET_IDS.includes(candidate),
+                          ).length -
+                            1 &&
                           styles.disabled,
                       ]}
                     >
