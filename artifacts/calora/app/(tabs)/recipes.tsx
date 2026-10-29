@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -1421,7 +1421,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
 }
 
 export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
@@ -1818,6 +1818,19 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
               </Pressable>
               <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                 <Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={canLog ? `Save ${detail.name} as meal` : `Save ${detail.name} as meal unavailable`}
+                disabled={!canLog}
+                onPress={() => {
+                  if (!canLog || scaledKcal === null || scaledProtein === null || scaledCarbs === null || scaledFat === null) return;
+                  saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat });
+                  Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
+                }}
+                style={[styles.closeButton, { backgroundColor: colors.muted, opacity: canLog ? 1 : 0.45 }]}
+              >
+                <Feather name="bookmark" size={17} color={colors.primary} />
               </Pressable>
             </View>
             <RecipeImage recipe={detail} height={210} />

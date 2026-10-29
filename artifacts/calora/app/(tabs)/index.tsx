@@ -945,24 +945,36 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
   );
 }
 
-function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
+function MealRow({ log, colors, onEdit, onSave }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void; onSave: () => void }) {
   const recordedAt = log.syncUpdatedAt ?? log.nutritionSnapshot?.capturedAt;
   const displayedTime = log.time === 'Just now' && recordedAt
     ? formatLogTime(new Date(recordedAt))
     : log.time;
   return (
-    <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
-      <FoodLogThumbnail log={log} size={44} borderRadius={14} />
-      <View style={styles.mealInfo}>
-        <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
-        <View style={styles.mealMeta}>
-          <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{displayedTime}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { flex: 1, borderBottomColor: colors.border }]}>
+        <FoodLogThumbnail log={log} size={44} borderRadius={14} />
+        <View style={styles.mealInfo}>
+          <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
+          <View style={styles.mealMeta}>
+            <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{displayedTime}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
-      <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
-      <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-    </ScalePressable>
+        <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
+        <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
+        <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+      </ScalePressable>
+      <ScalePressable
+        accessibilityRole="button"
+        accessibilityLabel={`Save ${log.name} as meal`}
+        onPress={onSave}
+        scale={0.94}
+        haptic="none"
+        style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
+      >
+        <Feather name="bookmark" size={17} color={colors.primary} />
+      </ScalePressable>
+    </View>
   );
 }
 
@@ -1561,7 +1573,7 @@ export default function HomeScreen() {
     livingState, fontScale, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
     startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated, hydrationError, retryHydration, isRetrying,
-    updateProfile, dashboardPreferences,
+    updateProfile, dashboardPreferences, saveMeal,
   } = useCalora();
   const insets = useSafeAreaInsets();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
@@ -1581,6 +1593,18 @@ export default function HomeScreen() {
   const macroTargets = useMemo(() => getMacroTargets(profile), [profile]);
   const target = macroTargets.calories;
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
+  const saveLoggedMeal = useCallback((log: FoodLog) => {
+    saveMeal({
+      name: log.name,
+      kind: 'meal',
+      foodIds: log.sourceRecipeId ? [log.sourceRecipeId] : [],
+      calories: log.calories,
+      protein: log.protein,
+      carbs: log.carbs,
+      fat: log.fat,
+    });
+    setSaveNotice(`${log.name} saved for quick logging.`);
+  }, [saveMeal]);
   const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
     calories: sum.calories + log.calories,
     protein: sum.protein + log.protein,
@@ -2031,7 +2055,7 @@ export default function HomeScreen() {
                 <Text style={[styles.mealGroup, { color: colors.mutedForeground }]}>{meal.toUpperCase()}</Text>
                 {mealLogs.map((log, logIndex) => (
                   <Animated.View key={log.id} entering={enterMotion('component', logIndex)}>
-                    <MealRow log={log} colors={colors} onEdit={() => setEditingLog(log)} />
+                    <MealRow log={log} colors={colors} onEdit={() => setEditingLog(log)} onSave={() => saveLoggedMeal(log)} />
                   </Animated.View>
                 ))}
               </View>
