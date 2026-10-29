@@ -20,7 +20,7 @@ const SURFACE = "#10231f";
 const BORDER = "rgba(140, 203, 177, 0.16)";
 const TEXT = "#f4fbf7";
 const MUTED = "#9ab1a7";
-const GREEN = "#45e29b";
+const GREEN = "#177a52";
 const ORANGE = "#ff876c";
 
 function IconBox({
@@ -229,7 +229,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     headerTitle: { color: colors.foreground, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -0.8 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    fastingCard: { height: 139.97, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
+    fastingCard: { height: 153.97, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
     fastRingOuter: { height: 62, width: 62, flexShrink: 0, borderRadius: 31, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
@@ -244,7 +244,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 8, right: 8, bottom: 8, flexDirection: "row", gap: 4 },
     featureRow: { flexDirection: "row", gap: 14 },
-    featureCard: { flex: 1, height: 101.61, borderRadius: 16, overflow: "hidden", position: "relative", padding: 9, justifyContent: "flex-start" },
+    featureCard: { flex: 1, height: 111.77, borderRadius: 16, overflow: "hidden", position: "relative", padding: 9, justifyContent: "flex-start" },
     progressCard: { backgroundColor: "#3b2b22" },
     learningCard: { backgroundColor: "#262148" },
     featureCopy: { position: "absolute", top: 9, right: 9, left: 46, alignItems: "flex-end" },
