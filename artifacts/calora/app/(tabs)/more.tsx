@@ -199,13 +199,13 @@ export default function MoreScreen() {
             <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Open settings and profile" onPress={() => router.push("/profile")} style={styles.gear}>
-            <Feather name="settings" size={15} color={TEXT} />
+            <Feather name="settings" size={15} color={colors.foreground} />
           </Pressable>
         </View>
         <FastingCard />
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Quick access</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick access</Text>
           <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
@@ -232,7 +232,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     headerTitle: { color: colors.foreground, fontSize: 21 * scale, fontWeight: "800", letterSpacing: -0.6 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    fastingCard: { height: 153.97, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
+    fastingCard: { height: 153.97, marginTop: 8, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
     fastLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 2 },
@@ -242,7 +242,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
     statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
     fastTitle: { color: TEXT, fontSize: 14 * scale, fontWeight: "800" },
-    fastMain: { color: TEXT, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1 },
+    fastMain: { color: TEXT, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1, transform: [{ translateY: -3 }] },
     fastSubtitle: { color: "#b8d3c8", fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
     fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
@@ -259,7 +259,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
     sectionHeading: { marginTop: 3 },
-    sectionTitle: { color: TEXT, fontSize: 17 * scale, fontWeight: "800" },
+    sectionTitle: { fontSize: 17 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "33%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, paddingVertical: 6 },

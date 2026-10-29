@@ -147,6 +147,8 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).toContain("fastingCard: { height: 153.97");
+    expect(source).toContain("marginTop: 8, borderRadius: 18");
+    expect(source).toContain("transform: [{ translateY: -3 }]");
     expect(source).toContain('backgroundColor: "#0a352b"');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
     expect(source).toContain("fastRingOuter: { height: 62, width: 62");
@@ -160,9 +162,11 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={26}');
     expect(source).toContain('name="settings" size={15}');
+    expect(source).toContain('color={colors.foreground}');
+    expect(source).toContain('style={[styles.sectionTitle, { color: colors.foreground }]}');
     expect(source).toContain('Guides, Recipes, Tips..');
     expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 21 * scale');
-    expect(source).toContain('sectionTitle: { color: TEXT, fontSize: 17 * scale');
+    expect(source).toContain('sectionTitle: { fontSize: 17 * scale');
     expect(source).toContain("Shortcuts to the things you use most");
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
