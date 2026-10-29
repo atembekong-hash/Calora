@@ -94,7 +94,7 @@ function FastingCard() {
       <View style={styles.miniStats}>
         <MiniStat icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
         <MiniStat icon="bar-chart-2" label="History" caption={`${fasting.history.length} completed`} color="#5dd4a5" route="/fasting" />
-        <MiniStat icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/notifications" />
+        <MiniStat icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/profile?tab=you&open=reminders" />
       </View>
     </View>
   );
