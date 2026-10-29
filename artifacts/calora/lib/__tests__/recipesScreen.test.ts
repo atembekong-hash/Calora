@@ -107,6 +107,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('title="Recipes"');
     expect(source).toContain('testID="saved-recipes-header-button"');
     expect(source).toContain("router.push('/saved-recipes')");
+    expect(source).toContain('testID="shopping-list-header-button"');
+    expect(source).toContain('Open shopping list');
+    expect(source).toContain('<ShoppingListSheet');
     expect(source).not.toContain('Create personalized recipe ideas');
   });
 
