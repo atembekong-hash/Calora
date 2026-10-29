@@ -151,7 +151,9 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
     expect(source).toContain("fastRingOuter: { height: 62, width: 62");
     expect(source).toContain("fastCopy: { flex: 1, minWidth: 0");
-    expect(source).toContain("numberOfLines={2} style={styles.fastSubtitle}");
+    expect(source).toContain("fastLabelRow: { flexDirection: \"row\", alignItems: \"center\", justifyContent: \"space-between\"");
+    expect(source).toContain("numberOfLines={1} style={styles.fastSubtitle}");
+    expect(source).toContain("Fasting in progress");
     expect(source).toContain("featureCard: { flex: 1, height: 111.77");
     expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
     expect(source).toContain("featureTitle: { color: TEXT, fontSize: 14.5 * scale");
@@ -161,7 +163,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('Guides, Recipes, Tips..');
     expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 21 * scale');
     expect(source).toContain('sectionTitle: { color: TEXT, fontSize: 17 * scale');
-    expect(source).not.toContain("Shortcuts to the things you use most");
+    expect(source).toContain("Shortcuts to the things you use most");
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 14 * scale");
