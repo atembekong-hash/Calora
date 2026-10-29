@@ -144,12 +144,17 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).toContain("fastingCard: { minHeight: 216");
+    expect(source).toContain("fastRingOuter: { height: 104, width: 104");
+    expect(source).toContain("fastCopy: { marginLeft: 124, marginRight: 72");
     expect(source).toContain("featureCard: { flex: 1, minHeight: 156.8");
+    expect(source).toContain("featureTitle: { color: TEXT, fontSize: 20 * scale");
     expect(source).toContain('quickItem: { width: "31.5%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={30}');
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 15 * scale");
+    expect(source).toContain("paddingBottom: 38, gap: 13");
+    expect(source).not.toContain("lowerPanel:");
   });
 
   it("keeps supporting destinations compact and does not duplicate primary routes", () => {
