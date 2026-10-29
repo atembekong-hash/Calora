@@ -165,10 +165,10 @@ describe("MoreScreen feature hierarchy", () => {
     const quickRoutes = [
       ["Open Saved meals", "/saved-meals"],
       ["Open Coach", "/coach"],
-      ["Open Reminders", "/profile?tab=you&open=reminders"],
+      ["Open Reminders", "/notifications"],
       ["Open Calora Pro", "/profile?tab=membership"],
       ["Open Goals", "/profile?tab=you&open=goals"],
-      ["Open Health sync", "/profile?tab=account&open=health"],
+      ["Open Health sync", "/settings"],
       ["Open Recipes", "/recipes"],
     ] as const;
     for (const [label, route] of quickRoutes) {
