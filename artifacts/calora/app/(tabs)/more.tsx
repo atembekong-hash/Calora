@@ -16,8 +16,6 @@ import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
 import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
 
-const SURFACE = "#10231f";
-const BORDER = "rgba(140, 203, 177, 0.16)";
 const TEXT = "#f4fbf7";
 const MUTED = "#9ab1a7";
 const GREEN = "#177a52";
@@ -40,14 +38,14 @@ function IconBox({
 }
 
 function FastingCard() {
-  const { fasting, fontScale, colors } = useCalora();
+  const { fasting, fontScale, colors, mode } = useCalora();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
   const progress = deriveFastingProgress(fasting, now);
-  const styles = makeStyles(fontScale, colors);
+  const styles = makeStyles(fontScale, colors, mode);
   const subtitle = progress.active
     ? progress.remainingMs > 0
       ? `${formatFastingDuration(progress.remainingMs)} left in your ${progress.plannedHours}-hour window`
@@ -71,8 +69,8 @@ function FastingCard() {
                 styles.fastRing,
                 {
                   borderTopColor: GREEN,
-                  borderRightColor: progress.progress > 0.25 ? GREEN : "#53776b",
-                  borderBottomColor: progress.progress > 0.55 ? GREEN : "#53776b",
+                  borderRightColor: progress.progress > 0.25 ? GREEN : mode === "dark" ? "#53776b" : colors.border,
+                  borderBottomColor: progress.progress > 0.55 ? GREEN : mode === "dark" ? "#53776b" : colors.border,
                 },
               ]}
             >
@@ -129,8 +127,8 @@ function MiniStat({
 }
 
 function ProgressCard() {
-  const { weights, profile, logs, fontScale, colors } = useCalora();
-  const styles = makeStyles(fontScale, colors);
+  const { weights, profile, logs, fontScale, colors, mode } = useCalora();
+  const styles = makeStyles(fontScale, colors, mode);
   const latest = selectProgressWeightSummary(weights).latestRecord;
   const todayLogs = logs.filter((log) => log.date === dateKey());
   return (
@@ -147,7 +145,7 @@ function ProgressCard() {
           {latest ? `${formatWeight(latest.kg, profile?.units ?? "metric")} logged` : todayLogs.length ? `${todayLogs.length} meals logged today` : "Trends, goals & insights"}
         </Text>
       </View>
-      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
+      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color={mode === "dark" ? "#fff" : colors.foreground} /></View>
       <View style={styles.chartBars} pointerEvents="none">
         {[18, 28, 14, 38, 24, 32, 18, 12].map((height, index) => <View key={index} style={[styles.chartBar, { height, opacity: 0.35 + index * 0.07 }]} />)}
       </View>
@@ -156,8 +154,8 @@ function ProgressCard() {
 }
 
 function LearningCard() {
-  const { fontScale, colors } = useCalora();
-  const styles = makeStyles(fontScale, colors);
+  const { fontScale, colors, mode } = useCalora();
+  const styles = makeStyles(fontScale, colors, mode);
   return (
     <ScalePressable
       accessibilityRole="button"
@@ -170,15 +168,15 @@ function LearningCard() {
         <Text style={styles.featureTitle}>Learning</Text>
         <Text numberOfLines={2} style={styles.featureSubtitle}>Guides, Recipes, Tips..</Text>
       </View>
-      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
+      <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color={mode === "dark" ? "#fff" : colors.foreground} /></View>
       <View style={styles.learningCards} pointerEvents="none"><View /><View /><View /></View>
     </ScalePressable>
   );
 }
 
 export default function MoreScreen() {
-  const { fontScale, colors } = useCalora();
-  const styles = makeStyles(fontScale, colors);
+  const { fontScale, colors, mode } = useCalora();
+  const styles = makeStyles(fontScale, colors, mode);
   const quick = useMemo(() => [
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
@@ -198,7 +196,7 @@ export default function MoreScreen() {
             <Text style={styles.headerTitle}>More</Text>
             <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open settings and profile" onPress={() => router.push("/profile")} style={styles.gear}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={styles.gear}>
             <Feather name="settings" size={15} color={colors.foreground} />
           </Pressable>
         </View>
@@ -224,7 +222,8 @@ const styles = {
   miniStatCaption: { color: MUTED, fontSize: 8, marginTop: 1 },
 };
 
-function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"]) {
+function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"], mode: "light" | "dark") {
+  const dark = mode === "dark";
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     content: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 124, gap: 13 },
@@ -232,29 +231,29 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     headerTitle: { color: colors.foreground, fontSize: 21 * scale, fontWeight: "800", letterSpacing: -0.6 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    fastingCard: { height: 153.97, marginTop: 8, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
+    fastingCard: { height: 153.97, marginTop: 8, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: dark ? "#0a352b" : "#e4f1e9", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
     fastLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 2 },
     fastRingOuter: { height: 62, width: 62, flexShrink: 0, borderRadius: 31, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
-    fastRing: { height: 52, width: 52, borderRadius: 26, borderWidth: 6, borderLeftColor: "#456b5f", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
+    fastRing: { height: 52, width: 52, borderRadius: 26, borderWidth: 6, borderLeftColor: dark ? "#456b5f" : colors.border, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
     fastCopy: { flex: 1, minWidth: 0, paddingTop: 0 },
     statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
     statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
-    fastTitle: { color: TEXT, fontSize: 14 * scale, fontWeight: "800" },
-    fastMain: { color: TEXT, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1, transform: [{ translateY: -3 }] },
-    fastSubtitle: { color: "#b8d3c8", fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
+    fastTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14 * scale, fontWeight: "800" },
+    fastMain: { color: dark ? TEXT : colors.foreground, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1, transform: [{ translateY: -3 }] },
+    fastSubtitle: { color: dark ? "#b8d3c8" : colors.mutedForeground, fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
     fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 8, right: 8, bottom: 8, flexDirection: "row", gap: 4 },
     featureRow: { flexDirection: "row", gap: 14 },
     featureCard: { flex: 1, height: 111.77, borderRadius: 16, overflow: "hidden", position: "relative", padding: 9, justifyContent: "flex-start" },
-    progressCard: { backgroundColor: "#3b2b22" },
-    learningCard: { backgroundColor: "#262148" },
+    progressCard: { backgroundColor: dark ? "#3b2b22" : "#f7e9df" },
+    learningCard: { backgroundColor: dark ? "#262148" : "#eeeafd" },
     featureCopy: { position: "absolute", top: 9, right: 9, left: 46, alignItems: "flex-end" },
-    featureTitle: { color: TEXT, fontSize: 14.5 * scale, fontWeight: "800", textAlign: "right" },
-    featureSubtitle: { color: "#d0d8d4", fontSize: 9.5 * scale, lineHeight: 11 * scale, maxWidth: 116, textAlign: "right", marginTop: 2 },
-    featureArrow: { position: "absolute", right: 9, bottom: 9, height: 28, width: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
+    featureTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14.5 * scale, fontWeight: "800", textAlign: "right" },
+    featureSubtitle: { color: dark ? "#d0d8d4" : colors.mutedForeground, fontSize: 9.5 * scale, lineHeight: 11 * scale, maxWidth: 116, textAlign: "right", marginTop: 2 },
+    featureArrow: { position: "absolute", right: 9, bottom: 9, height: 28, width: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.border },
     chartBars: { position: "absolute", bottom: 10, left: 10, flexDirection: "row", gap: 3, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
