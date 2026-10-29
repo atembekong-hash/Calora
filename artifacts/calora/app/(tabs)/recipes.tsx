@@ -32,7 +32,7 @@ import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy'
 import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
 import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest';
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
-import { shouldLoadMoreRecipePage } from '@/lib/recipePagination';
+import { shouldLoadMoreRecipePage, shouldRetryRecipePage } from '@/lib/recipePagination';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { isPremiumRecipeId, mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
@@ -3163,6 +3163,20 @@ export default function RecipesScreen() {
     });
     if (nextOffset == null) return;
     loadingMoreRef.current = true;
+    if (shouldRetryRecipePage({
+      section: 'discover',
+      activeSection,
+      nextOffset: remoteNextOffset,
+      requestedOffset: remoteOffset,
+      isError: recipesQuery.isError,
+      isFetching: recipesQuery.isFetching,
+      isLoadingMore: false,
+    })) {
+      void recipesQuery.refetch().finally(() => {
+        loadingMoreRef.current = false;
+      });
+      return;
+    }
     setRemoteOffset(nextOffset);
   };
   const loadMoreDiscoverRecipesIfAtEnd = (section: RecipeSection) => {

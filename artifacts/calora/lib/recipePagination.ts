@@ -33,3 +33,28 @@ export function shouldLoadMoreRecipePage(
     input.contentHeight - Math.max(0, input.prefetchDistance)
   );
 }
+
+/**
+ * A failed continuation keeps the same cursor in the catalogue. Treating that
+ * cursor as a new offset would only update state to the value it already has,
+ * so a later end-of-list event must explicitly refetch the failed request.
+ */
+export function shouldRetryRecipePage(input: {
+  section: RecipePaginationMetrics['section'];
+  activeSection: RecipePaginationMetrics['activeSection'];
+  nextOffset: number | null | undefined;
+  requestedOffset: number | null | undefined;
+  isError: boolean;
+  isFetching: boolean;
+  isLoadingMore: boolean;
+}): boolean {
+  return input.section === input.activeSection
+    && input.isError
+    && !input.isFetching
+    && !input.isLoadingMore
+    && input.nextOffset != null
+    && input.requestedOffset != null
+    && Number.isFinite(input.nextOffset)
+    && Number.isFinite(input.requestedOffset)
+    && Math.floor(input.nextOffset) === Math.floor(input.requestedOffset);
+}
