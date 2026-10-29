@@ -8,6 +8,7 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type ScrollView,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -63,6 +64,7 @@ type SwipeableSectionPagerProps<T extends string> = {
 };
 
 type SwipeGestureExclusionContextValue = { setExcluded: (excluded: boolean) => void };
+type NativePagerHandle = Pick<ScrollView, 'scrollTo'>;
 const SwipeGestureExclusionContext = React.createContext<SwipeGestureExclusionContextValue | null>(null);
 
 type SwipeMenuHighlightContextValue = {
@@ -315,7 +317,7 @@ export function SwipeableSectionPager<T extends string>({
   const onChangeRef = useRef(onChange);
   const onPreviewChangeRef = useRef(onPreviewChange);
   const lastPreviewIndexRef = useRef<number | null>(null);
-  const nativePagerRef = useRef<React.ComponentRef<typeof Animated.ScrollView>>(null);
+  const nativePagerRef = useRef<NativePagerHandle | null>(null);
   itemsRef.current = items;
   onChangeRef.current = onChange;
   onPreviewChangeRef.current = onPreviewChange;
@@ -467,7 +469,9 @@ export function SwipeableSectionPager<T extends string>({
         testID={testID}
       >
         <Animated.ScrollView
-          ref={nativePagerRef}
+          ref={(instance) => {
+            nativePagerRef.current = instance;
+          }}
           horizontal
           pagingEnabled
           directionalLockEnabled
