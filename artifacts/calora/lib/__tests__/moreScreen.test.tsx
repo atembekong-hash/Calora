@@ -146,13 +146,13 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("calora-insights-header.jpg");
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
-    expect(source).toContain("fastingCard: { height: 139.97");
+    expect(source).toContain("fastingCard: { height: 153.97");
     expect(source).toContain('backgroundColor: "#0a352b"');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
     expect(source).toContain("fastRingOuter: { height: 62, width: 62");
     expect(source).toContain("fastCopy: { flex: 1, minWidth: 0");
     expect(source).toContain("numberOfLines={2} style={styles.fastSubtitle}");
-    expect(source).toContain("featureCard: { flex: 1, height: 101.61");
+    expect(source).toContain("featureCard: { flex: 1, height: 111.77");
     expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
     expect(source).toContain("featureTitle: { color: TEXT, fontSize: 14.5 * scale");
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
