@@ -111,7 +111,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(avatarSection).not.toMatch(/Image|ProfilePhoto|uri=|source=/);
   });
 
-  it('does not render photos, remote image locators, or local asset requires anywhere in Today', async () => {
+  it('uses the shared honest food-thumbnail resolver for diary rows without adding a large gallery', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -119,11 +119,13 @@ describe('Today dashboard visual-source boundary', () => {
       'utf8',
     );
 
-    expect(source).not.toMatch(/<Image(?:Background)?\b|expo-image|LinearGradient/);
-    expect(source).not.toMatch(/assets\/images|\brequire\(|recipe\.image|ProfilePhoto|FoodLogThumbnail/);
+    expect(source).not.toMatch(/<ImageBackground\b|LinearGradient/);
+    expect(source).not.toMatch(/assets\/images|\brequire\(|recipe\.image|ProfilePhoto/);
+    expect(source).toContain("import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';");
+    expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).not.toContain('useHourlyHeaderImage');
     expect(source).toContain('styles.recipeWidgetGlyph');
-    expect(source).toContain('styles.mealRowGlyph');
+    expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
   });
 });

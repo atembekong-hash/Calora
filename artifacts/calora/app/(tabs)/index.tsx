@@ -20,6 +20,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
+import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { StepMilestoneCelebration } from '@/components/StepMilestoneCelebration';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -951,9 +952,7 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
     : log.time;
   return (
     <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.mealRowGlyph, { backgroundColor: colors.muted }]}>
-        <Feather name={log.meal === 'Breakfast' ? 'sun' : log.meal === 'Dinner' ? 'moon' : 'coffee'} size={16} color={colors.primary} />
-      </View>
+      <FoodLogThumbnail log={log} size={44} borderRadius={14} />
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
