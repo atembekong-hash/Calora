@@ -1831,6 +1831,8 @@ export default function InsightsScreen() {
       <AppHeader
         leftAlignTitle
         title="Progress"
+        back
+        onBack={() => router.replace('/(tabs)/more')}
         action={
           <View style={styles.headerActions}>
             <Pressable
