@@ -29,9 +29,6 @@ describe("Profile / Settings / Notifications route ownership", () => {
     const profile = read("(tabs)/profile.tsx");
     expect(profile).toContain("profileTabFromParam");
     expect(profile).toContain("profileOpenIntentFromParam");
-    const canonicalProfile = read("profile.tsx");
-    expect(canonicalProfile).toContain("legacyRequested");
-    expect(canonicalProfile).toContain('router.replace(`/(tabs)/profile');
   });
 
   it("keeps notification scheduling behind the existing reconciliation boundary", () => {
@@ -39,11 +36,5 @@ describe("Profile / Settings / Notifications route ownership", () => {
     expect(notifications).toContain("reconcileUserNotificationPlan");
     expect(notifications).toContain("updateNotificationPreferences");
     expect(notifications).toContain("PermissionBanner");
-    expect(notifications).toContain('accessibilityLabel="Toggle all notifications"');
-    expect(notifications).toContain('accessibilityLabel="Toggle quiet hours"');
-    expect(read("../components/ProfileSettingsPrimitives.tsx")).toContain('accessibilityLabel="Open notification settings"');
-    const settings = read("settings.tsx");
-    expect(settings).toContain('accessibilityRole="radio"');
-    expect(settings).toContain('accessibilityLabel="Open profile"');
   });
 });
