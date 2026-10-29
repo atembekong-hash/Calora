@@ -527,7 +527,7 @@ export default function LearningScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader title="Learning" back leftAlignTitle action={headerAction} />
+      <AppHeader title="Learning" back leftAlignTitle titleOffset={8} action={headerAction} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
