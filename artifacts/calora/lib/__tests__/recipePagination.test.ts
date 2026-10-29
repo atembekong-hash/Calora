@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldLoadMoreRecipePage } from "../recipePagination";
+import { shouldLoadMoreRecipePage, shouldRetryRecipePage } from "../recipePagination";
 
 describe("recipe pagination threshold", () => {
   const base = {
@@ -64,5 +64,35 @@ describe("recipe pagination threshold", () => {
         contentHeight: 0,
       }),
     ).toBe(false);
+  });
+
+  it("retries the failed cursor instead of setting the same offset again", () => {
+    expect(shouldRetryRecipePage({
+      section: "discover",
+      activeSection: "discover",
+      nextOffset: 18,
+      requestedOffset: 18,
+      isError: true,
+      isFetching: false,
+      isLoadingMore: false,
+    })).toBe(true);
+  });
+
+  it("does not retry a healthy, fetching, terminal, or neighboring pane", () => {
+    const retry = {
+      section: "discover" as const,
+      activeSection: "discover" as const,
+      nextOffset: 18,
+      requestedOffset: 18,
+      isError: true,
+      isFetching: false,
+      isLoadingMore: false,
+    };
+    expect(shouldRetryRecipePage({ ...retry, isError: false })).toBe(false);
+    expect(shouldRetryRecipePage({ ...retry, isFetching: true })).toBe(false);
+    expect(shouldRetryRecipePage({ ...retry, isLoadingMore: true })).toBe(false);
+    expect(shouldRetryRecipePage({ ...retry, nextOffset: null })).toBe(false);
+    expect(shouldRetryRecipePage({ ...retry, requestedOffset: 0 })).toBe(false);
+    expect(shouldRetryRecipePage({ ...retry, activeSection: "premium" })).toBe(false);
   });
 });
