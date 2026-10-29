@@ -1,9 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useMemo } from "react";
 import { Image } from "expo-image";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { AppHeader } from "@/components/AppChrome";
 import { ProfileYouSettings } from "@/components/ProfileYouSettings";
@@ -13,40 +11,17 @@ import { useCalora } from "@/context/CaloraContext";
 import { useAuth } from "@/context/AuthContext";
 import { BRAND } from "@/lib/brand";
 import { useSubscription } from "@/lib/revenuecat";
-import { completeDeviceLocalReset } from "@/lib/deviceLocalReset";
-import { ClearAllDataError } from "@/lib/clearAllData";
-import { deriveExportHasData, makeExportHandler } from "@/lib/exportUiHandler";
 
 const legacyIntents = new Set(["reminders", "goals", "health"]);
 const legacyTabs = new Set(["membership", "account"]);
 
 export default function CanonicalProfileScreen() {
   const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
-  const { user, signOut } = useAuth();
-  const { colors, profile, updateProfile, profilePhotoUri, exportData, clearAllData, isClearing, logs, onboardingDraft } = useCalora();
+  const { user } = useAuth();
+  const { colors, profile, updateProfile, profilePhotoUri } = useCalora();
   const { isSubscribed } = useSubscription();
-  const [isExporting, setIsExporting] = React.useState(false);
-  const exportLockRef = React.useRef(false);
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const legacyRequested = legacyIntents.has(String(open)) || legacyTabs.has(String(tab));
-  const hasExportData = deriveExportHasData(profile, logs, onboardingDraft);
-  const handleExport = makeExportHandler(
-    exportLockRef,
-    exportData,
-    { cacheDirectory: FileSystem.cacheDirectory, writeAsStringAsync: FileSystem.writeAsStringAsync, deleteAsync: FileSystem.deleteAsync, shareAsync: Sharing.shareAsync },
-    { setLoading: setIsExporting, onNoData: () => Alert.alert("No data", "There is no local data to export yet."), onError: () => Alert.alert("Export failed", "Could not prepare the export. Please try again.") },
-  );
-  const handleClear = () => {
-    if (isClearing) return;
-    Alert.alert("Clear this device?", "This removes local Calora data and signs this device out. Your remote account is not deleted.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Clear local data", style: "destructive", onPress: () => {
-        void completeDeviceLocalReset(clearAllData, signOut).catch((error) => {
-          Alert.alert("Could not clear data", error instanceof ClearAllDataError ? "Your local data was not fully cleared. Please try again." : "Please try again.");
-        });
-      } },
-    ]);
-  };
 
   useEffect(() => {
     if (!legacyRequested) return;
@@ -80,7 +55,7 @@ export default function CanonicalProfileScreen() {
         <SectionHeader eyebrow="03" title="Membership" description="Your plan and benefits stay separate from product settings." theme={colors} />
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}><SettingRow icon="award" title={isSubscribed ? `${BRAND.premiumName} is active` : BRAND.premiumName} description={isSubscribed ? "Manage your subscription and benefits" : "Explore premium nutrition support"} theme={colors} onPress={() => router.push("/(tabs)/profile?tab=membership" as never)} /></View>
         <SectionHeader eyebrow="04" title="Account" description="Sign-in and account actions are kept together." theme={colors} />
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}><SettingRow icon="download" title="Export your data" description={hasExportData ? "Share a portable copy of your local wellness data" : "No local data is ready to export yet"} theme={colors} onPress={hasExportData && !isExporting ? () => void handleExport() : undefined} right={isExporting ? <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>Preparing…</Text> : <Feather name="chevron-right" size={18} color={hasExportData ? colors.mutedForeground : colors.disabledForeground} />} /><SettingRow icon="trash-2" title="Clear local data" description="Remove this device's data and sign out" theme={colors} onPress={handleClear} destructive /><SettingRow icon="user" title="Account and security" description="Sign out, privacy, and account recovery" theme={colors} onPress={() => router.push("/(tabs)/profile?tab=account" as never)} /><SettingRow icon="sliders" title="App settings" description="Appearance, behavior, privacy, and support" theme={colors} onPress={() => router.push("/settings")} /></View>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}><SettingRow icon="user" title="Account and security" description="Sign out, privacy, and account recovery" theme={colors} onPress={() => router.push("/(tabs)/profile?tab=account" as never)} /><SettingRow icon="sliders" title="App settings" description="Appearance, behavior, privacy, and support" theme={colors} onPress={() => router.push("/settings")} /></View>
       </ScrollView>
     </View>
   );

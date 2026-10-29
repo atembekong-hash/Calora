@@ -10,16 +10,12 @@ describe("Profile / Settings / Notifications route ownership", () => {
     expect(read("profile.tsx")).toContain('title="Profile"');
     expect(read("profile.tsx")).toContain("Personal information");
     expect(read("profile.tsx")).toContain("Membership");
-    expect(read("profile.tsx")).toContain("Export your data");
-    expect(read("profile.tsx")).toContain("Clear local data");
     expect(read("settings.tsx")).toContain('title="Settings"');
     expect(read("settings.tsx")).toContain("Appearance");
     expect(read("settings.tsx")).toContain("Privacy & data");
     expect(read("notifications.tsx")).toContain('title="Notifications"');
     expect(read("notifications.tsx")).toContain("Permission status");
     expect(read("notifications.tsx")).toContain("Quiet hours");
-    expect(read("settings.tsx")).not.toContain('title="Clear local data"');
-    expect(read("settings.tsx")).not.toContain('title="Export your data"');
   });
 
   it("moves More entry points to canonical routes without deleting legacy deep links", () => {

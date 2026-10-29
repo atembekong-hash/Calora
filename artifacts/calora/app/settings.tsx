@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import React, { useMemo, useRef, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { AppHeader } from "@/components/AppChrome";
@@ -7,6 +9,9 @@ import { SectionHeader, SettingRow } from "@/components/ProfileSettingsPrimitive
 import { useCalora, type ThemePreference } from "@/context/CaloraContext";
 import { useAuth } from "@/context/AuthContext";
 import { BRAND, EMAILS, URLS } from "@/lib/brand";
+import { completeDeviceLocalReset } from "@/lib/deviceLocalReset";
+import { ClearAllDataError } from "@/lib/clearAllData";
+import { deriveExportHasData, makeExportHandler } from "@/lib/exportUiHandler";
 import { launchExternalUrl } from "@/lib/externalLink";
 
 const themeOptions: Array<{ key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }> = [
@@ -22,17 +27,38 @@ const fontOptions = [
 ];
 
 export default function SettingsScreen() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const {
     colors, themePreference, setThemePreference, fontSizeScale, setFontSizeScale,
     profile, updateProfile, healthConnected, connectHealth, openHealthSettings,
-    disconnectHealth, persistenceError, retryPersistence,
+    disconnectHealth, exportData, clearAllData, isClearing, logs, onboardingDraft,
+    persistenceError, retryPersistence,
   } = useCalora();
+  const [working, setWorking] = useState(false);
+  const exportLockRef = useRef(false);
+  const hasExportData = deriveExportHasData(profile, logs, onboardingDraft);
   const styles = useMemo(() => makeStyles(colors, 1), [colors]);
 
   const openExternal = async (title: string, url: string) => {
     const result = await launchExternalUrl(Linking, url);
     if (result !== "opened") Alert.alert(`${title} unavailable`, `Could not open ${title.toLowerCase()} right now.`);
+  };
+  const handleExport = makeExportHandler(
+    exportLockRef, exportData,
+    { cacheDirectory: FileSystem.cacheDirectory, writeAsStringAsync: FileSystem.writeAsStringAsync, deleteAsync: FileSystem.deleteAsync, shareAsync: Sharing.shareAsync },
+    { setLoading: setWorking, onNoData: () => Alert.alert("No data", "There is no local data to export yet."), onError: () => Alert.alert("Export failed", "Could not prepare the export. Please try again.") },
+  );
+  const handleClear = () => {
+    if (isClearing) return;
+    Alert.alert("Clear this device?", "This removes local Calora data and signs this device out. Your remote account is not deleted.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Clear local data", style: "destructive", onPress: () => {
+        void (async () => {
+          try { await completeDeviceLocalReset(clearAllData, signOut); }
+          catch (error) { Alert.alert("Could not clear data", error instanceof ClearAllDataError ? "Your local data was not fully cleared. Please try again." : "Please try again."); }
+        })();
+      } },
+    ]);
   };
   const setUnits = (units: "metric" | "imperial") => { void updateProfile({ units }); };
 
@@ -64,8 +90,9 @@ export default function SettingsScreen() {
         <SectionHeader eyebrow="03" title="Privacy & data" description="Your local data stays under your control." theme={colors} />
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {persistenceError ? <Pressable accessibilityRole="alert" onPress={retryPersistence} style={[styles.notice, { backgroundColor: colors.warningTint }]}><Feather name="alert-triangle" size={17} color={colors.warning} /><Text style={[styles.noticeText, { color: colors.warningForeground }]}>Some changes are waiting to be saved. Tap to retry.</Text></Pressable> : null}
-          <SettingRow icon="user" title="Account data" description="Export and clear controls live under Profile → Account" theme={colors} onPress={() => router.push("/profile")} />
+          <SettingRow icon="download" title="Export your data" description={hasExportData ? "Share a portable copy of your local wellness data" : "No local data is ready to export yet"} theme={colors} onPress={hasExportData && !working ? () => void handleExport() : undefined} right={working ? <Text style={[styles.status, { color: colors.primary }]}>Preparing…</Text> : <Feather name="chevron-right" size={18} color={hasExportData ? colors.mutedForeground : colors.disabledForeground} />} />
           <SettingRow icon="shield" title="Privacy policy" description="How Calora handles your information" theme={colors} onPress={() => void openExternal("Privacy policy", URLS.privacy)} />
+          <SettingRow icon="trash-2" title="Clear local data" description="Remove this device's data and sign out" theme={colors} onPress={handleClear} destructive />
         </View>
 
         <SectionHeader eyebrow="04" title="Support & information" description="Get help or learn more about Calora." theme={colors} />
