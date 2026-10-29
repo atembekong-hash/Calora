@@ -58,8 +58,8 @@ function FastingCard() {
         <View style={styles.fastLabelRow}>
           <Text style={styles.fastTitle}>Fasting</Text>
           <View style={styles.statusPill}>
-            <Feather name="sun" size={11} color={GREEN} />
-            <Text numberOfLines={1} style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
+            <Feather name="sun" size={11} color={mode === "dark" ? GREEN : colors.successForeground} />
+            <Text numberOfLines={1} style={[styles.statusText, { color: mode === "dark" ? GREEN : colors.successForeground }]}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
           </View>
         </View>
         <View style={styles.fastTopRow}>
@@ -74,7 +74,7 @@ function FastingCard() {
                 },
               ]}
             >
-              <Feather name="clock" size={22} color={TEXT} />
+              <Feather name="clock" size={22} color={mode === "dark" ? TEXT : colors.foreground} />
             </View>
           </View>
           <View style={styles.fastCopy}>
@@ -84,7 +84,7 @@ function FastingCard() {
             <Text numberOfLines={1} style={styles.fastSubtitle}>{subtitle}</Text>
           </View>
           <View style={styles.fastAction}>
-            <Feather name="chevron-right" size={22} color={TEXT} />
+            <Feather name="chevron-right" size={22} color={mode === "dark" ? TEXT : colors.foreground} />
           </View>
         </View>
       </Pressable>
@@ -204,7 +204,7 @@ export default function MoreScreen() {
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick access</Text>
-          <Text style={styles.sectionCaption}>Shortcuts to the things you use most</Text>
+        <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
           {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={26} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
@@ -238,12 +238,12 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     fastRingOuter: { height: 62, width: 62, flexShrink: 0, borderRadius: 31, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
     fastRing: { height: 52, width: 52, borderRadius: 26, borderWidth: 6, borderLeftColor: dark ? "#456b5f" : colors.border, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
     fastCopy: { flex: 1, minWidth: 0, paddingTop: 0 },
-    statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
+    statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint },
     statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
     fastTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14 * scale, fontWeight: "800" },
     fastMain: { color: dark ? TEXT : colors.foreground, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1, transform: [{ translateY: -3 }] },
     fastSubtitle: { color: dark ? "#b8d3c8" : colors.mutedForeground, fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
-    fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
+    fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card, borderWidth: 1, borderColor: dark ? "rgba(255,255,255,.14)" : colors.border, alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
     miniStats: { position: "absolute", left: 8, right: 8, bottom: 8, flexDirection: "row", gap: 4 },
     featureRow: { flexDirection: "row", gap: 14 },
@@ -253,13 +253,13 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     featureCopy: { position: "absolute", top: 9, right: 9, left: 46, alignItems: "flex-end" },
     featureTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14.5 * scale, fontWeight: "800", textAlign: "right" },
     featureSubtitle: { color: dark ? "#d0d8d4" : colors.mutedForeground, fontSize: 9.5 * scale, lineHeight: 11 * scale, maxWidth: 116, textAlign: "right", marginTop: 2 },
-    featureArrow: { position: "absolute", right: 9, bottom: 9, height: 28, width: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.border },
+    featureArrow: { position: "absolute", right: 9, bottom: 9, height: 28, width: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.card, borderWidth: 1, borderColor: colors.border },
     chartBars: { position: "absolute", bottom: 10, left: 10, flexDirection: "row", gap: 3, alignItems: "flex-end" },
-    chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
+    chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
     sectionHeading: { marginTop: 3 },
     sectionTitle: { fontSize: 17 * scale, fontWeight: "800" },
-    sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
+    sectionCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "33%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, paddingVertical: 6 },
     quickLabel: { color: colors.foreground, fontSize: 10.5 * scale, fontWeight: "700", textAlign: "center" },
