@@ -582,7 +582,7 @@ export default function FastingScreen() {
               <Text style={styles.rowSubtitle}>
                 {remindersEnabled
                   ? "Using your existing meal reminder settings"
-                  : "Off — manage your existing reminders in Settings"}
+                  : "Off — manage your existing reminders in Profile → Reminders"}
               </Text>
             </View>
             <Feather

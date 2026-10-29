@@ -190,6 +190,10 @@ describe("fasting screen safety and routes", () => {
     expect(source).toContain('lessonId: "fasting-basics-and-boundaries"');
     expect(source).toContain('router.push("/profile?tab=you&open=reminders")');
     expect(source).toContain(
+      "Off — manage your existing reminders in Profile → Reminders",
+    );
+    expect(source).not.toContain("manage your existing reminders in Settings");
+    expect(source).toContain(
       'accessibilityLabel="Custom fasting duration in hours"',
     );
     expect(source).toContain('testID="fasting-calendar"');

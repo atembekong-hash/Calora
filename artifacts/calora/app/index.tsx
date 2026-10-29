@@ -702,7 +702,7 @@ export default function OnboardingScreen() {
           {step === 6 && (
             <View>
               <Text style={[styles.title, { color: colors.foreground }]}>Here is your starting plan.</Text>
-              <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data can be exported or deleted from Settings.</Text>
+              <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data can be exported or deleted from Profile → Account.</Text>
               <OnboardingPhotoHero scene="review" colors={colors} />
               <Pressable
                 testID="onboarding-consent"

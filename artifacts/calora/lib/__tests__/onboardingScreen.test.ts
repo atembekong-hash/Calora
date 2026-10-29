@@ -69,6 +69,13 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     expect(source).toContain('onboardingDraft');
   });
 
+  it('identifies Profile Account as the home for export and deletion controls', async () => {
+    const source = await onboardingSource();
+
+    expect(source).toContain('Your data can be exported or deleted from Profile → Account.');
+    expect(source).not.toContain('Your data can be exported or deleted from Settings.');
+  });
+
   it('uses bundled food photography with restrained motion that honors reduced-motion settings', async () => {
     const source = await onboardingSource();
 
