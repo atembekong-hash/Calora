@@ -129,6 +129,9 @@ describe("MoreScreen feature hierarchy", () => {
       fireEvent.click(screen.getByRole("button", { name: label }));
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
+
+    fireEvent.click(screen.getByRole("button", { name: "Open fasting Reminders" }));
+    expect(harness.router.push).toHaveBeenLastCalledWith("/profile?tab=you&open=reminders");
   });
 
   it("keeps the three primary cards photo-free and typography compact", () => {
