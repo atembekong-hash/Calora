@@ -26,3 +26,7 @@ The existing hidden tab route `/(tabs)/profile` remains available for legacy `ta
 - Full `pnpm test:ci`: **BLOCKED by the same environment-level Undici worker error**; no native build or deployment was triggered.
 
 No production deployment, Railway change, Expo/EAS build, Android build, iOS build, or app-store submission was performed.
+
+## Protected workflow
+
+The implementation commit is `c1968d324d5e408c16179804d32341061c5e322e`. The feature branch was aligned with protected `main` and pushed as merge commit `64078b9da505ec8147e0e9961bfb4563896b4d28`. Pull request [#263](https://github.com/atembekong-hash/Calora/pull/263) is open and current. Its four required checks are pending; none has failed, and the PR has not been merged.
