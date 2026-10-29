@@ -157,7 +157,10 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("featureTitle: { color: TEXT, fontSize: 14.5 * scale");
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={26}');
-    expect(source).toContain('name="settings" size={18}');
+    expect(source).toContain('name="settings" size={15}');
+    expect(source).toContain('Guides, Recipes, Tips..');
+    expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 21 * scale');
+    expect(source).toContain('sectionTitle: { color: TEXT, fontSize: 17 * scale');
     expect(source).not.toContain("Shortcuts to the things you use most");
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');

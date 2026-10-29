@@ -166,7 +166,7 @@ function LearningCard() {
       <IconBox color="#9d77ff" icon="book-open" size={30} />
       <View style={styles.featureCopy}>
         <Text style={styles.featureTitle}>Learning</Text>
-        <Text numberOfLines={2} style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
+        <Text numberOfLines={2} style={styles.featureSubtitle}>Guides, Recipes, Tips..</Text>
       </View>
       <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
       <View style={styles.learningCards} pointerEvents="none"><View /><View /><View /></View>
@@ -197,7 +197,7 @@ export default function MoreScreen() {
             <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Open settings and profile" onPress={() => router.push("/profile")} style={styles.gear}>
-            <Feather name="settings" size={18} color={TEXT} />
+            <Feather name="settings" size={15} color={TEXT} />
           </Pressable>
         </View>
         <FastingCard />
@@ -226,7 +226,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     safe: { flex: 1, backgroundColor: colors.background },
     content: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 124, gap: 13 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    headerTitle: { color: colors.foreground, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -0.8 },
+    headerTitle: { color: colors.foreground, fontSize: 21 * scale, fontWeight: "800", letterSpacing: -0.6 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     fastingCard: { height: 153.97, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: "#0a352b", overflow: "hidden", position: "relative" },
@@ -255,7 +255,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
     sectionHeading: { marginTop: 3 },
-    sectionTitle: { color: TEXT, fontSize: 23 * scale, fontWeight: "800" },
+    sectionTitle: { color: TEXT, fontSize: 17 * scale, fontWeight: "800" },
     sectionCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "33%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, paddingVertical: 6 },
