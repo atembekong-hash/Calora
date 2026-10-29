@@ -5,7 +5,7 @@ import React from "react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -28,8 +28,8 @@ const harness = vi.hoisted(() => ({
     savedMeals: [],
     fasting: {
       selectedPlanId: "12:12",
-      activeStartedAt: null,
-      activePlannedHours: null,
+      activeStartedAt: null as string | null,
+      activePlannedHours: null as number | null,
       history: [],
     },
     weights: [] as Array<{
@@ -111,8 +111,14 @@ import MoreScreen from "@/app/(tabs)/more";
 describe("MoreScreen feature hierarchy", () => {
   beforeEach(() => {
     harness.router.push.mockReset();
+    harness.calora.fasting.activeStartedAt = null;
+    harness.calora.fasting.activePlannedHours = null;
     harness.calora.weights = [];
     harness.calora.logs = [];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("uses the three feature cards as the unique Fasting, Progress, and Learning routes", () => {
@@ -150,7 +156,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).not.toContain("balanced-plate-basics.jpg");
     expect(source).not.toMatch(/https?:\/\//i);
     expect(source).toContain("fastingCard: { height: 153.97");
-    expect(source).toContain("marginTop: 8, borderRadius: 18");
+    expect(source).toContain("marginTop: 18, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
     expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#e4f1e9"');
     expect(source).toContain('color={mode === "dark" ? TEXT : colors.foreground}');
@@ -178,15 +184,29 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('color={colors.foreground}');
     expect(source).toContain('style={[styles.sectionTitle, { color: colors.foreground }]}');
     expect(source).toContain('Guides, Recipes, Tips..');
-    expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 21 * scale');
+    expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 18 * scale');
     expect(source).toContain('sectionTitle: { fontSize: 17 * scale');
     expect(source).toContain("Shortcuts to the things you use most");
     expect(source).toContain('sectionCaption, { color: colors.mutedForeground }');
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 14 * scale");
-    expect(source).toContain("paddingHorizontal: 12, paddingTop: 10, paddingBottom: 124, gap: 13");
+    expect(source).toContain("sectionHeading: { marginTop: 14 }");
     expect(source).not.toContain("lowerPanel:");
+  });
+
+  it("shows the remaining fasting duration while an active window is in progress", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-29T12:00:00.000Z"));
+    harness.calora.fasting.activeStartedAt = "2026-10-29T06:00:00.000Z";
+    harness.calora.fasting.activePlannedHours = 12;
+
+    render(<MoreScreen />);
+
+    expect(
+      screen.getByText("06:00 remaining in your 12-hour window"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Window complete — end when ready.")).toBeNull();
   });
 
   it("keeps supporting destinations compact and does not duplicate primary routes", () => {

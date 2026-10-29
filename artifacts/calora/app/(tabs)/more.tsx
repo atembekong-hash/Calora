@@ -18,7 +18,7 @@ import { formatWeight } from "@/lib/weightInput";
 
 const TEXT = "#f4fbf7";
 const MUTED = "#9ab1a7";
-const GREEN = "#177a52";
+const GREEN = "#0b5f3d";
 const ORANGE = "#ff876c";
 
 function IconBox({
@@ -47,9 +47,7 @@ function FastingCard() {
   const progress = deriveFastingProgress(fasting, now);
   const styles = makeStyles(fontScale, colors, mode);
   const subtitle = progress.active
-    ? progress.remainingMs > 0
-      ? `${formatFastingDuration(progress.remainingMs)} left in your ${progress.plannedHours}-hour window`
-      : "Window complete — end when ready."
+    ? `${formatFastingDuration(progress.remainingMs)} remaining in your ${progress.plannedHours}-hour window`
     : "Choose a flexible fasting schedule.";
 
   return (
@@ -58,8 +56,8 @@ function FastingCard() {
         <View style={styles.fastLabelRow}>
           <Text style={styles.fastTitle}>Fasting</Text>
           <View style={styles.statusPill}>
-            <Feather name="sun" size={11} color={mode === "dark" ? GREEN : colors.successForeground} />
-            <Text numberOfLines={1} style={[styles.statusText, { color: mode === "dark" ? GREEN : colors.successForeground }]}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
+            <Feather name="sun" size={11} color={mode === "dark" ? "#72d9a5" : colors.successForeground} />
+            <Text numberOfLines={1} style={[styles.statusText, { color: mode === "dark" ? "#72d9a5" : colors.successForeground }]}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
           </View>
         </View>
         <View style={styles.fastTopRow}>
@@ -228,10 +226,10 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     safe: { flex: 1, backgroundColor: colors.background },
     content: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 124, gap: 13 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    headerTitle: { color: colors.foreground, fontSize: 21 * scale, fontWeight: "800", letterSpacing: -0.6 },
+    headerTitle: { color: colors.foreground, fontSize: 18 * scale, fontWeight: "800", letterSpacing: -0.6 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    fastingCard: { height: 153.97, marginTop: 8, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: dark ? "#0a352b" : "#e4f1e9", overflow: "hidden", position: "relative" },
+    fastingCard: { height: 153.97, marginTop: 18, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: dark ? "#0a352b" : "#e4f1e9", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
     fastLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 2 },
@@ -257,7 +255,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     chartBars: { position: "absolute", bottom: 10, left: 10, flexDirection: "row", gap: 3, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
-    sectionHeading: { marginTop: 3 },
+    sectionHeading: { marginTop: 14 },
     sectionTitle: { fontSize: 17 * scale, fontWeight: "800" },
     sectionCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 2 },
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
