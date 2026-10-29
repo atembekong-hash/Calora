@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -28,6 +29,7 @@ import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { SaveAsMealButton } from '@/components/SaveAsMealButton';
 import { RestaurantCategoryIllustration } from '@/components/RestaurantCategoryIllustration';
 import {
   restaurantFoodImageAssetKey,
@@ -52,7 +54,7 @@ function primaryServing(food: RestaurantFood): RestaurantFoodServing {
 }
 
 export default function RestaurantsScreen() {
-  const { colors, createFoodMemorySourceDraft } = useCalora();
+  const { colors, createFoodMemorySourceDraft, saveMeal } = useCalora();
   const { session, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string }>();
@@ -407,6 +409,16 @@ export default function RestaurantsScreen() {
                   <Feather name="check-circle" size={17} color={reviewState === 'ready' ? colors.primaryForeground : colors.mutedForeground} />
                   <Text style={[styles.logButtonText, { color: reviewState === 'ready' ? colors.primaryForeground : colors.mutedForeground }]}>Review for {meal.toLowerCase()}</Text>
                 </Pressable>
+                <SaveAsMealButton
+                  colors={colors}
+                  disabled={reviewState !== 'ready' || selectedServing?.calories === null || selectedServing?.proteinG === null || selectedServing?.carbsG === null || selectedServing?.fatG === null}
+                  accessibilityLabel={reviewState === 'ready' ? `Save ${detail.name} as meal` : `Save ${detail.name} as meal unavailable`}
+                  onPress={() => {
+                    if (reviewState !== 'ready' || selectedServing?.calories === null || selectedServing?.proteinG === null || selectedServing?.carbsG === null || selectedServing?.fatG === null) return;
+                    saveMeal({ name: detail.name, kind: 'meal', foodIds: [detail.sourceId], calories: selectedServing.calories, protein: selectedServing.proteinG, carbs: selectedServing.carbsG, fat: selectedServing.fatG });
+                    Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
+                  }}
+                />
               </KeyboardAwareScrollViewCompat>
             ) : (
               <View style={styles.centerState}><ActivityIndicator color={colors.primary} /></View>

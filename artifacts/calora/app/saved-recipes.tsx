@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQueries } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { getGetPremiumRecipeQueryKey, getPremiumRecipe, getRecipe, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
@@ -80,6 +80,7 @@ function SourceSection({
   savedRecipeIds,
   onOpen,
   onSave,
+  onSaveAsMeal,
   loading,
   failed,
   signedIn,
@@ -93,6 +94,7 @@ function SourceSection({
   savedRecipeIds: string[];
   onOpen: (recipe: SavedRecipe) => void;
   onSave: (recipeId: string) => void;
+  onSaveAsMeal: (recipe: SavedRecipe) => void;
   loading: boolean;
   failed: boolean;
   signedIn: boolean;
@@ -133,6 +135,8 @@ function SourceSection({
                 imageHeight={118}
                 onPress={() => onOpen(recipe)}
                 onSave={() => onSave(recipe.id)}
+                onSaveAsMeal={() => onSaveAsMeal(recipe)}
+                saveAsMealDisabled={!('calories' in recipe && 'proteinG' in recipe && 'carbsG' in recipe && 'fatG' in recipe && Number.isFinite(recipe.calories) && Number.isFinite(recipe.proteinG) && Number.isFinite(recipe.carbsG) && Number.isFinite(recipe.fatG))}
               />
             </View>
           ))}
@@ -160,7 +164,7 @@ function SourceSection({
 }
 
 export default function SavedRecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, restoreRecipe } = useCalora();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<SavedFilter>('all');
@@ -171,6 +175,13 @@ export default function SavedRecipesScreen() {
   const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
+  const saveRecipeAsMeal = (recipe: SavedRecipe) => {
+    if (!('calories' in recipe && 'proteinG' in recipe && 'carbsG' in recipe && 'fatG' in recipe)) return;
+    const { calories, proteinG, carbsG, fatG } = recipe;
+    if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
+    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG });
+    Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
+  };
 
   const localIds = useMemo(() => new Set(localRecipes.map((recipe) => recipe.id)), [localRecipes]);
   const builtInIds = useMemo(() => new Set(caloraOriginalRecipes.map((recipe) => recipe.id)), []);
@@ -333,6 +344,7 @@ export default function SavedRecipesScreen() {
                 savedRecipeIds={savedRecipeIds}
                 onOpen={setSelected}
                 onSave={toggleSavedRecipe}
+                onSaveAsMeal={saveRecipeAsMeal}
                 loading={loadingSources[source]}
                 failed={failedSources[source]}
                 signedIn={Boolean(user)}
