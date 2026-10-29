@@ -17,11 +17,9 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
-import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeGestureExclusion, SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
-import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
@@ -1409,7 +1407,7 @@ function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalo
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('steps')
@@ -1438,7 +1436,6 @@ export default function InsightsScreen() {
   const [goalInput, setGoalInput] = useState('');
   const [goalError, setGoalError] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
-  const [shoppingVisible, setShoppingVisible] = useState(false);
   const [graphRangeSelection, setGraphRangeSelection] = useState(() => createRollingSevenDaySelection());
   const graphRange = graphRangeSelection.range;
 
@@ -1805,22 +1802,6 @@ export default function InsightsScreen() {
   const macroRangePoints = useMemo(() => deriveMacroTrend(remembered.logs, graphRange), [remembered.logs, graphRange]);
   const signalDays = weeklySignals.trackedDays;
   const averageWeekCalories = weeklySignals.averageCalories;
-  const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
-  const shoppingWeekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => plannerDate(shoppingWeekStart, index)),
-    [shoppingWeekStart],
-  );
-  const visibleShoppingItems = useMemo(() => {
-    const checkedByName = shoppingChecksByName(shoppingItems, shoppingWeekStart);
-    const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
-    const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
-    const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
-    const recipeItems = shoppingItems
-      .filter((item) => item.recipeSource && !plannerKeys.has(shoppingNameKey(item.name)))
-      .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
-    return [...plannerItems, ...recipeItems];
-  }, [plannerMeals, shoppingItems, shoppingWeekDays]);
-  const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   useEffect(() => {
     if (!saveNotice) return;
     const timeout = setTimeout(() => setSaveNotice(null), 2200);
@@ -1842,19 +1823,6 @@ export default function InsightsScreen() {
               style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
             >
               <Feather name="compass" size={18} color={colors.foreground} />
-            </Pressable>
-            <Pressable
-              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
-              onPress={() => setShoppingVisible(true)}
-              hitSlop={8}
-              style={[styles.headerShoppingButton, { backgroundColor: colors.accent }]}
-            >
-              <Feather name="shopping-bag" size={16} color={colors.accentForeground} />
-              {uncheckedShopping > 0 && (
-                <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
-                </View>
-              )}
             </Pressable>
           </View>
         }
@@ -2605,13 +2573,6 @@ export default function InsightsScreen() {
         pendingDeleteId={pendingDelete?.id}
         pendingDeleteEntry={pendingDelete}
         onUndo={undoDelete}
-      />
-      <ShoppingListSheet
-        visible={shoppingVisible}
-        items={visibleShoppingItems}
-        weekDays={shoppingWeekDays}
-        onClose={() => setShoppingVisible(false)}
-          onToggleItem={(name) => toggleShoppingItemByName(name, shoppingWeekStart)}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (

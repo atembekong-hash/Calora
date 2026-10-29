@@ -15,10 +15,11 @@ import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { applySlotReplace, plannerMealTypes, plannerWeekDaysForDate } from '@/data/planner';
+import { applySlotReplace, buildShoppingItems, getPlannerWeekStart, plannerDate, plannerMealTypes, plannerWeekDaysForDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
+import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
 import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
@@ -2812,7 +2813,7 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
 }
 
 export default function RecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe, fontScale } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, restoreRecipe, fontScale, plannerMeals, shoppingItems, toggleShoppingItemByName } = useCalora();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -2839,6 +2840,7 @@ export default function RecipesScreen() {
   const [editingPersonalRecipe, setEditingPersonalRecipe] = useState<CaloraRecipe | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [planNoticeVisible, setPlanNoticeVisible] = useState(false);
+  const [shoppingVisible, setShoppingVisible] = useState(false);
   const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
   const discoverFilterKey = `${search}\u001f${category}`;
@@ -2859,6 +2861,23 @@ export default function RecipesScreen() {
   } | null>(null);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
   const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
+  const todayKey = dateKey();
+  const shoppingWeekStart = useMemo(() => getPlannerWeekStart(new Date(`${todayKey}T12:00:00`)), [todayKey]);
+  const shoppingWeekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => plannerDate(shoppingWeekStart, index)),
+    [shoppingWeekStart],
+  );
+  const visibleShoppingItems = useMemo(() => {
+    const checkedByName = shoppingChecksByName(shoppingItems, shoppingWeekStart);
+    const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
+    const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
+    const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
+    const recipeItems = shoppingItems
+      .filter((item) => item.recipeSource && !plannerKeys.has(shoppingNameKey(item.name)))
+      .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
+    return [...plannerItems, ...recipeItems];
+  }, [plannerMeals, shoppingItems, shoppingWeekDays]);
+  const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
   const premiumBoundaryHandledForUserRef = useRef<string | null>(null);
@@ -3451,14 +3470,31 @@ export default function RecipesScreen() {
         leftAlignTitle
         title="Recipes"
         action={
-          <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}>
-            <Feather name="bookmark" size={17} color={colors.accentForeground} />
-            {savedRecipeIds.length > 0 && (
-              <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}>
+              <Feather name="bookmark" size={17} color={colors.accentForeground} />
+              {savedRecipeIds.length > 0 && (
+                <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
+              testID="shopping-list-header-button"
+              onPress={() => setShoppingVisible(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}
+            >
+              <Feather name="shopping-bag" size={18} color={colors.accentForeground} />
+              {uncheckedShopping > 0 && (
+                <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{uncheckedShopping > 99 ? '99+' : uncheckedShopping}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
         }
       />
       <SwipeMenuHighlightProvider items={RECIPE_SECTIONS} activeItem={activeSection}>
@@ -3638,6 +3674,13 @@ export default function RecipesScreen() {
           }, 3800);
         }}
       />
+      <ShoppingListSheet
+        visible={shoppingVisible}
+        items={visibleShoppingItems}
+        weekDays={shoppingWeekDays}
+        onClose={() => setShoppingVisible(false)}
+        onToggleItem={(name) => toggleShoppingItemByName(name, shoppingWeekStart)}
+      />
       <LocalSaveNotice
         visible={planNoticeVisible}
         message={saveMessage ?? ''}
@@ -3688,6 +3731,7 @@ function makeStyles(f: number) {
       justifyContent: 'center',
     },
     sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     headerSavedButton: {
       width: 44,
       height: 44,

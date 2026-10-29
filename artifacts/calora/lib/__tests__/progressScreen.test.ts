@@ -23,6 +23,12 @@ describe('Progress dashboard layout contracts', () => {
     expect(pager).toBeGreaterThan(tabs);
   });
 
+  it('keeps the pantry control on Recipes rather than duplicating it in Progress', () => {
+    expect(source).not.toContain('Open shopping list');
+    expect(source).not.toContain('shopping-bag');
+    expect(source).not.toContain('<ShoppingListSheet');
+  });
+
   it('keeps Trend headers, date controls, and chart labels inside bounded scroll viewports', () => {
     expect(source).toContain("chartViewport: { width: '100%', overflow: 'hidden' }");
     expect(source).toContain("lineGraphViewport: { width: '100%', overflow: 'hidden' }");
