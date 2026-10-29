@@ -130,6 +130,9 @@ describe("MoreScreen feature hierarchy", () => {
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
+    fireEvent.click(screen.getByRole("button", { name: "Open profile" }));
+    expect(harness.router.push).toHaveBeenLastCalledWith("/profile");
+
     fireEvent.click(screen.getByRole("button", { name: "Open fasting Reminders" }));
     expect(harness.router.push).toHaveBeenLastCalledWith("/profile?tab=you&open=reminders");
   });
@@ -149,7 +152,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("fastingCard: { height: 153.97");
     expect(source).toContain("marginTop: 8, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
-    expect(source).toContain('backgroundColor: "#0a352b"');
+    expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#e4f1e9"');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
     expect(source).toContain("fastRingOuter: { height: 62, width: 62");
     expect(source).toContain("fastCopy: { flex: 1, minWidth: 0");
@@ -158,10 +161,15 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("Fasting in progress");
     expect(source).toContain("featureCard: { flex: 1, height: 111.77");
     expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
-    expect(source).toContain("featureTitle: { color: TEXT, fontSize: 14.5 * scale");
+    expect(source).toContain('progressCard: { backgroundColor: dark ? "#3b2b22" : "#f7e9df" }');
+    expect(source).toContain('learningCard: { backgroundColor: dark ? "#262148" : "#eeeafd" }');
+    expect(source).toContain('featureTitle: { color: dark ? TEXT : colors.foreground');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={26}');
     expect(source).toContain('name="settings" size={15}');
+    expect(source).toContain('accessibilityLabel="Open profile"');
+    expect(source).not.toContain("const SURFACE");
+    expect(source).not.toContain("const BORDER");
     expect(source).toContain('color={colors.foreground}');
     expect(source).toContain('style={[styles.sectionTitle, { color: colors.foreground }]}');
     expect(source).toContain('Guides, Recipes, Tips..');
@@ -192,7 +200,7 @@ describe("MoreScreen feature hierarchy", () => {
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
-    expect(screen.queryByRole("button", { name: "Open profile" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open profile" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Edit quick access" })).toBeNull();
     expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(16);
