@@ -153,6 +153,9 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("marginTop: 8, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
     expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#e4f1e9"');
+    expect(source).toContain('color={mode === "dark" ? TEXT : colors.foreground}');
+    expect(source).toContain('backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint');
+    expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
     expect(source).toContain("fastRingOuter: { height: 62, width: 62");
     expect(source).toContain("fastCopy: { flex: 1, minWidth: 0");
@@ -164,6 +167,8 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('progressCard: { backgroundColor: dark ? "#3b2b22" : "#f7e9df" }');
     expect(source).toContain('learningCard: { backgroundColor: dark ? "#262148" : "#eeeafd" }');
     expect(source).toContain('featureTitle: { color: dark ? TEXT : colors.foreground');
+    expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.card');
+    expect(source).toContain('chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary }');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={26}');
     expect(source).toContain('name="settings" size={15}');
@@ -176,6 +181,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 21 * scale');
     expect(source).toContain('sectionTitle: { fontSize: 17 * scale');
     expect(source).toContain("Shortcuts to the things you use most");
+    expect(source).toContain('sectionCaption, { color: colors.mutedForeground }');
     const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
     expect(miniStatSource).not.toContain('name="chevron-right"');
     expect(source).toContain("fontSize: 14 * scale");
