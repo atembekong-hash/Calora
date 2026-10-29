@@ -50,44 +50,46 @@ function FastingCard() {
   const styles = makeStyles(fontScale);
   const subtitle = progress.active
     ? progress.remainingMs > 0
-      ? `${formatFastingDuration(progress.remainingMs)} remaining in your ${progress.plannedHours}-hour window`
-      : "Your planned window is complete — end it when you are ready."
-    : "Choose a flexible time-restricted schedule that fits your routine.";
+      ? `${formatFastingDuration(progress.remainingMs)} left in your ${progress.plannedHours}-hour window`
+      : "Window complete — end when ready."
+    : "Choose a flexible fasting schedule.";
 
   return (
     <View style={styles.fastingCard}>
       <Pressable accessibilityRole="button" accessibilityLabel="Open Fasting" onPress={() => router.push("/fasting")} style={styles.fastingMainPressable}>
-      <View style={styles.fastRingOuter}>
-        <View
-          style={[
-            styles.fastRing,
-            {
-              borderTopColor: GREEN,
-              borderRightColor: progress.progress > 0.25 ? GREEN : "#53776b",
-              borderBottomColor: progress.progress > 0.55 ? GREEN : "#53776b",
-            },
-          ]}
-        >
-          <Feather name="clock" size={24} color={TEXT} />
+        <View style={styles.fastTopRow}>
+          <View style={styles.fastRingOuter}>
+            <View
+              style={[
+                styles.fastRing,
+                {
+                  borderTopColor: GREEN,
+                  borderRightColor: progress.progress > 0.25 ? GREEN : "#53776b",
+                  borderBottomColor: progress.progress > 0.55 ? GREEN : "#53776b",
+                },
+              ]}
+            >
+              <Feather name="clock" size={22} color={TEXT} />
+            </View>
+          </View>
+          <View style={styles.fastCopy}>
+            <View style={styles.statusPill}>
+              <Feather name="sun" size={11} color={GREEN} />
+              <Text numberOfLines={1} style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
+            </View>
+            <Text style={styles.fastTitle}>Fasting</Text>
+            <Text style={styles.fastMain} numberOfLines={1}>
+              {progress.active ? formatFastingDuration(progress.elapsedMs) : "Set your rhythm"}
+            </Text>
+            <Text numberOfLines={2} style={styles.fastSubtitle}>{subtitle}</Text>
+          </View>
+          <View style={styles.fastAction}>
+            <Feather name="chevron-right" size={22} color={TEXT} />
+          </View>
         </View>
-      </View>
-      <View style={styles.fastCopy}>
-        <View style={styles.statusPill}>
-          <Feather name="sun" size={12} color={GREEN} />
-          <Text style={styles.statusText}>{progress.active ? "Fasting in progress" : "Ready when you are"}</Text>
-        </View>
-        <Text style={styles.fastTitle}>Fasting</Text>
-        <Text style={styles.fastMain}>
-          {progress.active ? formatFastingDuration(progress.elapsedMs) : "Set your rhythm"}
-        </Text>
-        <Text style={styles.fastSubtitle}>{subtitle}</Text>
-      </View>
-      <View style={styles.fastAction}>
-        <Feather name="chevron-right" size={24} color={TEXT} />
-      </View>
       </Pressable>
       <View style={styles.fastingLeaves} pointerEvents="none">
-        <Feather name="feather" size={78} color="rgba(69,226,155,.22)" />
+        <Feather name="feather" size={44} color="rgba(69,226,155,.16)" />
       </View>
       <View style={styles.miniStats}>
         <MiniStat icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
@@ -115,8 +117,8 @@ function MiniStat({
     <Pressable accessibilityRole="button" accessibilityLabel={`Open fasting ${label}`} onPress={() => router.push(route as never)} style={styles.miniStat}>
       <Feather name={icon} size={18} color={color} />
       <View style={styles.miniStatCopy}>
-        <Text style={styles.miniStatLabel}>{label}</Text>
-        <Text style={styles.miniStatCaption}>{caption}</Text>
+        <Text numberOfLines={1} style={styles.miniStatLabel}>{label}</Text>
+        <Text numberOfLines={1} style={styles.miniStatCaption}>{caption}</Text>
       </View>
     </Pressable>
   );
@@ -134,9 +136,9 @@ function ProgressCard() {
       onPress={() => router.push("/(tabs)/insights")}
       style={[styles.featureCard, styles.progressCard]}
     >
-      <IconBox color={ORANGE} icon="bar-chart-2" />
+      <IconBox color={ORANGE} icon="bar-chart-2" size={36} />
       <Text style={styles.featureTitle}>Progress</Text>
-      <Text style={styles.featureSubtitle}>
+      <Text numberOfLines={2} style={styles.featureSubtitle}>
         {latest ? `${formatWeight(latest.kg, profile?.units ?? "metric")} logged` : todayLogs.length ? `${todayLogs.length} meals logged today` : "Trends, goals & insights"}
       </Text>
       <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
@@ -157,9 +159,9 @@ function LearningCard() {
       onPress={() => router.push("/learning")}
       style={[styles.featureCard, styles.learningCard]}
     >
-      <IconBox color="#9d77ff" icon="book-open" />
+      <IconBox color="#9d77ff" icon="book-open" size={36} />
       <Text style={styles.featureTitle}>Learning</Text>
-      <Text style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
+      <Text numberOfLines={2} style={styles.featureSubtitle}>Nutrition guides, recipes and practical tips</Text>
       <View style={styles.featureArrow}><Feather name="chevron-right" size={20} color="#fff" /></View>
       <View style={styles.learningCards} pointerEvents="none"><View /><View /><View /></View>
     </ScalePressable>
@@ -208,41 +210,42 @@ export default function MoreScreen() {
 
 const styles = {
   iconBox: { borderRadius: 13, alignItems: "center" as const, justifyContent: "center" as const },
-  miniStat: { flex: 1, minHeight: 58, borderRadius: 15, paddingHorizontal: 12, flexDirection: "row" as const, alignItems: "center" as const, gap: 8, backgroundColor: "rgba(8, 30, 24, .64)", borderWidth: 1, borderColor: "rgba(140,203,177,.10)" },
+  miniStat: { flex: 1, minHeight: 46, borderRadius: 13, paddingHorizontal: 7, flexDirection: "row" as const, alignItems: "center" as const, gap: 5, backgroundColor: "rgba(8, 30, 24, .64)", borderWidth: 1, borderColor: "rgba(140,203,177,.10)" },
   miniStatCopy: { flex: 1 },
-  miniStatLabel: { color: TEXT, fontSize: 12, fontWeight: "800" as const },
-  miniStatCaption: { color: MUTED, fontSize: 9, marginTop: 2 },
+  miniStatLabel: { color: TEXT, fontSize: 10, fontWeight: "800" as const },
+  miniStatCaption: { color: MUTED, fontSize: 8, marginTop: 1 },
 };
 
 function makeStyles(scale: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: "#081612" },
-    content: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 38, gap: 13 },
+    content: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 124, gap: 13 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    headerTitle: { color: TEXT, fontSize: 29 * scale, fontWeight: "800", letterSpacing: -0.8 },
-    headerCaption: { color: MUTED, fontSize: 15 * scale, marginTop: 1 },
-    gear: { height: 58, width: 58, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
-    fastingCard: { minHeight: 216, borderRadius: 23, padding: 18, paddingBottom: 86, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
-    fastingMainPressable: { position: "absolute", left: 0, right: 0, top: 0, bottom: 70 },
-    fastRingOuter: { height: 104, width: 104, borderRadius: 52, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center", position: "absolute", left: 16, top: 30 },
-    fastRing: { height: 88, width: 88, borderRadius: 44, borderWidth: 9, borderLeftColor: "#53776b", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
-    fastCopy: { marginLeft: 124, marginRight: 72, paddingTop: 2, minHeight: 126 },
-    statusPill: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: "rgba(69,226,155,.14)" },
-    statusText: { color: GREEN, fontSize: 12 * scale, fontWeight: "700" },
-    fastTitle: { color: TEXT, fontSize: 18 * scale, fontWeight: "800", marginTop: 8 },
-    fastMain: { color: TEXT, fontSize: 36 * scale, fontWeight: "800", letterSpacing: -1 },
-    fastSubtitle: { color: "#b8d3c8", fontSize: 13 * scale, lineHeight: 18 * scale, maxWidth: 205 },
-    fastAction: { position: "absolute", right: 19, top: 78, height: 48, width: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
-    fastingLeaves: { position: "absolute", right: 12, top: 8, opacity: 0.7, transform: [{ rotate: "-25deg" }] },
-    miniStats: { position: "absolute", left: 14, right: 14, bottom: 14, flexDirection: "row", gap: 8 },
+    headerTitle: { color: TEXT, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -0.8 },
+    headerCaption: { color: MUTED, fontSize: 14 * scale, marginTop: 1 },
+    gear: { height: 50, width: 50, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER },
+    fastingCard: { minHeight: 172.8, borderRadius: 20, padding: 12, paddingBottom: 60, backgroundColor: "#0d4638", overflow: "hidden", position: "relative" },
+    fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
+    fastTopRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 92 },
+    fastRingOuter: { height: 78, width: 78, flexShrink: 0, borderRadius: 39, backgroundColor: "rgba(255,255,255,.08)", alignItems: "center", justifyContent: "center" },
+    fastRing: { height: 64, width: 64, borderRadius: 32, borderWidth: 7, borderLeftColor: "#53776b", alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
+    fastCopy: { flex: 1, minWidth: 0, paddingTop: 2 },
+    statusPill: { alignSelf: "flex-start", maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: "rgba(69,226,155,.14)" },
+    statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
+    fastTitle: { color: TEXT, fontSize: 15 * scale, fontWeight: "800", marginTop: 4 },
+    fastMain: { color: TEXT, fontSize: 27 * scale, fontWeight: "800", letterSpacing: -1 },
+    fastSubtitle: { color: "#b8d3c8", fontSize: 11 * scale, lineHeight: 14 * scale, maxWidth: 145 },
+    fastAction: { height: 38, width: 38, flexShrink: 0, borderRadius: 19, backgroundColor: "rgba(255,255,255,.10)", alignItems: "center", justifyContent: "center" },
+    fastingLeaves: { position: "absolute", right: 24, top: 18, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
+    miniStats: { position: "absolute", left: 10, right: 10, bottom: 10, flexDirection: "row", gap: 5 },
     featureRow: { flexDirection: "row", gap: 14 },
-    featureCard: { flex: 1, minHeight: 156.8, borderRadius: 21, overflow: "hidden", position: "relative", padding: 16, justifyContent: "flex-start" },
+    featureCard: { flex: 1, minHeight: 125.44, borderRadius: 18, overflow: "hidden", position: "relative", padding: 12, justifyContent: "flex-start" },
     progressCard: { backgroundColor: "#3b2b22" },
     learningCard: { backgroundColor: "#262148" },
-    featureTitle: { color: TEXT, fontSize: 20 * scale, fontWeight: "800", marginTop: 12 },
-    featureSubtitle: { color: "#d0d8d4", fontSize: 13 * scale, lineHeight: 17 * scale, maxWidth: 132, marginTop: 2 },
-    featureArrow: { position: "absolute", right: 14, bottom: 14, height: 38, width: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
-    chartBars: { position: "absolute", bottom: 14, left: 14, flexDirection: "row", gap: 4, alignItems: "flex-end" },
+    featureTitle: { color: TEXT, fontSize: 17 * scale, fontWeight: "800", marginTop: 7 },
+    featureSubtitle: { color: "#d0d8d4", fontSize: 11 * scale, lineHeight: 14 * scale, maxWidth: 118, marginTop: 1 },
+    featureArrow: { position: "absolute", right: 10, bottom: 10, height: 32, width: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.20)" },
+    chartBars: { position: "absolute", bottom: 10, left: 10, flexDirection: "row", gap: 3, alignItems: "flex-end" },
     chartBar: { width: 7, borderRadius: 4, backgroundColor: ORANGE },
     learningCards: { position: "absolute", right: -12, bottom: 18, width: 84, height: 80, transform: [{ rotate: "15deg" }] },
     sectionHeading: { marginTop: 3 },
