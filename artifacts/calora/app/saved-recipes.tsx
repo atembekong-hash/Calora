@@ -21,6 +21,7 @@ import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { normalizeSavedMealType } from '@/lib/savedMealIdentity';
 
 type SavedRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type SavedSource = 'discover' | 'plus' | 'create';
@@ -179,7 +180,7 @@ export default function SavedRecipesScreen() {
     if (!('calories' in recipe && 'proteinG' in recipe && 'carbsG' in recipe && 'fatG' in recipe)) return;
     const { calories, proteinG, carbsG, fatG } = recipe;
     if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
-    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG });
+    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType('mealType' in recipe && typeof recipe.mealType === 'string' ? recipe.mealType : undefined) });
     Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
   };
 

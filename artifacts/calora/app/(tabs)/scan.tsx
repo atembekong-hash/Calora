@@ -777,7 +777,7 @@ export default function ScanScreen() {
   const approveDisabled = !reviewDraft || isSavingReview || includedComponentCount(reviewDraft.components) === 0;
   const saveReviewedMeal = () => {
     if (!reviewDraft || includedComponentCount(reviewDraft.components) === 0) return;
-    saveMeal({ name: reviewDraft.title, kind: 'meal', foodIds: [], calories: reviewDraft.nutrition.calories, protein: reviewDraft.nutrition.proteinG, carbs: reviewDraft.nutrition.carbsG, fat: reviewDraft.nutrition.fatG });
+    saveMeal({ name: reviewDraft.title, kind: 'meal', foodIds: [], calories: reviewDraft.nutrition.calories, protein: reviewDraft.nutrition.proteinG, carbs: reviewDraft.nutrition.carbsG, fat: reviewDraft.nutrition.fatG, mealType: reviewMeal });
     Alert.alert('Meal saved', `${reviewDraft.title} is ready to log from Saved meals.`);
   };
 

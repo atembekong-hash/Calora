@@ -18,7 +18,8 @@ const mealTypes: MealType[] = ["Breakfast", "Lunch", "Dinner", "Snack"];
 export default function SavedMealsScreen() {
   const { colors, fontScale, savedMeals, addLog, deleteSavedMeal } =
     useCalora();
-  const [mealType, setMealType] = useState<MealType>("Lunch");
+  const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
+  const mealType = selectedMealType ?? mealTypes.find((type) => savedMeals.some((meal) => savedMealCategory(meal) === type)) ?? "Lunch";
   const styles = makeStyles(colors, fontScale);
   const visibleSavedMeals = savedMeals.filter(
     (meal) => savedMealCategory(meal) === mealType,
@@ -72,7 +73,7 @@ export default function SavedMealsScreen() {
           {mealTypes.map((type) => (
             <ScalePressable
               key={type}
-              onPress={() => setMealType(type)}
+              onPress={() => setSelectedMealType(type)}
               style={[
                 styles.segmentButton,
                 mealType === type && styles.segmentSelected,

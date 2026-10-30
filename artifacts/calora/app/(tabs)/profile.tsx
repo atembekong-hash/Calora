@@ -37,7 +37,7 @@ import {
 } from "@/lib/healthConnection";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { SavedMeal, ThemePreference, useCalora } from "@/context/CaloraContext";
+import { SavedMeal, ThemePreference, useCalora, type MealType } from "@/context/CaloraContext";
 import type { HealthSyncOutcome } from "@/context/CaloraContext";
 import { ClearAllDataError } from "@/lib/clearAllData";
 import { completeDeviceLocalReset } from "@/lib/deviceLocalReset";
@@ -356,6 +356,7 @@ export default function ProfileScreen() {
     useState<SavedMeal | null>(null);
   const [savedMealName, setSavedMealName] = useState("");
   const [savedMealKind, setSavedMealKind] = useState<SavedMeal["kind"]>("meal");
+  const [savedMealType, setSavedMealType] = useState<MealType>("Lunch");
   const [savedMealCalories, setSavedMealCalories] = useState("");
   const [savedMealProtein, setSavedMealProtein] = useState("");
   const [savedMealCarbs, setSavedMealCarbs] = useState("");
@@ -1214,12 +1215,14 @@ export default function ProfileScreen() {
       protein,
       carbs,
       fat,
+      mealType: savedMealType,
     });
     setSavedMealName("");
     setSavedMealCalories("");
     setSavedMealProtein("");
     setSavedMealCarbs("");
     setSavedMealFat("");
+    setSavedMealType("Lunch");
     setSavedMealError("");
     setSavedMealModal(false);
   };
@@ -4267,6 +4270,27 @@ export default function ProfileScreen() {
                 Recipe
               </Text>
             </Pressable>
+          </View>
+          <Text style={[styles.savedNumberLabel, { color: colors.mutedForeground }]}>Meal category</Text>
+          <View style={styles.savedKindRow}>
+            {(["Breakfast", "Lunch", "Dinner", "Snack"] as MealType[]).map((mealType) => (
+              <Pressable
+                key={mealType}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: savedMealType === mealType }}
+                accessibilityLabel={`Saved meal category: ${mealType}`}
+                onPress={() => setSavedMealType(mealType)}
+                style={[
+                  styles.savedKind,
+                  {
+                    backgroundColor: savedMealType === mealType ? colors.primary : colors.card,
+                    borderColor: savedMealType === mealType ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.savedKindText, { color: savedMealType === mealType ? colors.primaryForeground : colors.mutedForeground }]}>{mealType}</Text>
+              </Pressable>
+            ))}
           </View>
           <TextInput
             accessibilityLabel="Saved meal name"

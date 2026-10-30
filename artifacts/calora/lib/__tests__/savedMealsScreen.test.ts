@@ -30,6 +30,8 @@ describe('saved meal entry points', () => {
     expect(recipes).toContain("kind: 'recipe'");
     expect(planner).toContain('Save ${detail.name} as meal');
     expect(planner).toContain("kind: 'meal'");
+    expect(planner).toContain('mealType: detail.meal');
+    expect(home).toContain('meal: meal.mealType ?? savedMealCategory(meal)');
   });
 
   it('exposes the same action on reviewed scan, restaurant, saved-recipe, and memory surfaces', () => {
@@ -39,6 +41,9 @@ describe('saved meal entry points', () => {
     expect(source('app/saved-recipes.tsx')).toContain('onSaveAsMeal={saveRecipeAsMeal}');
     expect(source('app/memory.tsx')).toContain('Save ${title} as meal');
     expect(source('app/memory.tsx')).toContain('mealType: log.meal');
+    expect(source('app/(tabs)/scan.tsx')).toContain('mealType: reviewMeal');
+    expect(source('app/restaurants.tsx')).toContain('mealType: meal');
+    expect(source('app/(tabs)/profile.tsx')).toContain('mealType: savedMealType');
   });
 
   it('resolves saved-meal categories for filtering, including legacy records', () => {
@@ -55,5 +60,11 @@ describe('saved meal entry points', () => {
     expect(savedMealCategory(legacy)).toBe('Lunch');
     expect(source('app/saved-meals.tsx')).toContain('savedMealCategory(meal) === mealType');
     expect(source('app/saved-meals.tsx')).toContain('No ${mealType.toLowerCase()} meals yet');
+  });
+
+  it('uses one durable write path and rejects duplicate templates', () => {
+    const context = source('context/CaloraContext.tsx');
+    expect(context).toContain('if (hasSavedMeal(current, meal)) return false;');
+    expect(context).toContain('updateExportField(\'savedMeals\', () => next);');
   });
 });
