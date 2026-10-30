@@ -424,6 +424,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(continuationEffect).toContain('remoteRecipes.length');
   });
 
+  it('rechecks Discover after the final rendered grid grows on web', () => {
+    const renderedGridStart = source.indexOf('const discoverGridEntries = useMemo');
+    const renderStart = source.indexOf('const renderDiscoverSection = () =>', renderedGridStart);
+    const renderedGridBlock = source.slice(renderedGridStart, renderStart);
+    expect(renderedGridBlock).toContain('discoverGridEntries.length');
+    expect(renderedGridBlock).toContain("loadMoreDiscoverRecipesIfAtEnd('discover')");
+    expect(renderedGridBlock).toContain('}, [activeSection, discoverGridEntries.length]);');
+  });
+
   it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {
     expect(source).toContain("import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'");
     expect(source).toContain('useFocusEffect(');
