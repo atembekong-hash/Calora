@@ -61,7 +61,11 @@ const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const;
 // a page is appended. Keep the next cursor claimable across that gap without
 // eagerly loading the complete browse pool.
 const RECIPE_PREFETCH_DISTANCE = 4200;
-const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
+// The Plus provider is remote and commonly takes more than a second to answer.
+// Start the next page well before the viewport reaches the footer so that this
+// latency is hidden during normal scrolling, especially after many pages have
+// already made the retained pane more expensive to lay out.
+const PREMIUM_RECIPE_PREFETCH_DISTANCE = 3200;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;
 const RECIPE_SUGGESTION_ROW_COUNT = 2;
