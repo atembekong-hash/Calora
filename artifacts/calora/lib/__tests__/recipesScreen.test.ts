@@ -217,6 +217,11 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('discoverGridEntries.length');
   });
 
+  it('starts Plus pagination early enough to hide remote provider latency', () => {
+    expect(source).toContain('const PREMIUM_RECIPE_PREFETCH_DISTANCE = 3200;');
+    expect(source).toContain('prefetchDistance: PREMIUM_RECIPE_PREFETCH_DISTANCE');
+  });
+
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
