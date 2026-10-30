@@ -959,6 +959,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
   const [freshnessVisit, setFreshnessVisit] = useState(0);
   const [freshnessDay, setFreshnessDay] = useState(() => utcFreshnessDay());
   const loadingMoreRef = useRef(false);
+  const requestedOffsetRef = useRef<number | null>(null);
+  const failedOffsetRef = useRef<number | null>(null);
   const hasMountedFiltersRef = useRef(false);
   const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined;
   const premiumParams = {
@@ -1009,6 +1011,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     if (!accessDenied) return;
     setLoadedRecipes([]);
     setLoadedForUserId(null);
+    requestedOffsetRef.current = null;
+    failedOffsetRef.current = null;
     loadingMoreRef.current = false;
     onAccessDenied();
   }, [accessDenied, onAccessDenied]);
@@ -1034,8 +1038,19 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     if (!data?.recipes || !canApplyPremiumPage(query.isPlaceholderData)) return;
     setLoadedRecipes((current) => (offset === 0 || loadedForUserId !== userId ? mergeRecipePages([], data.recipes) : mergeRecipePages(current, data.recipes)));
     setLoadedForUserId(userId);
+    if (requestedOffsetRef.current === offset) {
+      requestedOffsetRef.current = null;
+      failedOffsetRef.current = null;
+    }
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, query.isPlaceholderData, userId]);
+  useEffect(() => {
+    // Keep the failed cursor retryable. Without releasing this latch, a
+    // transient continuation failure permanently blocks later scroll events.
+    if (!query.isError) return;
+    failedOffsetRef.current = requestedOffsetRef.current ?? (offset > 0 ? offset : null);
+    loadingMoreRef.current = false;
+  }, [offset, query.isError]);
   useEffect(() => {
     // Include the just-arrived page here. State updates from the preceding
     // effect are asynchronous, so looking only at loadedRecipes could schedule
@@ -1047,6 +1062,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     // only the additional provider pages needed to fill both suggestion rows;
     // never manufacture repeated cards or prefetch this volume while browsing.
     loadingMoreRef.current = true;
+    requestedOffsetRef.current = data.nextOffset;
+    failedOffsetRef.current = null;
     setOffset(data.nextOffset);
   }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId]);
   useEffect(() => {
@@ -1100,13 +1117,22 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
         isLoadingMore: loadingMoreRef.current,
       });
       if (nextOffset == null) return;
+      if (query.isError && failedOffsetRef.current === nextOffset) {
+        loadingMoreRef.current = true;
+        void query.refetch().finally(() => {
+          loadingMoreRef.current = false;
+        });
+        return;
+      }
       loadingMoreRef.current = true;
+      requestedOffsetRef.current = nextOffset;
+      failedOffsetRef.current = null;
       setOffset(nextOffset);
     };
     return () => {
       onLoadMoreRef.current = null;
     };
-  }, [active, data?.nextOffset, onLoadMoreRef, query.isFetching]);
+  }, [active, data?.nextOffset, onLoadMoreRef, query.isError, query.isFetching, query.refetch]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
     // section remounts. Do not clear that restored list on the initial render;
@@ -1117,6 +1143,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     }
     setOffset(0);
     setLoadedRecipes([]);
+    requestedOffsetRef.current = null;
+    failedOffsetRef.current = null;
     loadingMoreRef.current = false;
   }, [search, category, unfilteredFreshnessDay]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
@@ -3247,6 +3275,13 @@ export default function RecipesScreen() {
       premiumLoadMoreRef.current?.();
     }
   };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');
+      if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeSection, remoteNextOffset, recipesQuery.isFetching]);
   const handleRecipeScroll = (section: RecipeSection, event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (section === 'premium') {
