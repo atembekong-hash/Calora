@@ -6,7 +6,7 @@
     {
       "path": "artifacts/calora/assets/images/calora-home-header.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "decorative editorial onboarding surface",
       "renderConsumers": [
@@ -26,7 +26,7 @@
     {
       "path": "artifacts/calora/assets/images/calora-insights-header.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "decorative editorial header or empty-state surface",
       "renderConsumers": [
@@ -46,7 +46,7 @@
     {
       "path": "artifacts/calora/assets/images/calora-plan-header.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "decorative editorial header or empty-state surface",
       "renderConsumers": [
@@ -66,7 +66,7 @@
     {
       "path": "artifacts/calora/assets/images/calora-profile-header.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "decorative editorial header or empty-state surface",
       "renderConsumers": [
@@ -86,7 +86,7 @@
     {
       "path": "artifacts/calora/assets/images/calora-recipes-header.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "decorative editorial header or empty-state surface",
       "renderConsumers": [
@@ -106,7 +106,7 @@
     {
       "path": "artifacts/calora/assets/images/food-fallback-breakfast.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "meal-category fallback image",
       "renderConsumers": [
@@ -128,7 +128,7 @@
     {
       "path": "artifacts/calora/assets/images/food-fallback-drink.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "meal-category fallback image",
       "renderConsumers": [
@@ -150,7 +150,7 @@
     {
       "path": "artifacts/calora/assets/images/food-fallback-main.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "meal-category fallback image",
       "renderConsumers": [
@@ -172,7 +172,7 @@
     {
       "path": "artifacts/calora/assets/images/food-fallback-snack.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "meal-category fallback image",
       "renderConsumers": [
@@ -194,7 +194,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/apple-almond-butter.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -215,7 +215,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/avocado-toast.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -237,7 +237,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/beef-bean-chili.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -258,7 +258,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/berry-protein-smoothie.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -279,7 +279,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/chicken-rice-bowl.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -301,7 +301,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/cottage-cheese-berries.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -322,7 +322,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/eggs-sourdough.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -343,7 +343,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/greek-yogurt-plain.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -364,7 +364,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/grilled-chicken-vegetables.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -385,7 +385,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/hummus-vegetables.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -406,7 +406,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/lentil-quinoa-salad.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -427,7 +427,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/overnight-oats.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -448,7 +448,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/salmon-rice-bowl.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -469,7 +469,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/shrimp-tacos.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -490,7 +490,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/tofu-vegetable-stir-fry.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -511,7 +511,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/tomato-basil-soup.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -532,7 +532,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/trail-mix.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -553,7 +553,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/tuna-cucumber-crackers.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -574,7 +574,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/turkey-avocado-wrap.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -595,7 +595,7 @@
     {
       "path": "artifacts/calora/assets/images/foods/whole-wheat-pasta-primavera.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "canonical food-reference image",
       "renderConsumers": [
@@ -616,7 +616,7 @@
     {
       "path": "artifacts/calora/assets/images/icon.png",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "application icon and native splash mark",
       "renderConsumers": [
@@ -636,7 +636,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/apple-almond.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -657,7 +657,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/banana-pancakes.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -678,7 +678,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/banana-peanut-butter.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -699,7 +699,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/beef-tacos.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -720,7 +720,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/berry-oats.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -742,7 +742,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/chia-pudding.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -763,7 +763,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/chicken-rice.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -784,7 +784,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/chickpea-bowl.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -806,7 +806,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/edamame.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -827,7 +827,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/egg-toast.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -848,7 +848,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/greek-salad.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -869,7 +869,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/harvest-salad.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -891,7 +891,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/hummus-veggies.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -912,7 +912,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/keto-chicken-zucchini.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -933,7 +933,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/keto-salmon-olive.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -954,7 +954,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/lentil-soup.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -975,7 +975,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/med-pasta.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -996,7 +996,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/prawn-stirfry.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1017,7 +1017,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/salmon-quinoa.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1039,7 +1039,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/smoked-salmon-rye-toast.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1060,7 +1060,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/smoothie-bowl.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1081,7 +1081,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/spaghetti-bolognese.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1102,7 +1102,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/thai-curry.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1123,7 +1123,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/tofu-stir-fry.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1144,7 +1144,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/trail-mix.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1165,7 +1165,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/tuna-poke.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1186,7 +1186,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/turkey-hummus-wrap.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1207,7 +1207,7 @@
     {
       "path": "artifacts/calora/assets/images/meals/yogurt-parfait.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "planner curated meal image",
       "renderConsumers": [
@@ -1228,7 +1228,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/balanced-plate-basics.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: balanced-plate-basics",
       "renderConsumers": [
@@ -1250,7 +1250,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/calories-are-context.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: calories-are-context",
       "renderConsumers": [
@@ -1272,7 +1272,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/macro-map.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: macro-map",
       "renderConsumers": [
@@ -1294,7 +1294,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/hydration-check-in.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: hydration-check-in",
       "renderConsumers": [
@@ -1316,7 +1316,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/week-with-one-anchor.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: week-with-one-anchor",
       "renderConsumers": [
@@ -1338,7 +1338,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/shopping-list-scaffold.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: shopping-list-scaffold",
       "renderConsumers": [
@@ -1360,7 +1360,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/busy-day-backup.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: busy-day-backup",
       "renderConsumers": [
@@ -1382,7 +1382,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/recipe-template.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: recipe-template",
       "renderConsumers": [
@@ -1404,7 +1404,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/leftovers-by-design.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: leftovers-by-design",
       "renderConsumers": [
@@ -1426,7 +1426,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/read-nutrition-facts.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: read-nutrition-facts",
       "renderConsumers": [
@@ -1448,7 +1448,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/ingredient-list-first.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: ingredient-list-first",
       "renderConsumers": [
@@ -1470,7 +1470,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/habit-cue-design.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: habit-cue-design",
       "renderConsumers": [
@@ -1492,7 +1492,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/kind-feedback-loop.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: kind-feedback-loop",
       "renderConsumers": [
@@ -1514,7 +1514,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fasting-basics-and-boundaries.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fasting-basics-and-boundaries",
       "renderConsumers": [
@@ -1536,7 +1536,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/drinks-that-fit-your-day.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: drinks-that-fit-your-day",
       "renderConsumers": [
@@ -1558,7 +1558,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/hydration-on-busy-days.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: hydration-on-busy-days",
       "renderConsumers": [
@@ -1580,7 +1580,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/movement-breaks-count.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: movement-breaks-count",
       "renderConsumers": [
@@ -1602,7 +1602,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fuel-for-your-routine.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fuel-for-your-routine",
       "renderConsumers": [
@@ -1624,7 +1624,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/recovery-is-part-of-routine.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: recovery-is-part-of-routine",
       "renderConsumers": [
@@ -1646,7 +1646,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/sleep-and-food-rhythm.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: sleep-and-food-rhythm",
       "renderConsumers": [
@@ -1668,7 +1668,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/gentle-evening-reset.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: gentle-evening-reset",
       "renderConsumers": [
@@ -1690,7 +1690,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/shift-the-plan-not-yourself.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: shift-the-plan-not-yourself",
       "renderConsumers": [
@@ -1712,7 +1712,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/kind-check-in.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: kind-check-in",
       "renderConsumers": [
@@ -1734,7 +1734,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/make-goals-flexible.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: make-goals-flexible",
       "renderConsumers": [
@@ -1756,7 +1756,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/food-mood-observations.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: food-mood-observations",
       "renderConsumers": [
@@ -1778,7 +1778,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fasting-pause-signals.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fasting-pause-signals",
       "renderConsumers": [
@@ -1800,7 +1800,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/variety-without-rules.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: variety-without-rules",
       "renderConsumers": [
@@ -1822,7 +1822,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/make-a-meal-satisfying.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: make-a-meal-satisfying",
       "renderConsumers": [
@@ -1844,7 +1844,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/make-the-next-step-specific.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: make-the-next-step-specific",
       "renderConsumers": [
@@ -1866,7 +1866,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/plan-for-the-plan-to-change.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: plan-for-the-plan-to-change",
       "renderConsumers": [
@@ -1888,7 +1888,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/build-a-bowl-formula.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: build-a-bowl-formula",
       "renderConsumers": [
@@ -1910,7 +1910,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/one-small-recipe-swap.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: one-small-recipe-swap",
       "renderConsumers": [
@@ -1932,7 +1932,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/safe-prep-cook-and-save.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: safe-prep-cook-and-save",
       "renderConsumers": [
@@ -1954,7 +1954,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/serving-size-reality-check.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: serving-size-reality-check",
       "renderConsumers": [
@@ -1976,7 +1976,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/compare-with-percent-daily-value.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: compare-with-percent-daily-value",
       "renderConsumers": [
@@ -1998,7 +1998,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/allergen-and-ingredient-scan.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: allergen-and-ingredient-scan",
       "renderConsumers": [
@@ -2020,7 +2020,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/anchor-one-small-action.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: anchor-one-small-action",
       "renderConsumers": [
@@ -2042,7 +2042,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/make-the-plan-easier-to-do.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: make-the-plan-easier-to-do",
       "renderConsumers": [
@@ -2064,7 +2064,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/notice-progress-without-perfection.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: notice-progress-without-perfection",
       "renderConsumers": [
@@ -2086,7 +2086,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fasting-defined-without-hype.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fasting-defined-without-hype",
       "renderConsumers": [
@@ -2108,7 +2108,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fasting-and-real-life.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fasting-and-real-life",
       "renderConsumers": [
@@ -2130,7 +2130,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/fasting-personal-guidance.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: fasting-personal-guidance",
       "renderConsumers": [
@@ -2152,7 +2152,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/hot-and-active-day-hydration.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: hot-and-active-day-hydration",
       "renderConsumers": [
@@ -2174,7 +2174,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/recognize-dehydration-signals.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: recognize-dehydration-signals",
       "renderConsumers": [
@@ -2196,7 +2196,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/movement-snacks.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: movement-snacks",
       "renderConsumers": [
@@ -2218,7 +2218,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/build-a-balanced-movement-week.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: build-a-balanced-movement-week",
       "renderConsumers": [
@@ -2240,7 +2240,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/steady-sleep-window.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: steady-sleep-window",
       "renderConsumers": [
@@ -2262,7 +2262,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/shape-a-calmer-sleep-runway.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: shape-a-calmer-sleep-runway",
       "renderConsumers": [
@@ -2284,7 +2284,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/turn-not-yet-into-next-step.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: turn-not-yet-into-next-step",
       "renderConsumers": [
@@ -2306,7 +2306,7 @@
     {
       "path": "artifacts/calora/assets/images/learning/articles/pause-notice-choose.jpg",
       "owner": "Calora product team (product steward; no copyright-ownership claim)",
-      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
       "reviewStatus": "approved",
       "role": "Learning article-specific editorial illustration: pause-notice-choose",
       "renderConsumers": [
@@ -2323,6 +2323,1106 @@
       "sha256": "58fd4e698700eba4330d7c2a123e92d7f272e6e1932dfd00881197c69c543a10",
       "width": 512,
       "height": 512,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/a-comfortable-meal-experiment.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "7aeb81bdd70f419e13d5089963dccebc8b06e48d57a5dec074831951d8512292",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/a-gentle-return-to-routine.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "5a0144ce343418264ab0080d750555c8392cc8701da06c74ae2df2e9c018ec24",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/accessible-movement-options.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "52458724c241248baed7c5284c4c9829b70cdf6a0b99e908e2223daa85320230",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/adapt-familiar-dishes-thoughtfully.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "853622c6812de1424b966f372f407842871ac5b27147e4722d1b24671b565172",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/add-fiber-gradually.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "2468cce85750bdba2b1aeb5d4a43ba0fd39dc146ada620b51517d12a5cd8a7b0",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/beans-lentils-and-practical-portions.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "ac07dde77ba31a0f19e02b7c3a71510caa96248dc3a8a566c786b168141e9ec4",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/budget-friendly-protein-choices.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "ae60c374c922bd39783bb99ad7d0e1f3215100baaa744363509760605ecc0798",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/build-a-flexible-low-cost-pattern.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "a8d96a6c3b945056140b3191fba6cdbf07c86eaaca86b5cc714392f90ca629b7",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/build-a-satisfying-restaurant-meal.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "84d1ed2fc2a986c01f78c6b48f612451103c33a453213aa3cd87b50df2154d3c",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/compare-cost-per-serving.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "f0556bc0688471a3e38dbde44f8bac7e9c1c899bcc3b217e804677e53b6cfb5b",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/cook-with-what-you-have.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "9b22b4357e6664bceb65112b5ed8d7f77fac582f75d19e0c55e6e0b1e986b8a1",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/cooking-with-family-and-community.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "6d9435726cd13857f8987c44b525b1fdcc294cc11e64e8a37cdd71e05a89b761",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/ending-a-fast-comfortably.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "fa489eb49804dc6a497da5f2a086bf6cb0b6f7e7f15d2010afd2e9e4bdbdff80",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/enjoying-food-without-compensation.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "3367a5dada5a7808847bdab8ff9ca48a89a85eb7d1b77e76059acf864d042d77",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/environment-design.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "6a500a20dd639da4df064f822a4f20ff6e0b8d0795e662d02366d3b36c97c6f4",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fast-food-with-practical-choices.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "5a6aaeff583cd75bbb7dc1a2551dad5807463186844a474ac43c1bfae4adfcb2",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fasting-and-medications.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "dd2a47f4faffefae03cb8f63e541d2957a9807671ea88c36912fb44edcc1cfb1",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fiber-and-fluid-together.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "8af78e29a02a3479f60a8fd821497892063b2e247978ed56fa1809fe18e05518",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/flavor-without-perfection.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "4e6f346c5d236a13c6fe1d209c463c488e9cb3d1ab0b9df1bace0132d38e786e",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/flexible-meal-rhythm.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "f95e6b47d376022a15025c7507d6aba763e6730c41439f73bb326bf0141635f5",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/flexible-ordering-and-swaps.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "d1df1601629f45f52a397e312ba35f3f4546466f0926add3499dcc83b7c4d7a7",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fluid-rich-foods.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "0c01d6e1c238808eff115d3620a094d1bb5396260fe5a4bce3e56bd8b6455610",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/food-memories-and-meaning.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "441dad9b2e0232627a03f43302b34025a020f2009ffea5531ff41144b4587ac8",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/food-traditions-belong-here.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "8ea54686a0b6e6fc950924f44aecd2858867c7e62731463cda8ae15d841581ee",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/food-variety-in-practice.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "117ea2abf30ce3b7ba87fc428c5deca0405a366397fc118bf9e46e22787215ab",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fridge-freezer-and-pantry-basics.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "7e2b943b3cabdf31447317fe68b6cbe6cc1399ed22727639c36c3adeaced7735",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/frozen-canned-and-shelf-stable-options.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "5323e0d9f31ea60a5d87430d8ab688a3ef4d999da8e5c2633d207d1bae2b6b1a",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/fruit-vegetables-and-grains.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "2c2eb3a4c67c4592567536bddf4854682a8d49a1a87b0b22f259b351b68001c3",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/handling-produce-safely.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "26949564137cb1608a28e4cda24d1cb2b9e901cd65eefb054c3b0fb2e03b5fb0",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/hydration-cues-at-home.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "daa5f530c9e5aa8595c12f555b1440ac44cbcad7bc761e7c2577513d4ff279ce",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/label-comparisons-made-simple.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "3ca53cb00e0d085a1e1946234ba29c748185ffd07a17d717b0be18989c63a8c6",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/leftovers-and-storage-timing.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "f717799b33fea62dc93b22a23423bf4fac74272eba7dce0f60cdc949cd6d4eb3",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/make-a-backup-meal-list.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "5289b53ceebc615a3602ae17ecdacffc21cd4d109ed7e7a9b3c7a053067d932d",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/make-room-for-spontaneity.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "c3ab4febacbc6b62f10a1358fedb231f2e9a7b0d9d6bacdd3eae14b13040e32d",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/marketing-language-with-context.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "3e741d93657f8ac1f4754eba4775479ebe7e6d43d5b8381302e2c248ef5285e9",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/morning-light-and-rhythm.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "0de9eb5a9f7d8b20adf8ea544e859c840549e63ce9f9a9d322d46ad2bd6bd2c1",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/nighttime-food-and-sleep.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "edae7f769c3bfc67a08245c5dcc39195a2c98537618a19b74c32a43d6abac620",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/packing-food-for-work-or-travel.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "9fff2cf6450be7536eb743d878cd8cfdeb380866ccc1898345b46ecf4c671baf",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/plan-for-real-energy.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "7a73fb291e437dd904532b28269f40528635db3ba33a61e75138d369e016e03a",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/pleasure-is-useful-information.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "9d38ad96eee7a802cb0d1bc79452f23d83da9111a82fe2e16ec5399b6b9850d9",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/prevent-cross-contamination.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "b89f25edc26c89e56f3a72c7d72e5b7f4001b1c05f73d6de4222cca3eba5904a",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/read-menus-without-overthinking.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "85fd83d40fc82a5d4e6dd13e01048d7dc2c5c1e11ff3e4f2cd5d304864962923",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/reheating-meals-with-confidence.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "8c13fe45351be8eb16f91ed59389d8a1deb2e92c5985ae5b2932b4115a6a671a",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/replace-all-or-nothing.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "6d8fe2d1abe961db3c668e5fa7e7bfe35c4d95ed1d90cec2a245c3ac5ed09623",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/rest-days-are-data.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "421c21649cfe4ad2c09c88e3d6513da3bee59ee94bf1d25fe742b62551aa84f7",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/restart-without-resetting.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "d3ca6fea6106d98bf85f83a935b8c342c3b4333dbd6727e33c7a97317d4089e8",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/satisfaction-and-staying-power.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "f27de20302dcefebaed3b422e027d58926639afc19a92bfb9cde932e9d868705",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/self-talk-that-supports-action.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "02488f5888024296f3f47fdeb50efba8cb56dc6447ccef98ddd92987493a1702",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/shared-meals-and-family-style.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "a7fdeec8873ae14401a117ea0effca4a3a54411415c2b28dc8023535bd9b674c",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/sharing-meals-and-connection.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "009af7e4e5fbe0b371ae8843bfb555a83d48a8397ce1fb09f360234dc6a7ce66",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/shop-from-what-you-already-have.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "320f60862c36119182008eba3524bd5ca9e63249a73c30fec01cc72034d056ac",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/what-fiber-brings-to-a-meal.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "1d10c5244faec7586f0042c9d6de147f33715e7d5dcc21272f67a41e4c74de61",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/when-access-changes.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "62ecc5f1bf8eb6d3294bf59f5dd949a0595a113ff7c462c10c27e10a972470cc",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/when-digestion-needs-support.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "bff31b67b0be40f3038b1ffa9920b9c2275d5041cdef515e3812c252ec086055",
+      "width": 640,
+      "height": 640,
+      "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/learning/articles/when-to-discard-rather-than-guess.jpg",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved — original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "Learning editorial lesson image",
+      "renderConsumers": [
+        "artifacts/calora/app/learning.tsx: Learning browse and lesson reader surfaces"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-10-29",
+      "creator": "Manus generate_image (default model), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-10-29",
+      "sha256": "c4935f9c52673c61ade129463810a67fab1dc152877f7ad00bf1c542b4131a98",
+      "width": 640,
+      "height": 640,
       "format": "JPEG"
     }
   ],
