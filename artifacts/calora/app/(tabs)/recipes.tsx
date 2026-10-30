@@ -3056,19 +3056,39 @@ export default function RecipesScreen() {
     const response = recipesQuery.data;
     const page = response?.recipes;
     if (!page) return;
+    const nextOffset = response?.nextOffset ?? null;
     setDiscoverCatalogue((current) => applyDiscoverCataloguePage(current, {
       generation: discoverCatalogue.generation,
       filterKey: discoverFilterKey,
       offset: remoteOffset,
       recipes: page,
-      nextOffset: response?.nextOffset ?? null,
+      nextOffset,
       continuousBrowse: response?.continuousBrowse === true,
       browseCycle: response?.browseCycle ?? 0,
       browsePoolSize: response?.browsePoolSize ?? null,
       terminalReason: response?.terminalReason ?? null,
     }));
-    loadingMoreRef.current = false;
-  }, [discoverCatalogue.generation, discoverFilterKey, recipesQuery.data, remoteOffset]);
+    const metrics = discoverRecipeScrollMetricsRef.current;
+    const shouldContinue = nextOffset != null
+      && nextOffset !== remoteOffset
+      && shouldLoadMoreRecipePage({
+        section: 'discover',
+        activeSection,
+        offsetY: metrics.offsetY,
+        viewportHeight: metrics.viewportHeight,
+        contentHeight: metrics.contentHeight,
+        nextOffset,
+        isFetching: false,
+        isLoadingMore: false,
+        prefetchDistance: RECIPE_PREFETCH_DISTANCE,
+      });
+    if (shouldContinue) {
+      loadingMoreRef.current = true;
+      setRemoteOffset(nextOffset);
+    } else {
+      loadingMoreRef.current = false;
+    }
+  }, [activeSection, discoverCatalogue.generation, discoverFilterKey, recipesQuery.data, remoteOffset]);
   useEffect(() => {
     // A failed continuation has no page to reconcile, so release the cursor
     // claim. The visible Retry remains the primary recovery affordance, while

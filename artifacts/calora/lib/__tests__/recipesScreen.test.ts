@@ -434,6 +434,16 @@ describe('Recipes Discover layout contracts', () => {
     expect(renderedGridBlock).toContain('recipesQuery.isFetching');
   });
 
+  it('hands off an advancing Discover cursor when a reconciled page is already near the rendered end', () => {
+    const reconciliationStart = source.indexOf('const response = recipesQuery.data;');
+    const reconciliationEnd = source.indexOf("if (recipesQuery.isError) loadingMoreRef.current = false;", reconciliationStart);
+    const reconciliationBlock = source.slice(reconciliationStart, reconciliationEnd);
+    expect(reconciliationBlock).toContain('const nextOffset = response?.nextOffset ?? null;');
+    expect(reconciliationBlock).toContain('shouldLoadMoreRecipePage');
+    expect(reconciliationBlock).toContain('setRemoteOffset(nextOffset);');
+    expect(reconciliationBlock).toContain('nextOffset !== remoteOffset');
+  });
+
   it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {
     expect(source).toContain("import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'");
     expect(source).toContain('useFocusEffect(');
