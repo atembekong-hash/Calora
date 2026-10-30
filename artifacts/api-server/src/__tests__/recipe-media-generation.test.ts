@@ -5,7 +5,7 @@ const { generate, markError, updateStored, toResource, signUrl, warn } =
     generate: vi.fn(),
     markError: vi.fn(),
     updateStored: vi.fn(),
-    toResource: vi.fn((row: unknown) => row),
+    toResource: vi.fn((row: unknown, extra?: Record<string, unknown>) => ({ ...(row as object), ...(extra ?? {}) })),
     signUrl: vi.fn(),
     warn: vi.fn(),
   }));
@@ -86,7 +86,7 @@ describe("recipe media generation diagnostics", () => {
     generate.mockResolvedValue(validImage());
     markError.mockResolvedValue(true);
     updateStored.mockResolvedValue({ ...ROW, status: "stored" });
-    signUrl.mockResolvedValue("https://storage.example/signed-put");
+    signUrl.mockResolvedValueOnce("https://storage.example/signed-put").mockResolvedValueOnce("https://storage.example/review-preview.png");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response(null, { status: 200 })),
@@ -236,14 +236,14 @@ describe("recipe media generation diagnostics", () => {
   });
 
   it("uses one bounded generation request and records successful transition only after upload", async () => {
-    await expect(
-      generateClaimedRecipeMedia("owner", ROW as never),
-    ).resolves.toMatchObject({
+    await expect(generateClaimedRecipeMedia("owner", ROW as never)).resolves.toMatchObject({
       status: "stored",
+      imageUrl: expect.stringContaining("https://storage.example/"),
     });
 
     expect(generate).toHaveBeenCalledOnce();
     expect(fetch as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledOnce();
+    expect(signUrl).toHaveBeenCalledTimes(2);
     expect(updateStored).toHaveBeenCalledOnce();
     expect(markError).not.toHaveBeenCalled();
   });

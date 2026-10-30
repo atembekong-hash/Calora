@@ -169,7 +169,13 @@ export async function generateClaimedRecipeMedia(ownerExternalId: string, row: R
 
     phase = "database_transition";
     try {
-      return toRecipeMediaResource(await updateRecipeMediaStored(ownerExternalId, row.id, row.attempts));
+      const stored = await updateRecipeMediaStored(ownerExternalId, row.id, row.attempts);
+      // Generation completes in a review-only state. Return the private,
+      // short-lived preview capability immediately so the client does not
+      // render an indefinite spinner while waiting for a second reconciliation
+      // request. This does not publish the image: the review-preview helper
+      // only issues a locator for stored media whose state is needs_review.
+      return reviewPreviewLocatorForRecipeMedia(ownerExternalId, stored);
     } catch {
       throw new RecipeMediaGenerationError(RECIPE_MEDIA_FAILURE_CATEGORIES.DATABASE_TRANSITION);
     }

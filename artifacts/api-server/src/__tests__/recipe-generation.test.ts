@@ -523,8 +523,9 @@ describe("AI recipe creation endpoints", () => {
       status: "stored",
       semanticReviewState: "needs_review",
     });
-    expect(response.body.imageUrl).toBeUndefined();
-    expect(response.body.imageUrlExpiresAt).toBeUndefined();
+    expect(response.body.imageUrl).toEqual(expect.stringContaining("test-bucket.storage.example/private/recipe-photos/"));
+    expect(response.body.imageUrlExpiresAt).toEqual(expect.any(String));
+    expect(response.body.status).not.toBe("url_ready");
     expect(mockOpenAiImageGenerate).toHaveBeenCalledWith(expect.objectContaining({
       model: "gpt-image-2.5-flare",
       size: "1024x1024",
