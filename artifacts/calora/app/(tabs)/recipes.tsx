@@ -57,7 +57,10 @@ const RECIPE_PAGE_SIZE = 18;
 const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const;
 // Start the next request while several rows remain on screen. This gives the
 // network and image cache time to work before the reader reaches the end.
-const RECIPE_PREFETCH_DISTANCE = 1600;
+// React Native Web can report the previous content height for one render after
+// a page is appended. Keep the next cursor claimable across that gap without
+// eagerly loading the complete browse pool.
+const RECIPE_PREFETCH_DISTANCE = 4200;
 const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;

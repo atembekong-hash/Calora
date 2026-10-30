@@ -211,6 +211,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('compactCardFooter');
   });
 
+  it('keeps the Discover cursor claimable after a full web page append', () => {
+    expect(source).toContain('const RECIPE_PREFETCH_DISTANCE = 4200');
+    expect(source).toContain('prefetchDistance: RECIPE_PREFETCH_DISTANCE');
+    expect(source).toContain('discoverGridEntries.length');
+  });
+
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
