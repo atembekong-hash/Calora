@@ -29,6 +29,7 @@ import Animated, { Easing, ReduceMotion, useAnimatedProps, useAnimatedStyle, use
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
+import { savedMealCategory } from '@/lib/savedMealCategory';
 import { enterMotion } from '@/lib/motion';
 import { formatCoachPlainText } from '@workspace/api-zod/coach-text-presentation';
 import { mealOrder, verifiedFoods } from '@/data/foods';
@@ -1197,7 +1198,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
     addLog({
       name: meal.name,
       date: entryDate,
-      meal: 'Dinner',
+      meal: meal.mealType ?? savedMealCategory(meal),
       calories: meal.calories,
       protein: meal.protein,
       carbs: meal.carbs,

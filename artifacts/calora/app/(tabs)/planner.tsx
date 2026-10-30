@@ -1418,7 +1418,7 @@ export default function PlannerScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Save ${detail.name} as meal`}
                   onPress={() => {
-                    saveMeal({ name: detail.name, kind: 'meal', foodIds: detail.recipeId ? [detail.recipeId] : [], calories: detail.calories, protein: detail.proteinG, carbs: detail.carbsG, fat: detail.fatG });
+                    saveMeal({ name: detail.name, kind: 'meal', foodIds: detail.recipeId ? [detail.recipeId] : [], calories: detail.calories, protein: detail.proteinG, carbs: detail.carbsG, fat: detail.fatG, mealType: detail.meal });
                     Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
                   }}
                   style={[styles.dismissButton, { borderColor: colors.primary, borderWidth: 1, marginTop: 10 }]}

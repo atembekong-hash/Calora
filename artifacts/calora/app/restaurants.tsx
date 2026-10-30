@@ -415,7 +415,7 @@ export default function RestaurantsScreen() {
                   accessibilityLabel={reviewState === 'ready' ? `Save ${detail.name} as meal` : `Save ${detail.name} as meal unavailable`}
                   onPress={() => {
                     if (reviewState !== 'ready' || selectedServing?.calories === null || selectedServing?.proteinG === null || selectedServing?.carbsG === null || selectedServing?.fatG === null) return;
-                    saveMeal({ name: detail.name, kind: 'meal', foodIds: [detail.sourceId], calories: selectedServing.calories, protein: selectedServing.proteinG, carbs: selectedServing.carbsG, fat: selectedServing.fatG });
+                    saveMeal({ name: detail.name, kind: 'meal', foodIds: [detail.sourceId], calories: selectedServing.calories, protein: selectedServing.proteinG, carbs: selectedServing.carbsG, fat: selectedServing.fatG, mealType: meal });
                     Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
                   }}
                 />

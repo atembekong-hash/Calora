@@ -52,6 +52,7 @@ import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 import { inspectDiscoverRecipeImage } from '@/lib/discoverRecipeImage';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
 import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
+import { normalizeSavedMealType } from '@/lib/savedMealIdentity';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -1881,7 +1882,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                 disabled={!canLog}
                 onPress={() => {
                   if (!canLog || scaledKcal === null || scaledProtein === null || scaledCarbs === null || scaledFat === null) return;
-                  saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat });
+                  saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat, mealType: normalizeSavedMealType(recipeMealType(detail)) });
                   Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.muted, opacity: canLog ? 1 : 0.45 }]}
@@ -2891,7 +2892,7 @@ export default function RecipesScreen() {
     if (!hasCompleteNutrition(recipe)) return;
     const { calories, proteinG, carbsG, fatG } = recipe;
     if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
-    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG });
+    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(recipe)) });
     Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
   }, [saveMeal]);
   // Pre-warm the detail query during the modal's slide-up animation (~350 ms).

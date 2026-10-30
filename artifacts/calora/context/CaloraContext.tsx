@@ -129,6 +129,7 @@ import { coordinateCaptureAcceptance, createCaptureAcceptanceCoordinator } from 
 import { reconcileRemoteProfile, saveRemoteProfile, type LocalProfile } from '@/lib/profileSync';
 import { removeExactLegacyStarterFixtures } from '@/lib/legacyStarterFixtures';
 import { isEditablePersonalRecipe } from '@/lib/recipeModel';
+import { hasSavedMeal } from '@/lib/savedMealIdentity';
 
 /**
  * Native listener disposal is reserved for app backgrounding, account changes,
@@ -582,7 +583,7 @@ type CaloraContextValue = {
   setMood: (date: string, mood: Mood) => void;
   setActivity: (date: string, activity: DailyActivity) => void;
   setActivityMinutes: (date: string, minutes: number) => void;
-  saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
+  saveMeal: (meal: Omit<SavedMeal, 'id'>) => boolean;
   /** Resolves only after a new personal recipe is durably committed locally. */
   saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => Promise<CaloraRecipe>;
   /** Restores a server-owned generated recipe using its stable client recipe ID. */
@@ -2462,10 +2463,13 @@ export function CaloraProvider({
       queueMutation('settings', 'upsert');
     },
     saveMeal: (meal) => {
+      const current = (exportSnapshotRef.current?.savedMeals ?? savedMeals) as SavedMeal[];
+      if (hasSavedMeal(current, meal)) return false;
       const saved = { ...meal, id: makeId('meal') };
-      updateExportField('savedMeals', (current) => [...current as SavedMeal[], saved]);
-      setSavedMeals((current) => [...current, saved]);
-      queueMutation('savedMeal', 'upsert');
+      const next = [...current, saved];
+      updateExportField('savedMeals', () => next);
+      setSavedMeals(next);
+      return true;
     },
     saveRecipe: async (recipe) => {
       const currentSnapshot = exportSnapshotRef.current;
