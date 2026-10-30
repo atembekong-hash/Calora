@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { createRequire } from 'node:module';
+import { z } from 'zod';
 
 /**
  * Vitest global setup — runs before every test file.
@@ -13,6 +14,15 @@ import { createRequire } from 'node:module';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).__DEV__ = true;
+
+// The generated API contracts target Zod 4 (for example, zod.int()). A stale
+// or shared dependency tree can otherwise load Zod 3 and fail later with an
+// opaque "int is not a function" import error across many unrelated suites.
+if (typeof z.int !== 'function') {
+  throw new Error(
+    'Calora tests require Zod 4.x, but the loaded runtime does not expose zod.int(). Reinstall with pnpm install --frozen-lockfile.',
+  );
+}
 
 // CI and local test runs must use deterministic non-production Supabase
 // configuration. Production builds still fail closed in lib/supabase.ts when
