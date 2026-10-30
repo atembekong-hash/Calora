@@ -3281,7 +3281,14 @@ export default function RecipesScreen() {
       if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');
     }, 0);
     return () => clearTimeout(timer);
-  }, [activeSection, remoteNextOffset, recipesQuery.isFetching]);
+  }, [
+    activeSection,
+    discoverCatalogue.pages.length,
+    recipesQuery.isFetching,
+    remoteNextOffset,
+    remoteOffset,
+    remoteRecipes.length,
+  ]);
   const handleRecipeScroll = (section: RecipeSection, event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (section === 'premium') {
@@ -3311,6 +3318,17 @@ export default function RecipesScreen() {
     ...localMatches.map((recipe) => ({ recipe, entryKey: `local:${recipe.id}` })),
     ...visibleRemote.map((recipe) => ({ recipe, entryKey: `discover:${discoverFeedEntryKey(recipe)}` })),
   ], [localMatches, visibleRemote]);
+
+  // React Native Web can reconcile the catalogue before the FlatList has
+  // committed its new content height. Re-check after the final rendered grid
+  // changes so an end-of-feed viewport continues through the next cursor.
+  useEffect(() => {
+    if (activeSection !== 'discover' || discoverGridEntries.length === 0) return;
+    const timer = setTimeout(() => {
+      loadMoreDiscoverRecipesIfAtEnd('discover');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeSection, discoverGridEntries.length]);
 
   const renderDiscoverSection = () => (
     <FlatList

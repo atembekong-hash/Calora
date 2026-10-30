@@ -413,6 +413,25 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('accessibilityLabel="Refresh Discover recipes"');
     expect(source).toContain('onPress={refreshDiscoverCatalogue}');
   });
+  it('rechecks the end-of-feed continuation after each page and offset reconciliation', () => {
+    const effectStart = source.indexOf("if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');");
+    const effectEnd = source.indexOf('const handleRecipeScroll', effectStart);
+    const continuationEffect = source.slice(effectStart, effectEnd);
+    expect(effectStart).toBeGreaterThan(-1);
+    expect(continuationEffect).toContain('discoverCatalogue.pages.length');
+    expect(continuationEffect).toContain('remoteNextOffset');
+    expect(continuationEffect).toContain('remoteOffset');
+    expect(continuationEffect).toContain('remoteRecipes.length');
+  });
+
+  it('rechecks Discover after the final rendered grid grows on web', () => {
+    const renderedGridStart = source.indexOf('const discoverGridEntries = useMemo');
+    const renderStart = source.indexOf('const renderDiscoverSection = () =>', renderedGridStart);
+    const renderedGridBlock = source.slice(renderedGridStart, renderStart);
+    expect(renderedGridBlock).toContain('discoverGridEntries.length');
+    expect(renderedGridBlock).toContain("loadMoreDiscoverRecipesIfAtEnd('discover')");
+    expect(renderedGridBlock).toContain('}, [activeSection, discoverGridEntries.length]);');
+  });
 
   it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {
     expect(source).toContain("import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'");
