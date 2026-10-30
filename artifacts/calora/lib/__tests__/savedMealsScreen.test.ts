@@ -25,6 +25,7 @@ describe('saved meal entry points', () => {
     const planner = source('app/(tabs)/planner.tsx');
     expect(home).toContain('Save ${log.name} as meal');
     expect(home).toContain('saveMeal({');
+    expect(home).toContain('mealType: log.meal');
     expect(recipes).toContain('Save ${detail.name} as meal');
     expect(recipes).toContain("kind: 'recipe'");
     expect(planner).toContain('Save ${detail.name} as meal');
@@ -37,6 +38,7 @@ describe('saved meal entry points', () => {
     expect(source('app/restaurants.tsx')).toContain('Save ${detail.name} as meal');
     expect(source('app/saved-recipes.tsx')).toContain('onSaveAsMeal={saveRecipeAsMeal}');
     expect(source('app/memory.tsx')).toContain('Save ${title} as meal');
+    expect(source('app/memory.tsx')).toContain('mealType: log.meal');
   });
 
   it('resolves saved-meal categories for filtering, including legacy records', () => {

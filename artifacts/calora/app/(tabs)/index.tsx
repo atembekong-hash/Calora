@@ -1602,6 +1602,7 @@ export default function HomeScreen() {
       protein: log.protein,
       carbs: log.carbs,
       fat: log.fat,
+      mealType: log.meal,
     });
     setSaveNotice(`${log.name} saved for quick logging.`);
   }, [saveMeal]);

@@ -336,7 +336,7 @@ export default function LivingMemoryScreen() {
                       foodLog={log}
                       onEdit={log ? () => startEdit(log) : undefined}
                       onSave={log ? () => {
-                        saveMeal({ name: log.name, kind: 'meal', foodIds: log.sourceRecipeId ? [log.sourceRecipeId] : [], calories: log.calories, protein: log.protein, carbs: log.carbs, fat: log.fat });
+                        saveMeal({ name: log.name, kind: 'meal', foodIds: log.sourceRecipeId ? [log.sourceRecipeId] : [], calories: log.calories, protein: log.protein, carbs: log.carbs, fat: log.fat, mealType: log.meal });
                         Alert.alert('Meal saved', `${log.name} is ready to log from Saved meals.`);
                       } : undefined}
                       onForget={() => forget('meal', row.id, label)}
