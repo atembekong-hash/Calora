@@ -47,7 +47,7 @@ import { applyPremiumDetailDenial, canApplyPremiumPage, clearPremiumAccountBound
 import { canStartPremiumPagination, isNewPremiumOffset } from '@/lib/premiumPaginationGuard';
 import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatalogueEntries, nextDiscoverPaginationOffset, resetDiscoverCatalogueState } from '@/lib/discoverCatalogueState';
 import { createDiscoverVisitSessionSalt, reconcileDiscoverVisitComposition, type DiscoverVisitEntry } from '@/lib/discoverRecipeMix';
-import { handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, requestGeneratedRecipeImageReviewPreview, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
+import { ensureGeneratedRecipeImage, handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, requestGeneratedRecipeImageReviewPreview, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 import { inspectDiscoverRecipeImage } from '@/lib/discoverRecipeImage';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
@@ -149,7 +149,16 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
       : generatedImage
         ? null
         : discoverImageInspection?.source ?? null;
-  const recipeImageKey = recipeImageSource && typeof recipeImageSource === 'object' && 'uri' in recipeImageSource ? recipeImageSource.uri : recipeImageSource ? `asset:${recipe.id}` : '';
+  // Signed generated locators are temporary capabilities. Keep the rendered
+  // image identity tied to durable media so URL renewal does not remount
+  // suggestion cards and flash them empty.
+  const recipeImageKey = generatedImage
+    ? `${localRecipe?.imageMediaId ?? ''}:${localRecipe?.imageId ?? ''}:${localRecipe?.imageReviewState ?? ''}`
+    : recipeImageSource && typeof recipeImageSource === 'object' && 'uri' in recipeImageSource
+      ? recipeImageSource.uri
+      : recipeImageSource
+        ? `asset:${recipe.id}`
+        : '';
   const [imageFailed, setImageFailed] = useState(false);
   const [imageFailureReason, setImageFailureReason] = useState<string | null>(null);
   const [imageRetryNonce, setImageRetryNonce] = useState(0);
@@ -395,7 +404,7 @@ const CREATOR_STYLE_OPTIONS = ['Balanced', 'High protein', 'Vegetarian', 'Vegan'
 const CREATOR_SURPRISE_OPTIONS = ['Fresh & light', 'Comforting', 'High protein', 'Pantry-friendly'];
 const GUEST_INGREDIENT_OPTIONS = ['Eggs', 'Chicken', 'Lentils', 'Spinach', 'Rice', 'Pasta', 'Tomatoes', 'Lemon'];
 
-function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof useCalora>['colors']; onOpenRecipe: (recipe: CaloraRecipe) => void }) {
+function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: ReturnType<typeof useCalora>['colors']; onOpenRecipe: (recipe: CaloraRecipe) => void; updateRecipe: ReturnType<typeof useCalora>['updateRecipe'] }) {
   const { shoppingItems, plannerMeals, logs, profile, saveRecipe } = useCalora();
   const { session } = useAuth();
   const [mode, setMode] = useState<CreatorMode>('pantry');
@@ -596,6 +605,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         nutritionConfidence: 'estimated',
         nutritionSource: 'AI estimate',
         nutritionNote: generated.nutritionNote,
+        imageStatus: 'pending',
         createdAt: new Date().toISOString(),
       };
     } catch {
@@ -617,12 +627,22 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         sourceProvider: 'Calora',
         nutritionConfidence: 'user_entered',
         nutritionSource: 'User review required',
+        imageStatus: 'pending',
         createdAt: new Date().toISOString(),
       };
     }
     try {
       const saved = await saveRecipe(recipe);
       onOpenRecipe(saved);
+      // Start exactly one idempotent request immediately. Opening the recipe
+      // remains fast, while the shared lifecycle hook can resume/reconcile it.
+      void ensureGeneratedRecipeImage({
+        accountId: session.user.id,
+        recipe: saved,
+        updateRecipe,
+        isAccountActive: (id) => session.user.id === id,
+        force: true,
+      }).catch(() => undefined);
       if (usedLocalFallback) {
         setError('Recipe details are temporarily unavailable. A local draft was saved for you to review and edit.');
       }
@@ -3561,7 +3581,7 @@ export default function RecipesScreen() {
             suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0}
           />
         ) : section === 'create' ? (
-          <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} />
+          <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} updateRecipe={updateRecipe} />
         ) : null}
       </ScrollView>
     );

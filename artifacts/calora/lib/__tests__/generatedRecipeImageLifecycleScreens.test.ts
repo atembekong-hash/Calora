@@ -26,4 +26,17 @@ describe('generated recipe image renewal screen integration', () => {
     expect(lifecycleSource).toContain('const lifecycleKey = generatedRecipeImageLifecycleKey(recipes);');
     expect(lifecycleSource).toContain('[accountId, lifecycleKey, renewalWindowMs]');
   });
+
+  it('starts Create photo generation immediately after the recipe is durably saved', () => {
+    expect(recipesScreen).toContain('const saved = await saveRecipe(recipe);');
+    expect(recipesScreen).toContain('void ensureGeneratedRecipeImage({');
+    expect(recipesScreen).toContain('accountId: session.user.id');
+    expect(recipesScreen).toContain('force: true');
+  });
+
+  it('keys generated image remounts by durable media identity instead of signed URL', () => {
+    expect(recipesScreen).toContain('localRecipe?.imageMediaId ??');
+    expect(recipesScreen).toContain('localRecipe?.imageId ??');
+    expect(recipesScreen).toContain('Signed generated locators are temporary capabilities');
+  });
 });
