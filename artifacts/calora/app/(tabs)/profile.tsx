@@ -1452,7 +1452,7 @@ export default function ProfileScreen() {
                       onPress: () => router.push("/dashboard-layout"),
                     },
                     {
-                      icon: "bookmark" as const,
+                      icon: "coffee" as const,
                       title: "Saved meals",
                       body: `${savedMeals.length} saved meal${savedMeals.length === 1 ? "" : "s"} ready to reuse.`,
                       onPress: () => router.push("/saved-meals"),

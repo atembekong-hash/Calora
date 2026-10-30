@@ -1913,7 +1913,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.muted, opacity: canLog ? 1 : 0.45 }]}
               >
-                <Feather name="bookmark" size={17} color={colors.primary} />
+                <Feather name="coffee" size={17} color={colors.primary} />
               </Pressable>
             </View>
             <RecipeImage recipe={detail} height={210} />
