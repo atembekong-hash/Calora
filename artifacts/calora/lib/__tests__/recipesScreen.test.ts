@@ -258,6 +258,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
+    expect(source).toContain('const requestedOffsetRef = useRef<number | null>(null);');
+    expect(source).toContain('const failedOffsetRef = useRef<number | null>(null);');
+    expect(source).toContain('if (!query.isError) return;');
+    expect(source).toContain('failedOffsetRef.current = requestedOffsetRef.current ?? (offset > 0 ? offset : null);');
+    expect(source).toContain('if (query.isError && failedOffsetRef.current === nextOffset)');
+    expect(source).toContain('void query.refetch().finally(() =>');
+    expect(source).toContain("if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');");
+    expect(source).toContain("if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');");
   });
 
   it('shows a loading state rather than a false empty result while a new Plus search is resolving', () => {
