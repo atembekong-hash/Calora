@@ -3281,7 +3281,14 @@ export default function RecipesScreen() {
       if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');
     }, 0);
     return () => clearTimeout(timer);
-  }, [activeSection, remoteNextOffset, recipesQuery.isFetching]);
+  }, [
+    activeSection,
+    discoverCatalogue.pages.length,
+    recipesQuery.isFetching,
+    remoteNextOffset,
+    remoteOffset,
+    remoteRecipes.length,
+  ]);
   const handleRecipeScroll = (section: RecipeSection, event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (section === 'premium') {
