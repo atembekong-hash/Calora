@@ -30,14 +30,14 @@ describe("Learning editorial image identity", () => {
   it("ships one local, immutable editorial identity for every article with no collection fallback", () => {
     const imageMap = fs.readFileSync(imageMapPath, "utf8");
 
-    expect(LEARNING_LESSONS).toHaveLength(50);
-    expect(LEARNING_COLLECTIONS).toHaveLength(10);
+    expect(LEARNING_LESSONS).toHaveLength(105);
+    expect(LEARNING_COLLECTIONS).toHaveLength(15);
     for (const collection of LEARNING_COLLECTIONS) {
       expect(
         LEARNING_LESSONS.filter(
           (lesson) => lesson.collectionId === collection.id,
         ),
-      ).toHaveLength(5);
+      ).toHaveLength(7);
     }
     expect(
       new Set(LEARNING_LESSONS.map((lesson) => lesson.imageAssetKey)).size,
