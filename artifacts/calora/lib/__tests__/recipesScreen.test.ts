@@ -196,6 +196,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
+  it('offers universal Save as meal actions on Plus and generated suggestion cards', () => {
+    const premiumCatalogue = source.slice(source.indexOf('function PremiumCatalogue'), source.indexOf('function ReviewComponent'));
+    expect(premiumCatalogue).toContain('onSaveAsMeal={() => onSaveAsMeal(recipe)}');
+    expect(premiumCatalogue).toContain('saveAsMealDisabled={!hasCompleteNutrition(recipe)}');
+    expect(source).toContain('onSaveAsMeal={() => saveBrowseRecipeAsMeal(suggestion)}');
+    expect(source).toContain('saveAsMealDisabled={!hasCompleteNutrition(suggestion)}');
+    expect(source).toContain('onSaveAsMeal={saveRecipeAsMeal}');
+  });
+
   it('keeps Discover and Plus grid cards fixed while giving the photo more height', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),

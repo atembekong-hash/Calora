@@ -975,7 +975,7 @@ function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: Return
   );
 }
 
-function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
+function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onSaveAsMeal: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session, user } = useAuth();
   const [search, setSearch] = useState('');
@@ -1367,6 +1367,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
                     toggleSavedRecipe(recipe.id);
                     onSave(recipe);
                   }}
+                  onSaveAsMeal={() => onSaveAsMeal(recipe)}
+                  saveAsMealDisabled={!hasCompleteNutrition(recipe)}
                 />
               </View>
             ))}
@@ -1486,6 +1488,13 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const remoteRecipeId = recipe && !local && !premium && !caloraOriginal ? recipe.id : '';
   const premiumSourceId = recipe && premium ? recipeProvenance(recipe).sourceId : '';
   const selectedPremiumRecipe = premium && recipe ? recipe as PremiumRecipe : null;
+  const saveBrowseRecipeAsMeal = useCallback((candidate: BrowseRecipe) => {
+    if (!hasCompleteNutrition(candidate)) return;
+    const { calories, proteinG, carbsG, fatG } = candidate;
+    if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
+    saveMeal({ name: candidate.name, kind: 'recipe', foodIds: [candidate.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(candidate)) });
+    Alert.alert('Meal saved', `${candidate.name} is ready to log from Saved meals.`);
+  }, [saveMeal]);
   const detailQuery = useGetRecipe(remoteRecipeId, {
     query: {
       queryKey: ['recipe', remoteRecipeId],
@@ -2395,7 +2404,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`} testID={`recipe-suggestions-row-${rowIndex + 1}`} contentContainerStyle={styles.suggestionCards}>
                         {row.map((suggestion) => (
                           <View key={suggestion.id} style={styles.suggestionCard}>
-                            <RecipeCard recipe={suggestion} colors={colors} saved={savedRecipeIds.includes(suggestion.id)} imageHeight={112} onPress={() => onSelectSuggestion(suggestion)} onSave={() => toggleSavedRecipe(suggestion.id)} />
+                          <RecipeCard recipe={suggestion} colors={colors} saved={savedRecipeIds.includes(suggestion.id)} imageHeight={112} onPress={() => onSelectSuggestion(suggestion)} onSave={() => toggleSavedRecipe(suggestion.id)} onSaveAsMeal={() => saveBrowseRecipeAsMeal(suggestion)} saveAsMealDisabled={!hasCompleteNutrition(suggestion)} />
                           </View>
                         ))}
                       </ScrollView>
@@ -3575,6 +3584,7 @@ export default function RecipesScreen() {
             colors={colors}
             onOpen={handleCardPress}
             onSave={(recipe) => setPremiumSavedRecipes((current) => (current.some((item) => item.id === recipe.id) ? current : [...current, recipe]))}
+            onSaveAsMeal={saveRecipeAsMeal}
             onAccessDenied={clearPremiumAccountBoundary}
             savedPremiumRecipes={premiumSavedRecipes}
             onLoadMoreRef={premiumLoadMoreRef}
