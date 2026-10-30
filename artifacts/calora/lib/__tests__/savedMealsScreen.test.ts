@@ -35,7 +35,9 @@ describe('saved meal entry points', () => {
   });
 
   it('exposes the same action on reviewed scan, restaurant, saved-recipe, and memory surfaces', () => {
-    expect(source('components/SaveAsMealButton.tsx')).toContain('Save as meal');
+    const saveAsMealButton = source('components/SaveAsMealButton.tsx');
+    expect(saveAsMealButton).toContain('Save as meal');
+    expect(saveAsMealButton).toContain('name="coffee"');
     expect(source('app/(tabs)/scan.tsx')).toContain('Save reviewed meal as meal');
     expect(source('app/restaurants.tsx')).toContain('Save ${detail.name} as meal');
     expect(source('app/saved-recipes.tsx')).toContain('onSaveAsMeal={saveRecipeAsMeal}');

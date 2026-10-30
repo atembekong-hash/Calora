@@ -32,7 +32,7 @@ export function SaveAsMealButton({
         { backgroundColor: colors.card, borderColor: colors.primary, opacity: disabled ? 0.45 : pressed ? 0.72 : 1 },
       ]}
     >
-      <Feather name="bookmark" size={compact ? 16 : 15} color={colors.primary} />
+      <Feather name="coffee" size={compact ? 16 : 15} color={colors.primary} />
       {!compact ? <Text style={[styles.text, { color: colors.primary }]}>{label}</Text> : null}
     </Pressable>
   );

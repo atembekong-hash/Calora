@@ -107,6 +107,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('title="Recipes"');
     expect(source).toContain('testID="saved-recipes-header-button"');
     expect(source).toContain("router.push('/saved-recipes')");
+    expect(source).toContain('testID="saved-meals-header-button"');
+    expect(source).toContain("router.push('/saved-meals')");
     expect(source).toContain('testID="shopping-list-header-button"');
     expect(source).toContain('Open shopping list');
     expect(source).toContain('<ShoppingListSheet');
@@ -203,6 +205,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('onSaveAsMeal={() => saveBrowseRecipeAsMeal(suggestion)}');
     expect(source).toContain('saveAsMealDisabled={!hasCompleteNutrition(suggestion)}');
     expect(source).toContain('onSaveAsMeal={saveRecipeAsMeal}');
+    expect(source).toContain('mealSaved={Boolean(savedMealForRecipe(');
+    expect(source).toContain('onRemoveMeal=');
+  });
+
+  it('uses one shared save-options menu instead of ambiguous bookmark-only actions', () => {
+    expect(source).toContain("import { RecipeSaveMenu } from '@/components/RecipeSaveMenu';");
+    expect(source).toContain('<RecipeSaveMenu');
+    expect(source).not.toContain('import { SaveAsMealButton }');
   });
 
   it('keeps Discover and Plus grid cards fixed while giving the photo more height', () => {

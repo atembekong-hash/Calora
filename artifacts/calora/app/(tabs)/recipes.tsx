@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, listPremiumRecipes, listRecipes, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
-import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
+import { CaloraRecipe, useCalora, type SavedMeal } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
 import { formatCalories, formatGrams, formatWhole, normalizeWholeNumberInput, parseWholeNumberInput } from '@/lib/formatters';
@@ -18,7 +18,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, buildShoppingItems, getPlannerWeekStart, plannerDate, plannerMealTypes, plannerWeekDaysForDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
-import { SaveAsMealButton } from '@/components/SaveAsMealButton';
+import { RecipeSaveMenu } from '@/components/RecipeSaveMenu';
 import { BottomSheet } from '@/components/BottomSheet';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
@@ -52,7 +52,7 @@ import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 import { inspectDiscoverRecipeImage } from '@/lib/discoverRecipeImage';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
 import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
-import { normalizeSavedMealType } from '@/lib/savedMealIdentity';
+import { hasSavedMeal, normalizeSavedMealType } from '@/lib/savedMealIdentity';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -92,6 +92,13 @@ function discoverFeedEntryKey(recipe: BrowseRecipe): string {
 function recipeMealType(recipe: BrowseRecipe): string | null {
   if (!('mealType' in recipe) || typeof recipe.mealType !== 'string') return null;
   return recipe.mealType;
+}
+
+function recipeSavedMealInput(recipe: BrowseRecipe): Omit<SavedMeal, 'id'> | null {
+  if (!hasCompleteNutrition(recipe)) return null;
+  const { calories, proteinG, carbsG, fatG } = recipe;
+  if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return null;
+  return { name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(recipe)) };
 }
 
 function recipeSuggestionScore(candidate: BrowseRecipe, current: BrowseRecipe): number {
@@ -310,7 +317,7 @@ function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe;
   );
 }
 
-export function RecipeCard({ recipe, colors, saved, onPress, onSave, onSaveAsMeal, saveAsMealDisabled = false, imageHeight = 160, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; onSaveAsMeal?: () => void; saveAsMealDisabled?: boolean; imageHeight?: number; fixedHeight?: number; compact?: boolean }) {
+export function RecipeCard({ recipe, colors, saved, mealSaved = false, onPress, onSave, onSaveAsMeal, onRemoveMeal, saveAsMealDisabled = false, imageHeight = 160, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; mealSaved?: boolean; onPress: () => void; onSave: () => void; onSaveAsMeal: () => void; onRemoveMeal?: () => void; saveAsMealDisabled?: boolean; imageHeight?: number; fixedHeight?: number; compact?: boolean }) {
   return (
     <Surface tier="flat" radius="lg" style={[styles.recipeCard, fixedHeight ? { height: fixedHeight } : null]}>
       <View style={fixedHeight ? styles.recipeCardInner : undefined}>
@@ -329,10 +336,7 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, onSaveAsMea
           </View>
         </Pressable>
         <View style={styles.cardActionStack}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
-            <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
-          </Pressable>
-          {onSaveAsMeal ? <SaveAsMealButton colors={colors} onPress={onSaveAsMeal} disabled={saveAsMealDisabled} compact accessibilityLabel={saveAsMealDisabled ? `Save ${recipe.name} as meal unavailable` : `Save ${recipe.name} as meal`} /> : null}
+          <RecipeSaveMenu colors={colors} recipeName={recipe.name} recipeSaved={saved} mealSaved={mealSaved} mealSaveAvailable={!saveAsMealDisabled} onSaveRecipe={onSave} onSaveMeal={onSaveAsMeal} onRemoveMeal={onRemoveMeal} compact={compact} />
         </View>
       </View>
     </Surface>
@@ -976,7 +980,7 @@ function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: Return
 }
 
 function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onSaveAsMeal: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
-  const { savedRecipeIds, toggleSavedRecipe } = useCalora();
+  const { savedRecipeIds, toggleSavedRecipe, savedMeals, deleteSavedMeal } = useCalora();
   const { session, user } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -1271,6 +1275,11 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
       </View>
     );
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
+  const mealState = (recipe: PremiumRecipe) => {
+    const candidate = recipeSavedMealInput(recipe);
+    const savedMeal = candidate ? savedMeals.find((meal) => hasSavedMeal([meal], candidate)) : undefined;
+    return { saved: Boolean(savedMeal), remove: savedMeal ? () => deleteSavedMeal(savedMeal.id) : undefined };
+  };
   return (
     <View testID="plus-recipe-content">
       <View testID="plus-recipe-catalogue">
@@ -1324,16 +1333,19 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
               <ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>
                 {savedRecipes.map((recipe) => (
                   <View key={recipe.id} style={{ width: 220 }}>
-                    <RecipeCard
-                      recipe={recipe}
-                      colors={colors}
-                      saved
-                      imageHeight={160}
-                      onPress={() => onOpen(recipe)}
+                  <RecipeCard
+                    recipe={recipe}
+                    colors={colors}
+                    saved
+                    mealSaved={mealState(recipe).saved}
+                    imageHeight={160}
+                    onPress={() => onOpen(recipe)}
                       onSave={() => {
                         toggleSavedRecipe(recipe.id);
                         onSave(recipe);
                       }}
+                      onSaveAsMeal={() => onSaveAsMeal(recipe)}
+                      onRemoveMeal={mealState(recipe).remove}
                     />
                   </View>
                 ))}
@@ -1368,6 +1380,8 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
                     onSave(recipe);
                   }}
                   onSaveAsMeal={() => onSaveAsMeal(recipe)}
+                  mealSaved={mealState(recipe).saved}
+                  onRemoveMeal={mealState(recipe).remove}
                   saveAsMealDisabled={!hasCompleteNutrition(recipe)}
                 />
               </View>
@@ -1480,7 +1494,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
 }
 
 export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, savedMeals, deleteSavedMeal, saveMeal, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
@@ -1489,12 +1503,15 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const premiumSourceId = recipe && premium ? recipeProvenance(recipe).sourceId : '';
   const selectedPremiumRecipe = premium && recipe ? recipe as PremiumRecipe : null;
   const saveBrowseRecipeAsMeal = useCallback((candidate: BrowseRecipe) => {
-    if (!hasCompleteNutrition(candidate)) return;
-    const { calories, proteinG, carbsG, fatG } = candidate;
-    if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
-    saveMeal({ name: candidate.name, kind: 'recipe', foodIds: [candidate.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(candidate)) });
+    const meal = recipeSavedMealInput(candidate);
+    if (!meal) return;
+    saveMeal(meal);
     Alert.alert('Meal saved', `${candidate.name} is ready to log from Saved meals.`);
   }, [saveMeal]);
+  const savedMealForRecipe = (candidate: BrowseRecipe) => {
+    const meal = recipeSavedMealInput(candidate);
+    return meal ? savedMeals.find((savedMeal) => hasSavedMeal([savedMeal], meal)) : undefined;
+  };
   const detailQuery = useGetRecipe(remoteRecipeId, {
     query: {
       queryKey: ['recipe', remoteRecipeId],
@@ -2404,7 +2421,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`} testID={`recipe-suggestions-row-${rowIndex + 1}`} contentContainerStyle={styles.suggestionCards}>
                         {row.map((suggestion) => (
                           <View key={suggestion.id} style={styles.suggestionCard}>
-                          <RecipeCard recipe={suggestion} colors={colors} saved={savedRecipeIds.includes(suggestion.id)} imageHeight={112} onPress={() => onSelectSuggestion(suggestion)} onSave={() => toggleSavedRecipe(suggestion.id)} onSaveAsMeal={() => saveBrowseRecipeAsMeal(suggestion)} saveAsMealDisabled={!hasCompleteNutrition(suggestion)} />
+                          <RecipeCard recipe={suggestion} colors={colors} saved={savedRecipeIds.includes(suggestion.id)} mealSaved={Boolean(savedMealForRecipe(suggestion))} imageHeight={112} onPress={() => onSelectSuggestion(suggestion)} onSave={() => toggleSavedRecipe(suggestion.id)} onSaveAsMeal={() => saveBrowseRecipeAsMeal(suggestion)} onRemoveMeal={() => { const savedMeal = savedMealForRecipe(suggestion); if (savedMeal) deleteSavedMeal(savedMeal.id); }} saveAsMealDisabled={!hasCompleteNutrition(suggestion)} />
                           </View>
                         ))}
                       </ScrollView>
@@ -2892,18 +2909,21 @@ export function PersonalRecipeFormModal({ visible, recipe, onClose, onSaved }: {
 }
 
 export default function RecipesScreen() {
-  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, saveMeal, updateRecipe, restoreRecipe, fontScale, plannerMeals, shoppingItems, toggleShoppingItemByName } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, savedMeals, deleteSavedMeal, saveMeal, updateRecipe, restoreRecipe, fontScale, plannerMeals, shoppingItems, toggleShoppingItemByName } = useCalora();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const saveRecipeAsMeal = useCallback((recipe: BrowseRecipe) => {
-    if (!hasCompleteNutrition(recipe)) return;
-    const { calories, proteinG, carbsG, fatG } = recipe;
-    if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
-    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(recipe)) });
+    const meal = recipeSavedMealInput(recipe);
+    if (!meal) return;
+    saveMeal(meal);
     Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
   }, [saveMeal]);
+  const savedMealForRecipe = useCallback((recipe: BrowseRecipe) => {
+    const meal = recipeSavedMealInput(recipe);
+    return meal ? savedMeals.find((savedMeal) => hasSavedMeal([savedMeal], meal)) : undefined;
+  }, [savedMeals]);
   // Pre-warm the detail query during the modal's slide-up animation (~350 ms).
   // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
   // TheMealDB fetch resolves before the user finishes reading the recipe header.
@@ -3398,12 +3418,14 @@ export default function RecipesScreen() {
             recipe={item.recipe}
             colors={colors}
             saved={savedRecipeIds.includes(recipeKey(item.recipe))}
+            mealSaved={Boolean(savedMealForRecipe(item.recipe))}
             imageHeight={GRID_RECIPE_IMAGE_HEIGHT}
             fixedHeight={GRID_RECIPE_CARD_HEIGHT}
             compact
             onPress={() => handleCardPress(item.recipe)}
             onSave={() => toggleSavedRecipe(recipeKey(item.recipe))}
             onSaveAsMeal={() => saveRecipeAsMeal(item.recipe)}
+            onRemoveMeal={() => { const savedMeal = savedMealForRecipe(item.recipe); if (savedMeal) deleteSavedMeal(savedMeal.id); }}
             saveAsMealDisabled={!hasCompleteNutrition(item.recipe)}
           />
         </View>
@@ -3452,7 +3474,7 @@ export default function RecipesScreen() {
                 <ScrollView horizontal nestedScrollEnabled directionalLockEnabled alwaysBounceHorizontal decelerationRate="fast" overScrollMode="never" scrollEventThrottle={16} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>
                   {savedDiscoverRecipes.map((recipe) => (
                     <View key={recipeKey(recipe)} style={{ width: 220 }}>
-                      <RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} onSaveAsMeal={() => saveRecipeAsMeal(recipe)} saveAsMealDisabled={!hasCompleteNutrition(recipe)} />
+                    <RecipeCard recipe={recipe} colors={colors} saved mealSaved={Boolean(savedMealForRecipe(recipe))} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} onSaveAsMeal={() => saveRecipeAsMeal(recipe)} onRemoveMeal={() => { const savedMeal = savedMealForRecipe(recipe); if (savedMeal) deleteSavedMeal(savedMeal.id); }} saveAsMealDisabled={!hasCompleteNutrition(recipe)} />
                     </View>
                   ))}
                 </ScrollView>
@@ -3610,6 +3632,14 @@ export default function RecipesScreen() {
               {savedRecipeIds.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
+                </View>
+                )}
+              </Pressable>
+            <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.primary }]}>
+              <Feather name="coffee" size={17} color={colors.primaryForeground} />
+              {savedMeals.length > 0 && (
+                <View style={[styles.headerSavedBadge, { backgroundColor: colors.accent }]}>
+                  <Text style={[styles.headerSavedBadgeText, { color: colors.accentForeground }]}>{savedMeals.length > 99 ? '99+' : savedMeals.length}</Text>
                 </View>
               )}
             </Pressable>
