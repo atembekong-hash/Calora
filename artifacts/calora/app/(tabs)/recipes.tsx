@@ -44,6 +44,7 @@ import { resolvePremiumRecipeDetailImage } from '@/lib/premiumRecipeDetailImage'
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { applyPremiumDetailDenial, canApplyPremiumPage, clearPremiumAccountBoundary as clearPremiumAccountBoundaryState, nextPremiumPaginationOffset, utcFreshnessDay } from '@/lib/premiumCatalogueState';
+import { canStartPremiumPagination, isNewPremiumOffset } from '@/lib/premiumPaginationGuard';
 import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatalogueEntries, nextDiscoverPaginationOffset, resetDiscoverCatalogueState } from '@/lib/discoverCatalogueState';
 import { createDiscoverVisitSessionSalt, reconcileDiscoverVisitComposition, type DiscoverVisitEntry } from '@/lib/discoverRecipeMix';
 import { handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, requestGeneratedRecipeImageReviewPreview, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
@@ -956,7 +957,6 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
 function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session, user } = useAuth();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
@@ -967,7 +967,9 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
   const [freshnessDay, setFreshnessDay] = useState(() => utcFreshnessDay());
   const loadingMoreRef = useRef(false);
   const requestedOffsetRef = useRef<number | null>(null);
+  const requestedOffsetsRef = useRef(new Set<number>());
   const failedOffsetRef = useRef<number | null>(null);
+  const lastPaginationStartedAtRef = useRef<number | null>(null);
   const hasMountedFiltersRef = useRef(false);
   const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined;
   const premiumParams = {
@@ -989,6 +991,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
       queryKey: premiumQueryKey,
       enabled: Boolean(userId),
       placeholderData: offset > 0 ? (previousData) => previousData : undefined,
+      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(premiumParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       ...PREMIUM_RECIPE_REFRESH_POLICY,
     },
     request: PREMIUM_RECIPE_REQUEST_OPTIONS,
@@ -1019,7 +1022,9 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     setLoadedRecipes([]);
     setLoadedForUserId(null);
     requestedOffsetRef.current = null;
+    requestedOffsetsRef.current.clear();
     failedOffsetRef.current = null;
+    lastPaginationStartedAtRef.current = null;
     loadingMoreRef.current = false;
     onAccessDenied();
   }, [accessDenied, onAccessDenied]);
@@ -1070,6 +1075,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     // never manufacture repeated cards or prefetch this volume while browsing.
     loadingMoreRef.current = true;
     requestedOffsetRef.current = data.nextOffset;
+    requestedOffsetsRef.current.add(data.nextOffset);
     failedOffsetRef.current = null;
     setOffset(data.nextOffset);
   }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId]);
@@ -1094,26 +1100,6 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     onLoadedRecipesChange(loadedRecipes);
   }, [active, loadedRecipes, onLoadedRecipesChange]);
   useEffect(() => {
-    if (!userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
-    const nextParams = {
-      query: search || undefined,
-      category: category || undefined,
-      ...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {}),
-      limit: RECIPE_PAGE_SIZE,
-      offset: data.nextOffset,
-    };
-    const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
-    void queryClient
-      .prefetchQuery({
-        queryKey: nextQueryKey,
-        queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
-        staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-        retry: PREMIUM_RECIPE_REFRESH_POLICY.retry,
-        retryDelay: PREMIUM_RECIPE_REFRESH_POLICY.retryDelay,
-      })
-      .catch(() => undefined);
-  }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, unfilteredFreshnessDay, userId]);
-  useEffect(() => {
     if (!active) return;
     onLoadMoreRef.current = () => {
       const nextOffset = nextPremiumPaginationOffset({
@@ -1124,7 +1110,15 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
         isLoadingMore: loadingMoreRef.current,
       });
       if (nextOffset == null) return;
-      if (query.isError && failedOffsetRef.current === nextOffset) {
+      const retryingFailedOffset = query.isError && failedOffsetRef.current === nextOffset;
+      if (!canStartPremiumPagination({
+        now: Date.now(),
+        lastStartedAt: lastPaginationStartedAtRef.current,
+        inFlight: query.isFetching || loadingMoreRef.current,
+      })) return;
+      if (!retryingFailedOffset && !isNewPremiumOffset(nextOffset, requestedOffsetsRef.current)) return;
+      lastPaginationStartedAtRef.current = Date.now();
+      if (retryingFailedOffset) {
         loadingMoreRef.current = true;
         void query.refetch().finally(() => {
           loadingMoreRef.current = false;
@@ -1133,6 +1127,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
       }
       loadingMoreRef.current = true;
       requestedOffsetRef.current = nextOffset;
+      requestedOffsetsRef.current.add(nextOffset);
       failedOffsetRef.current = null;
       setOffset(nextOffset);
     };
@@ -1151,7 +1146,9 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onAccessDenied, save
     setOffset(0);
     setLoadedRecipes([]);
     requestedOffsetRef.current = null;
+    requestedOffsetsRef.current.clear();
     failedOffsetRef.current = null;
+    lastPaginationStartedAtRef.current = null;
     loadingMoreRef.current = false;
   }, [search, category, unfilteredFreshnessDay]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;

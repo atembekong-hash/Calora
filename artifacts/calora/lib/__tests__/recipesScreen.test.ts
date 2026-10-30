@@ -217,9 +217,11 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('discoverGridEntries.length');
   });
 
-  it('starts Plus pagination early enough to hide remote provider latency', () => {
+  it('keeps Plus pagination serialized while using an early scroll trigger', () => {
     expect(source).toContain('const PREMIUM_RECIPE_PREFETCH_DISTANCE = 3200;');
     expect(source).toContain('prefetchDistance: PREMIUM_RECIPE_PREFETCH_DISTANCE');
+    expect(source).toContain("import { canStartPremiumPagination, isNewPremiumOffset } from '@/lib/premiumPaginationGuard'");
+    expect(source).toContain('lastPaginationStartedAtRef');
   });
 
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
@@ -268,12 +270,16 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('renderItem={renderRecipeSection}');
     expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
-    expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS, signal');
+    expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS');
+    expect(source).toContain('signal,');
     expect(source).toContain('const requestedOffsetRef = useRef<number | null>(null);');
+    expect(source).toContain('const requestedOffsetsRef = useRef(new Set<number>());');
     expect(source).toContain('const failedOffsetRef = useRef<number | null>(null);');
+    expect(source).toContain('canStartPremiumPagination({');
+    expect(source).toContain('isNewPremiumOffset(nextOffset, requestedOffsetsRef.current)');
     expect(source).toContain('if (!query.isError) return;');
     expect(source).toContain('failedOffsetRef.current = requestedOffsetRef.current ?? (offset > 0 ? offset : null);');
-    expect(source).toContain('if (query.isError && failedOffsetRef.current === nextOffset)');
+    expect(source).toContain('const retryingFailedOffset = query.isError && failedOffsetRef.current === nextOffset;');
     expect(source).toContain('void query.refetch().finally(() =>');
     expect(source).toContain("if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');");
     expect(source).toContain("if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');");
@@ -497,14 +503,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });
 
-  it('sends the UTC freshness day through unfiltered Plus params, keys, and prefetches only', () => {
+  it('sends the UTC freshness day through unfiltered Plus params without speculative page prefetching', () => {
     expect(source).toContain("const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined");
     expect(source).toContain('...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {})');
     expect(source).toContain('getListPremiumRecipesQueryKey(premiumParams)');
-    expect(source).toContain('getListPremiumRecipesQueryKey(nextParams)');
     expect(source).toContain('const today = utcFreshnessDay()');
     expect(source).toContain('setFreshnessDay(today)');
     expect(source).toContain('const nextUtcDay = Date.UTC(');
+    const premiumCatalogue = source.slice(source.indexOf('function PremiumCatalogue'), source.indexOf('function ReviewComponent'));
+    expect(premiumCatalogue).not.toContain('prefetchQuery(');
   });
 
   it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {
