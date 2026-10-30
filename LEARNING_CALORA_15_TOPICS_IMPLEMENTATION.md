@@ -39,6 +39,8 @@ A deterministic baseline fixture and `learningContentDepth.test.ts` enforce the 
 - Total Learning image bundle: approximately 7.4 MB
 - No remote image URLs or collection-level fallbacks were introduced
 
+The release image-governance budget was increased narrowly from 112 to 170 bundled assets, from 16 MiB to 20 MiB compressed aggregate size, and from 320 MiB to 400 MiB decoded RGBA aggregate size. This accommodates the one-image-per-lesson requirement while retaining the existing per-asset, pixel, manifest, provenance, and hash checks.
+
 The new asset set uses classic editorial food-and-lifestyle direction with varied people, shared meals, kitchens, grocery contexts, nature, movement, and culturally relevant food moments. Images were optimized for the existing mobile bundle limit and remain locally bundled.
 
 ## Validation evidence
