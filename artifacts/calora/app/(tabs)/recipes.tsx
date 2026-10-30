@@ -3328,7 +3328,7 @@ export default function RecipesScreen() {
       loadMoreDiscoverRecipesIfAtEnd('discover');
     }, 0);
     return () => clearTimeout(timer);
-  }, [activeSection, discoverGridEntries.length]);
+  }, [activeSection, discoverGridEntries.length, remoteNextOffset, recipesQuery.isFetching]);
 
   const renderDiscoverSection = () => (
     <FlatList

@@ -430,7 +430,8 @@ describe('Recipes Discover layout contracts', () => {
     const renderedGridBlock = source.slice(renderedGridStart, renderStart);
     expect(renderedGridBlock).toContain('discoverGridEntries.length');
     expect(renderedGridBlock).toContain("loadMoreDiscoverRecipesIfAtEnd('discover')");
-    expect(renderedGridBlock).toContain('}, [activeSection, discoverGridEntries.length]);');
+    expect(renderedGridBlock).toContain('remoteNextOffset');
+    expect(renderedGridBlock).toContain('recipesQuery.isFetching');
   });
 
   it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {
