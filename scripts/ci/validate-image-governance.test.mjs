@@ -53,7 +53,7 @@ function mutateJson(root, mutate) {
 test("accepts the reviewed Calora runtime image inventory", () => {
   const result = validateImageGovernance({ root: repositoryRoot, manifestPath });
   assert.equal(result.ok, true, result.failures.join("\n"));
-  assert.equal(result.summary.bundledAssetCount, 108);
+  assert.equal(result.summary.bundledAssetCount, 163);
   assert.equal(result.summary.staticExternalImageUrlCount, 0);
   assert.equal(result.summary.directImageRendererCount, 12);
 });

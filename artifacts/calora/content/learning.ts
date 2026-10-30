@@ -10,6 +10,11 @@ export const LEARNING_TOPICS = [
   "Movement",
   "Sleep",
   "Mindset",
+  "Fiber & digestion",
+  "Budget & access",
+  "Food safety",
+  "Eating out",
+  "Food culture & enjoyment",
 ] as const;
 
 export type LearningTopic = (typeof LEARNING_TOPICS)[number];
@@ -26,6 +31,11 @@ export const LEARNING_COLLECTION_IDS = [
   "movement-and-recovery",
   "sleep-and-rhythm",
   "mindset-and-routine",
+  "fiber-and-digestion",
+  "budget-and-access",
+  "food-safety",
+  "eating-out",
+  "food-culture-enjoyment",
 ] as const;
 
 export type LearningCollectionId = (typeof LEARNING_COLLECTION_IDS)[number];
@@ -209,6 +219,46 @@ export const LEARNING_COLLECTIONS: readonly LearningCollection[] = [
     topic: "Mindset",
     icon: "heart",
   },
+  {
+    id: "fiber-and-digestion",
+    title: "Fiber in everyday meals",
+    eyebrow: "EVERYDAY COMFORT",
+    description: "Practical ways to explore fiber with flexibility.",
+    topic: "Fiber & digestion",
+    icon: "layers",
+  },
+  {
+    id: "budget-and-access",
+    title: "Nourishment on your budget",
+    eyebrow: "MAKE IT WORK",
+    description: "Build nourishing options around real budgets, access, and changing weeks.",
+    topic: "Budget & access",
+    icon: "shopping-bag",
+  },
+  {
+    id: "food-safety",
+    title: "Safe food, simple systems",
+    eyebrow: "HANDLE WITH CARE",
+    description: "Everyday storage and preparation habits that reduce guesswork.",
+    topic: "Food safety",
+    icon: "check-circle",
+  },
+  {
+    id: "eating-out",
+    title: "Eating out with flexibility",
+    eyebrow: "AT THE TABLE",
+    description: "Use practical choices and enjoyment when meals happen away from home.",
+    topic: "Eating out",
+    icon: "coffee",
+  },
+  {
+    id: "food-culture-enjoyment",
+    title: "Food, culture, and enjoyment",
+    eyebrow: "KEEP IT HUMAN",
+    description: "Make room for connection, tradition, pleasure, and personal meaning.",
+    topic: "Food culture & enjoyment",
+    icon: "heart",
+  },
 ] as const;
 
 /**
@@ -259,9 +309,32 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Treat the plate idea as a prompt for options, not a requirement to include every category every time.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard.",
+          "For build a balanced plate, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
+      {
+        heading: "Practice across different days",
+        paragraphs: [
+          "The same principle can look different in a packed lunch, a quick breakfast, a family dinner, or a meal built from what is left in the pantry. Comparing those examples helps you find patterns that are flexible rather than copying one picture of a balanced meal.",
+          "Give yourself permission to use the easiest useful version today and revisit the idea when your time, appetite, ingredients, or support change.",
+        ],
+        bullets: [
+          "Look for a satisfying combination over several meals rather than judging one plate.",
+          "Keep convenience foods and familiar traditions in the range of reasonable options.",
+        ],
+      },
     ],
     tryThis:
-      "At one meal you expect to eat soon, notice what is already working and choose one optional addition or swap that could make the meal more satisfying or convenient.",
+      "At one meal you expect to eat soon, notice what is already working and choose one optional addition or swap that could make the meal more satisfying or convenient. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Browse recipe ideas",
       route: "/(tabs)/recipes",
@@ -307,9 +380,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Step back from a single item and consider the overall pattern that helps meals feel workable.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard.",
+          "For calories are context, not a grade, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "When you notice a calorie number today, record or mentally name one other piece of context—such as serving information, satisfaction, or convenience—without turning either observation into a pass-or-fail judgment.",
+      "When you notice a calorie number today, record or mentally name one other piece of context—such as serving information, satisfaction, or convenience—without turning either observation into a pass-or-fail judgment. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["macro-map", "kind-feedback-loop"],
     review: medicalEducationReview,
@@ -359,9 +444,32 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Let taste, budget, availability, and the rest of the meal influence what fits.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard.",
+          "For a simple map of macros, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
+      {
+        heading: "Connect the pieces to a real meal",
+        paragraphs: [
+          "A macro map is most helpful when it explains a meal you already enjoy, not when it turns eating into a calculation exercise. Use it to notice what contributes energy, staying power, texture, and pleasure, then choose the level of detail that supports your decision.",
+          "You do not need to identify every component perfectly. A broad understanding can be enough to make a practical swap or add a food that helps the meal work better for you.",
+        ],
+        bullets: [
+          "Use the map to build curiosity about meals, not to create a pass-or-fail score.",
+          "Let appetite, culture, access, and enjoyment remain part of the picture.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one familiar mixed dish and identify two or three contributions it makes before deciding whether any optional change would better suit the moment.",
+      "Choose one familiar mixed dish and identify two or three contributions it makes before deciding whether any optional change would better suit the moment. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -407,9 +515,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "If the cue is missed, simply use the next convenient moment rather than trying to catch up.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day.",
+          "For make hydration a small check-in, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one familiar transition today, place a preferred drink within reach before it happens, and notice whether the cue feels useful.",
+      "Choose one familiar transition today, place a preferred drink within reach before it happens, and notice whether the cue feels useful. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["habit-cue-design", "busy-day-backup"],
     review: medicalEducationReview,
@@ -460,9 +580,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Add one acceptable swap for a day when the original version does not fit.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort.",
+          "For plan a week with one anchor, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one busy moment, note the simplest anchor that could support it, and add one flexible swap beside it.",
+      "Choose one busy moment, note the simplest anchor that could support it, and add one flexible swap beside it. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -511,9 +643,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Group interchangeable items by role, such as a quick base, a topping, or a meal component.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort.",
+          "For build a flexible shopping list, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before your next shop, scan the week for one constraint and add two ingredients or options that can work around it.",
+      "Before your next shop, scan the week for one constraint and add two ingredients or options that can work around it. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -557,9 +701,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep a second route for a day when the first backup is unavailable or unappealing.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort.",
+          "For keep a busy-day backup, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Pick one likely busy moment, place a low-effort food option where you will notice it, and record one alternate route.",
+      "Pick one likely busy moment, place a low-effort food option where you will notice it, and record one alternate route. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Plan your next meal",
       route: "/(tabs)/planner",
@@ -609,9 +765,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Write down adaptations that made the recipe easier to repeat, without treating them as permanent rules.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal.",
+          "For use recipes as templates, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one saved recipe, mark its essential parts, and note one optional swap or shortcut that could make it workable with what you have.",
+      "Choose one saved recipe, mark its essential parts, and note one optional swap or shortcut that could make it workable with what you have. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -655,9 +823,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep a shelf-stable or ready-to-eat companion available for days when reheating or assembling feels like too much.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal.",
+          "For make leftovers useful on purpose, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "After your next cooking session, label one leftover with a possible second use and place any companion ingredient where you can easily see it.",
+      "After your next cooking session, label one leftover with a possible second use and place any companion ingredient where you can easily see it. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Browse recipe ideas",
       route: "/(tabs)/recipes",
@@ -702,9 +882,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Pause when you have enough information to make the choice feel clear.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number.",
+          "For read nutrition facts with context, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one packaged food and follow this order: serving information, one detail you care about, then one practical note about how you might use it.",
+      "Choose one packaged food and follow this order: serving information, one detail you care about, then one practical note about how you might use it. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -748,9 +940,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep price, access, taste, and convenience in the comparison too.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number.",
+          "For let the ingredient list tell a story, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For one food you may use this week, read the ingredient list with a specific purpose and write down one practical difference that could affect your choice.",
+      "For one food you may use this week, read the ingredient list with a specific purpose and write down one practical difference that could affect your choice. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -800,9 +1004,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep a second, lower-effort cue available for changing days.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan.",
+          "For design a cue for a new habit, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one existing moment and place a simple reminder for a small action there; if that moment changes, note one alternate cue you could try instead.",
+      "Choose one existing moment and place a simple reminder for a small action there; if that moment changes, note one alternate cue you could try instead. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-feedback-loop", "hydration-check-in"],
     review: editorialReview,
@@ -842,9 +1058,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep the version that feels useful, or revise it again.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan.",
+          "For use feedback, not punishment, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "After one difficult or easy attempt, name the most noticeable condition and test one small setup change at the next suitable opportunity.",
+      "After one difficult or easy attempt, name the most noticeable condition and test one small setup change at the next suitable opportunity. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -891,9 +1119,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Name a flexible alternative, including eating normally or choosing not to continue.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes.",
+          "For fasting basics and boundaries, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Sketch the meal-timing idea alongside tomorrow’s actual schedule, then note one point where you could pause, adapt, or decide not to change anything.",
+      "Sketch the meal-timing idea alongside tomorrow’s actual schedule, then note one point where you could pause, adapt, or decide not to change anything. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
     relatedLessonIds: ["fasting-pause-signals", "week-with-one-anchor"],
     review: medicalEducationReview,
@@ -940,9 +1180,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Notice whether soups, fruit, or other fluid-containing foods are already part of the day.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day.",
+          "For choose drinks that fit your day, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "List two drinks or fluid-containing foods you already enjoy, then make one of them easy to reach during an upcoming routine.",
+      "List two drinks or fluid-containing foods you already enjoy, then make one of them easy to reach during an upcoming routine. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["hydration-check-in", "habit-cue-design"],
     review: medicalEducationReview,
@@ -982,9 +1234,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep the backup simple enough to repeat on another busy day.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day.",
+          "For hydration on busy days, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before your next busy stretch, choose one likely drink-access point and one ordinary transition where you can pause for a check-in.",
+      "Before your next busy stretch, choose one likely drink-access point and one ordinary transition where you can pause for a check-in. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["hydration-check-in", "busy-day-backup"],
     review: medicalEducationReview,
@@ -1024,9 +1288,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Treat changing, shortening, or skipping an option as information about the day rather than a failure.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure.",
+          "For movement breaks count, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "During one ordinary transition today, notice two movement options and choose the one that feels accessible and comfortable, with permission to adapt or stop.",
+      "During one ordinary transition today, notice two movement options and choose the one that feels accessible and comfortable, with permission to adapt or stop. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["habit-cue-design", "kind-feedback-loop"],
     review: editorialReview,
@@ -1066,9 +1342,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Add a backup plan, such as a shelf-stable item, a planned stop, or a flexible meal at home.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure.",
+          "For fuel for your routine, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Look at one upcoming busy stretch, choose a familiar food option and a backup location, and revise the plan if your schedule or appetite changes.",
+      "Look at one upcoming busy stretch, choose a familiar food option and a backup location, and revise the plan if your schedule or appetite changes. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1112,9 +1400,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "After a change or rest day, return with a comfortable option rather than trying to make up for it.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure.",
+          "For make room for recovery, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before your next planned movement, name one option, one recovery alternative, and one sign that would prompt you to pause or change course.",
+      "Before your next planned movement, name one option, one recovery alternative, and one sign that would prompt you to pause or change course. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["movement-breaks-count", "kind-feedback-loop"],
     review: editorialReview,
@@ -1154,9 +1454,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Treat the note as information to revisit, not a score or a rule.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection.",
+          "For notice your sleep and food rhythm, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "After one night that feels different, note one context and arrange one flexible support for the next day without changing meals or routines as punishment.",
+      "After one night that feels different, note one context and arrange one flexible support for the next day without changing meals or routines as punishment. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1200,9 +1512,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Choose a backup version for nights when the usual cue is unavailable.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection.",
+          "For create a gentle evening reset, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one visible evening cue and pair it with a brief transition you can use, shorten, or skip according to the night.",
+      "Choose one visible evening cue and pair it with a brief transition you can use, shorten, or skip according to the night. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["habit-cue-design", "week-with-one-anchor"],
     review: editorialReview,
@@ -1242,9 +1566,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Decide what task can wait when you are too drowsy to do it safely.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection.",
+          "For shift the plan, not yourself, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For one likely schedule change, write a small backup cue and one task you will postpone rather than do while drowsy.",
+      "For one likely schedule change, write a small backup cue and one task you will postpone rather than do while drowsy. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1288,9 +1624,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Choose a support that reduces friction without requiring a perfect repeat.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict.",
+          "For build a kinder check-in, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before bed or at another natural pause, write one neutral observation, one factor that shaped it, and one small support you might make available next time.",
+      "Before bed or at another natural pause, write one neutral observation, one factor that shaped it, and one small support you might make available next time. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-feedback-loop", "habit-cue-design"],
     review: editorialReview,
@@ -1330,9 +1678,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep the part that remains useful and revise the rest without self-criticism.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict.",
+          "For make goals flexible enough to live with, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Pick one flexible goal and set a low-pressure review point; at that point, keep, shrink, shift, or pause the goal based on what you learned.",
+      "Pick one flexible goal and set a low-pressure review point; at that point, keep, shrink, shift, or pause the goal based on what you learned. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-feedback-loop", "week-with-one-anchor"],
     review: editorialReview,
@@ -1373,9 +1733,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Stop or simplify the practice if it becomes rigid, upsetting, or hard to put down.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict.",
+          "For notice food and mood with curiosity, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "If it feels comfortable, make one brief neutral note about a meal, mood, and surrounding context, then leave the note without trying to diagnose a pattern.",
+      "If it feels comfortable, make one brief neutral note about a meal, mood, and surrounding context, then leave the note without trying to diagnose a pattern. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-check-in", "calories-are-context"],
     review: medicalEducationReview,
@@ -1421,9 +1793,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "After pausing, review what made the routine difficult without turning the review into a pass-or-fail judgment.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes.",
+          "For know when to pause a fasting plan, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Write down one personal pause cue and one easy food option you could use, then give yourself permission to stop without compensating if that cue appears.",
+      "Write down one personal pause cue and one easy food option you could use, then give yourself permission to stop without compensating if that cue appears. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
     relatedLessonIds: ["fasting-basics-and-boundaries", "kind-feedback-loop"],
     review: medicalEducationReview,
@@ -1470,9 +1854,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Notice variety over several meals rather than expecting each meal to demonstrate it.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard.",
+          "For build variety without rules, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "During the next few days, choose one low-effort way to vary a familiar food—such as a different texture, flavor, or form—and notice whether it makes the meal more enjoyable or useful.",
+      "During the next few days, choose one low-effort way to vary a familiar food—such as a different texture, flavor, or form—and notice whether it makes the meal more enjoyable or useful. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Browse recipe ideas",
       route: "/(tabs)/recipes",
@@ -1516,9 +1912,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Include convenience and pleasure alongside nutrition when deciding what fits the day.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard.",
+          "For make a meal satisfying, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "After your next meal, note one feature that supported satisfaction and one small, optional adjustment you might try another time if the same situation comes up.",
+      "After your next meal, note one feature that supported satisfaction and one small, optional adjustment you might try another time if the same situation comes up. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["balanced-plate-basics", "calories-are-context"],
     review: editorialReview,
@@ -1558,9 +1966,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Write a flexible alternative time or location if the first setting is unavailable.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort.",
+          "For make the next step specific, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Write one small action, its most realistic cue, and one backup cue; then choose whichever fits the day when you reach that moment.",
+      "Write one small action, its most realistic cue, and one backup cue; then choose whichever fits the day when you reach that moment. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1604,9 +2024,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Change or replace only one backup detail before the next similar day.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort.",
+          "For plan for the plan to change, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "After a plan changes, note one barrier and one helpful detail, then revise a single part of the backup for next time.",
+      "After a plan changes, note one barrier and one helpful detail, then revise a single part of the backup for next time. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1650,9 +2082,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep separate components apart until serving if that helps preserve the texture you prefer.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal.",
+          "For use a build-a-bowl formula, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Assemble one bowl from ingredients you already have, then add one contrasting texture or flavor and make a brief note about the combination.",
+      "Assemble one bowl from ingredients you already have, then add one contrasting texture or flavor and make a brief note about the combination. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -1696,9 +2140,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Record one observation about flavor, convenience, or cost so the next choice can be easier.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal.",
+          "For try one small recipe swap, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before making a familiar recipe, choose one optional swap, check its cooking or texture differences, and decide afterward whether it is worth keeping as another option.",
+      "Before making a familiar recipe, choose one optional swap, check its cooking or texture differences, and decide afterward whether it is worth keeping as another option. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -1743,9 +2199,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Label leftovers with the date and refrigerate or freeze them promptly according to current food-safety guidance.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal.",
+          "For prep, cook, and save safely, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before your next cooking session, set up a clean preparation area, identify anything that must stay separate, and choose a storage plan that follows current package or local public-health guidance.",
+      "Before your next cooking session, set up a clean preparation area, identify anything that must stay separate, and choose a storage plan that follows current package or local public-health guidance. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Browse recipe ideas",
       route: "/(tabs)/recipes",
@@ -1795,9 +2263,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "When comparing products, compare amounts described on a similar basis.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number.",
+          "For check the serving-size context, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose a package you already plan to use, note its serving setup, and briefly describe how that setup relates to the amount you expect to use.",
+      "Choose a package you already plan to use, note its serving setup, and briefly describe how that setup relates to the amount you expect to use. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Explore recipes",
       route: "/(tabs)/recipes",
@@ -1841,9 +2321,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Name one non-label factor that also matters for the decision.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number.",
+          "For compare labels with % daily value, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Compare two similar products on one % Daily Value detail after checking their serving basis, then record one non-number factor you want to consider.",
+      "Compare two similar products on one % Daily Value detail after checking their serving basis, then record one non-number factor you want to consider. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Browse recipe ideas",
       route: "/(tabs)/recipes",
@@ -1887,9 +2379,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "If the information is unclear, set the product aside while you seek clarification from an appropriate source.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number.",
+          "For scan ingredients with a purpose, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For one packaged food, check the ingredient list, allergen statement, and relevant preparation directions in that order, then note what remains clear or needs clarification.",
+      "For one packaged food, check the ingredient list, allergen statement, and relevant preparation directions in that order, then note what remains clear or needs clarification. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -1933,9 +2437,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep the purpose of the action separate from one exact method.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan.",
+          "For anchor one small action, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Pick one recurring event, write a full and a shorter version of the same useful action, and try whichever version fits the next occurrence.",
+      "Pick one recurring event, write a full and a shorter version of the same useful action, and try whichever version fits the next occurrence. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["habit-cue-design", "hydration-check-in"],
     review: editorialReview,
@@ -1975,9 +2491,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep an alternate option that uses fewer steps.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan.",
+          "For make the plan easier to do, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Before a routine you want to support, remove one decision from its first minute and leave yourself an easy alternate if the original setup is unavailable.",
+      "Before a routine you want to support, remove one decision from its first minute and leave yourself an easy alternate if the original setup is unavailable. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: {
       label: "Open weekly planner",
       route: "/(tabs)/planner",
@@ -2021,9 +2549,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Change or pause the tracking method if it adds pressure.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan.",
+          "For notice progress without perfection, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For a few suitable days, note whether the action felt easy, neutral, or difficult and add one brief context detail; review only for a pattern that could inform your next step.",
+      "For a few suitable days, note whether the action felt easy, neutral, or difficult and add one brief context detail; review only for a pattern that could inform your next step. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-feedback-loop", "anchor-one-small-action"],
     review: editorialReview,
@@ -2064,9 +2604,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Ask whether the same goal could be supported by a less restrictive routine or no timing change.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes.",
+          "For define fasting without hype, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For one ordinary day, note your eating rhythm and the reason you are considering fasting, without lengthening gaps, compensating, or rating the day.",
+      "For one ordinary day, note your eating rhythm and the reason you are considering fasting, without lengthening gaps, compensating, or rating the day. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
     relatedLessonIds: [
       "fasting-basics-and-boundaries",
@@ -2115,9 +2667,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep the plan separate from moral labels like success, failure, good, or bad.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes.",
+          "For keep fasting flexible in real life, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one upcoming schedule change and write a flexible response that prioritizes your needs without requiring a later restriction or correction.",
+      "Choose one upcoming schedule change and write a flexible response that prioritizes your needs without requiring a later restriction or correction. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
     relatedLessonIds: ["fasting-pause-signals", "week-with-one-anchor"],
     review: medicalEducationReview,
@@ -2163,9 +2727,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Be open to guidance that keeps your current routine, changes it, or recommends no fasting plan.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes.",
+          "For know when to get personal guidance, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Draft two questions about how meal timing might interact with your health context or medicines, and take them to a qualified professional instead of testing the change alone.",
+      "Draft two questions about how meal timing might interact with your health context or medicines, and take them to a qualified professional instead of testing the change alone. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Open Fasting", route: "/fasting", feature: "fasting" },
     relatedLessonIds: [
       "fasting-basics-and-boundaries",
@@ -2214,9 +2790,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "If vomiting, diarrhea, fever, or concerning symptoms are present, prioritize appropriate professional guidance over experimenting alone.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day.",
+          "For match drinks to a hot or active day, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "For one upcoming hot or active period, note your drink-access point, a cooling break, and the person or service you would contact if symptoms become concerning.",
+      "For one upcoming hot or active period, note your drink-access point, a cooling break, and the person or service you would contact if symptoms become concerning. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["hydration-check-in", "hydration-on-busy-days"],
     review: medicalEducationReview,
@@ -2262,9 +2850,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Seek urgent help for confusion, fainting, difficulty breathing, severe weakness, or inability to keep fluids down.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day.",
+          "For recognize when to check in, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Save one trusted contact or local service now, and use it for guidance if heat- or illness-related symptoms become persistent, severe, or difficult to manage.",
+      "Save one trusted contact or local service now, and use it for guidance if heat- or illness-related symptoms become persistent, severe, or difficult to manage. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["hydration-check-in", "hot-and-active-day-hydration"],
     review: medicalEducationReview,
@@ -2310,9 +2910,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Stop, slow down, or switch to rest whenever the option no longer feels comfortable.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure.",
+          "For make room for movement snacks, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Pick one predictable cue today, try a brief movement option at a comfortable pace, and decide in the moment whether to continue, adapt, or rest.",
+      "Pick one predictable cue today, try a brief movement option at a comfortable pace, and decide in the moment whether to continue, adapt, or rest. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["movement-breaks-count", "recovery-is-part-of-routine"],
     review: medicalEducationReview,
@@ -2358,9 +2970,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Review the plan after the week by noting what felt supportive, not by assigning a pass-or-fail score.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure.",
+          "For build a flexible movement week, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Sketch a flexible week with two personally accessible movement options, a recovery option, and a fallback; use it as a menu and adjust it as circumstances change.",
+      "Sketch a flexible week with two personally accessible movement options, a recovery option, and a fallback; use it as a menu and adjust it as circumstances change. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["movement-breaks-count", "recovery-is-part-of-routine"],
     review: medicalEducationReview,
@@ -2406,9 +3030,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Review the plan after disruptions and adjust it instead of compensating harshly.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection.",
+          "For build a steadier sleep window, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Test one realistic morning cue for a few days, note whether it fits your life and leaves room for rest, and revise it without forcing a fixed target.",
+      "Test one realistic morning cue for a few days, note whether it fits your life and leaves room for rest, and revise it without forcing a fixed target. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["gentle-evening-reset", "sleep-and-food-rhythm"],
     review: medicalEducationReview,
@@ -2454,9 +3090,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Keep a quieter or lower-stimulation alternative ready for nights when the usual setup is not possible.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection.",
+          "For shape a calmer sleep runway, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Choose one small change to make your sleep space more comfortable or less stimulating, then keep it only if it feels practical and calming.",
+      "Choose one small change to make your sleep space more comfortable or less stimulating, then keep it only if it feels practical and calming. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["gentle-evening-reset", "steady-sleep-window"],
     review: medicalEducationReview,
@@ -2501,9 +3149,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Decide in advance what a workable smaller version could look like.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict.",
+          "For turn ‘not yet’ into a next step, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "Write one ‘not yet’ statement, then choose a version that fits the next available five minutes and leave yourself permission to revise it afterward.",
+      "Write one ‘not yet’ statement, then choose a version that fits the next available five minutes and leave yourself permission to revise it afterward. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["make-goals-flexible", "kind-check-in"],
     review: editorialReview,
@@ -2544,9 +3204,21 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
           "Select the gentlest available next action, including doing nothing for the moment or reaching out.",
         ],
       },
+      {
+        heading: "Make it work in your context",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict.",
+          "For pause, notice, choose, the useful question is not whether one approach is universally right. Notice the setting, ingredients, time, access, and feedback that shape this choice, then keep the part that makes the idea easier to use in a real week.",
+        ],
+        bullets: [
+          "Start with the smallest version that still feels useful and easy to repeat.",
+          "Adjust the idea for your culture, budget, schedule, preferences, and available support.",
+          "Review the result with curiosity and change one detail rather than abandoning the whole approach.",
+        ],
+      },
     ],
     tryThis:
-      "At a manageable moment, try a brief pause using one grounding or outward-focused cue, name one immediate need, and choose the next small action only if the pause feels supportive.",
+      "At a manageable moment, try a brief pause using one grounding or outward-focused cue, name one immediate need, and choose the next small action only if the pause feels supportive. If the first version feels awkward, make the next version smaller, more familiar, or easier to access before deciding whether the idea belongs in your routine.",
     cta: { label: "Return to today", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["kind-check-in", "food-mood-observations"],
     review: medicalEducationReview,
@@ -2555,5 +3227,2645 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
       body: "This general education exercise is not mental-health treatment. Stop if it increases distress, use another support, and contact a qualified health professional or local urgent service if mood or safety concerns interfere with daily life.",
       review: medicalEducationReview,
     },
+  },
+  {
+    id: "food-variety-in-practice",
+    imageAssetKey: "food-variety-in-practice",
+    title: "Variety without rules",
+    dek: "A broader view of variety that leaves room for culture, budget, and preference.",
+    topic: "Fundamentals",
+    collectionId: "nutrition-foundations",
+    readingMinutes: 4,
+    icon: "pie-chart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Variety without rules can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. A broader view of variety that leaves room for culture, budget, and preference.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["balanced-plate-basics", "calories-are-context"],
+    review: editorialReview,
+  },
+  {
+    id: "satisfaction-and-staying-power",
+    imageAssetKey: "satisfaction-and-staying-power",
+    title: "Make a meal satisfying",
+    dek: "Use taste, texture, and staying power to understand what helps a meal work.",
+    topic: "Fundamentals",
+    collectionId: "nutrition-foundations",
+    readingMinutes: 4,
+    icon: "pie-chart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make a meal satisfying can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use taste, texture, and staying power to understand what helps a meal work.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Use the idea as a flexible lens for noticing nourishment, satisfaction, and variety rather than as a scorecard. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["balanced-plate-basics", "calories-are-context"],
+    review: editorialReview,
+  },
+  {
+    id: "plan-for-real-energy",
+    imageAssetKey: "plan-for-real-energy",
+    title: "Plan for your available energy",
+    dek: "Build options that match the energy and time you actually have.",
+    topic: "Planning",
+    collectionId: "plan-with-less-pressure",
+    readingMinutes: 4,
+    icon: "calendar",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Plan for your available energy can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Build options that match the energy and time you actually have.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["week-with-one-anchor", "shopping-list-scaffold"],
+    review: editorialReview,
+  },
+  {
+    id: "flexible-meal-rhythm",
+    imageAssetKey: "flexible-meal-rhythm",
+    title: "Create a flexible meal rhythm",
+    dek: "Use gentle anchors without making a schedule more rigid than life allows.",
+    topic: "Planning",
+    collectionId: "plan-with-less-pressure",
+    readingMinutes: 4,
+    icon: "calendar",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Create a flexible meal rhythm can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use gentle anchors without making a schedule more rigid than life allows.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the plan small enough to survive a busy day, and use prepared, frozen, canned, or repeated options when they reduce effort. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["week-with-one-anchor", "shopping-list-scaffold"],
+    review: editorialReview,
+  },
+  {
+    id: "cook-with-what-you-have",
+    imageAssetKey: "cook-with-what-you-have",
+    title: "Cook with what you have",
+    dek: "Turn the ingredients already around you into a useful starting point.",
+    topic: "Recipes",
+    collectionId: "cook-with-flexibility",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Cook with what you have can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Turn the ingredients already around you into a useful starting point.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["recipe-template", "leftovers-by-design"],
+    review: editorialReview,
+  },
+  {
+    id: "flavor-without-perfection",
+    imageAssetKey: "flavor-without-perfection",
+    title: "Build flavor without perfection",
+    dek: "Use simple flavor choices to make practical meals more enjoyable.",
+    topic: "Recipes",
+    collectionId: "cook-with-flexibility",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build flavor without perfection can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use simple flavor choices to make practical meals more enjoyable.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Treat the recipe as a starting point that can change with ingredients, equipment, culture, appetite, and the people sharing the meal. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["recipe-template", "leftovers-by-design"],
+    review: editorialReview,
+  },
+  {
+    id: "marketing-language-with-context",
+    imageAssetKey: "marketing-language-with-context",
+    title: "Look past marketing language",
+    dek: "Separate persuasive packaging language from the details that support your choice.",
+    topic: "Labels",
+    collectionId: "labels-with-context",
+    readingMinutes: 4,
+    icon: "tag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Look past marketing language can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Separate persuasive packaging language from the details that support your choice.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-nutrition-facts", "ingredient-list-first"],
+    review: editorialReview,
+  },
+  {
+    id: "label-comparisons-made-simple",
+    imageAssetKey: "label-comparisons-made-simple",
+    title: "Compare labels simply",
+    dek: "Choose the few label details that matter for the decision in front of you.",
+    topic: "Labels",
+    collectionId: "labels-with-context",
+    readingMinutes: 4,
+    icon: "tag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Compare labels simply can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Choose the few label details that matter for the decision in front of you.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Read the information in context, checking serving details and the decision you are actually trying to make instead of chasing a perfect number. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-nutrition-facts", "ingredient-list-first"],
+    review: editorialReview,
+  },
+  {
+    id: "restart-without-resetting",
+    imageAssetKey: "restart-without-resetting",
+    title: "Restart without starting over",
+    dek: "Use a missed day as information rather than proof that a routine failed.",
+    topic: "Habits",
+    collectionId: "habits-that-fit",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Restart without starting over can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use a missed day as information rather than proof that a routine failed.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["habit-cue-design", "kind-feedback-loop"],
+    review: editorialReview,
+  },
+  {
+    id: "environment-design",
+    imageAssetKey: "environment-design",
+    title: "Design your environment kindly",
+    dek: "Make the helpful option easier to notice without relying on willpower alone.",
+    topic: "Habits",
+    collectionId: "habits-that-fit",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Design your environment kindly can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Make the helpful option easier to notice without relying on willpower alone.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Design the next step around an existing cue and make it forgiving enough to continue when the day does not follow the plan. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["habit-cue-design", "kind-feedback-loop"],
+    review: editorialReview,
+  },
+  {
+    id: "fasting-and-medications",
+    imageAssetKey: "fasting-and-medications",
+    title: "Fasting and individualized needs",
+    dek: "Keep medication, health conditions, and professional guidance ahead of a fasting plan.",
+    topic: "Fasting",
+    collectionId: "meal-timing-basics",
+    readingMinutes: 4,
+    icon: "clock",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Fasting and individualized needs can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Keep medication, health conditions, and professional guidance ahead of a fasting plan.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fasting-basics-and-boundaries", "fasting-pause-signals"],
+    review: editorialReview,
+  },
+  {
+    id: "ending-a-fast-comfortably",
+    imageAssetKey: "ending-a-fast-comfortably",
+    title: "End a fasting window comfortably",
+    dek: "Return to eating with attention to comfort, appetite, and personal context.",
+    topic: "Fasting",
+    collectionId: "meal-timing-basics",
+    readingMinutes: 4,
+    icon: "clock",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "End a fasting window comfortably can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Return to eating with attention to comfort, appetite, and personal context.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep personal comfort, medication needs, energy, and professional guidance ahead of a rigid schedule or a promise about outcomes. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fasting-basics-and-boundaries", "fasting-pause-signals"],
+    review: editorialReview,
+  },
+  {
+    id: "fluid-rich-foods",
+    imageAssetKey: "fluid-rich-foods",
+    title: "Find fluids in food",
+    dek: "Notice soups, fruit, vegetables, and other foods that contribute fluid.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 4,
+    icon: "droplet",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Find fluids in food can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Notice soups, fruit, vegetables, and other foods that contribute fluid.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "drinks-that-fit-your-day"],
+    review: editorialReview,
+  },
+  {
+    id: "hydration-cues-at-home",
+    imageAssetKey: "hydration-cues-at-home",
+    title: "Place hydration cues at home",
+    dek: "Use visible, convenient reminders that support drinking without pressure.",
+    topic: "Hydration",
+    collectionId: "hydration-everyday",
+    readingMinutes: 4,
+    icon: "droplet",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Place hydration cues at home can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use visible, convenient reminders that support drinking without pressure.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Use ordinary routines and varied drinks or fluid-rich foods as reminders, while allowing needs and preferences to change from day to day. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["hydration-check-in", "drinks-that-fit-your-day"],
+    review: editorialReview,
+  },
+  {
+    id: "accessible-movement-options",
+    imageAssetKey: "accessible-movement-options",
+    title: "Find accessible movement",
+    dek: "Explore movement options that fit ability, space, equipment, and energy.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Find accessible movement can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Explore movement options that fit ability, space, equipment, and energy.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-breaks-count", "fuel-for-your-routine"],
+    review: editorialReview,
+  },
+  {
+    id: "rest-days-are-data",
+    imageAssetKey: "rest-days-are-data",
+    title: "Let rest days teach you",
+    dek: "Use recovery feedback to shape a sustainable movement pattern.",
+    topic: "Movement",
+    collectionId: "movement-and-recovery",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let rest days teach you can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use recovery feedback to shape a sustainable movement pattern.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Choose an option that matches current energy, access, ability, and enjoyment, then treat recovery as part of the plan rather than a failure. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-breaks-count", "fuel-for-your-routine"],
+    review: editorialReview,
+  },
+  {
+    id: "morning-light-and-rhythm",
+    imageAssetKey: "morning-light-and-rhythm",
+    title: "Use morning light and rhythm",
+    dek: "Create a gentle cue for the beginning of the day and the evening that follows.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 4,
+    icon: "moon",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use morning light and rhythm can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Create a gentle cue for the beginning of the day and the evening that follows.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["sleep-and-food-rhythm", "gentle-evening-reset"],
+    review: editorialReview,
+  },
+  {
+    id: "nighttime-food-and-sleep",
+    imageAssetKey: "nighttime-food-and-sleep",
+    title: "Notice evening food and sleep patterns",
+    dek: "Observe how timing, comfort, and routine interact without assigning blame.",
+    topic: "Sleep",
+    collectionId: "sleep-and-rhythm",
+    readingMinutes: 4,
+    icon: "moon",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice evening food and sleep patterns can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Observe how timing, comfort, and routine interact without assigning blame.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Look for one repeatable environmental or scheduling adjustment and allow the routine to be gradual instead of demanding immediate perfection. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["sleep-and-food-rhythm", "gentle-evening-reset"],
+    review: editorialReview,
+  },
+  {
+    id: "replace-all-or-nothing",
+    imageAssetKey: "replace-all-or-nothing",
+    title: "Replace all-or-nothing thinking",
+    dek: "Make room for partial progress and useful middle steps.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Replace all-or-nothing thinking can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Make room for partial progress and useful middle steps.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-check-in", "make-goals-flexible"],
+    review: editorialReview,
+  },
+  {
+    id: "self-talk-that-supports-action",
+    imageAssetKey: "self-talk-that-supports-action",
+    title: "Use self-talk that supports action",
+    dek: "Choose language that helps you continue rather than making the next step heavier.",
+    topic: "Mindset",
+    collectionId: "mindset-and-routine",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use self-talk that supports action can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Choose language that helps you continue rather than making the next step heavier.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Describe what happened with curiosity and kindness, then choose a manageable next action without turning one moment into a verdict. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["kind-check-in", "make-goals-flexible"],
+    review: editorialReview,
+  },
+  {
+    id: "what-fiber-brings-to-a-meal",
+    imageAssetKey: "what-fiber-brings-to-a-meal",
+    title: "What fiber brings to a meal",
+    dek: "Notice the many foods that contribute fiber and how they add texture, satisfaction, and variety.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "What fiber brings to a meal can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Notice the many foods that contribute fiber and how they add texture, satisfaction, and variety.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["add-fiber-gradually", "beans-lentils-and-practical-portions"],
+    review: editorialReview,
+  },
+  {
+    id: "add-fiber-gradually",
+    imageAssetKey: "add-fiber-gradually",
+    title: "Add fiber gradually",
+    dek: "Use small changes and patience when increasing fiber rather than making an abrupt overhaul.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Add fiber gradually can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use small changes and patience when increasing fiber rather than making an abrupt overhaul.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "beans-lentils-and-practical-portions"],
+    review: editorialReview,
+  },
+  {
+    id: "beans-lentils-and-practical-portions",
+    imageAssetKey: "beans-lentils-and-practical-portions",
+    title: "Beans, lentils, and practical portions",
+    dek: "Build confidence with affordable, versatile plant foods in familiar meals.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Beans, lentils, and practical portions can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Build confidence with affordable, versatile plant foods in familiar meals.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "add-fiber-gradually"],
+    review: editorialReview,
+  },
+  {
+    id: "fruit-vegetables-and-grains",
+    imageAssetKey: "fruit-vegetables-and-grains",
+    title: "Fruit, vegetables, and grains",
+    dek: "Find approachable combinations across fresh, frozen, canned, and shelf-stable options.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Fruit, vegetables, and grains can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Find approachable combinations across fresh, frozen, canned, and shelf-stable options.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "add-fiber-gradually"],
+    review: editorialReview,
+  },
+  {
+    id: "fiber-and-fluid-together",
+    imageAssetKey: "fiber-and-fluid-together",
+    title: "Fiber and fluid together",
+    dek: "Pair higher-fiber choices with comfortable drinking habits and observe what works for you.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Fiber and fluid together can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Pair higher-fiber choices with comfortable drinking habits and observe what works for you.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "add-fiber-gradually"],
+    review: editorialReview,
+  },
+  {
+    id: "a-comfortable-meal-experiment",
+    imageAssetKey: "a-comfortable-meal-experiment",
+    title: "A comfortable meal experiment",
+    dek: "Try one gentle change and learn from your experience without treating it as a test.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "A comfortable meal experiment can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Try one gentle change and learn from your experience without treating it as a test.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "add-fiber-gradually"],
+    review: editorialReview,
+  },
+  {
+    id: "when-digestion-needs-support",
+    imageAssetKey: "when-digestion-needs-support",
+    title: "When digestion needs support",
+    dek: "Recognize when persistent discomfort deserves individualized guidance from a qualified professional.",
+    topic: "Fiber & digestion",
+    collectionId: "fiber-and-digestion",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "When digestion needs support can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Recognize when persistent discomfort deserves individualized guidance from a qualified professional.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["what-fiber-brings-to-a-meal", "add-fiber-gradually"],
+    review: editorialReview,
+  },
+  {
+    id: "build-a-flexible-low-cost-pattern",
+    imageAssetKey: "build-a-flexible-low-cost-pattern",
+    title: "Build a flexible low-cost pattern",
+    dek: "Choose a few dependable meal anchors that can stretch across different days.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible low-cost pattern can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Choose a few dependable meal anchors that can stretch across different days.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["compare-cost-per-serving", "frozen-canned-and-shelf-stable-options"],
+    review: editorialReview,
+  },
+  {
+    id: "compare-cost-per-serving",
+    imageAssetKey: "compare-cost-per-serving",
+    title: "Compare cost per serving",
+    dek: "Use simple comparisons without assuming the cheapest option is always the best fit.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Compare cost per serving can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use simple comparisons without assuming the cheapest option is always the best fit.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "frozen-canned-and-shelf-stable-options"],
+    review: editorialReview,
+  },
+  {
+    id: "frozen-canned-and-shelf-stable-options",
+    imageAssetKey: "frozen-canned-and-shelf-stable-options",
+    title: "Frozen, canned, and shelf-stable options",
+    dek: "Keep practical ingredients available when fresh shopping is difficult.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Frozen, canned, and shelf-stable options can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Keep practical ingredients available when fresh shopping is difficult.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "compare-cost-per-serving"],
+    review: editorialReview,
+  },
+  {
+    id: "make-a-backup-meal-list",
+    imageAssetKey: "make-a-backup-meal-list",
+    title: "Make a backup meal list",
+    dek: "Prepare a short list of meals for low-energy or low-time moments.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make a backup meal list can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Prepare a short list of meals for low-energy or low-time moments.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "compare-cost-per-serving"],
+    review: editorialReview,
+  },
+  {
+    id: "shop-from-what-you-already-have",
+    imageAssetKey: "shop-from-what-you-already-have",
+    title: "Shop from what you already have",
+    dek: "Turn pantry and freezer ingredients into useful starting points.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Shop from what you already have can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Turn pantry and freezer ingredients into useful starting points.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "compare-cost-per-serving"],
+    review: editorialReview,
+  },
+  {
+    id: "budget-friendly-protein-choices",
+    imageAssetKey: "budget-friendly-protein-choices",
+    title: "Budget-friendly protein choices",
+    dek: "Explore varied protein foods and combinations that fit your preferences and budget.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Budget-friendly protein choices can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Explore varied protein foods and combinations that fit your preferences and budget.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "compare-cost-per-serving"],
+    review: editorialReview,
+  },
+  {
+    id: "when-access-changes",
+    imageAssetKey: "when-access-changes",
+    title: "When access changes",
+    dek: "Adapt routines compassionately when time, money, equipment, or availability shifts.",
+    topic: "Budget & access",
+    collectionId: "budget-and-access",
+    readingMinutes: 4,
+    icon: "shopping-bag",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "When access changes can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Adapt routines compassionately when time, money, equipment, or availability shifts.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-flexible-low-cost-pattern", "compare-cost-per-serving"],
+    review: editorialReview,
+  },
+  {
+    id: "fridge-freezer-and-pantry-basics",
+    imageAssetKey: "fridge-freezer-and-pantry-basics",
+    title: "Fridge, freezer, and pantry basics",
+    dek: "Give common foods a clear home and make safe storage easier to remember.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Fridge, freezer, and pantry basics can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Give common foods a clear home and make safe storage easier to remember.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["leftovers-and-storage-timing", "reheating-meals-with-confidence"],
+    review: editorialReview,
+  },
+  {
+    id: "leftovers-and-storage-timing",
+    imageAssetKey: "leftovers-and-storage-timing",
+    title: "Leftovers and storage timing",
+    dek: "Use simple labels and timely refrigeration to make leftovers more predictable.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Leftovers and storage timing can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use simple labels and timely refrigeration to make leftovers more predictable.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "reheating-meals-with-confidence"],
+    review: editorialReview,
+  },
+  {
+    id: "reheating-meals-with-confidence",
+    imageAssetKey: "reheating-meals-with-confidence",
+    title: "Reheating meals with confidence",
+    dek: "Warm leftovers thoughtfully while preserving texture and reducing uncertainty.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Reheating meals with confidence can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Warm leftovers thoughtfully while preserving texture and reducing uncertainty.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "leftovers-and-storage-timing"],
+    review: editorialReview,
+  },
+  {
+    id: "prevent-cross-contamination",
+    imageAssetKey: "prevent-cross-contamination",
+    title: "Prevent cross-contamination",
+    dek: "Separate raw and ready-to-eat foods with a few repeatable kitchen habits.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Prevent cross-contamination can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Separate raw and ready-to-eat foods with a few repeatable kitchen habits.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "leftovers-and-storage-timing"],
+    review: editorialReview,
+  },
+  {
+    id: "handling-produce-safely",
+    imageAssetKey: "handling-produce-safely",
+    title: "Handling produce safely",
+    dek: "Rinse, store, and prepare produce in ways that fit the food and your kitchen.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Handling produce safely can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Rinse, store, and prepare produce in ways that fit the food and your kitchen.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "leftovers-and-storage-timing"],
+    review: editorialReview,
+  },
+  {
+    id: "packing-food-for-work-or-travel",
+    imageAssetKey: "packing-food-for-work-or-travel",
+    title: "Packing food for work or travel",
+    dek: "Plan temperature and timing when a meal leaves the home.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Packing food for work or travel can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Plan temperature and timing when a meal leaves the home.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "leftovers-and-storage-timing"],
+    review: editorialReview,
+  },
+  {
+    id: "when-to-discard-rather-than-guess",
+    imageAssetKey: "when-to-discard-rather-than-guess",
+    title: "When to discard rather than guess",
+    dek: "Choose caution when food safety is uncertain, especially for vulnerable people.",
+    topic: "Food safety",
+    collectionId: "food-safety",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "When to discard rather than guess can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Choose caution when food safety is uncertain, especially for vulnerable people.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["fridge-freezer-and-pantry-basics", "leftovers-and-storage-timing"],
+    review: editorialReview,
+  },
+  {
+    id: "read-menus-without-overthinking",
+    imageAssetKey: "read-menus-without-overthinking",
+    title: "Read menus without overthinking",
+    dek: "Find the information that helps you choose without turning ordering into an exam.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Read menus without overthinking can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Find the information that helps you choose without turning ordering into an exam.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["build-a-satisfying-restaurant-meal", "shared-meals-and-family-style"],
+    review: editorialReview,
+  },
+  {
+    id: "build-a-satisfying-restaurant-meal",
+    imageAssetKey: "build-a-satisfying-restaurant-meal",
+    title: "Build a satisfying restaurant meal",
+    dek: "Combine taste, appetite, social context, and convenience in a way that feels workable.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a satisfying restaurant meal can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Combine taste, appetite, social context, and convenience in a way that feels workable.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "shared-meals-and-family-style"],
+    review: editorialReview,
+  },
+  {
+    id: "shared-meals-and-family-style",
+    imageAssetKey: "shared-meals-and-family-style",
+    title: "Shared meals and family style",
+    dek: "Participate in shared food while staying connected to preference and comfort.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Shared meals and family style can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Participate in shared food while staying connected to preference and comfort.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "build-a-satisfying-restaurant-meal"],
+    review: editorialReview,
+  },
+  {
+    id: "flexible-ordering-and-swaps",
+    imageAssetKey: "flexible-ordering-and-swaps",
+    title: "Flexible ordering and swaps",
+    dek: "Ask for simple changes when they genuinely improve the meal for you.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Flexible ordering and swaps can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Ask for simple changes when they genuinely improve the meal for you.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "build-a-satisfying-restaurant-meal"],
+    review: editorialReview,
+  },
+  {
+    id: "fast-food-with-practical-choices",
+    imageAssetKey: "fast-food-with-practical-choices",
+    title: "Fast food with practical choices",
+    dek: "Use familiar options and realistic expectations when speed is the priority.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Fast food with practical choices can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use familiar options and realistic expectations when speed is the priority.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "build-a-satisfying-restaurant-meal"],
+    review: editorialReview,
+  },
+  {
+    id: "enjoying-food-without-compensation",
+    imageAssetKey: "enjoying-food-without-compensation",
+    title: "Enjoying food without compensation",
+    dek: "Return to your normal rhythm without trying to undo a social meal.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Enjoying food without compensation can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Return to your normal rhythm without trying to undo a social meal.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "build-a-satisfying-restaurant-meal"],
+    review: editorialReview,
+  },
+  {
+    id: "a-gentle-return-to-routine",
+    imageAssetKey: "a-gentle-return-to-routine",
+    title: "A gentle return to routine",
+    dek: "Let the next meal be an ordinary opportunity rather than a correction.",
+    topic: "Eating out",
+    collectionId: "eating-out",
+    readingMinutes: 4,
+    icon: "coffee",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "A gentle return to routine can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Let the next meal be an ordinary opportunity rather than a correction.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["read-menus-without-overthinking", "build-a-satisfying-restaurant-meal"],
+    review: editorialReview,
+  },
+  {
+    id: "food-traditions-belong-here",
+    imageAssetKey: "food-traditions-belong-here",
+    title: "Food traditions belong here",
+    dek: "Keep cultural foods and family traditions inside a flexible definition of nourishment.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Food traditions belong here can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Keep cultural foods and family traditions inside a flexible definition of nourishment.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["pleasure-is-useful-information", "sharing-meals-and-connection"],
+    review: editorialReview,
+  },
+  {
+    id: "pleasure-is-useful-information",
+    imageAssetKey: "pleasure-is-useful-information",
+    title: "Pleasure is useful information",
+    dek: "Notice flavor, texture, satisfaction, and enjoyment as part of a practical meal.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Pleasure is useful information can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Notice flavor, texture, satisfaction, and enjoyment as part of a practical meal.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "sharing-meals-and-connection"],
+    review: editorialReview,
+  },
+  {
+    id: "sharing-meals-and-connection",
+    imageAssetKey: "sharing-meals-and-connection",
+    title: "Sharing meals and connection",
+    dek: "Use shared food as a chance to belong without requiring everyone to eat identically.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Sharing meals and connection can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Use shared food as a chance to belong without requiring everyone to eat identically.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
+    review: editorialReview,
+  },
+  {
+    id: "adapt-familiar-dishes-thoughtfully",
+    imageAssetKey: "adapt-familiar-dishes-thoughtfully",
+    title: "Adapt familiar dishes thoughtfully",
+    dek: "Change a recipe only when it helps, without erasing what makes it meaningful.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Adapt familiar dishes thoughtfully can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Change a recipe only when it helps, without erasing what makes it meaningful.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
+    review: editorialReview,
+  },
+  {
+    id: "cooking-with-family-and-community",
+    imageAssetKey: "cooking-with-family-and-community",
+    title: "Cooking with family and community",
+    dek: "Share skills, responsibilities, and stories around food preparation.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Cooking with family and community can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Share skills, responsibilities, and stories around food preparation.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
+    review: editorialReview,
+  },
+  {
+    id: "food-memories-and-meaning",
+    imageAssetKey: "food-memories-and-meaning",
+    title: "Food memories and meaning",
+    dek: "Recognize how memory and identity shape what feels nourishing and familiar.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Food memories and meaning can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Recognize how memory and identity shape what feels nourishing and familiar.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
+    review: editorialReview,
+  },
+  {
+    id: "make-room-for-spontaneity",
+    imageAssetKey: "make-room-for-spontaneity",
+    title: "Make room for spontaneity",
+    dek: "Allow flexible choices and variety without turning an unplanned meal into a problem.",
+    topic: "Food culture & enjoyment",
+    collectionId: "food-culture-enjoyment",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make room for spontaneity can be a practical way to notice what supports a meal or routine, without turning one choice into a rule. Allow flexible choices and variety without turning an unplanned meal into a problem.",
+          "The best version depends on your culture, preferences, budget, equipment, schedule, appetite, and the people sharing the moment. Use this lesson as a prompt for options rather than a standard you must meet.",
+        ],
+        bullets: [
+          "Begin with one familiar example instead of changing everything at once.",
+          "Notice what makes the option easier, more enjoyable, or more satisfying to use.",
+          "Keep the parts that fit and leave the rest without treating that as failure.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A helpful experiment is usually small enough to fit into an ordinary day. You might change one ingredient, prepare one backup, ask one question, or make one part of the environment easier to use.",
+          "There may be several good ways to apply the idea. What works on a quiet day may need to change during travel, busy work, limited access, social meals, or a different energy level.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Keep the idea flexible and adapt it to your real context, preferences, access, and support. This keeps the lesson connected to the whole person rather than a single number, food, or moment.",
+          "Before you finish, name the smallest next step you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        ],
+        bullets: [
+          "Choose a version that is realistic for this week, not an idealized future week.",
+          "Make a note of what you learned so the next attempt can be more personal.",
+          "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small, low-pressure version of this idea to try in a real meal or routine. Notice what felt useful, what felt inconvenient, and one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
+    review: editorialReview,
   },
 ] as const;

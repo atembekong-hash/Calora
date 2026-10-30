@@ -20,7 +20,7 @@ import {
 
 describe("Learning catalog", () => {
   it("has a complete, unique initial editorial library across required topics", () => {
-    expect(LEARNING_LESSONS).toHaveLength(50);
+    expect(LEARNING_LESSONS).toHaveLength(105);
     expect(new Set(LEARNING_LESSONS.map((lesson) => lesson.id)).size).toBe(
       LEARNING_LESSONS.length,
     );
@@ -35,7 +35,7 @@ describe("Learning catalog", () => {
         LEARNING_LESSONS.filter(
           (lesson) => lesson.collectionId === collection.id,
         ),
-      ).toHaveLength(5);
+      ).toHaveLength(7);
     }
     expect(getLearningCatalogIssues()).toEqual([]);
   });
@@ -86,6 +86,8 @@ describe("Learning catalog", () => {
       "busy-day-backup",
       "make-the-next-step-specific",
       "plan-for-the-plan-to-change",
+      "plan-for-real-energy",
+      "flexible-meal-rhythm",
     ]);
   });
 
@@ -184,11 +186,11 @@ describe("Learning reader state", () => {
       completed.progressByLessonId["balanced-plate-basics"]?.completed,
     ).toBe(true);
     expect(journey).toMatchObject({
-      totalLessons: 50,
+      totalLessons: 105,
       startedLessons: 1,
       completedLessons: 1,
       savedLessons: 1,
-      percentComplete: 2,
+      percentComplete: 1,
     });
   });
 

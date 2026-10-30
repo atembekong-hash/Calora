@@ -19,11 +19,13 @@ const SOURCE_DIRECTORIES = [
 ];
 const SKIPPED_SOURCE_PATH = /(?:^|\/)(?:__tests__|node_modules)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/;
 export const IMAGE_PERFORMANCE_BUDGET = Object.freeze({
-  maximumAssetCount: 112,
+  // The Learning catalog now has one local editorial image per lesson (105 total),
+  // in addition to the app's existing food, meal, and shell artwork.
+  maximumAssetCount: 170,
   maximumCompressedBytesPerAsset: 900_000,
-  maximumCompressedBytesTotal: 16 * 1024 * 1024,
+  maximumCompressedBytesTotal: 20 * 1024 * 1024,
   maximumPixelsPerAsset: 1_600_000,
-  maximumDecodedRgbaBytesTotal: 320 * 1024 * 1024,
+  maximumDecodedRgbaBytesTotal: 400 * 1024 * 1024,
 });
 
 function normalizePath(value) {
