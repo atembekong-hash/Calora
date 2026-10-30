@@ -1423,7 +1423,7 @@ export default function PlannerScreen() {
                   }}
                   style={[styles.dismissButton, { borderColor: colors.primary, borderWidth: 1, marginTop: 10 }]}
                 >
-                  <Feather name="bookmark" size={16} color={colors.primary} />
+                  <Feather name="coffee" size={16} color={colors.primary} />
                   <Text style={[styles.dismissText, { color: colors.primary }]}>Save as meal</Text>
                 </Pressable>
               </ScrollView>

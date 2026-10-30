@@ -142,7 +142,7 @@ export default function SavedMealsScreen() {
         ) : (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Feather name="bookmark" size={26} color={colors.successForeground} />
+              <Feather name="coffee" size={26} color={colors.successForeground} />
             </View>
             <Text style={styles.emptyTitle}>
               {savedMeals.length

@@ -973,7 +973,7 @@ function MealRow({ log, colors, onEdit, onSave }: { log: FoodLog; colors: Return
         haptic="none"
         style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
       >
-        <Feather name="bookmark" size={17} color={colors.primary} />
+        <Feather name="coffee" size={17} color={colors.primary} />
       </ScalePressable>
     </View>
   );
