@@ -248,7 +248,13 @@ vi.mock("@/components/AppChrome", () => ({
 }));
 vi.mock("@/components/ReferralCard", () => ({ ReferralCard: () => null }));
 vi.mock("@/components/auth/AccountSection", () => ({
-  AccountSection: () => null,
+  AccountSection: () => (
+    <section>
+      <h2>Account</h2>
+      <button aria-label="Sign out">Sign out</button>
+      <button aria-label="Delete account">Delete account</button>
+    </section>
+  ),
 }));
 vi.mock("@/components/KeyboardAwareScrollViewCompat", () => ({
   KeyboardAwareScrollViewCompat: ({
@@ -414,6 +420,19 @@ describe("Profile rendered interactions", () => {
     expect(harness.router.push).toHaveBeenCalledWith("/profile?tab=membership");
     cleanup();
     render(<ProfileScreen surface="settings" />);
+    expect(screen.getByRole("heading", { name: "Account" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete account" })).toBeTruthy();
+    expect(screen.getByText("Trust & privacy")).toBeTruthy();
+  });
+
+  it("routes the legacy Account tab request to the Settings-owned Account section", () => {
+    harness.state.tab = "account";
+    render(<ProfileScreen />);
+
+    expect(screen.getByRole("heading", { name: "Account" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete account" })).toBeTruthy();
     expect(screen.getByText("Trust & privacy")).toBeTruthy();
   });
   it("accepts the reminders intent in You and keeps the reminder controls discoverable", () => {

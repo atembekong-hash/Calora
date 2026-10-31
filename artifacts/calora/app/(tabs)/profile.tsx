@@ -185,7 +185,11 @@ export default function ProfileScreen({
   const profileOpenIntent = profileOpenIntentFromParam(open);
   const surface: ProfileSurface =
     forcedSurface ??
-    (profileOpenIntent === "reminders" ? "notifications" : "profile");
+    (profileOpenIntent === "reminders"
+      ? "notifications"
+      : tab === "account"
+        ? "settings"
+        : "profile");
   const requestedProfileTab = profileTabFromParam(tab);
   const { user, signOut } = useAuth();
   const {
@@ -3595,12 +3599,10 @@ export default function ProfileScreen({
               {/* prettier-ignore */}
               <View style={(surface === "profile" && tab === 'account') || surface === "settings" ? undefined : styles.hiddenSection}>
                 {/* ── Account ── */}
-                {surface === "profile" && (
-                  <AccountSection
-                    fontScale={fontScale}
-                    clearAllData={clearAllData}
-                  />
-                )}
+                <AccountSection
+                  fontScale={fontScale}
+                  clearAllData={clearAllData}
+                />
 
                 {/* ── Trust & privacy ── */}
                 <Text
