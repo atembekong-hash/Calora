@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const https = require("node:https");
 const path = require("node:path");
+const zlib = require("node:zlib");
 
 const DIST_ROOT = path.resolve(__dirname, "..", "dist");
 const DEFAULT_API_UPSTREAM = "https://mycaloraapp.com";
@@ -36,6 +37,14 @@ const HOP_BY_HOP_HEADERS = new Set([
   "upgrade",
 ]);
 const STRICT_TRANSPORT_SECURITY = "max-age=31536000";
+const COMPRESSIBLE_TYPES = new Set([
+  "application/javascript; charset=utf-8",
+  "application/json; charset=utf-8",
+  "application/octet-stream",
+  "image/svg+xml",
+  "text/css; charset=utf-8",
+  "text/html; charset=utf-8",
+]);
 
 function isPathInside(rootPath, candidatePath) {
   const relativePath = path.relative(rootPath, candidatePath);
@@ -141,19 +150,83 @@ function setSecurityHeaders(res) {
   res.setHeader("X-Frame-Options", "DENY");
 }
 
+function acceptsEncoding(header, encoding) {
+  const entries = String(header || "")
+    .toLowerCase()
+    .split(",")
+    .map((value) => value.trim().split(";"))
+    .map(([name, ...parameters]) => {
+      const quality = parameters.find((parameter) =>
+        parameter.trim().startsWith("q="),
+      );
+      const parsedQuality = quality
+        ? Number.parseFloat(quality.trim().slice(2))
+        : 1;
+      return [name, Number.isFinite(parsedQuality) ? parsedQuality : 0];
+    });
+  const exact = entries.find(([name]) => name === encoding);
+  if (exact) return exact[1] > 0;
+  const wildcard = entries.find(([name]) => name === "*");
+  return wildcard ? wildcard[1] > 0 : false;
+}
+
+function preferredContentEncoding(header) {
+  if (acceptsEncoding(header, "br")) return "br";
+  if (acceptsEncoding(header, "gzip")) return "gzip";
+  return null;
+}
+
+function getStaticBody(req, entry) {
+  const body = entry.read();
+  if (!COMPRESSIBLE_TYPES.has(entry.contentType)) {
+    return { body, encoding: null };
+  }
+
+  const encoding = preferredContentEncoding(req.headers["accept-encoding"]);
+  if (!encoding) return { body, encoding: null };
+
+  // Cache compressed variants on the indexed entry: the large entry bundle is
+  // requested repeatedly during a session, and recompressing it per request
+  // would trade network savings for avoidable CPU spikes.
+  entry.compressed ??= Object.create(null);
+  if (!entry.compressed[encoding]) {
+    const compressed =
+      encoding === "br"
+        ? zlib.brotliCompressSync(body, {
+            params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 },
+          })
+        : zlib.gzipSync(body, { level: 6 });
+    entry.compressed[encoding] =
+      compressed.length < body.length ? compressed : body;
+  }
+  const compressedBody = entry.compressed[encoding];
+  return {
+    body: compressedBody,
+    encoding: compressedBody === body ? null : encoding,
+  };
+}
+
 function sendStaticEntry(req, res, entry) {
   if (entry.status !== 200) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
   }
-  res.writeHead(200, {
+  const { body, encoding } = getStaticBody(req, entry);
+  const headers = {
     "content-type": entry.contentType,
-    "content-length": entry.size,
+    "content-length": body.length,
     "cache-control": entry.cacheControl,
+  };
+  if (encoding) {
+    headers["content-encoding"] = encoding;
+    headers.vary = "Accept-Encoding";
+  }
+  res.writeHead(200, {
+    ...headers,
   });
   if (req.method === "HEAD") res.end();
-  else res.end(entry.read());
+  else res.end(body);
 }
 
 function normalizeApiUpstream(value) {

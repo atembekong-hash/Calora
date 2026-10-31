@@ -33,4 +33,28 @@ config.resolver.nodeModulesPaths = [
 // 3. Keep package exports enabled; Expo's default symlink handling is used.
 config.resolver.unstable_enablePackageExports = true;
 
+// Metro can otherwise resolve React through both the workspace symlink and a
+// peer dependency's pnpm-scoped node_modules directory. On web that embeds a
+// second React/React DOM runtime in the single entry bundle. Pin only the web
+// runtime to the workspace copies; native resolution keeps Expo's defaults.
+const reactRoot = path.dirname(require.resolve('react/package.json'));
+const reactDomRoot = path.dirname(require.resolve('react-dom/package.json'));
+const webSingletons = new Map([
+  ['react', path.join(reactRoot, 'index.js')],
+  ['react/jsx-runtime', path.join(reactRoot, 'jsx-runtime.js')],
+  ['react/jsx-dev-runtime', path.join(reactRoot, 'jsx-dev-runtime.js')],
+  ['react-dom', path.join(reactDomRoot, 'index.js')],
+  ['react-dom/client', path.join(reactDomRoot, 'client.js')],
+  ['react-dom/server', path.join(reactDomRoot, 'server.js')],
+]);
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && webSingletons.has(moduleName)) {
+    return { type: 'sourceFile', filePath: webSingletons.get(moduleName) };
+  }
+  return defaultResolveRequest
+    ? defaultResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;
