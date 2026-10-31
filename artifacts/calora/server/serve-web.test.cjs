@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
+const zlib = require("node:zlib");
 const { after, before, test } = require("node:test");
 const { createServer } = require("./serve-web");
 
@@ -11,7 +12,7 @@ const distRoot = path.join(tempRoot, "dist");
 const outsideFile = path.join(tempRoot, "outside-secret.txt");
 const indexHtml =
   '<!doctype html><html><body><div id="root">Calora web</div></body></html>';
-const assetBody = 'console.log("calora-web");';
+const assetBody = 'console.log("calora-web");'.repeat(200);
 fs.mkdirSync(path.join(distRoot, "_expo", "static", "js", "web"), {
   recursive: true,
 });
@@ -92,6 +93,7 @@ function request(rawPath, { method = "GET", headers = {}, body } = {}) {
             status: res.statusCode,
             headers: res.headers,
             body: Buffer.concat(chunks).toString("utf8"),
+            rawBody: Buffer.concat(chunks),
           }),
         );
       },
@@ -140,6 +142,27 @@ test("serves immutable hashed assets and HEAD requests", async () => {
   const head = await request("/assets/meal-abc123.jpg", { method: "HEAD" });
   assert.equal(head.status, 200);
   assert.equal(head.body, "");
+});
+
+test("compresses eligible assets when the client advertises Brotli or gzip", async () => {
+  const brotli = await request("/_expo/static/js/web/entry-deadbeef.js", {
+    headers: { "accept-encoding": "br, gzip" },
+  });
+  assert.equal(brotli.status, 200);
+  assert.equal(brotli.headers["content-encoding"], "br");
+  assert.equal(brotli.headers.vary, "Accept-Encoding");
+  assert.equal(brotli.headers["cache-control"].includes("immutable"), true);
+  assert.deepEqual(
+    zlib.brotliDecompressSync(brotli.rawBody).toString(),
+    assetBody,
+  );
+
+  const gzip = await request("/_expo/static/js/web/entry-deadbeef.js", {
+    headers: { "accept-encoding": "gzip" },
+  });
+  assert.equal(gzip.status, 200);
+  assert.equal(gzip.headers["content-encoding"], "gzip");
+  assert.deepEqual(zlib.gunzipSync(gzip.rawBody).toString(), assetBody);
 });
 
 test("returns 404 for missing asset-like paths instead of the SPA shell", async () => {
