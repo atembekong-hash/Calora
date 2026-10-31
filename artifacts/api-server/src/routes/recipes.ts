@@ -155,7 +155,30 @@ async function enforceRecipeIpLimit(
   const limit = scope === "nutrition-estimate"
     ? RECIPE_NUTRITION_ESTIMATE_RATE_LIMIT
     : RECIPES_RATE_LIMIT;
-  const rate = await checkRateLimit(key, limit, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
+  let rate = await checkRateLimit(key, limit, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
+
+  // Managed edges can place many legitimate signed-in sessions behind one
+  // public address. If that shared bucket is exhausted, use the verified
+  // account identity as a narrower fallback bucket. Keep the IP guard first
+  // and never use an unverified token as a limiter key; anonymous callers
+  // remain IP-limited exactly as before.
+  if (!rate.allowed && !rate.degraded && req.headers.authorization) {
+    try {
+      const user = await verifyBearerToken(req);
+      if (user) {
+        rate = await checkRateLimit(
+          `recipes:${scope}:user:${user.id}`,
+          limit,
+          RECIPES_RATE_WINDOW_SECS,
+          { failClosed: true },
+        );
+        if (rate.allowed) return true;
+      }
+    } catch {
+      // Preserve the original fail-closed response if optional identity
+      // verification is unavailable; do not turn the fallback into a bypass.
+    }
+  }
   if (!rate.allowed) {
     const nutritionEstimate = scope === "nutrition-estimate";
     if (rate.degraded) {
