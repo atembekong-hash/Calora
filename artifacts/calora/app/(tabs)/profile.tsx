@@ -67,12 +67,7 @@ import { SettingRowPressable } from "@/components/SettingRowPressable";
 import { AccountSection } from "@/components/auth/AccountSection";
 import { useAuth } from "@/context/AuthContext";
 import { AppHeader } from "@/components/AppChrome";
-import {
-  SwipeMenuHighlight,
-  SwipeMenuHighlightProvider,
-  SwipeableSectionPager,
-  SwipeableTabList,
-} from "@/components/SwipeableTabList";
+import { SwipeableSectionPager } from "@/components/SwipeableTabList";
 import { ReferralCard } from "@/components/ReferralCard";
 import {
   REVENUECAT_ENTITLEMENT_IDENTIFIER,
@@ -140,7 +135,6 @@ const mealConfig: {
 
 type ProfileTab = "you" | "membership" | "account";
 export type ProfileSurface = "profile" | "settings" | "notifications";
-const PROFILE_TABS = ["you", "membership", "account"] as const;
 type ProfileOpenIntent = "reminders" | "goals" | "health";
 
 function profileTabFromParam(tab?: string): ProfileTab {
@@ -1249,6 +1243,9 @@ export default function ProfileScreen({
   const needsActiveEnergyAccess =
     needsActiveEnergyAuthorization(healthConnection);
   const needsStepsAccess = needsStepsAuthorization(healthConnection);
+  // Keep old tab query links working, but render Profile as explicit entry routes.
+  const visibleProfilePanes: ProfileTab[] =
+    surface === "profile" ? [profileTab] : ["you"];
 
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
@@ -1278,7 +1275,7 @@ export default function ProfileScreen({
             </Pressable>
             <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+            accessibilityLabel={`Open notification inbox${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
             testID="profile-notifications-button"
             onPress={openNotificationCenter}
             hitSlop={8}
@@ -1308,7 +1305,7 @@ export default function ProfileScreen({
             </Pressable>
           </View> : surface === "settings" ? <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open notifications"
+            accessibilityLabel="Open notification preferences"
             onPress={() => router.push("/notifications" as never)}
             hitSlop={8}
             style={[styles.notificationButton, { backgroundColor: colors.muted }]}
@@ -1318,56 +1315,8 @@ export default function ProfileScreen({
         }
       />
       <View style={styles.profileViewport}>
-        {surface === "profile" && <SwipeMenuHighlightProvider items={PROFILE_TABS} activeItem={profileTab}>
-        <View style={styles.profileHeaderContent}>
-          <SwipeableTabList
-            items={PROFILE_TABS}
-            activeItem={profileTab}
-            onChange={setProfileTab}
-            accessibilityLabel="Profile sections"
-            testID="profile-section-tabs"
-            style={[
-              styles.profileTabs,
-              { backgroundColor: colors.muted, borderColor: colors.border },
-            ]}
-          >
-            {[
-              { key: "you" as const, label: "You" },
-              { key: "membership" as const, label: "Membership" },
-              { key: "account" as const, label: "Account" },
-            ].map((tab) => {
-              const selected = profileTab === tab.key;
-              return (
-                <Pressable
-                  key={tab.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`${tab.label} profile tab`}
-                  onPress={() => setProfileTab(tab.key)}
-                  style={[
-                    styles.profileTab,
-                    selected && { backgroundColor: colors.card },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.profileTabText,
-                      {
-                        color: selected ? colors.foreground : colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            <SwipeMenuHighlight color={colors.accentForeground} horizontalPadding={4} gap={4} inset={10} testID="profile-section-swipe-indicator" />
-          </SwipeableTabList>
-        </View>
-        </SwipeMenuHighlightProvider>}
         <SwipeableSectionPager
-          items={PROFILE_TABS}
+          items={visibleProfilePanes}
           activeItem={profileTab}
           onChange={setProfileTab}
           renderItem={(tab) => (
@@ -1375,7 +1324,7 @@ export default function ProfileScreen({
               style={styles.profilePaneScroll}
               contentContainerStyle={[
                 styles.profilePaneContent,
-                { paddingBottom: insets.bottom + 104 },
+                { paddingBottom: insets.bottom + 136 },
               ]}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
@@ -1913,8 +1862,10 @@ export default function ProfileScreen({
                         }))
                       }
                       disabled={notificationControlsDisabled}
-                      trackColor={{ false: colors.muted, true: colors.primary }}
+                      trackColor={{ false: colors.border, true: colors.primary }}
                       thumbColor={colors.primaryForeground}
+                      ios_backgroundColor={colors.border}
+                      style={styles.notificationSwitch}
                     />
                   </View>
 
@@ -1969,10 +1920,12 @@ export default function ProfileScreen({
                         }
                         disabled={notificationControlsDisabled}
                         trackColor={{
-                          false: colors.muted,
+                          false: colors.border,
                           true: colors.primary,
                         }}
                         thumbColor={colors.primaryForeground}
+                        ios_backgroundColor={colors.border}
+                        style={styles.notificationSwitch}
                       />
                     </View>
                     {notificationPreferences.quietHours.enabled && (
@@ -2180,8 +2133,10 @@ export default function ProfileScreen({
                         })
                       }
                       disabled={notificationControlsDisabled}
-                      trackColor={{ false: colors.muted, true: colors.primary }}
+                      trackColor={{ false: colors.border, true: colors.primary }}
                       thumbColor={colors.primaryForeground}
+                      ios_backgroundColor={colors.border}
+                      style={styles.notificationSwitch}
                     />
                   </View>
 
@@ -2700,11 +2655,12 @@ export default function ProfileScreen({
                               }
                               disabled={notificationControlsDisabled}
                               trackColor={{
-                                false: colors.muted,
+                                false: colors.border,
                                 true: colors.primary,
                               }}
                               thumbColor={colors.primaryForeground}
-                              style={{ marginLeft: 8 }}
+                              ios_backgroundColor={colors.border}
+                              style={styles.notificationSwitch}
                             />
                           </View>
                         </View>
@@ -2899,9 +2855,10 @@ export default function ProfileScreen({
                         applyGoalPrefs({ ...goalReminderPrefs, enabled: val })
                       }
                       disabled={notificationControlsDisabled}
-                      trackColor={{ false: colors.muted, true: colors.primary }}
+                      trackColor={{ false: colors.border, true: colors.primary }}
                       thumbColor={colors.primaryForeground}
-                      style={{ marginLeft: 8 }}
+                      ios_backgroundColor={colors.border}
+                      style={styles.notificationSwitch}
                     />
                   </View>
                 </Animated.View>
@@ -3610,8 +3567,31 @@ export default function ProfileScreen({
                     </Pressable>
                   )}
                 </Animated.View>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { color: colors.foreground, marginTop: 28, marginBottom: 14 },
+                  ]}
+                >
+                  Membership
+                </Text>
+                <SettingRowPressable
+                  testID="profile-membership-entry"
+                  onPress={() => router.push("/profile?tab=membership")}
+                  disabled={false}
+                  style={[
+                    styles.settingRow,
+                    { backgroundColor: colors.hero, borderColor: colors.border },
+                  ]}
+                >
+                  <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name="award" size={17} color={colors.accentForeground} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[styles.settingTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
+                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Manage your plan, subscription, and referrals.</Text>
+                  </View>
+                  <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+                </SettingRowPressable>
               </View>
-
               {/* prettier-ignore */}
               <View style={(surface === "profile" && tab === 'account') || surface === "settings" ? undefined : styles.hiddenSection}>
                 {/* ── Account ── */}
@@ -4523,7 +4503,7 @@ export default function ProfileScreen({
                     { color: colors.foreground },
                   ]}
                 >
-                  Notifications
+                  Notification inbox
                 </Text>
                 <Text
                   style={[
@@ -5544,6 +5524,7 @@ function makeStyles(f: number) {
       justifyContent: "center",
       position: "relative",
     },
+    notificationSwitch: { marginLeft: 8, transform: [{ scaleX: 0.92 }, { scaleY: 0.92 }] },
     notificationBadge: {
       position: "absolute",
       top: -3,
@@ -5691,29 +5672,9 @@ function makeStyles(f: number) {
       fontSize: 10 * f,
     },
     profileViewport: { flex: 1, minHeight: 0 },
-    profileHeaderContent: { paddingTop: 22, paddingHorizontal: 20 },
     profilePager: { flex: 1, minHeight: 0 },
     profilePaneScroll: { flex: 1, minHeight: 0 },
-    profilePaneContent: { paddingTop: 2, paddingHorizontal: 20 },
-    profileTabs: {
-      flexDirection: "row",
-      borderWidth: 1,
-      borderRadius: 15,
-      padding: 4,
-      gap: 4,
-      marginBottom: 18,
-      position: "relative",
-    },
-    profileTab: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: 40,
-      borderRadius: 11,
-      paddingHorizontal: 6,
-    },
-    profileTabText: { fontFamily: "Inter_600SemiBold", fontSize: 11 * f },
-
+    profilePaneContent: { paddingTop: 12, paddingHorizontal: 20, paddingBottom: 136 },
     // Profile card
     profileCard: {
       flexDirection: "row",
