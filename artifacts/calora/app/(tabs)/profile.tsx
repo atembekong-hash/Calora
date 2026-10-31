@@ -139,6 +139,7 @@ const mealConfig: {
 ];
 
 type ProfileTab = "you" | "membership" | "account";
+export type ProfileSurface = "profile" | "settings" | "notifications";
 const PROFILE_TABS = ["you", "membership", "account"] as const;
 type ProfileOpenIntent = "reminders" | "goals" | "health";
 
@@ -183,9 +184,14 @@ export function notificationOutcomeMessage(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ProfileScreen() {
+export default function ProfileScreen({
+  surface: forcedSurface,
+}: { surface?: ProfileSurface } = {}) {
   const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
   const profileOpenIntent = profileOpenIntentFromParam(open);
+  const surface: ProfileSurface =
+    forcedSurface ??
+    (profileOpenIntent === "reminders" ? "notifications" : "profile");
   const requestedProfileTab = profileTabFromParam(tab);
   const { user, signOut } = useAuth();
   const {
@@ -1251,9 +1257,26 @@ export default function ProfileScreen() {
         back
         leftAlignTitle
         titleOffset={-2}
-        title="Settings and profile"
+        title={
+          surface === "settings"
+            ? "Settings"
+            : surface === "notifications"
+              ? "Notifications"
+              : "Profile"
+        }
         action={
-          <Pressable
+          surface === "profile" ? <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              testID="profile-settings-button"
+              onPress={() => router.push("/settings" as never)}
+              hitSlop={8}
+              style={[styles.notificationButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="settings" size={18} color={colors.foreground} />
+            </Pressable>
+            <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Open notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
             testID="profile-notifications-button"
@@ -1282,11 +1305,20 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
-          </Pressable>
+            </Pressable>
+          </View> : surface === "settings" ? <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+            onPress={() => router.push("/notifications" as never)}
+            hitSlop={8}
+            style={[styles.notificationButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="bell" size={18} color={colors.foreground} />
+          </Pressable> : undefined
         }
       />
       <View style={styles.profileViewport}>
-        <SwipeMenuHighlightProvider items={PROFILE_TABS} activeItem={profileTab}>
+        {surface === "profile" && <SwipeMenuHighlightProvider items={PROFILE_TABS} activeItem={profileTab}>
         <View style={styles.profileHeaderContent}>
           <SwipeableTabList
             items={PROFILE_TABS}
@@ -1333,6 +1365,7 @@ export default function ProfileScreen() {
             <SwipeMenuHighlight color={colors.accentForeground} horizontalPadding={4} gap={4} inset={10} testID="profile-section-swipe-indicator" />
           </SwipeableTabList>
         </View>
+        </SwipeMenuHighlightProvider>}
         <SwipeableSectionPager
           items={PROFILE_TABS}
           activeItem={profileTab}
@@ -1349,7 +1382,8 @@ export default function ProfileScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {/* prettier-ignore */}
-              <View style={tab === 'you' ? undefined : styles.hiddenSection}>
+              <View style={(surface === "profile" && tab === 'you') || surface === "settings" ? undefined : styles.hiddenSection}>
+                <View style={surface === "profile" ? undefined : styles.hiddenSection}>
                 {/* ── Profile card ── */}
                 <Animated.View
                   entering={enterMotion("screen", 0)}
@@ -1442,6 +1476,7 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 )}
+                </View>
                 <Animated.View entering={enterMotion("screen", 1)}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 18 }]}>Personalization</Text>
                   {[
@@ -1791,7 +1826,7 @@ export default function ProfileScreen() {
               </View>
 
               {/* prettier-ignore */}
-              <View style={tab === 'you' ? undefined : styles.hiddenSection}>
+              <View style={surface === "notifications" ? undefined : styles.hiddenSection}>
                 {/* ── Reminders ── */}
                 <Animated.View entering={enterMotion("screen", 4)}>
                   <Text
@@ -2873,7 +2908,7 @@ export default function ProfileScreen() {
               </View>
 
               {/* prettier-ignore */}
-              <View style={tab === 'membership' ? undefined : styles.hiddenSection}>
+              <View style={surface === "profile" && tab === 'membership' ? undefined : styles.hiddenSection}>
                 {/* ── Calora Pro ── */}
                 <View style={styles.planHeader}>
                   <View>
@@ -3275,7 +3310,7 @@ export default function ProfileScreen() {
                 <ReferralCard fontScale={fontScale} />
               </View>
 
-              <View style={tab === "you" ? undefined : styles.hiddenSection}>
+              <View style={surface === "profile" && tab === "you" ? undefined : styles.hiddenSection}>
                 {/* ── Saved meals ── */}
                 <View style={styles.savedHeader}>
                   <View>
@@ -3578,12 +3613,14 @@ export default function ProfileScreen() {
               </View>
 
               {/* prettier-ignore */}
-              <View style={tab === 'account' ? undefined : styles.hiddenSection}>
+              <View style={(surface === "profile" && tab === 'account') || surface === "settings" ? undefined : styles.hiddenSection}>
                 {/* ── Account ── */}
-                <AccountSection
-                  fontScale={fontScale}
-                  clearAllData={clearAllData}
-                />
+                {surface === "profile" && (
+                  <AccountSection
+                    fontScale={fontScale}
+                    clearAllData={clearAllData}
+                  />
+                )}
 
                 {/* ── Trust & privacy ── */}
                 <Text
@@ -3906,7 +3943,6 @@ export default function ProfileScreen() {
           accessibilityLabel="Profile section content"
           testID="profile-section-content"
         />
-        </SwipeMenuHighlightProvider>
       </View>
 
       {/* ── Billing modal ── */}

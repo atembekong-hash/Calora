@@ -41,19 +41,13 @@ describe("focused UI removals", () => {
 
   it("places the Profile card within the You pane rather than the tab header or other tabs", () => {
     const source = app("(tabs)/profile.tsx");
-    const pagerStart = source.indexOf("renderItem={(tab) => (");
-    const youPaneStart = source.indexOf(
-      "<View style={tab === 'you' ? undefined : styles.hiddenSection}>",
-      pagerStart,
-    );
-    const membershipPaneStart = source.indexOf(
-      "<View style={tab === 'membership' ? undefined : styles.hiddenSection}>",
-      youPaneStart,
-    );
     const headerEnd = source.indexOf("<SwipeableSectionPager");
+    const profileSurfaceGuard = source.indexOf(
+      'surface === "profile" ? undefined : styles.hiddenSection',
+    );
     const profileCard = source.indexOf("styles.profileCard");
-    expect(profileCard).toBeGreaterThan(youPaneStart);
-    expect(profileCard).toBeLessThan(membershipPaneStart);
+    expect(profileSurfaceGuard).toBeGreaterThan(headerEnd);
+    expect(profileCard).toBeGreaterThan(profileSurfaceGuard);
     expect(profileCard).toBeGreaterThan(headerEnd);
   });
 });
