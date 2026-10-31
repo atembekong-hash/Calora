@@ -57,8 +57,8 @@ describe('retained section pager contracts', () => {
     expect(pagerSource).toContain('menuHighlightRail');
     expect(pagerSource).toContain('menuVisualIndex.value = clampSwipeMenuIndex');
 
-    expect(profileSource).toContain('SwipeMenuHighlightProvider items={PROFILE_TABS}');
-    expect(profileSource).toContain('testID="profile-section-swipe-indicator"');
+    expect(profileSource).not.toContain('SwipeMenuHighlightProvider items={PROFILE_TABS}');
+    expect(profileSource).toContain('testID="profile-membership-entry"');
     expect(profileSource).not.toContain('previewSelected ? colors.primary');
     expect(insightsSource).toContain('SwipeMenuHighlightProvider items={PROGRESS_VIEWS}');
     expect(insightsSource).toContain('testID="progress-section-swipe-indicator"');
@@ -84,20 +84,15 @@ describe('retained section pager contracts', () => {
   });
 
   it('shares one UI-thread indicator state between every menu strip and page surface', () => {
-    const profileTabList = profileSource.slice(
-      profileSource.indexOf('<SwipeableTabList'),
-      profileSource.indexOf('</SwipeableTabList>'),
-    );
     const progressTabList = insightsSource.slice(
       insightsSource.indexOf('<SwipeableTabList'),
       insightsSource.indexOf('</SwipeableTabList>'),
     );
 
-    expect(profileTabList).toContain('onChange={setProfileTab}');
     expect(progressTabList).toContain('onChange={setProgressView}');
     expect(recipesSource).toContain('onChange={changeSection}');
     expect(plannerSource).toContain('onChange={setSelectedDay}');
-    expect(profileSource).toContain('<SwipeMenuHighlightProvider');
+    expect(profileSource).not.toContain('<SwipeMenuHighlightProvider');
     expect(insightsSource).toContain('<SwipeMenuHighlightProvider');
     expect(recipesSource).toContain('<SwipeMenuHighlightProvider');
     expect(plannerSource).toContain('<SwipeMenuHighlightProvider');

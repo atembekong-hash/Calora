@@ -4,7 +4,7 @@
  * @vitest-environment jsdom
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HealthSyncOutcome } from "@/context/CaloraContext";
 
@@ -384,9 +384,6 @@ describe("Profile rendered interactions", () => {
 
   it("offers a review path for completed onboarding without changing data first", () => {
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "You profile tab" }),
-    );
     expect(
       screen.getByText(
         "Your starting preferences are saved. Review them anytime.",
@@ -403,9 +400,6 @@ describe("Profile rendered interactions", () => {
     harness.calora.onboardingComplete = false;
     harness.calora.onboardingStep = 3;
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "You profile tab" }),
-    );
     expect(screen.getByText("Continue from step 4 of 7.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Resume onboarding" }));
     expect(harness.router.push).toHaveBeenCalledWith({
@@ -414,19 +408,14 @@ describe("Profile rendered interactions", () => {
     });
   });
 
-  it("switches between You, Membership, and Account tabs", () => {
+  it("opens Membership from the Profile entry and keeps Account in Settings", () => {
     render(<ProfileScreen />);
-    expect(screen.getByText("Your plan")).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
-    expect(screen.getByText("Calora Pro")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Account profile tab" }));
-    expect(
-      screen.getByText("Your plan").closest('[class*="r-display"]'),
-    ).toBeTruthy();
+    fireEvent.click(screen.getByTestId("profile-membership-entry"));
+    expect(harness.router.push).toHaveBeenCalledWith("/profile?tab=membership");
+    cleanup();
+    render(<ProfileScreen surface="settings" />);
+    expect(screen.getByText("Trust & privacy")).toBeTruthy();
   });
-
   it("accepts the reminders intent in You and keeps the reminder controls discoverable", () => {
     harness.state.tab = "membership";
     harness.state.open = "reminders";
@@ -450,11 +439,11 @@ describe("Profile rendered interactions", () => {
 
   it("keeps Membership limited to subscription and referral concerns", () => {
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
 
-    expect(screen.getByText("Calora Pro")).toBeTruthy();
+    expect(screen.getAllByText("Calora Pro")[0]).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Create saved meal" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Review living memory" }),
@@ -466,9 +455,9 @@ describe("Profile rendered interactions", () => {
     const subscription = makeSubscription();
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     expect(
       screen.getByRole("radio", { name: "Choose monthly plan" }),
     ).toBeTruthy();
@@ -496,9 +485,9 @@ describe("Profile rendered interactions", () => {
     });
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
     );
@@ -521,9 +510,9 @@ describe("Profile rendered interactions", () => {
     });
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(screen.getByLabelText("Restore purchases"));
 
     await waitFor(() => expect(subscription.restore).toHaveBeenCalledOnce());
@@ -536,9 +525,9 @@ describe("Profile rendered interactions", () => {
     const subscription = makeSubscription();
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(screen.getByLabelText("Restore purchases"));
 
     await waitFor(() => expect(subscription.restore).toHaveBeenCalledOnce());
@@ -555,9 +544,9 @@ describe("Profile rendered interactions", () => {
     });
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
     );
@@ -577,9 +566,9 @@ describe("Profile rendered interactions", () => {
     });
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
     );
@@ -593,9 +582,9 @@ describe("Profile rendered interactions", () => {
 
   it("keeps subscription management native-only on web instead of opening an unrelated destination", async () => {
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(screen.getByLabelText("Manage subscription"));
 
     await waitFor(() => {
@@ -612,9 +601,9 @@ describe("Profile rendered interactions", () => {
       makeSubscription({ isIdentityReady: false }),
     );
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
 
     const purchase = screen.getByRole("button", {
       name: "Billing account setup is not ready",
@@ -634,9 +623,9 @@ describe("Profile rendered interactions", () => {
     });
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
     fireEvent.click(
       screen.getByRole("button", { name: "Retry billing account setup" }),
     );
@@ -649,9 +638,9 @@ describe("Profile rendered interactions", () => {
       makeSubscription({ isIdentityReady: false }),
     );
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
 
     expect(
       screen.getByText(
@@ -673,9 +662,9 @@ describe("Profile rendered interactions", () => {
     subscription.offerings.current.identifier = "unexpected-offering";
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "Membership profile tab" }),
-    );
+    harness.state.tab = "membership";
+    cleanup();
+    render(<ProfileScreen />);
 
     expect(
       screen.getByText(
@@ -825,9 +814,6 @@ describe("Profile rendered interactions", () => {
 
   it("opens saved-meal creation and routes living memory to its screen", () => {
     render(<ProfileScreen />);
-    fireEvent.click(
-      screen.getByRole("tab", { name: "You profile tab" }),
-    );
     fireEvent.click(screen.getByRole("button", { name: "Create saved meal" }));
     expect(screen.getByText("Create a saved template")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel saved meal" }));
@@ -849,7 +835,7 @@ describe("Profile rendered interactions", () => {
       },
     ];
     render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /Open notifications/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Open notification inbox/ }));
     await waitFor(() => expect(screen.getByText("Goal check-in")).toBeTruthy());
     expect(screen.getByText("1 unread update")).toBeTruthy();
     expect(
