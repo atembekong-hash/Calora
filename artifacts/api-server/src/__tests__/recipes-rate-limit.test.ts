@@ -9,12 +9,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 
-const { mockOpenAiCreate, mockCheckRateLimit, mockLimit } = vi.hoisted(() => {
+const { mockOpenAiCreate, mockCheckRateLimit, mockLimit, mockVerifyBearerToken } = vi.hoisted(() => {
   process.env.OPENAI_TIMEOUT_MS_OVERRIDE = "300";
   return {
     mockOpenAiCreate: vi.fn(),
     mockCheckRateLimit: vi.fn(),
     mockLimit: vi.fn(),
+    mockVerifyBearerToken: vi.fn(),
   };
 });
 
@@ -34,6 +35,10 @@ vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
 
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
+}));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: (...args: unknown[]) => mockVerifyBearerToken(...args),
 }));
 
 import express from "express";
@@ -78,6 +83,7 @@ describe("public recipe routes — rate limiting", () => {
     app = buildApp();
     vi.stubGlobal("fetch", mockFetch);
     mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    mockVerifyBearerToken.mockResolvedValue(null);
     mockLimit.mockResolvedValue([]); // L2 miss by default
     resetRecipeAiBudgetForTests();
   });
@@ -118,6 +124,65 @@ describe("public recipe routes — rate limiting", () => {
     ]));
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("uses a verified account bucket when a shared edge-IP bucket is exhausted", async () => {
+    mockVerifyBearerToken.mockResolvedValue({ id: "account-1", email: "test@example.com" });
+    mockCheckRateLimit
+      .mockResolvedValueOnce({ allowed: false, retryAfterSecs: 120 })
+      .mockResolvedValueOnce({ allowed: true, retryAfterSecs: 0 });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ meals: [{
+        idMeal: "52771",
+        strMeal: "Chicken",
+        strCategory: "Chicken",
+        strArea: "Italian",
+        strInstructions: "Cook it.",
+        strMealThumb: "https://example.com/chicken.jpg",
+      }] }),
+    });
+
+    const response = await request(app)
+      .get("/v1/recipes?limit=3")
+      .set("Authorization", "Bearer verified-token");
+
+    expect(response.status).toBe(200);
+    expect(mockVerifyBearerToken).toHaveBeenCalledTimes(1);
+    expect(mockCheckRateLimit.mock.calls[0]?.[0]).toBe("recipes:list:ip:127.0.0.1");
+    expect(mockCheckRateLimit.mock.calls[1]?.[0]).toBe("recipes:list:user:account-1");
+    expect(response.body.recipes).toHaveLength(1);
+  });
+
+  it("keeps a burst of authenticated recipe requests isolated from the shared IP bucket", async () => {
+    let accountNumber = 0;
+    mockVerifyBearerToken.mockImplementation(async () => ({ id: `account-${++accountNumber}`, email: null }));
+    mockCheckRateLimit.mockImplementation(async (key: string) => (
+      key.includes(":ip:")
+        ? { allowed: false, retryAfterSecs: 120 }
+        : { allowed: true, retryAfterSecs: 0 }
+    ));
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ meals: [{
+        idMeal: "52771",
+        strMeal: "Chicken",
+        strCategory: "Chicken",
+        strArea: "Italian",
+        strInstructions: "Cook it.",
+        strMealThumb: "https://example.com/chicken.jpg",
+      }] }),
+    });
+
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, (_, index) => request(app)
+        .get(`/v1/recipes?limit=3&offset=${index}`)
+        .set("Authorization", `Bearer verified-token-${index}`)),
+    );
+
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+    expect(mockVerifyBearerToken).toHaveBeenCalledTimes(20);
+    expect(mockCheckRateLimit.mock.calls.filter((call) => String(call[0]).includes(":user:")).length).toBe(20);
   });
 
   it("fails CLOSED (503, no provider call) when the limiter store is unavailable", async () => {
