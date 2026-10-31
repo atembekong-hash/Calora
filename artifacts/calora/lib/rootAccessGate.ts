@@ -25,9 +25,15 @@ export function getRootAccessGateState({
   onboardingComplete,
   reviewRequested,
 }: RootAccessGateInput): RootAccessGateState {
+  // A completed local profile is already a safe, account-scoped source for the
+  // first Today render. Remote reconciliation still runs and updates the
+  // profile when it returns, but a slow network must not hide usable local
+  // diary data behind the startup gate. First-run users remain blocked until
+  // reconciliation establishes their onboarding state.
+  const localReturningUserReady = onboardingComplete;
   const applicationReady = hydrated
     && !hydrationError
-    && profileSyncReady
+    && (profileSyncReady || localReturningUserReady)
     && onboardingComplete;
 
   return {

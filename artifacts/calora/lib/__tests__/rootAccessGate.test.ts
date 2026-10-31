@@ -8,18 +8,27 @@ describe('root access gate', () => {
       { hydrated: true, hydrationError: new Error('storage unavailable'), profileSyncReady: true, onboardingComplete: false },
       { hydrated: true, hydrationError: null, profileSyncReady: false, onboardingComplete: false },
       { hydrated: true, hydrationError: null, profileSyncReady: true, onboardingComplete: false },
-      // A saved local completion flag cannot unlock the app before remote
-      // profile reconciliation has completed for the authenticated account.
+      // A saved local completion flag is intentionally allowed to render the
+      // returning user's local data while remote reconciliation continues.
       { hydrated: true, hydrationError: null, profileSyncReady: false, onboardingComplete: true },
     ];
 
-    for (const state of incompleteStates) {
+    for (const state of incompleteStates.slice(0, 4)) {
       expect(getRootAccessGateState({ ...state, reviewRequested: false })).toEqual({
         applicationReady: false,
         allowOnboarding: true,
         allowApplication: false,
       });
     }
+
+    expect(getRootAccessGateState({
+      ...incompleteStates[4],
+      reviewRequested: false,
+    })).toEqual({
+      applicationReady: true,
+      allowOnboarding: false,
+      allowApplication: true,
+    });
   });
 
   it('admits protected routes only after the completed state and permits explicit onboarding review', () => {
