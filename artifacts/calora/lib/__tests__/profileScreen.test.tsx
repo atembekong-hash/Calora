@@ -856,4 +856,19 @@ describe("Profile rendered interactions", () => {
       screen.getByRole("button", { name: /Unread Goal check-in/ }),
     ).toBeTruthy();
   });
+
+  it("renders Settings as a shared canonical surface without Profile tabs", () => {
+    render(<ProfileScreen surface="settings" />);
+    expect(screen.getByText("Appearance")).toBeTruthy();
+    expect(screen.getByText("Trust & privacy")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "You profile tab" })).toBeNull();
+    expect(screen.queryByText("Your profile")).toBeNull();
+  });
+
+  it("renders Notifications as a shared canonical surface with existing reminder controls", () => {
+    render(<ProfileScreen surface="notifications" />);
+    expect(screen.getByText("Reminders")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Toggle all notifications" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "You profile tab" })).toBeNull();
+  });
 });
