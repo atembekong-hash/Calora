@@ -148,6 +148,11 @@ type CaptureCandidate = Nutrition & {
   name: string;
   brand: string | null;
   serving: string;
+  servingQuantity: number | null;
+  servingUnit: string | null;
+  servingWeightG: number | null;
+  nutritionBasis: "per_serving" | "per_100g" | "per_100ml" | "unknown";
+  servingMetadataSource: string | null;
   confidence: number;
   provenance: string;
   sourceLabel: string;
@@ -235,6 +240,11 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     name: candidate.name?.trim() || "Unidentified food",
     brand: candidate.brand?.trim() || null,
     serving: candidate.serving?.trim() || "1 serving",
+    servingQuantity: candidate.servingQuantity == null ? null : numberOrZero(candidate.servingQuantity),
+    servingUnit: candidate.servingUnit?.trim() || null,
+    servingWeightG: candidate.servingWeightG == null ? null : numberOrZero(candidate.servingWeightG),
+    nutritionBasis: candidate.nutritionBasis ?? "unknown",
+    servingMetadataSource: candidate.servingMetadataSource?.trim() || null,
     calories: numberOrZero(candidate.calories),
     proteinG: numberOrZero(candidate.proteinG),
     carbsG: numberOrZero(candidate.carbsG),
@@ -286,10 +296,19 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
   const productCode = String(product.code ?? '').replace(/\D/g, '');
   if (productCode && !barcodeMatches(barcode, productCode)) return null;
   const nutriments = product.nutriments ?? {};
-  const calories = numberOrZero(nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"]);
-  const proteinG = numberOrZero(nutriments["proteins_serving"] ?? nutriments["proteins_100g"]);
-  const carbsG = numberOrZero(nutriments["carbohydrates_serving"] ?? nutriments["carbohydrates_100g"]);
-  const fatG = numberOrZero(nutriments["fat_serving"] ?? nutriments["fat_100g"]);
+  const hasServingNutrition = nutriments["energy-kcal_serving"] != null || nutriments["proteins_serving"] != null || nutriments["carbohydrates_serving"] != null || nutriments["fat_serving"] != null;
+  const nutritionBasis = hasServingNutrition ? "per_serving" : nutriments["energy-kcal_100ml"] != null ? "per_100ml" : "per_100g";
+  const declaredQuantity = String(product.quantity ?? "").trim();
+  const rawServing = String(product.serving_size ?? "").trim() || (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity) ? declaredQuantity : "");
+  const weightMatch = rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i);
+  const quantityMatch = rawServing.match(/^(\d+(?:\.\d+)?)/);
+  const parsedServing = rawServing ? { serving: rawServing, servingQuantity: quantityMatch ? Number(quantityMatch[1]) : null, servingUnit: rawServing.match(/\d+(?:\.\d+)?\s*([a-zA-Z]+)/)?.[1]?.toLowerCase() ?? null, servingWeightG: weightMatch ? Number(weightMatch[1]) : null, source: "Open Food Facts" } : null;
+  const serving = parsedServing ?? { serving: nutritionBasis === "per_100ml" ? "100 ml (reference quantity)" : "100 g (reference quantity)", servingQuantity: 100, servingUnit: nutritionBasis === "per_100ml" ? "ml" : "g", servingWeightG: nutritionBasis === "per_100ml" ? null : 100, source: "Open Food Facts nutrition reference" };
+  const referenceSuffix = nutritionBasis === "per_serving" ? "_serving" : nutritionBasis === "per_100ml" ? "_100ml" : "_100g";
+  const calories = numberOrZero(nutriments[`energy-kcal${referenceSuffix}`]);
+  const proteinG = numberOrZero(nutriments[`proteins${referenceSuffix}`]);
+  const carbsG = numberOrZero(nutriments[`carbohydrates${referenceSuffix}`]);
+  const fatG = numberOrZero(nutriments[`fat${referenceSuffix}`]);
   const name = String(product.product_name ?? product.product_name_en ?? "").trim();
   if (!name) return null;
   const hasMacros = calories > 0 && (proteinG > 0 || carbsG > 0 || fatG > 0);
@@ -305,7 +324,12 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
     id: `off-${barcode}`,
     name,
     brand: product.brands || null,
-    serving: product.serving_size || "100 g",
+    serving: serving.serving,
+    servingQuantity: serving.servingQuantity,
+    servingUnit: serving.servingUnit,
+    servingWeightG: serving.servingWeightG,
+    nutritionBasis,
+    servingMetadataSource: serving.source,
     calories,
     proteinG,
     carbsG,
@@ -356,6 +380,11 @@ async function lookupBarcode(barcode: string) {
         name: food.description,
         brand: food.brandOwner ?? null,
         serving: food.servingSize ? `${food.servingSize} ${food.servingSizeUnit ?? "g"}` : "100 g",
+        servingQuantity: food.servingSize ? numberOrZero(food.servingSize) : 100,
+        servingUnit: food.servingSizeUnit ?? "g",
+        servingWeightG: String(food.servingSizeUnit ?? "g").toLowerCase() === "g" ? numberOrZero(food.servingSize) : null,
+        nutritionBasis: "per_serving",
+        servingMetadataSource: "USDA FoodData Central",
         calories: numberOrZero(nutrients.get("Energy")),
         proteinG: numberOrZero(nutrients.get("Protein")),
         carbsG: numberOrZero(nutrients.get("Carbohydrate, by difference")),

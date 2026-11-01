@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DiaryEntryInputMeal } from './diaryEntryInputMeal';
+import type { DiaryEntryInputNutritionBasis } from './diaryEntryInputNutritionBasis';
 import type { DiaryEntryInputProvenance } from './diaryEntryInputProvenance';
 import type { ImageEvidenceInput } from './imageEvidenceInput';
 
@@ -16,6 +17,13 @@ export interface DiaryEntryInput {
   name: string;
   /** @minLength 1 */
   serving: string;
+  /** @minimum 0 */
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  /** @minimum 0 */
+  servingWeightG?: number | null;
+  nutritionBasis?: DiaryEntryInputNutritionBasis;
+  servingMetadataSource?: string | null;
   /** @minimum 0 */
   calories: number;
   /** @minimum 0 */

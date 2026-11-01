@@ -37,6 +37,11 @@ export type FoodMemoryComponent = {
   name: string;
   brand?: string | null;
   serving: string;
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  servingWeightG?: number | null;
+  nutritionBasis?: 'per_serving' | 'per_100g' | 'per_100ml' | 'unknown';
+  servingMetadataSource?: string | null;
   calories: number;
   proteinG: number;
   carbsG: number;
@@ -121,6 +126,16 @@ export type RepeatPattern = {
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 
+export function nutritionMultiplierForComponent(component: Pick<FoodMemoryComponent, 'nutritionBasis' | 'servingQuantity' | 'servingUnit' | 'servingWeightG'>): number {
+  if (component.nutritionBasis === 'per_100g' && component.servingWeightG) {
+    const totalWeight = component.servingUnit === 'g' ? component.servingWeightG : component.servingWeightG * (component.servingQuantity || 1);
+    return totalWeight / 100;
+  }
+  if (component.nutritionBasis === 'per_100ml' && component.servingQuantity) return component.servingQuantity / 100;
+  if (component.nutritionBasis === 'per_serving' && component.servingQuantity) return component.servingQuantity;
+  return 1;
+}
+
 export function provenanceForCapture(value: string, inputType: FoodMemoryInputType): FoodMemoryProvenance {
   if (value === 'Barcode verified') return 'verified_barcode';
   if (value === 'Restaurant verified') return 'verified_restaurant';
@@ -136,11 +151,12 @@ export function provenanceForCapture(value: string, inputType: FoodMemoryInputTy
 export function nutritionForComponents(components: FoodMemoryComponent[], capturedAt = new Date().toISOString()): NutritionSnapshot {
   const total = components.reduce((sum, component) => {
     const multiplier = component.included ? clamp(component.eatenFraction, 0, 1) : 0;
+    const servingMultiplier = nutritionMultiplierForComponent(component);
     return {
-      calories: sum.calories + component.calories * multiplier,
-      proteinG: sum.proteinG + component.proteinG * multiplier,
-      carbsG: sum.carbsG + component.carbsG * multiplier,
-      fatG: sum.fatG + component.fatG * multiplier,
+      calories: sum.calories + component.calories * servingMultiplier * multiplier,
+      proteinG: sum.proteinG + component.proteinG * servingMultiplier * multiplier,
+      carbsG: sum.carbsG + component.carbsG * servingMultiplier * multiplier,
+      fatG: sum.fatG + component.fatG * servingMultiplier * multiplier,
     };
   }, { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 });
   return {

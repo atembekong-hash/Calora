@@ -113,6 +113,11 @@ type DiaryUpsertPayload = {
     sourceRecipeId?: string;
     imageAssetKey?: string;
     imageEvidence?: ImageEvidence;
+    servingQuantity?: number;
+    servingUnit?: string;
+    servingWeightG?: number;
+    nutritionBasis?: 'per_serving' | 'per_100g' | 'per_100ml' | 'unknown';
+    servingMetadataSource?: string;
   };
 };
 
@@ -142,6 +147,13 @@ function parseSyncMetadata(
     const value = nonNeg(payload[key]);
     if (value !== null) metadata[key] = value;
   }
+  for (const key of ["servingQuantity", "servingWeightG"] as const) {
+    const value = nonNeg(payload[key]);
+    if (value !== null) metadata[key] = value;
+  }
+  if (typeof payload.servingUnit === "string" && payload.servingUnit.trim()) metadata.servingUnit = payload.servingUnit.trim().slice(0, 64);
+  if (payload.nutritionBasis === "per_serving" || payload.nutritionBasis === "per_100g" || payload.nutritionBasis === "per_100ml" || payload.nutritionBasis === "unknown") metadata.nutritionBasis = payload.nutritionBasis;
+  if (typeof payload.servingMetadataSource === "string" && payload.servingMetadataSource.trim()) metadata.servingMetadataSource = payload.servingMetadataSource.trim().slice(0, 160);
   const imageEvidence = normalizeImageEvidence(
     payload.imageEvidence,
     accountScope,

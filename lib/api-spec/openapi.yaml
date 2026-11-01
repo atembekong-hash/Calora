@@ -1723,6 +1723,11 @@ components:
         meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
         name: { type: string, minLength: 1 }
         serving: { type: string, minLength: 1 }
+        servingQuantity: { type: number, minimum: 0, nullable: true }
+        servingUnit: { type: string, nullable: true }
+        servingWeightG: { type: number, minimum: 0, nullable: true }
+        nutritionBasis: { type: string, enum: [per_serving, per_100g, per_100ml, unknown] }
+        servingMetadataSource: { type: string, nullable: true }
         calories: { type: number, minimum: 0 }
         proteinG: { type: number, minimum: 0 }
         carbsG: { type: number, minimum: 0 }
@@ -2277,6 +2282,11 @@ components:
         name: { type: string }
         brand: { type: string, nullable: true }
         serving: { type: string }
+        servingQuantity: { type: number, minimum: 0, nullable: true }
+        servingUnit: { type: string, nullable: true }
+        servingWeightG: { type: number, minimum: 0, nullable: true }
+        nutritionBasis: { type: string, enum: [per_serving, per_100g, per_100ml, unknown] }
+        servingMetadataSource: { type: string, nullable: true }
         calories: { type: number, minimum: 0 }
         proteinG: { type: number, minimum: 0 }
         carbsG: { type: number, minimum: 0 }

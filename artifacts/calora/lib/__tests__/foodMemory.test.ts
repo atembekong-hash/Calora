@@ -81,6 +81,29 @@ describe('nutritionForComponents', () => {
     expect(result.fatG).toBeCloseTo(4);
   });
 
+  it('scales a per-100-g barcode result to the selected packet weight', () => {
+    const result = nutritionForComponents([makeComponent({ serving: '1 packet (9.4 g)', servingQuantity: 1, servingUnit: 'packet', servingWeightG: 9.4, nutritionBasis: 'per_100g', calories: 372, carbsG: 85.106, proteinG: 0, fatG: 0 })]);
+    expect(result.calories).toBe(35);
+    expect(result.carbsG).toBe(8);
+  });
+
+  it('scales two packets and half a packet without losing precision', () => {
+    const packet = makeComponent({ serving: '1 packet (9.4 g)', servingQuantity: 1, servingWeightG: 9.4, nutritionBasis: 'per_100g', calories: 372, carbsG: 85.106, proteinG: 0, fatG: 0 });
+    expect(nutritionForComponents([{ ...packet, servingQuantity: 2 }]).calories).toBe(70);
+    expect(nutritionForComponents([{ ...packet, eatenFraction: 0.5 }]).calories).toBe(17);
+  });
+
+  it('keeps an explicit 100 gram selection at the provider reference value', () => {
+    const result = nutritionForComponents([makeComponent({ serving: '100 g', servingQuantity: 100, servingUnit: 'g', servingWeightG: 100, nutritionBasis: 'per_100g', calories: 372, carbsG: 85, proteinG: 0, fatG: 0 })]);
+    expect(result.calories).toBe(372);
+    expect(result.carbsG).toBe(85);
+  });
+
+  it('uses an explicit one-serving fallback when serving metadata is absent', () => {
+    const result = nutritionForComponents([makeComponent({ serving: '100 g (reference quantity)', nutritionBasis: 'unknown', calories: 372, carbsG: 85, proteinG: 0, fatG: 0 })]);
+    expect(result.calories).toBe(372);
+  });
+
   it('clamps eatenFraction to [0, 1] — no negative calories', () => {
     const components = [
       makeComponent({ calories: 300, included: true, eatenFraction: -0.5 }),
