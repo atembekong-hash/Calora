@@ -11,6 +11,9 @@ import {
   recipeToDraft,
   plannerMealToDraft,
   sourceComponentsToDraft,
+  parseServingInput,
+  servingInputErrorForComponent,
+  updateComponentServing,
 } from '../foodMemory';
 import type {
   FoodMemoryComponent,
@@ -102,6 +105,41 @@ describe('nutritionForComponents', () => {
   it('uses an explicit one-serving fallback when serving metadata is absent', () => {
     const result = nutritionForComponents([makeComponent({ serving: '100 g (reference quantity)', nutritionBasis: 'unknown', calories: 372, carbsG: 85, proteinG: 0, fatG: 0 })]);
     expect(result.calories).toBe(372);
+  });
+
+  it('preserves capture serving metadata and recalculates after manual 9.4 g entry', () => {
+    const draft = captureAnalysisToDraft({
+      sessionId: 'capture-quantity',
+      captureSessionId: '00000000-0000-4000-8000-000000000001',
+      mode: 'barcode',
+      status: 'review',
+      title: 'Emergen-C Tangerine',
+      reviewMessage: 'Review',
+      provider: 'Open Food Facts',
+      candidates: [{
+        id: 'emergen-c', name: 'Emergen-C Tangerine', brand: 'Emergen-C',
+        serving: '100 g (reference quantity)', servingQuantity: 100, servingUnit: 'g', servingWeightG: 100,
+        nutritionBasis: 'per_100g', servingMetadataSource: 'Open Food Facts nutrition reference',
+        calories: 372, proteinG: 0, carbsG: 85, fatG: 0, confidence: 94,
+        provenance: 'Barcode verified', sourceLabel: 'Open Food Facts', editable: true,
+      }],
+    }, '2026-11-01', 'Snack', '2026-11-01T12:00:00.000Z');
+    expect(draft.components[0]).toMatchObject({ servingQuantity: 100, servingUnit: 'g', servingWeightG: 100, nutritionBasis: 'per_100g' });
+    const edited = updateComponentServing(draft.components[0], '9.4 g');
+    const updated = updateDraftComponents(draft, [edited], '2026-11-01T12:01:00.000Z');
+    expect(updated.nutrition.calories).toBe(35);
+    expect(updated.nutrition.carbsG).toBe(8);
+    expect(edited).toMatchObject({ serving: '9.4 g', servingQuantity: 9.4, servingUnit: 'g', servingWeightG: 9.4 });
+  });
+
+  it('parses supported units and rejects unresolved or unsafe quantities', () => {
+    const per100g = makeComponent({ nutritionBasis: 'per_100g', servingUnit: 'g', servingWeightG: 100 });
+    expect(parseServingInput('9.4g', per100g)).toEqual({ valid: true, quantity: 9.4, unit: 'g' });
+    expect(parseServingInput('0.5 serving', makeComponent({ nutritionBasis: 'per_serving' }))).toEqual({ valid: true, quantity: 0.5, unit: 'serving' });
+    expect(parseServingInput('9.4 oz', per100g).valid).toBe(false);
+    expect(parseServingInput('-1 g', per100g).valid).toBe(false);
+    expect(parseServingInput('', per100g).valid).toBe(false);
+    expect(servingInputErrorForComponent(updateComponentServing(per100g, '9.4 oz'))).toContain('supported unit');
   });
 
   it('clamps eatenFraction to [0, 1] — no negative calories', () => {

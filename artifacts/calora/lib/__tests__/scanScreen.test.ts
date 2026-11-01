@@ -43,6 +43,12 @@ describe("Scan screen recovery contracts", () => {
     expect(source).not.toContain('autoBarcodeHintRef');
   });
 
+  it('wires typed serving text to the authoritative nutrition update and blocks invalid approval', () => {
+    expect(source).toContain('onChangeText={(value) => onChange(updateComponentServing(component, value))}');
+    expect(source).toContain('const hasInvalidServing = reviewDraft?.components.some((component) => component.included && servingInputErrorForComponent(component)) ?? false;');
+    expect(source).toContain('|| hasInvalidServing;');
+  });
+
   it('gives Barcode capture a food-photo fallback when product lookup cannot match', () => {
     expect(source).toContain("mode === 'auto' || mode === 'barcode' ? 'auto' : 'food'");
     expect(source).toContain("...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),");

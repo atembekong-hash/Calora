@@ -13,7 +13,7 @@ import { type MealType, useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
-import { includedComponentCount, nutritionMultiplierForComponent, type FoodMemoryComponent } from '@/lib/foodMemory';
+import { includedComponentCount, nutritionMultiplierForComponent, servingInputErrorForComponent, type FoodMemoryComponent, updateComponentServing } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { syncCaptureApprovals } from '@/lib/captureApprovalSync';
@@ -34,13 +34,7 @@ type TextEntryKind = 'text' | 'voice';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
   const servingMultiplier = nutritionMultiplierForComponent(component);
-  const updateServing = (serving: string) => {
-    const quantity = serving.match(/\d+(?:\.\d+)?/)?.[0];
-    const weight = serving.match(/(\d+(?:\.\d+)?)\s*g\b/i)?.[1];
-    const unit = serving.match(/\d+(?:\.\d+)?\s*(packet|packets|sachet|sachets|g|gram|grams|ml|milliliter|milliliters)\b/i)?.[1]?.toLowerCase();
-    const normalizedUnit = unit && ['gram', 'grams'].includes(unit) ? 'g' : unit && ['milliliter', 'milliliters'].includes(unit) ? 'ml' : unit;
-    onChange({ ...component, serving, servingQuantity: quantity ? Number(quantity) : component.servingQuantity, servingUnit: normalizedUnit || component.servingUnit, servingWeightG: component.nutritionBasis === 'per_100g' && (weight || (normalizedUnit === 'g' && quantity)) ? Number(weight || quantity) : component.servingWeightG });
-  };
+  const servingError = servingInputErrorForComponent(component);
   return (
     <Surface tier="flat" radius="lg" style={[styles.candidateCard, { backgroundColor: component.included ? colors.card : colors.muted, borderColor: colors.border }]}>
       <View style={styles.candidateHeader}>
@@ -64,8 +58,9 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
         <Pressable accessibilityLabel={`Decrease ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.max(0, component.eatenFraction - 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={15} color={colors.foreground} /></Pressable>
         <Text style={[styles.fractionValue, { color: colors.foreground }]}>{formatPercent(component.eatenFraction * 100)}</Text>
         <Pressable accessibilityLabel={`Increase ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={15} color={colors.foreground} /></Pressable>
-        <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={updateServing} style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
+        <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={(value) => onChange(updateComponentServing(component, value))} keyboardType="decimal-pad" style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: servingError ? colors.destructive : colors.input }]} />
       </View>
+      {servingError ? <Text accessibilityLiveRegion="polite" style={[styles.servingError, { color: colors.warningForeground }]}>{servingError}</Text> : null}
       <Pressable accessibilityLabel={`${component.included ? 'Remove' : 'Include'} ${component.name}`} onPress={() => onChange({ ...component, included: !component.included })} style={[styles.includeButton, { borderColor: colors.border }]}><Feather name={component.included ? 'eye-off' : 'eye'} size={14} color={colors.mutedForeground} /><Text style={[styles.includeButtonText, { color: colors.mutedForeground }]}>{component.included ? 'Remove from meal' : 'Include in meal'}</Text></Pressable>
       {component.reviewQuestions.length ? <Text style={[styles.questionText, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text> : null}
     </Surface>
@@ -779,9 +774,10 @@ export default function ScanScreen() {
   };
 
   const cameraPermissionBlocked = Boolean(permission && !permission.granted && !permission.canAskAgain);
-  const approveDisabled = !reviewDraft || isSavingReview || includedComponentCount(reviewDraft.components) === 0;
+  const hasInvalidServing = reviewDraft?.components.some((component) => component.included && servingInputErrorForComponent(component)) ?? false;
+  const approveDisabled = !reviewDraft || isSavingReview || includedComponentCount(reviewDraft.components) === 0 || hasInvalidServing;
   const saveReviewedMeal = () => {
-    if (!reviewDraft || includedComponentCount(reviewDraft.components) === 0) return;
+    if (!reviewDraft || includedComponentCount(reviewDraft.components) === 0 || hasInvalidServing) return;
     saveMeal({ name: reviewDraft.title, kind: 'meal', foodIds: [], calories: reviewDraft.nutrition.calories, protein: reviewDraft.nutrition.proteinG, carbs: reviewDraft.nutrition.carbsG, fat: reviewDraft.nutrition.fatG, mealType: reviewMeal });
     Alert.alert('Meal saved', `${reviewDraft.title} is ready to log from Saved meals.`);
   };
@@ -989,6 +985,7 @@ const styles = StyleSheet.create({
   nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
   fieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 12, marginBottom: 5 },
   servingInput: { height: 40, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontFamily: 'Inter_400Regular', fontSize: 11 },
+  servingError: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 15, marginTop: 6 },
   fractionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   fractionButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   fractionValue: { width: 42, textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 12 },

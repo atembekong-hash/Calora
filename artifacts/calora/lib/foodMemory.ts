@@ -126,6 +126,67 @@ export type RepeatPattern = {
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 
+type ServingUnit = 'packet' | 'sachet' | 'g' | 'ml' | 'serving';
+
+const normalizeServingUnit = (value: string | null | undefined): ServingUnit | undefined => {
+  const unit = value?.trim().toLowerCase();
+  if (!unit) return undefined;
+  if (unit === 'packet' || unit === 'packets') return 'packet';
+  if (unit === 'sachet' || unit === 'sachets') return 'sachet';
+  if (unit === 'g' || unit === 'gram' || unit === 'grams') return 'g';
+  if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') return 'ml';
+  if (unit === 'serving' || unit === 'servings') return 'serving';
+  return undefined;
+};
+
+export type ServingInputResult =
+  | { valid: true; quantity: number; unit: ServingUnit }
+  | { valid: false; error: string };
+
+/** Parse the editable serving field without guessing unknown units as grams. */
+export function parseServingInput(value: string, component: Pick<FoodMemoryComponent, 'nutritionBasis' | 'servingUnit' | 'servingWeightG'>): ServingInputResult {
+  const input = value.trim();
+  if (!input) return { valid: false, error: 'Enter a quantity before adding this meal.' };
+  const match = input.match(/^([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]+)?(?:\s|$)/);
+  if (!match) return { valid: false, error: 'Enter a quantity such as 9.4 g or 2 servings.' };
+  const quantity = Number(match[1].replace(',', '.'));
+  if (!Number.isFinite(quantity) || quantity <= 0) return { valid: false, error: 'Quantity must be greater than zero.' };
+  if (quantity > 10000) return { valid: false, error: 'Quantity is too large to verify.' };
+  const explicitUnit = match[2] ? normalizeServingUnit(match[2]) : undefined;
+  if (match[2] && !explicitUnit) return { valid: false, error: 'Use a supported unit such as g, ml, packet, or serving.' };
+  const unit = explicitUnit
+    ?? normalizeServingUnit(component.servingUnit)
+    ?? (component.nutritionBasis === 'per_100g' ? 'g' : component.nutritionBasis === 'per_100ml' ? 'ml' : undefined);
+  if (!unit) return { valid: false, error: 'Include a supported unit so the quantity can be calculated.' };
+  if (component.nutritionBasis === 'per_100g' && unit === 'ml') return { valid: false, error: 'This food is measured by weight; enter grams or a known packet size.' };
+  if (component.nutritionBasis === 'per_100ml' && unit !== 'ml') return { valid: false, error: 'This food is measured by volume; enter milliliters.' };
+  if (component.nutritionBasis === 'per_100g' && (unit === 'packet' || unit === 'sachet') && !(component.servingWeightG && component.servingWeightG > 0)) {
+    return { valid: false, error: 'This packet has no verified weight. Enter grams instead.' };
+  }
+  if (component.nutritionBasis === 'unknown' && unit !== 'serving') return { valid: false, error: 'Serving metadata is unavailable; use the verified serving shown.' };
+  return { valid: true, quantity, unit };
+}
+
+export function servingInputErrorForComponent(component: FoodMemoryComponent): string | null {
+  const result = parseServingInput(component.serving, component);
+  return result.valid ? null : result.error;
+}
+
+/** Apply the exact TextInput value to the authoritative component quantity. */
+export function updateComponentServing(component: FoodMemoryComponent, serving: string): FoodMemoryComponent {
+  const parsed = parseServingInput(serving, component);
+  if (!parsed.valid) return { ...component, serving };
+  return {
+    ...component,
+    serving,
+    servingQuantity: parsed.quantity,
+    servingUnit: parsed.unit,
+    servingWeightG: component.nutritionBasis === 'per_100g'
+      ? parsed.unit === 'g' ? parsed.quantity : component.servingWeightG
+      : component.servingWeightG,
+  };
+}
+
 export function nutritionMultiplierForComponent(component: Pick<FoodMemoryComponent, 'nutritionBasis' | 'servingQuantity' | 'servingUnit' | 'servingWeightG'>): number {
   if (component.nutritionBasis === 'per_100g' && component.servingWeightG) {
     const totalWeight = component.servingUnit === 'g' ? component.servingWeightG : component.servingWeightG * (component.servingQuantity || 1);
@@ -199,6 +260,11 @@ function componentFromCapture(component: CaptureComponent, inputType: FoodMemory
     name: component.name,
     brand: component.brand,
     serving: component.serving,
+    servingQuantity: component.servingQuantity,
+    servingUnit: component.servingUnit,
+    servingWeightG: component.servingWeightG,
+    nutritionBasis: component.nutritionBasis,
+    servingMetadataSource: component.servingMetadataSource,
     calories: component.calories,
     proteinG: component.proteinG,
     carbsG: component.carbsG,
