@@ -108,7 +108,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain('minHeight: h(74)');
     expect(source).toContain('height: h(131)');
-    expect(source).toContain('minHeight: 221 * TODAY_WIDGET_HEIGHT_SCALE');
+    expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
 
@@ -136,12 +136,15 @@ describe('Today dashboard visual-source boundary', () => {
     );
 
     expect(source).not.toMatch(/<ImageBackground\b|LinearGradient/);
-    expect(source).not.toMatch(/assets\/images|\brequire\(|ProfilePhoto/);
+    expect(source).toContain("require('../../assets/images/calora-home-header.jpg')");
     expect(source).toContain("import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';");
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).not.toContain('useHourlyHeaderImage');
     expect(source).toContain('normalizeFoodImageUrl(recipe.image)');
     expect(source).toContain('styles.recipeWidgetImage');
+    expect(source).toContain('today-wellness-grid');
+    expect(source).toContain('useSingleColumnWellness = viewportWidth < 400');
+    expect(source).toContain('status.remainingMs > 0');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
   });
