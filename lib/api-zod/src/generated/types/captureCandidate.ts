@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CaptureCandidateNutritionBasis } from './captureCandidateNutritionBasis';
 import type { ImageEvidence } from './imageEvidence';
 
 export interface CaptureCandidate {
@@ -12,6 +13,13 @@ export interface CaptureCandidate {
   name: string;
   brand?: string | null;
   serving: string;
+  /** @minimum 0 */
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  /** @minimum 0 */
+  servingWeightG?: number | null;
+  nutritionBasis?: CaptureCandidateNutritionBasis;
+  servingMetadataSource?: string | null;
   /** @minimum 0 */
   calories: number;
   /** @minimum 0 */

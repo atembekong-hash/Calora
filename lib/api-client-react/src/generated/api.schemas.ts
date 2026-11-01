@@ -419,6 +419,16 @@ export const DiaryEntryInputMeal = {
   Snack: 'Snack',
 } as const;
 
+export type DiaryEntryInputNutritionBasis = typeof DiaryEntryInputNutritionBasis[keyof typeof DiaryEntryInputNutritionBasis];
+
+
+export const DiaryEntryInputNutritionBasis = {
+  per_serving: 'per_serving',
+  per_100g: 'per_100g',
+  per_100ml: 'per_100ml',
+  unknown: 'unknown',
+} as const;
+
 export type DiaryEntryInputProvenance = typeof DiaryEntryInputProvenance[keyof typeof DiaryEntryInputProvenance];
 
 
@@ -439,6 +449,13 @@ export interface DiaryEntryInput {
   name: string;
   /** @minLength 1 */
   serving: string;
+  /** @minimum 0 */
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  /** @minimum 0 */
+  servingWeightG?: number | null;
+  nutritionBasis?: DiaryEntryInputNutritionBasis;
+  servingMetadataSource?: string | null;
   /** @minimum 0 */
   calories: number;
   /** @minimum 0 */
@@ -1517,11 +1534,28 @@ export interface CaptureError {
   retryAfterSecs?: number;
 }
 
+export type CaptureCandidateNutritionBasis = typeof CaptureCandidateNutritionBasis[keyof typeof CaptureCandidateNutritionBasis];
+
+
+export const CaptureCandidateNutritionBasis = {
+  per_serving: 'per_serving',
+  per_100g: 'per_100g',
+  per_100ml: 'per_100ml',
+  unknown: 'unknown',
+} as const;
+
 export interface CaptureCandidate {
   id: string;
   name: string;
   brand?: string | null;
   serving: string;
+  /** @minimum 0 */
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  /** @minimum 0 */
+  servingWeightG?: number | null;
+  nutritionBasis?: CaptureCandidateNutritionBasis;
+  servingMetadataSource?: string | null;
   /** @minimum 0 */
   calories: number;
   /** @minimum 0 */

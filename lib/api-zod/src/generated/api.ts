@@ -216,6 +216,10 @@ export const ListDiaryEntriesQueryParams = zod.object({
 
 
 
+export const listDiaryEntriesResponseEntriesItemOneServingQuantityMin = 0;
+
+export const listDiaryEntriesResponseEntriesItemOneServingWeightGMin = 0;
+
 export const listDiaryEntriesResponseEntriesItemOneCaloriesMin = 0;
 
 export const listDiaryEntriesResponseEntriesItemOneProteinGMin = 0;
@@ -280,6 +284,11 @@ export const ListDiaryEntriesResponse = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string().min(1),
   "serving": zod.string().min(1),
+  "servingQuantity": zod.number().min(listDiaryEntriesResponseEntriesItemOneServingQuantityMin).nullish(),
+  "servingUnit": zod.string().nullish(),
+  "servingWeightG": zod.number().min(listDiaryEntriesResponseEntriesItemOneServingWeightGMin).nullish(),
+  "nutritionBasis": zod.enum(['per_serving', 'per_100g', 'per_100ml', 'unknown']).optional(),
+  "servingMetadataSource": zod.string().nullish(),
   "calories": zod.number().min(listDiaryEntriesResponseEntriesItemOneCaloriesMin),
   "proteinG": zod.number().min(listDiaryEntriesResponseEntriesItemOneProteinGMin),
   "carbsG": zod.number().min(listDiaryEntriesResponseEntriesItemOneCarbsGMin),
@@ -339,6 +348,10 @@ export const ListDiaryEntriesResponse = zod.object({
  */
 
 
+export const createDiaryEntryBodyServingQuantityMin = 0;
+
+export const createDiaryEntryBodyServingWeightGMin = 0;
+
 export const createDiaryEntryBodyCaloriesMin = 0;
 
 export const createDiaryEntryBodyProteinGMin = 0;
@@ -381,6 +394,11 @@ export const CreateDiaryEntryBody = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string().min(1),
   "serving": zod.string().min(1),
+  "servingQuantity": zod.number().min(createDiaryEntryBodyServingQuantityMin).nullish(),
+  "servingUnit": zod.string().nullish(),
+  "servingWeightG": zod.number().min(createDiaryEntryBodyServingWeightGMin).nullish(),
+  "nutritionBasis": zod.enum(['per_serving', 'per_100g', 'per_100ml', 'unknown']).optional(),
+  "servingMetadataSource": zod.string().nullish(),
   "calories": zod.number().min(createDiaryEntryBodyCaloriesMin),
   "proteinG": zod.number().min(createDiaryEntryBodyProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryBodyCarbsGMin),
@@ -412,6 +430,10 @@ export const CreateDiaryEntryBody = zod.object({
 })
 
 
+
+export const createDiaryEntryResponseOneServingQuantityMin = 0;
+
+export const createDiaryEntryResponseOneServingWeightGMin = 0;
 
 export const createDiaryEntryResponseOneCaloriesMin = 0;
 
@@ -475,6 +497,11 @@ export const CreateDiaryEntryResponse = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string().min(1),
   "serving": zod.string().min(1),
+  "servingQuantity": zod.number().min(createDiaryEntryResponseOneServingQuantityMin).nullish(),
+  "servingUnit": zod.string().nullish(),
+  "servingWeightG": zod.number().min(createDiaryEntryResponseOneServingWeightGMin).nullish(),
+  "nutritionBasis": zod.enum(['per_serving', 'per_100g', 'per_100ml', 'unknown']).optional(),
+  "servingMetadataSource": zod.string().nullish(),
   "calories": zod.number().min(createDiaryEntryResponseOneCaloriesMin),
   "proteinG": zod.number().min(createDiaryEntryResponseOneProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryResponseOneCarbsGMin),
@@ -2063,6 +2090,10 @@ export const AnalyzeCaptureBody = zod.object({
   "clientCorrelationId": zod.string().max(analyzeCaptureBodyClientCorrelationIdMax).optional().describe('Opaque client-only correlation id. It is never treated as server capture provenance.')
 })
 
+export const analyzeCaptureResponseCandidatesItemServingQuantityMin = 0;
+
+export const analyzeCaptureResponseCandidatesItemServingWeightGMin = 0;
+
 export const analyzeCaptureResponseCandidatesItemCaloriesMin = 0;
 
 export const analyzeCaptureResponseCandidatesItemProteinGMin = 0;
@@ -2097,6 +2128,10 @@ export const analyzeCaptureResponseCandidatesItemImageEvidenceOneLocatorMax = 20
 export const analyzeCaptureResponseCandidatesItemImageEvidenceOneAttributionMax = 500;
 
 export const analyzeCaptureResponseCandidatesItemImageEvidenceTwoAccountScopeMax = 200;
+
+export const analyzeCaptureResponseComponentsItemOneServingQuantityMin = 0;
+
+export const analyzeCaptureResponseComponentsItemOneServingWeightGMin = 0;
 
 export const analyzeCaptureResponseComponentsItemOneCaloriesMin = 0;
 
@@ -2168,6 +2203,11 @@ export const AnalyzeCaptureResponse = zod.object({
   "name": zod.string(),
   "brand": zod.string().nullish(),
   "serving": zod.string(),
+  "servingQuantity": zod.number().min(analyzeCaptureResponseCandidatesItemServingQuantityMin).nullish(),
+  "servingUnit": zod.string().nullish(),
+  "servingWeightG": zod.number().min(analyzeCaptureResponseCandidatesItemServingWeightGMin).nullish(),
+  "nutritionBasis": zod.enum(['per_serving', 'per_100g', 'per_100ml', 'unknown']).optional(),
+  "servingMetadataSource": zod.string().nullish(),
   "calories": zod.number().min(analyzeCaptureResponseCandidatesItemCaloriesMin),
   "proteinG": zod.number().min(analyzeCaptureResponseCandidatesItemProteinGMin),
   "carbsG": zod.number().min(analyzeCaptureResponseCandidatesItemCarbsGMin),
@@ -2203,6 +2243,11 @@ export const AnalyzeCaptureResponse = zod.object({
   "name": zod.string(),
   "brand": zod.string().nullish(),
   "serving": zod.string(),
+  "servingQuantity": zod.number().min(analyzeCaptureResponseComponentsItemOneServingQuantityMin).nullish(),
+  "servingUnit": zod.string().nullish(),
+  "servingWeightG": zod.number().min(analyzeCaptureResponseComponentsItemOneServingWeightGMin).nullish(),
+  "nutritionBasis": zod.enum(['per_serving', 'per_100g', 'per_100ml', 'unknown']).optional(),
+  "servingMetadataSource": zod.string().nullish(),
   "calories": zod.number().min(analyzeCaptureResponseComponentsItemOneCaloriesMin),
   "proteinG": zod.number().min(analyzeCaptureResponseComponentsItemOneProteinGMin),
   "carbsG": zod.number().min(analyzeCaptureResponseComponentsItemOneCarbsGMin),

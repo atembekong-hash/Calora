@@ -13,7 +13,7 @@ import { type MealType, useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
-import { includedComponentCount, type FoodMemoryComponent } from '@/lib/foodMemory';
+import { includedComponentCount, nutritionMultiplierForComponent, type FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { syncCaptureApprovals } from '@/lib/captureApprovalSync';
@@ -33,6 +33,14 @@ type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
+  const servingMultiplier = nutritionMultiplierForComponent(component);
+  const updateServing = (serving: string) => {
+    const quantity = serving.match(/\d+(?:\.\d+)?/)?.[0];
+    const weight = serving.match(/(\d+(?:\.\d+)?)\s*g\b/i)?.[1];
+    const unit = serving.match(/\d+(?:\.\d+)?\s*(packet|packets|sachet|sachets|g|gram|grams|ml|milliliter|milliliters)\b/i)?.[1]?.toLowerCase();
+    const normalizedUnit = unit && ['gram', 'grams'].includes(unit) ? 'g' : unit && ['milliliter', 'milliliters'].includes(unit) ? 'ml' : unit;
+    onChange({ ...component, serving, servingQuantity: quantity ? Number(quantity) : component.servingQuantity, servingUnit: normalizedUnit || component.servingUnit, servingWeightG: component.nutritionBasis === 'per_100g' && (weight || (normalizedUnit === 'g' && quantity)) ? Number(weight || quantity) : component.servingWeightG });
+  };
   return (
     <Surface tier="flat" radius="lg" style={[styles.candidateCard, { backgroundColor: component.included ? colors.card : colors.muted, borderColor: colors.border }]}>
       <View style={styles.candidateHeader}>
@@ -46,17 +54,17 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
         <Text style={[styles.confidence, { color: component.provenance === 'photo_estimate' ? colors.warning : colors.success }]}>{component.confidence}%</Text>
       </View>
       <View style={styles.nutritionRow}>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * servingMultiplier * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * servingMultiplier * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * servingMultiplier * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * servingMultiplier * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
       </View>
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
       <View style={styles.fractionRow}>
         <Pressable accessibilityLabel={`Decrease ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.max(0, component.eatenFraction - 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={15} color={colors.foreground} /></Pressable>
         <Text style={[styles.fractionValue, { color: colors.foreground }]}>{formatPercent(component.eatenFraction * 100)}</Text>
         <Pressable accessibilityLabel={`Increase ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={15} color={colors.foreground} /></Pressable>
-        <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={(serving) => onChange({ ...component, serving })} style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
+        <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={updateServing} style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
       </View>
       <Pressable accessibilityLabel={`${component.included ? 'Remove' : 'Include'} ${component.name}`} onPress={() => onChange({ ...component, included: !component.included })} style={[styles.includeButton, { borderColor: colors.border }]}><Feather name={component.included ? 'eye-off' : 'eye'} size={14} color={colors.mutedForeground} /><Text style={[styles.includeButtonText, { color: colors.mutedForeground }]}>{component.included ? 'Remove from meal' : 'Include in meal'}</Text></Pressable>
       {component.reviewQuestions.length ? <Text style={[styles.questionText, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text> : null}

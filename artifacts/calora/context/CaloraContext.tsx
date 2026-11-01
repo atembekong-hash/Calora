@@ -183,6 +183,11 @@ export type FoodLog = {
   confidence: number;
   time: string;
   serving: string;
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  servingWeightG?: number | null;
+  nutritionBasis?: 'per_serving' | 'per_100g' | 'per_100ml' | 'unknown';
+  servingMetadataSource?: string | null;
   preparation?: string;
   notes?: string;
   memoryId?: string;

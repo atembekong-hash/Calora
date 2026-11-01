@@ -466,6 +466,11 @@ function toUpsertMutation(log: FoodLog) {
       meal: log.meal,
       name: log.name,
       serving: log.serving,
+      servingQuantity: log.servingQuantity ?? null,
+      servingUnit: log.servingUnit ?? null,
+      servingWeightG: log.servingWeightG ?? null,
+      nutritionBasis: log.nutritionBasis ?? 'unknown',
+      servingMetadataSource: log.servingMetadataSource ?? null,
       calories: log.calories,
       proteinG: log.protein,
       carbsG: log.carbs,
@@ -559,6 +564,11 @@ type ServerDiaryRecord = {
   meal: FoodLog['meal'];
   name: string;
   serving: string;
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  servingWeightG?: number | null;
+  nutritionBasis?: FoodLog['nutritionBasis'];
+  servingMetadataSource?: string | null;
   calories: number;
   proteinG: number;
   carbsG: number;
@@ -600,6 +610,11 @@ function fromServerRecord(record: ServerDiaryRecord): FoodLog {
     meal: record.meal,
     name: record.name,
     serving: record.serving,
+    servingQuantity: record.servingQuantity,
+    servingUnit: record.servingUnit,
+    servingWeightG: record.servingWeightG,
+    nutritionBasis: record.nutritionBasis,
+    servingMetadataSource: record.servingMetadataSource,
     calories: record.calories,
     protein: record.proteinG,
     carbs: record.carbsG,

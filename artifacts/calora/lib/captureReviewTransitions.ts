@@ -46,6 +46,11 @@ export type FoodLog = {
   confidence: number;
   time: string;
   serving: string;
+  servingQuantity?: number | null;
+  servingUnit?: string | null;
+  servingWeightG?: number | null;
+  nutritionBasis?: 'per_serving' | 'per_100g' | 'per_100ml' | 'unknown';
+  servingMetadataSource?: string | null;
   notes?: string;
   memoryId?: string;
   plannerMealId?: string;
@@ -122,6 +127,11 @@ export function buildAcceptResult(
     confidence: draft.confidence,
     time: formatLogTime(new Date(acceptedAt)),
     serving,
+    servingQuantity: draft.components.find((component) => component.included)?.servingQuantity,
+    servingUnit: draft.components.find((component) => component.included)?.servingUnit,
+    servingWeightG: draft.components.find((component) => component.included)?.servingWeightG,
+    nutritionBasis: draft.components.find((component) => component.included)?.nutritionBasis,
+    servingMetadataSource: draft.components.find((component) => component.included)?.servingMetadataSource,
     notes: `${draft.sourceLabel} · Review approved`,
     memoryId: draft.id,
     plannerMealId: draft.plannerMealId,

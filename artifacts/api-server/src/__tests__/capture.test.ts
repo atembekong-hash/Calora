@@ -1473,6 +1473,11 @@ describe('POST /v1/capture/analyze', () => {
 });
 
 describe('barcode candidate identity', () => {
+  it('preserves the reproduced Emergen-C packet serving instead of treating it as 100 g', () => {
+    const candidate = offCandidate({ code: '076314300556', product_name: 'Emergen-C Tangerine', brands: 'Emergen-C', serving_size: '1 packet (9.4 g)', nutriments: { 'energy-kcal_100g': 372, proteins_100g: 0, carbohydrates_100g: 85.106, fat_100g: 0 } }, '076314300556');
+    expect(candidate).toMatchObject({ serving: '1 packet (9.4 g)', servingQuantity: 1, servingUnit: 'packet', servingWeightG: 9.4, nutritionBasis: 'per_100g', calories: 372, carbsG: 85.106 });
+  });
+
   it('rejects a provider product whose returned code differs from the scanned code', () => {
     expect(offCandidate({ code: '0000000000000', product_name: 'Wrong item' }, '1111111111111')).toBeNull();
   });
