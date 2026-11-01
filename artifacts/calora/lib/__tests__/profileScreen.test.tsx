@@ -256,6 +256,9 @@ vi.mock("@/components/auth/AccountSection", () => ({
     </section>
   ),
 }));
+vi.mock("@/components/PrivacyRightsSection", () => ({
+  PrivacyRightsSection: () => <div>Privacy rights requests</div>,
+}));
 vi.mock("@/components/KeyboardAwareScrollViewCompat", () => ({
   KeyboardAwareScrollViewCompat: ({
     children,
