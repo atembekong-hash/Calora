@@ -60,7 +60,7 @@ export default function DashboardLayoutScreen() {
   const styles = makeStyles(colors, fontScale);
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <AppHeader title="Customize dashboard" onBack={() => router.back()} />
+      <AppHeader title="Customize dashboard" back onBack={() => router.back()} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

@@ -1580,12 +1580,12 @@ function DashboardFastingCard({
       <View style={{ flex: 1 }}>
         <Text style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
         <Text style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>
-          {status.active
+          {status.active && status.remainingMs > 0
             ? `${formatFastingDuration(status.elapsedMs)} elapsed · ${formatFastingDuration(status.remainingMs)} remaining`
             : 'Optional time-restricted eating that fits your routine.'}
         </Text>
       </View>
-      <Text style={[styles.dashboardFastingAction, { color: colors.success, fontSize: 11 * fontScale }]}>{status.active ? 'View' : 'Set up'}</Text>
+      <Text style={[styles.dashboardFastingAction, { color: colors.success, fontSize: 11 * fontScale }]}>{status.active && status.remainingMs > 0 ? 'View' : 'Set up'}</Text>
       <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
     </ScalePressable>
   );
@@ -1600,6 +1600,8 @@ export default function HomeScreen() {
     updateProfile, dashboardPreferences, saveMeal,
   } = useCalora();
   const insets = useSafeAreaInsets();
+  const { width: viewportWidth } = useWindowDimensions();
+  const useSingleColumnWellness = viewportWidth < 400;
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1864,6 +1866,8 @@ export default function HomeScreen() {
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.homeHeader}>
+          <Image source={require('../../assets/images/calora-home-header.jpg')} style={styles.homeHeaderImage} resizeMode="cover" />
+          <View pointerEvents="none" style={styles.homeHeaderScrim} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
               <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={styles.homeHeaderCustomize}>
@@ -1942,15 +1946,15 @@ export default function HomeScreen() {
         </View>
 
         {isViewingToday && (dashboardPreferences.visible.includes('steps') || dashboardPreferences.visible.includes('nutrients')) && (
-          <View testID="today-steps-macros-grid" style={styles.dashboardTwoColumnGrid}>
-            {dashboardPreferences.visible.includes('steps') && <View style={styles.dashboardGridCell}><StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} /></View>}
-            {dashboardPreferences.visible.includes('nutrients') && <View style={styles.dashboardGridCell}><View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text><ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.mutedForeground} /></ScalePressable></View><AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} /><AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} /><AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} /></View></View>}
+          <View testID="today-steps-macros-grid" style={useSingleColumnWellness ? styles.dashboardSingleColumnGrid : styles.dashboardTwoColumnGrid}>
+            {dashboardPreferences.visible.includes('steps') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} /></View>}
+            {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.sectionHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text><ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.mutedForeground} /></ScalePressable></View><AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} /><AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} /><AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} /></View></View>}
           </View>
         )}
         {isViewingToday && (
-          <View testID="today-fasting-mood-grid" style={styles.dashboardTwoColumnGrid}>
-            {dashboardPreferences.visible.includes('fasting') && <View style={styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
-            <View style={styles.dashboardGridCell}><MoodCard colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
+          <View testID="today-wellness-grid" style={useSingleColumnWellness ? styles.dashboardSingleColumnGrid : styles.dashboardTwoColumnGrid}>
+            {dashboardPreferences.visible.includes('fasting') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
+            <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
           </View>
         )}
         <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions"><View style={styles.quickActions}><IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} /><IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} /><IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} /></View></View>
@@ -2068,7 +2072,9 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject },
+    homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
+    homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 66, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   homeHeaderCustomize: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
@@ -2082,8 +2088,10 @@ function makeStyles(f: number) {
     homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateY: 2 }] },
     homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
-  dashboardTwoColumnGrid: { flexDirection: 'row', gap: 10, marginBottom: h(18) },
-  dashboardGridCell: { flex: 1, minWidth: 0 },
+  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: h(18) },
+  dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginBottom: h(18) },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
+  dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardGridCard: { flex: 1, marginBottom: 0 },
   dashboardFastingCard: { minHeight: h(74), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   dashboardFastingIcon: { height: h(40), width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

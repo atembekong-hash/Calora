@@ -13,6 +13,7 @@ describe('Customize Today ordering controls', () => {
     const source = readFileSync(resolve(__dirname, '../../app/dashboard-layout.tsx'), 'utf8');
     expect(source).toContain('Make Today your own');
     expect(source).toContain('Your choices stay on this device.');
+    expect(source).toContain('<AppHeader title="Customize dashboard" back onBack={() => router.back()} />');
     expect(source).toContain('calories:');
     expect(source).toContain('steps:');
     expect(source).toContain('water:');

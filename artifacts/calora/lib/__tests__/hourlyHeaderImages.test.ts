@@ -15,7 +15,7 @@ describe("Today dashboard image boundary", () => {
     expect(homeSource).not.toMatch(
       /<ImageBackground\b|expo-image|LinearGradient/,
     );
-    expect(homeSource).not.toMatch(/assets\/images|\brequire\(/);
+    expect(homeSource).toContain("require('../../assets/images/calora-home-header.jpg')");
     expect(recipesSource).not.toContain("useHourlyHeaderImage");
     expect(insightsSource).not.toContain("useHourlyHeaderImage");
   });
