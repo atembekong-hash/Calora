@@ -21,8 +21,11 @@ export const CONFIGURABLE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = [
   "water",
   "fasting",
   "nutrients",
-  "mealRhythm",
 ];
+
+const ACTIVE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = DASHBOARD_WIDGET_IDS.filter(
+  (id) => id !== "mealRhythm",
+);
 
 const DEFAULT_DENSITY: Record<DashboardWidgetId, DashboardDensity> = {
   calories: "expanded",
@@ -35,8 +38,8 @@ const DEFAULT_DENSITY: Record<DashboardWidgetId, DashboardDensity> = {
 };
 
 export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
-  visible: [...DASHBOARD_WIDGET_IDS],
-  order: [...DASHBOARD_WIDGET_IDS],
+  visible: DASHBOARD_WIDGET_IDS.filter((id) => id !== "mealRhythm"),
+  order: DASHBOARD_WIDGET_IDS.filter((id) => id !== "mealRhythm"),
   density: { ...DEFAULT_DENSITY },
 };
 
@@ -64,14 +67,18 @@ export function normalizeDashboardPreferences(
       density: { ...DEFAULT_DASHBOARD_PREFERENCES.density },
     };
   const candidate = raw as Partial<DashboardPreferences>;
-  const requestedVisible = uniqueWidgetIds(candidate.visible);
+  const requestedVisible = uniqueWidgetIds(candidate.visible).filter((id) =>
+    ACTIVE_DASHBOARD_WIDGET_IDS.includes(id),
+  );
   const visible: DashboardWidgetId[] = requestedVisible.includes("calories")
     ? requestedVisible
     : ["calories", ...requestedVisible];
-  const suppliedOrder = uniqueWidgetIds(candidate.order);
+  const suppliedOrder = uniqueWidgetIds(candidate.order).filter((id) =>
+    ACTIVE_DASHBOARD_WIDGET_IDS.includes(id),
+  );
   const order = [
     ...suppliedOrder,
-    ...DASHBOARD_WIDGET_IDS.filter((id) => !suppliedOrder.includes(id)),
+    ...ACTIVE_DASHBOARD_WIDGET_IDS.filter((id) => !suppliedOrder.includes(id)),
   ];
   const candidateDensity =
     candidate.density && typeof candidate.density === "object"

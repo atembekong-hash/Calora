@@ -13,9 +13,9 @@ describe("Today dashboard image boundary", () => {
 
     expect(homeSource).not.toContain("useHourlyHeaderImage");
     expect(homeSource).not.toMatch(
-      /<Image(?:Background)?\b|expo-image|LinearGradient/,
+      /<ImageBackground\b|expo-image|LinearGradient/,
     );
-    expect(homeSource).not.toMatch(/assets\/images|\brequire\(|recipe\.image/);
+    expect(homeSource).not.toMatch(/assets\/images|\brequire\(/);
     expect(recipesSource).not.toContain("useHourlyHeaderImage");
     expect(insightsSource).not.toContain("useHourlyHeaderImage");
   });

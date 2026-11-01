@@ -3429,6 +3429,15 @@
   "staticExternalImageUrls": [],
   "directImageRenderers": [
     {
+      "id": "today-recipe-photo",
+      "path": "artifacts/calora/app/(tabs)/index.tsx",
+      "anchor": "source={{ uri: normalizeFoodImageUrl(recipe.image) }}",
+      "classification": "content",
+      "role": "Today recipe photo from a strict trusted runtime provider source",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed renderer registration"
+    },
+    {
       "id": "onboarding-photo-hero",
       "path": "artifacts/calora/app/index.tsx",
       "anchor": "source={details.image}",

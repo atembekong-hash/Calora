@@ -107,7 +107,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain('minHeight: h(74)');
-    expect(source).toContain('height: h(146)');
+    expect(source).toContain('height: h(131)');
     expect(source).toContain('minHeight: 221 * TODAY_WIDGET_HEIGHT_SCALE');
     expect(source).toContain('const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
@@ -136,11 +136,12 @@ describe('Today dashboard visual-source boundary', () => {
     );
 
     expect(source).not.toMatch(/<ImageBackground\b|LinearGradient/);
-    expect(source).not.toMatch(/assets\/images|\brequire\(|recipe\.image|ProfilePhoto/);
+    expect(source).not.toMatch(/assets\/images|\brequire\(|ProfilePhoto/);
     expect(source).toContain("import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';");
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).not.toContain('useHourlyHeaderImage');
-    expect(source).toContain('styles.recipeWidgetGlyph');
+    expect(source).toContain('normalizeFoodImageUrl(recipe.image)');
+    expect(source).toContain('styles.recipeWidgetImage');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
   });
@@ -481,7 +482,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
     expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
     expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('styles.recipeSection'));
-    expect(source).toContain("widgetId === 'mealRhythm'");
+    expect(source).not.toContain("widgetId === 'mealRhythm'");
     expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
     expect(source).toContain('selectVisibleTodayInsight');
   });
@@ -624,8 +625,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(livingCard).toContain('testID="living-rhythm-add-meal-button"');
     expect(livingCard).toContain('accessibilityLabel="Add a meal from your rhythm card"');
     expect(livingCard).toContain('onPress={onAddMeal}');
-    expect(source).toContain('<LivingRhythmCard');
-    expect(source).toContain('onAddMeal={openAdd}');
+    expect(source).not.toContain('<LivingRhythmCard');
+    expect(source).not.toContain('onAddMeal={openAdd}');
     expect(source).not.toContain('Meals logged');
     expect(source).not.toContain('wellness-add-meal-button');
   });
