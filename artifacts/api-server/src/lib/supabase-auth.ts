@@ -8,9 +8,11 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request } from "express";
+import { createHash } from "node:crypto";
 import { AccountDeletionInProgressError, assertAccountWritable } from "./account-deletion-state.js";
 
 let _client: SupabaseClient | null = null;
+const inFlightUserVerifications = new Map<string, Promise<VerifiedUser | null>>();
 
 export type SupabaseVerifierFailureCode =
   | "supabase_config_missing"
@@ -71,6 +73,10 @@ export type VerifiedUser = {
    */
   coachFactAccount?: CoachFactAccountEligibility;
 };
+
+function tokenFingerprint(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -136,16 +142,10 @@ export function getCoachFactAccountEligibility(user: {
  * Throws a bounded SupabaseVerifierError only when verifier configuration or
  * the Supabase Auth service is unavailable.
  */
-export async function verifyBearerToken(req: Request): Promise<VerifiedUser | null> {
-  const authHeader = req.headers.authorization ?? "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const verifier = getVerifier();
-  if (!verifier) {
-    throw new SupabaseVerifierError("supabase_config_missing");
-  }
-
+async function verifyTokenWithVerifier(
+  verifier: SupabaseClient,
+  token: string,
+): Promise<VerifiedUser | null> {
   let result: Awaited<ReturnType<typeof verifier.auth.getUser>>;
   try {
     result = await verifier.auth.getUser(token);
@@ -170,4 +170,28 @@ export async function verifyBearerToken(req: Request): Promise<VerifiedUser | nu
     email: data.user.email ?? null,
     coachFactAccount: getCoachFactAccountEligibility(data.user),
   };
+}
+
+export async function verifyBearerToken(req: Request): Promise<VerifiedUser | null> {
+  const authHeader = req.headers.authorization ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+
+  const verifier = getVerifier();
+  if (!verifier) {
+    throw new SupabaseVerifierError("supabase_config_missing");
+  }
+
+  const key = tokenFingerprint(token);
+  const existing = inFlightUserVerifications.get(key);
+  if (existing) return existing;
+
+  const verification = verifyTokenWithVerifier(verifier, token);
+  inFlightUserVerifications.set(key, verification);
+  void verification.finally(() => {
+    if (inFlightUserVerifications.get(key) === verification) {
+      inFlightUserVerifications.delete(key);
+    }
+  }).catch(() => undefined);
+  return verification;
 }
