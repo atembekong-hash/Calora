@@ -17,7 +17,7 @@ describe('Customize Today ordering controls', () => {
     expect(source).toContain('steps:');
     expect(source).toContain('water:');
     expect(source).toContain('weight:');
-    expect(source).toContain('mealRhythm:');
+    expect(source).not.toContain('mealRhythm:');
     expect(source).toContain('nutrients:');
     expect(source).toContain('fasting:');
   });

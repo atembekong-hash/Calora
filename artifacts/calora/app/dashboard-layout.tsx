@@ -14,10 +14,10 @@ import {
 } from "@/lib/dashboardPreferences";
 import { useCalora } from "@/context/CaloraContext";
 
-const widgetCopy: Record<
+const widgetCopy: Partial<Record<
   DashboardWidgetId,
   { title: string; description: string; icon: keyof typeof Feather.glyphMap }
-> = {
+>> = {
   calories: {
     title: "Calorie progress",
     description: "Your daily target and logged intake.",
@@ -38,14 +38,9 @@ const widgetCopy: Record<
     description: "Latest weight and direction.",
     icon: "trending-down",
   },
-  mealRhythm: {
-    title: "Meal rhythm",
-    description: "Timing across your logged meals.",
-    icon: "bar-chart-2",
-  },
   nutrients: {
-    title: "Nutrient balance",
-    description: "Protein, carbs, and fats.",
+    title: "Macro balance",
+    description: "Protein, carbs, and fats shown beside Steps.",
     icon: "pie-chart",
   },
   fasting: {
@@ -71,8 +66,7 @@ export default function DashboardLayoutScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.intro}>
-          Make Today your own. Choose which widgets appear and arrange them in
-          the order that works best for you. Your choices stay on this device.
+          Make Today your own. Steps and Macro balance share a row, while Fasting and mood stay together below it. Your choices stay on this device.
         </Text>
         {dashboardPreferences.order
           .filter(
@@ -82,6 +76,7 @@ export default function DashboardLayoutScreen() {
           )
           .map((id, index) => {
             const item = widgetCopy[id];
+            if (!item) return null;
             const visible = dashboardPreferences.visible.includes(id);
             const density = dashboardPreferences.density[id];
             return (
