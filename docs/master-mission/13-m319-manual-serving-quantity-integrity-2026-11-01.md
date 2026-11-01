@@ -138,7 +138,20 @@ Use a disposable QA diary record and verify:
 10. Repeat 50 g, 18.8 g, packet, empty, invalid-unit, and rapid-edit cases.
 11. Confirm Auto barcode recognition and Scan stability remain unchanged.
 
-## 10. Final verdict
+## 10. Protected PR and release readiness
+
+The repair was committed as `c63a636cab4e567b1350f0e2a1d65217d2bfe753` and opened as [PR #316](https://github.com/atembekong-hash/Calora/pull/316).
+
+Protected GitHub validation completed successfully:
+
+- Fresh-schema deletion-fence validation: **passed**.
+- Portable fresh-schema PostgreSQL integrations: **passed**.
+- Release validation suite: **passed**.
+- Release attestation step: **skipped by workflow policy**, not counted as a pass.
+
+PR #316 is merge-ready with a clean protected merge state. It remains open and unmerged because Mission 319 explicitly prohibits merging or deployment without separate release authorization.
+
+## 11. Final verdict
 
 **PARTIAL PASS WITH EXPLICIT LIMITATIONS**
 
