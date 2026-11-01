@@ -74,14 +74,23 @@ type SessionLike = { access_token?: string | null; expires_at?: number | null } 
 const tokenFromSession = (session: SessionLike) => typeof session?.access_token === 'string' && session.access_token ? session.access_token : null;
 const isExpired = (session: SessionLike, skewSeconds = 30) => typeof session?.expires_at === 'number' && session.expires_at * 1000 <= Date.now() + skewSeconds * 1000;
 
+let freshAccessTokenPromise: Promise<string | null> | null = null;
+
 export async function getFreshAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session = data.session as SessionLike;
-  const token = tokenFromSession(session);
-  if (!token) return null;
-  if (!isExpired(session)) return token;
-  const refreshed = await supabase.auth.refreshSession();
-  return tokenFromSession(refreshed.data.session as SessionLike) ?? token;
+  if (!freshAccessTokenPromise) {
+    freshAccessTokenPromise = (async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session as SessionLike;
+      const token = tokenFromSession(session);
+      if (!token) return null;
+      if (!isExpired(session)) return token;
+      const refreshed = await supabase.auth.refreshSession();
+      return tokenFromSession(refreshed.data.session as SessionLike) ?? token;
+    })().finally(() => {
+      freshAccessTokenPromise = null;
+    });
+  }
+  return freshAccessTokenPromise;
 }
 async function forceRefreshedToken() {
   try { const { data } = await supabase.auth.refreshSession(); return tokenFromSession(data.session as SessionLike); }

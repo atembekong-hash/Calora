@@ -73,6 +73,21 @@ afterEach(() => {
 });
 
 describe('getFreshAccessToken', () => {
+  it('single-flights concurrent session reads', async () => {
+    let resolveSession!: (value: { data: { session: ReturnType<typeof session> } }) => void;
+    const pendingSession = new Promise<{ data: { session: ReturnType<typeof session> } }>((resolve) => {
+      resolveSession = resolve;
+    });
+    mockGetSession.mockReturnValueOnce(pendingSession);
+
+    const first = getFreshAccessToken();
+    const second = getFreshAccessToken();
+    resolveSession({ data: { session: session('shared-token') } });
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['shared-token', 'shared-token']);
+    expect(mockGetSession).toHaveBeenCalledTimes(1);
+  });
+
   it('returns the stored token while it is still valid', async () => {
     mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
     await expect(getFreshAccessToken()).resolves.toBe('valid-token');
