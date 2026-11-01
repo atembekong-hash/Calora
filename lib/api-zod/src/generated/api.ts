@@ -9,6 +9,14 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Dependency-free API health alias
+ */
+export const ApiHealthAliasResponse = zod.object({
+  "status": zod.enum(['ok', 'unavailable'])
+})
+
+
+/**
  * Returns ok only after the API can query its PostgreSQL data plane
  * @summary Database readiness check
  */
@@ -18,11 +26,39 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Returns no-store release identity for diagnostics; source/uncompiled builds fail closed.
+ * @summary Read the compiled release attestation
+ */
+export const getVersionResponseGitCommitMin = 40;
+export const getVersionResponseGitCommitMax = 40;
+
+export const getVersionResponseSourceTreeMin = 40;
+export const getVersionResponseSourceTreeMax = 40;
+
+export const getVersionResponseSourceDigestMin = 64;
+export const getVersionResponseSourceDigestMax = 64;
+
+
+
+export const GetVersionResponse = zod.object({
+  "schemaVersion": zod.enum(['calora.release-attestation.v1']),
+  "gitCommit": zod.string().min(getVersionResponseGitCommitMin).max(getVersionResponseGitCommitMax),
+  "sourceTree": zod.string().min(getVersionResponseSourceTreeMin).max(getVersionResponseSourceTreeMax),
+  "sourceDigest": zod.string().min(getVersionResponseSourceDigestMin).max(getVersionResponseSourceDigestMax),
+  "buildTimestamp": zod.coerce.date(),
+  "releaseId": zod.string(),
+  "nodeVersion": zod.string(),
+  "nodeMajor": zod.literal(22),
+  "supabaseSdk": zod.string()
+})
+
+
+/**
  * @summary Get the current profile
  */
 export const getProfileResponseNameMax = 120;
 
-export const getProfileResponseAgeMin = 13;
+export const getProfileResponseAgeMin = 18;
 export const getProfileResponseAgeMax = 120;
 
 export const getProfileResponseHeightCmMin = 80;
@@ -119,7 +155,7 @@ export const UpdateProfileBody = zod.object({
 
 export const updateProfileResponseNameMax = 120;
 
-export const updateProfileResponseAgeMin = 13;
+export const updateProfileResponseAgeMin = 18;
 export const updateProfileResponseAgeMax = 120;
 
 export const updateProfileResponseHeightCmMin = 80;
@@ -493,151 +529,6 @@ export const CreateDiaryEntryResponse = zod.object({
 
 
 /**
- * @summary Edit a diary entry
- */
-export const UpdateDiaryEntryParams = zod.object({
-  "entryId": zod.uuid()
-})
-
-export const updateDiaryEntryBodyCaloriesMin = 0;
-
-export const updateDiaryEntryBodyProteinGMin = 0;
-
-export const updateDiaryEntryBodyCarbsGMin = 0;
-
-export const updateDiaryEntryBodyFatGMin = 0;
-
-
-
-export const UpdateDiaryEntryBody = zod.object({
-  "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']).optional(),
-  "serving": zod.string().optional(),
-  "calories": zod.number().min(updateDiaryEntryBodyCaloriesMin).optional(),
-  "proteinG": zod.number().min(updateDiaryEntryBodyProteinGMin).optional(),
-  "carbsG": zod.number().min(updateDiaryEntryBodyCarbsGMin).optional(),
-  "fatG": zod.number().min(updateDiaryEntryBodyFatGMin).optional(),
-  "notes": zod.string().nullish(),
-  "clientUpdatedAt": zod.coerce.date().optional()
-})
-
-
-
-export const updateDiaryEntryResponseOneCaloriesMin = 0;
-
-export const updateDiaryEntryResponseOneProteinGMin = 0;
-
-export const updateDiaryEntryResponseOneCarbsGMin = 0;
-
-export const updateDiaryEntryResponseOneFatGMin = 0;
-
-export const updateDiaryEntryResponseOneConfidenceMin = 0;
-export const updateDiaryEntryResponseOneConfidenceMax = 100;
-
-export const updateDiaryEntryResponseOneImageUrlMax = 2048;
-
-export const updateDiaryEntryResponseOneImageSourceMax = 80;
-
-export const updateDiaryEntryResponseOneImageAssetKeyMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceContentIdMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceSourceMax = 80;
-
-export const updateDiaryEntryResponseOneImageEvidenceProviderMax = 80;
-
-export const updateDiaryEntryResponseOneImageEvidenceProviderItemIdMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceImageIdMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceImageVersionMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceAssetKeyMax = 160;
-
-export const updateDiaryEntryResponseOneImageEvidenceLocatorMax = 2048;
-
-export const updateDiaryEntryResponseOneImageEvidenceAttributionMax = 500;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneContentIdMax = 160;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneSourceMax = 80;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneProviderMax = 80;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax = 160;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneImageIdMax = 160;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneImageVersionMax = 160;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax = 160;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax = 2048;
-
-export const updateDiaryEntryResponseTwoImageEvidenceOneAttributionMax = 500;
-
-export const updateDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax = 200;
-
-
-
-export const UpdateDiaryEntryResponse = zod.object({
-  "entryDate": zod.coerce.date(),
-  "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
-  "name": zod.string().min(1),
-  "serving": zod.string().min(1),
-  "calories": zod.number().min(updateDiaryEntryResponseOneCaloriesMin),
-  "proteinG": zod.number().min(updateDiaryEntryResponseOneProteinGMin),
-  "carbsG": zod.number().min(updateDiaryEntryResponseOneCarbsGMin),
-  "fatG": zod.number().min(updateDiaryEntryResponseOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Restaurant verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
-  "confidence": zod.int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
-  "clientUpdatedAt": zod.coerce.date(),
-  "notes": zod.string().nullish(),
-  "imageUrl": zod.url().max(updateDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
-  "imageSource": zod.string().max(updateDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
-  "imageAssetKey": zod.string().max(updateDiaryEntryResponseOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
-  "imageEvidence": zod.object({
-  "version": zod.literal(1),
-  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
-  "contentId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceContentIdMax).optional(),
-  "source": zod.string().max(updateDiaryEntryResponseOneImageEvidenceSourceMax).optional(),
-  "provider": zod.string().max(updateDiaryEntryResponseOneImageEvidenceProviderMax).optional(),
-  "providerItemId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceProviderItemIdMax).optional(),
-  "imageId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageIdMax).optional(),
-  "imageVersion": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageVersionMax).optional(),
-  "assetKey": zod.string().max(updateDiaryEntryResponseOneImageEvidenceAssetKeyMax).optional(),
-  "locator": zod.url().max(updateDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
-  "verifiedAt": zod.coerce.date().optional(),
-  "retrievedAt": zod.coerce.date().optional(),
-  "expiresAt": zod.coerce.date().optional(),
-  "attribution": zod.string().max(updateDiaryEntryResponseOneImageEvidenceAttributionMax).optional(),
-  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
-}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
-}).and(zod.object({
-  "id": zod.uuid(),
-  "updatedAt": zod.coerce.date(),
-  "imageEvidence": zod.object({
-  "version": zod.literal(1),
-  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
-  "contentId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneContentIdMax).optional(),
-  "source": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneSourceMax).optional(),
-  "provider": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneProviderMax).optional(),
-  "providerItemId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax).optional(),
-  "imageId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageIdMax).optional(),
-  "imageVersion": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageVersionMax).optional(),
-  "assetKey": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax).optional(),
-  "locator": zod.url().max(updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
-  "verifiedAt": zod.coerce.date().optional(),
-  "retrievedAt": zod.coerce.date().optional(),
-  "expiresAt": zod.coerce.date().optional(),
-  "attribution": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneAttributionMax).optional(),
-  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
-}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
-  "accountScope": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
-})).optional()
-}))
-
-
-/**
  * @summary Delete a diary entry
  */
 export const DeleteDiaryEntryParams = zod.object({
@@ -645,52 +536,6 @@ export const DeleteDiaryEntryParams = zod.object({
 })
 
 export const DeleteDiaryEntryResponse = zod.void()
-
-
-/**
- * @summary Search verified foods and brands
- */
-export const searchFoodsQueryQMin = 2;
-
-export const searchFoodsQueryLimitDefault = 20;
-export const searchFoodsQueryLimitMax = 50;
-
-
-
-export const SearchFoodsQueryParams = zod.object({
-  "q": zod.coerce.string().min(searchFoodsQueryQMin),
-  "barcode": zod.coerce.string().optional(),
-  "limit": zod.coerce.number().int().min(1).max(searchFoodsQueryLimitMax).default(searchFoodsQueryLimitDefault)
-})
-
-
-
-
-
-export const SearchFoodsResponse = zod.object({
-  "items": zod.array(zod.object({
-  "id": zod.uuid(),
-  "name": zod.string(),
-  "brand": zod.string().nullish(),
-  "barcode": zod.string().nullish(),
-  "servingAmount": zod.number(),
-  "servingUnit": zod.string(),
-  "calories": zod.number(),
-  "proteinG": zod.number(),
-  "carbsG": zod.number(),
-  "fatG": zod.number(),
-  "provenance": zod.object({
-  "source": zod.string(),
-  "verifiedAt": zod.coerce.date().nullable(),
-  "correctionVersion": zod.int().min(1)
-})
-})),
-  "provenance": zod.object({
-  "source": zod.string(),
-  "verifiedAt": zod.coerce.date().nullable(),
-  "correctionVersion": zod.int().min(1)
-})
-})
 
 
 /**
@@ -703,10 +548,9 @@ export const syncOutboxBodyMutationsMax = 100;
 
 export const SyncOutboxBody = zod.object({
   "deviceId": zod.string().min(1),
-  "cursor": zod.string().nullish(),
   "mutations": zod.array(zod.object({
   "mutationId": zod.uuid(),
-  "entity": zod.enum(['profile', 'diaryEntry', 'weight', 'savedMeal']),
+  "entity": zod.enum(['diaryEntry']).describe('Only diaryEntry mutations are currently accepted by the server.'),
   "operation": zod.enum(['upsert', 'delete']),
   "clientUpdatedAt": zod.coerce.date(),
   "payload": zod.record(zod.string(), zod.unknown())
@@ -819,7 +663,7 @@ export const SyncOutboxResponse = zod.object({
   "sourceRecipeId": zod.string().max(syncOutboxResponseRecordsItemSourceRecipeIdMax).optional(),
   "clientUpdatedAt": zod.coerce.date()
 })),
-  "nextCursor": zod.string()
+  "nextCursor": zod.string().describe('Reserved for future server cursor pagination; currently returned as the sync continuation token.')
 })
 
 
@@ -2686,6 +2530,13 @@ export const RespondCoachFactContextResponse = zod.object({
 
 
 /**
+ * The legacy broad-context Coach endpoint is intentionally terminal and no longer invokes a provider.
+ * @summary Retained legacy Coach compatibility endpoint
+ */
+export const LegacyCoachCompatibilityResponse = zod.void()
+
+
+/**
  * @summary Read current server-authoritative Fact Context consent status
  */
 export const GetCoachFactContextConsentResponse = zod.object({
@@ -2882,6 +2733,49 @@ export const UpdateCoachV2SettingsBody = zod.object({
 
 export const UpdateCoachV2SettingsResponse = zod.object({
   "personalizationEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary List the authenticated account's privacy-rights requests
+ */
+export const listPrivacyRightsRequestsResponseRequestsMax = 50;
+
+
+
+export const ListPrivacyRightsRequestsResponse = zod.object({
+  "requests": zod.array(zod.object({
+  "id": zod.uuid(),
+  "requestType": zod.enum(['access', 'correct', 'delete', 'portability', 'restrict', 'withdraw_consent']),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable()
+})).max(listPrivacyRightsRequestsResponseRequestsMax)
+})
+
+
+/**
+ * @summary Submit a privacy-rights request for the authenticated account
+ */
+export const createPrivacyRightsRequestBodyNoteMax = 1000;
+
+
+
+export const CreatePrivacyRightsRequestBody = zod.object({
+  "requestType": zod.enum(['access', 'correct', 'delete', 'portability', 'restrict', 'withdraw_consent']),
+  "note": zod.string().max(createPrivacyRightsRequestBodyNoteMax).optional()
+})
+
+export const CreatePrivacyRightsRequestResponse = zod.object({
+  "request": zod.object({
+  "id": zod.uuid(),
+  "requestType": zod.enum(['access', 'correct', 'delete', 'portability', 'restrict', 'withdraw_consent']),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "closedAt": zod.coerce.date().nullable()
+})
 })
 
 

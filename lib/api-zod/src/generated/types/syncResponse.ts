@@ -12,5 +12,6 @@ export interface SyncResponse {
   accepted: string[];
   conflicts: SyncConflict[];
   records: SyncDiaryRecord[];
+  /** Reserved for future server cursor pagination; currently returned as the sync continuation token. */
   nextCursor: string;
 }

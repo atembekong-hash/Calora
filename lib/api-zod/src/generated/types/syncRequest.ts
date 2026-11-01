@@ -10,7 +10,6 @@ import type { SyncMutation } from './syncMutation';
 export interface SyncRequest {
   /** @minLength 1 */
   deviceId: string;
-  cursor?: string | null;
   /** @maxItems 100 */
   mutations: SyncMutation[];
 }

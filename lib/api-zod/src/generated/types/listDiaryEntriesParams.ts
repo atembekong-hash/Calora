@@ -8,5 +8,8 @@
 import type { DateQueryParameter } from './dateQueryParameter';
 
 export type ListDiaryEntriesParams = {
+/**
+ * Calendar date in YYYY-MM-DD form; impossible dates such as 2026-02-31 are rejected.
+ */
 date: DateQueryParameter;
 };

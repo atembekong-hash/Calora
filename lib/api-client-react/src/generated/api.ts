@@ -38,7 +38,6 @@ import type {
   CoachV2SettingsInput,
   DiaryEntry,
   DiaryEntryInput,
-  DiaryEntryPatch,
   DiaryFirstLogInput,
   DiaryFirstLogResult,
   GeneratedRecipeInput,
@@ -54,6 +53,9 @@ import type {
   PlannerGenerateResponse,
   PremiumRecipe,
   PremiumRecipeList,
+  PrivacyRightsRequestCreated,
+  PrivacyRightsRequestInput,
+  PrivacyRightsRequestList,
   Profile,
   ProfileInput,
   Recipe,
@@ -71,10 +73,9 @@ import type {
   ReferralRedeemInput,
   ReferralRedeemResult,
   ReferralSummary,
+  ReleaseAttestation,
   RestaurantFood,
   RestaurantFoodList,
-  SearchFoods200,
-  SearchFoodsParams,
   SyncRequest,
   SyncResponse
 } from './api.schemas';
@@ -105,6 +106,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getApiHealthAliasUrl = () => {
+
+
+
+
+  return `/api/`
+}
+
+/**
+ * @summary Dependency-free API health alias
+ */
+export const apiHealthAlias = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getApiHealthAliasUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getApiHealthAliasQueryKey = () => {
+    return [
+    `/api/`
+    ] as const;
+    }
+
+
+export const getApiHealthAliasQueryOptions = <TData = Awaited<ReturnType<typeof apiHealthAlias>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof apiHealthAlias>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getApiHealthAliasQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof apiHealthAlias>>> = ({ signal }) => apiHealthAlias({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof apiHealthAlias>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ApiHealthAliasQueryResult = NonNullable<Awaited<ReturnType<typeof apiHealthAlias>>>
+export type ApiHealthAliasQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Dependency-free API health alias
+ */
+
+export function useApiHealthAlias<TData = Awaited<ReturnType<typeof apiHealthAlias>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof apiHealthAlias>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getApiHealthAliasQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 
@@ -184,6 +262,84 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+export const getGetVersionUrl = () => {
+
+
+
+
+  return `/api/version`
+}
+
+/**
+ * Returns no-store release identity for diagnostics; source/uncompiled builds fail closed.
+ * @summary Read the compiled release attestation
+ */
+export const getVersion = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReleaseAttestation> => {
+
+  return customFetch<ReleaseAttestation>(getGetVersionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVersionQueryKey = () => {
+    return [
+    `/api/version`
+    ] as const;
+    }
+
+
+export const getGetVersionQueryOptions = <TData = Awaited<ReturnType<typeof getVersion>>, TError = ErrorType<ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVersionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVersion>>> = ({ signal }) => getVersion({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVersion>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVersionQueryResult = NonNullable<Awaited<ReturnType<typeof getVersion>>>
+export type GetVersionQueryError = ErrorType<ApiMessage>
+
+
+/**
+ * @summary Read the compiled release attestation
+ */
+
+export function useGetVersion<TData = Awaited<ReturnType<typeof getVersion>>, TError = ErrorType<ApiMessage>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVersionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetProfileUrl = () => {
 
 
@@ -217,7 +373,7 @@ export const getGetProfileQueryKey = () => {
     }
 
 
-export const getGetProfileQueryOptions = <TData = Awaited<ReturnType<typeof getProfile>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetProfileQueryOptions = <TData = Awaited<ReturnType<typeof getProfile>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -236,14 +392,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getProfile>>>
-export type GetProfileQueryError = ErrorType<void>
+export type GetProfileQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Get the current profile
  */
 
-export function useGetProfile<TData = Awaited<ReturnType<typeof getProfile>>, TError = ErrorType<void>>(
+export function useGetProfile<TData = Awaited<ReturnType<typeof getProfile>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -287,7 +443,7 @@ export const updateProfile = async (profileInput: ProfileInput, options?: Parame
 
 
 
-export const getUpdateProfileMutationOptions = <TError = ErrorType<void>,
+export const getUpdateProfileMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileInput>}, TContext> => {
 
@@ -316,12 +472,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfile>>>
     export type UpdateProfileMutationBody = BodyType<ProfileInput>
-    export type UpdateProfileMutationError = ErrorType<void>
+    export type UpdateProfileMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Create or update the current profile
  */
-export const useUpdateProfile = <TError = ErrorType<void>,
+export const useUpdateProfile = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateProfile>>,
@@ -358,7 +514,7 @@ export const deleteProfile = async ( options?: Parameters<typeof customFetch>[1]
 
 
 
-export const getDeleteProfileMutationOptions = <TError = ErrorType<void>,
+export const getDeleteProfileMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProfile>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteProfile>>, TError,void, TContext> => {
 
@@ -387,12 +543,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteProfileMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProfile>>>
 
-    export type DeleteProfileMutationError = ErrorType<void>
+    export type DeleteProfileMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Clear the current profile
  */
-export const useDeleteProfile = <TError = ErrorType<void>,
+export const useDeleteProfile = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProfile>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteProfile>>,
@@ -443,7 +599,7 @@ export const getListDiaryEntriesQueryKey = (params?: ListDiaryEntriesParams,) =>
     }
 
 
-export const getListDiaryEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listDiaryEntries>>, TError = ErrorType<unknown>>(params: ListDiaryEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDiaryEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListDiaryEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listDiaryEntries>>, TError = ErrorType<ApiMessage>>(params: ListDiaryEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDiaryEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -462,14 +618,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListDiaryEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listDiaryEntries>>>
-export type ListDiaryEntriesQueryError = ErrorType<unknown>
+export type ListDiaryEntriesQueryError = ErrorType<ApiMessage>
 
 
 /**
  * @summary List diary entries for a date
  */
 
-export function useListDiaryEntries<TData = Awaited<ReturnType<typeof listDiaryEntries>>, TError = ErrorType<unknown>>(
+export function useListDiaryEntries<TData = Awaited<ReturnType<typeof listDiaryEntries>>, TError = ErrorType<ApiMessage>>(
  params: ListDiaryEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDiaryEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -513,7 +669,7 @@ export const createDiaryEntry = async (diaryEntryInput: DiaryEntryInput, options
 
 
 
-export const getCreateDiaryEntryMutationOptions = <TError = ErrorType<unknown>,
+export const getCreateDiaryEntryMutationOptions = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDiaryEntry>>, TError,{data: BodyType<DiaryEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createDiaryEntry>>, TError,{data: BodyType<DiaryEntryInput>}, TContext> => {
 
@@ -542,12 +698,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateDiaryEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createDiaryEntry>>>
     export type CreateDiaryEntryMutationBody = BodyType<DiaryEntryInput>
-    export type CreateDiaryEntryMutationError = ErrorType<unknown>
+    export type CreateDiaryEntryMutationError = ErrorType<ApiMessage>
 
     /**
  * @summary Add a diary entry
  */
-export const useCreateDiaryEntry = <TError = ErrorType<unknown>,
+export const useCreateDiaryEntry = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDiaryEntry>>, TError,{data: BodyType<DiaryEntryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createDiaryEntry>>,
@@ -556,78 +712,6 @@ export const useCreateDiaryEntry = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateDiaryEntryMutationOptions(options));
-    }
-
-export const getUpdateDiaryEntryUrl = (entryId: string,) => {
-
-
-
-
-  return `/api/v1/diary/${entryId}`
-}
-
-/**
- * @summary Edit a diary entry
- */
-export const updateDiaryEntry = async (entryId: string,
-    diaryEntryPatch: DiaryEntryPatch, options?: Parameters<typeof customFetch>[1]): Promise<DiaryEntry> => {
-
-  return customFetch<DiaryEntry>(getUpdateDiaryEntryUrl(entryId),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(diaryEntryPatch)
-  }
-);}
-
-
-
-
-
-export const getUpdateDiaryEntryMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDiaryEntry>>, TError,{entryId: string;data: BodyType<DiaryEntryPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateDiaryEntry>>, TError,{entryId: string;data: BodyType<DiaryEntryPatch>}, TContext> => {
-
-const mutationKey = ['updateDiaryEntry'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDiaryEntry>>, {entryId: string;data: BodyType<DiaryEntryPatch>}> = (props) => {
-          const {entryId,data} = props ?? {};
-
-          return  updateDiaryEntry(entryId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateDiaryEntryMutationResult = NonNullable<Awaited<ReturnType<typeof updateDiaryEntry>>>
-    export type UpdateDiaryEntryMutationBody = BodyType<DiaryEntryPatch>
-    export type UpdateDiaryEntryMutationError = ErrorType<unknown>
-
-    /**
- * @summary Edit a diary entry
- */
-export const useUpdateDiaryEntry = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDiaryEntry>>, TError,{entryId: string;data: BodyType<DiaryEntryPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateDiaryEntry>>,
-        TError,
-        {entryId: string;data: BodyType<DiaryEntryPatch>},
-        TContext
-      > => {
-      return useMutation(getUpdateDiaryEntryMutationOptions(options));
     }
 
 export const getDeleteDiaryEntryUrl = (entryId: string,) => {
@@ -656,7 +740,7 @@ export const deleteDiaryEntry = async (entryId: string, options?: Parameters<typ
 
 
 
-export const getDeleteDiaryEntryMutationOptions = <TError = ErrorType<unknown>,
+export const getDeleteDiaryEntryMutationOptions = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDiaryEntry>>, TError,{entryId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteDiaryEntry>>, TError,{entryId: string}, TContext> => {
 
@@ -685,12 +769,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteDiaryEntryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDiaryEntry>>>
 
-    export type DeleteDiaryEntryMutationError = ErrorType<unknown>
+    export type DeleteDiaryEntryMutationError = ErrorType<ApiMessage>
 
     /**
  * @summary Delete a diary entry
  */
-export const useDeleteDiaryEntry = <TError = ErrorType<unknown>,
+export const useDeleteDiaryEntry = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDiaryEntry>>, TError,{entryId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteDiaryEntry>>,
@@ -700,90 +784,6 @@ export const useDeleteDiaryEntry = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteDiaryEntryMutationOptions(options));
     }
-
-export const getSearchFoodsUrl = (params: SearchFoodsParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/v1/foods/search?${stringifiedParams}` : `/api/v1/foods/search`
-}
-
-/**
- * @summary Search verified foods and brands
- */
-export const searchFoods = async (params: SearchFoodsParams, options?: Parameters<typeof customFetch>[1]): Promise<SearchFoods200> => {
-
-  return customFetch<SearchFoods200>(getSearchFoodsUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getSearchFoodsQueryKey = (params?: SearchFoodsParams,) => {
-    return [
-    `/api/v1/foods/search`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getSearchFoodsQueryOptions = <TData = Awaited<ReturnType<typeof searchFoods>>, TError = ErrorType<unknown>>(params: SearchFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getSearchFoodsQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchFoods>>> = ({ signal }) => searchFoods(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchFoods>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type SearchFoodsQueryResult = NonNullable<Awaited<ReturnType<typeof searchFoods>>>
-export type SearchFoodsQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Search verified foods and brands
- */
-
-export function useSearchFoods<TData = Awaited<ReturnType<typeof searchFoods>>, TError = ErrorType<unknown>>(
- params: SearchFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getSearchFoodsQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getSyncOutboxUrl = () => {
 
@@ -811,7 +811,7 @@ export const syncOutbox = async (syncRequest: SyncRequest, options?: Parameters<
 
 
 
-export const getSyncOutboxMutationOptions = <TError = ErrorType<unknown>,
+export const getSyncOutboxMutationOptions = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOutbox>>, TError,{data: BodyType<SyncRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof syncOutbox>>, TError,{data: BodyType<SyncRequest>}, TContext> => {
 
@@ -840,12 +840,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SyncOutboxMutationResult = NonNullable<Awaited<ReturnType<typeof syncOutbox>>>
     export type SyncOutboxMutationBody = BodyType<SyncRequest>
-    export type SyncOutboxMutationError = ErrorType<unknown>
+    export type SyncOutboxMutationError = ErrorType<ApiMessage>
 
     /**
  * @summary Apply offline mutations and return merged records
  */
-export const useSyncOutbox = <TError = ErrorType<unknown>,
+export const useSyncOutbox = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncOutbox>>, TError,{data: BodyType<SyncRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof syncOutbox>>,
@@ -896,7 +896,7 @@ export const getListRecipesQueryKey = (params?: ListRecipesParams,) => {
     }
 
 
-export const getListRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<unknown>>(params?: ListRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<ApiMessage>>(params?: ListRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -915,14 +915,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListRecipesQueryResult = NonNullable<Awaited<ReturnType<typeof listRecipes>>>
-export type ListRecipesQueryError = ErrorType<unknown>
+export type ListRecipesQueryError = ErrorType<ApiMessage>
 
 
 /**
  * @summary Browse open-source recipes
  */
 
-export function useListRecipes<TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<unknown>>(
+export function useListRecipes<TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<ApiMessage>>(
  params?: ListRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -966,7 +966,7 @@ export const generateRecipeConcepts = async (recipeConceptInput: RecipeConceptIn
 
 
 
-export const getGenerateRecipeConceptsMutationOptions = <TError = ErrorType<void>,
+export const getGenerateRecipeConceptsMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext> => {
 
@@ -995,12 +995,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GenerateRecipeConceptsMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipeConcepts>>>
     export type GenerateRecipeConceptsMutationBody = BodyType<RecipeConceptInput>
-    export type GenerateRecipeConceptsMutationError = ErrorType<void>
+    export type GenerateRecipeConceptsMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Generate bounded recipe concepts for an authenticated user
  */
-export const useGenerateRecipeConcepts = <TError = ErrorType<void>,
+export const useGenerateRecipeConcepts = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateRecipeConcepts>>,
@@ -1037,7 +1037,7 @@ export const generateGuestRecipeConcepts = async (recipeConceptInput: RecipeConc
 
 
 
-export const getGenerateGuestRecipeConceptsMutationOptions = <TError = ErrorType<void>,
+export const getGenerateGuestRecipeConceptsMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext> => {
 
@@ -1066,12 +1066,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GenerateGuestRecipeConceptsMutationResult = NonNullable<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>>
     export type GenerateGuestRecipeConceptsMutationBody = BodyType<RecipeConceptInput>
-    export type GenerateGuestRecipeConceptsMutationError = ErrorType<void>
+    export type GenerateGuestRecipeConceptsMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Generate bounded recipe concepts without an account
  */
-export const useGenerateGuestRecipeConcepts = <TError = ErrorType<void>,
+export const useGenerateGuestRecipeConcepts = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateGuestRecipeConcepts>>, TError,{data: BodyType<RecipeConceptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateGuestRecipeConcepts>>,
@@ -1108,7 +1108,7 @@ export const generateRecipe = async (generatedRecipeInput: GeneratedRecipeInput,
 
 
 
-export const getGenerateRecipeMutationOptions = <TError = ErrorType<void>,
+export const getGenerateRecipeMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext> => {
 
@@ -1137,12 +1137,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GenerateRecipeMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipe>>>
     export type GenerateRecipeMutationBody = BodyType<GeneratedRecipeInput>
-    export type GenerateRecipeMutationError = ErrorType<void>
+    export type GenerateRecipeMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Expand an authenticated recipe concept into a complete estimated recipe
  */
-export const useGenerateRecipe = <TError = ErrorType<void>,
+export const useGenerateRecipe = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipe>>, TError,{data: BodyType<GeneratedRecipeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateRecipe>>,
@@ -1251,7 +1251,7 @@ export const generateRecipePhoto = async (recipePhotoGenerateInput: RecipePhotoG
 
 
 
-export const getGenerateRecipePhotoMutationOptions = <TError = ErrorType<void | RecipeMediaError>,
+export const getGenerateRecipePhotoMutationOptions = <TError = ErrorType<void | RecipeMediaError | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext> => {
 
@@ -1280,12 +1280,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GenerateRecipePhotoMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipePhoto>>>
     export type GenerateRecipePhotoMutationBody = BodyType<RecipePhotoGenerateInput>
-    export type GenerateRecipePhotoMutationError = ErrorType<void | RecipeMediaError>
+    export type GenerateRecipePhotoMutationError = ErrorType<void | RecipeMediaError | ApiMessage>
 
     /**
  * @summary Idempotently create or recover generated media for one recipe-content version
  */
-export const useGenerateRecipePhoto = <TError = ErrorType<void | RecipeMediaError>,
+export const useGenerateRecipePhoto = <TError = ErrorType<void | RecipeMediaError | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateRecipePhoto>>,
@@ -1322,7 +1322,7 @@ export const refreshRecipePhotoUrl = async (recipePhotoUrlInput: RecipePhotoUrlI
 
 
 
-export const getRefreshRecipePhotoUrlMutationOptions = <TError = ErrorType<void>,
+export const getRefreshRecipePhotoUrlMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext> => {
 
@@ -1351,12 +1351,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RefreshRecipePhotoUrlMutationResult = NonNullable<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>>
     export type RefreshRecipePhotoUrlMutationBody = BodyType<RecipePhotoUrlInput>
-    export type RefreshRecipePhotoUrlMutationError = ErrorType<void>
+    export type RefreshRecipePhotoUrlMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Refresh a signed locator after owner and persisted-media validation
  */
-export const useRefreshRecipePhotoUrl = <TError = ErrorType<void>,
+export const useRefreshRecipePhotoUrl = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof refreshRecipePhotoUrl>>,
@@ -1400,7 +1400,7 @@ export const getListRecipeMediaQueryKey = () => {
     }
 
 
-export const getListRecipeMediaQueryOptions = <TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRecipeMediaQueryOptions = <TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1419,14 +1419,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListRecipeMediaQueryResult = NonNullable<Awaited<ReturnType<typeof listRecipeMedia>>>
-export type ListRecipeMediaQueryError = ErrorType<void>
+export type ListRecipeMediaQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Recover the current account's active generated recipe media
  */
 
-export function useListRecipeMedia<TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void>>(
+export function useListRecipeMedia<TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -1624,7 +1624,7 @@ export const retryRecipeMedia = async (mediaId: string, options?: Parameters<typ
 
 
 
-export const getRetryRecipeMediaMutationOptions = <TError = ErrorType<void | RecipeMediaError>,
+export const getRetryRecipeMediaMutationOptions = <TError = ErrorType<ApiMessage | void | RecipeMediaError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext> => {
 
@@ -1653,12 +1653,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RetryRecipeMediaMutationResult = NonNullable<Awaited<ReturnType<typeof retryRecipeMedia>>>
 
-    export type RetryRecipeMediaMutationError = ErrorType<void | RecipeMediaError>
+    export type RetryRecipeMediaMutationError = ErrorType<ApiMessage | void | RecipeMediaError>
 
     /**
  * @summary Retry generation for an owner-scoped retryable media record
  */
-export const useRetryRecipeMedia = <TError = ErrorType<void | RecipeMediaError>,
+export const useRetryRecipeMedia = <TError = ErrorType<ApiMessage | void | RecipeMediaError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof retryRecipeMedia>>,
@@ -1696,7 +1696,7 @@ export const reviewRecipeMedia = async (mediaId: string,
 
 
 
-export const getReviewRecipeMediaMutationOptions = <TError = ErrorType<void>,
+export const getReviewRecipeMediaMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext> => {
 
@@ -1725,12 +1725,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ReviewRecipeMediaMutationResult = NonNullable<Awaited<ReturnType<typeof reviewRecipeMedia>>>
     export type ReviewRecipeMediaMutationBody = BodyType<RecipeMediaReviewInput>
-    export type ReviewRecipeMediaMutationError = ErrorType<void>
+    export type ReviewRecipeMediaMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Record whether generated pixels appear to match the recipe
  */
-export const useReviewRecipeMedia = <TError = ErrorType<void>,
+export const useReviewRecipeMedia = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof reviewRecipeMedia>>,
@@ -1767,7 +1767,7 @@ export const acknowledgeRecipeMediaRendered = async (mediaId: string, options?: 
 
 
 
-export const getAcknowledgeRecipeMediaRenderedMutationOptions = <TError = ErrorType<void>,
+export const getAcknowledgeRecipeMediaRenderedMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext> => {
 
@@ -1796,12 +1796,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type AcknowledgeRecipeMediaRenderedMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>>
 
-    export type AcknowledgeRecipeMediaRenderedMutationError = ErrorType<void>
+    export type AcknowledgeRecipeMediaRenderedMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Acknowledge successful native image rendering for diagnostics
  */
-export const useAcknowledgeRecipeMediaRendered = <TError = ErrorType<void>,
+export const useAcknowledgeRecipeMediaRendered = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>,
@@ -1845,7 +1845,7 @@ export const getGetRecipeQueryKey = (recipeId: string,) => {
     }
 
 
-export const getGetRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<unknown>>(recipeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<ApiMessage>>(recipeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1864,14 +1864,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetRecipeQueryResult = NonNullable<Awaited<ReturnType<typeof getRecipe>>>
-export type GetRecipeQueryError = ErrorType<unknown>
+export type GetRecipeQueryError = ErrorType<ApiMessage>
 
 
 /**
  * @summary Get an open-source recipe detail
  */
 
-export function useGetRecipe<TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<unknown>>(
+export function useGetRecipe<TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<ApiMessage>>(
  recipeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -1929,7 +1929,7 @@ export const getListPremiumRecipesQueryKey = (params?: ListPremiumRecipesParams,
     }
 
 
-export const getListPremiumRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<void | ApiMessage>>(params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListPremiumRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<ApiMessage | void>>(params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1948,14 +1948,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListPremiumRecipesQueryResult = NonNullable<Awaited<ReturnType<typeof listPremiumRecipes>>>
-export type ListPremiumRecipesQueryError = ErrorType<void | ApiMessage>
+export type ListPremiumRecipesQueryError = ErrorType<ApiMessage | void>
 
 
 /**
  * @summary Browse a configured Plus recipe provider
  */
 
-export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<void | ApiMessage>>(
+export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<ApiMessage | void>>(
  params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2090,7 +2090,7 @@ export const getListRestaurantFoodsQueryKey = (params?: ListRestaurantFoodsParam
     }
 
 
-export const getListRestaurantFoodsQueryOptions = <TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<void>>(params: ListRestaurantFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRestaurantFoodsQueryOptions = <TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<ApiMessage | void>>(params: ListRestaurantFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2109,14 +2109,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListRestaurantFoodsQueryResult = NonNullable<Awaited<ReturnType<typeof listRestaurantFoods>>>
-export type ListRestaurantFoodsQueryError = ErrorType<void>
+export type ListRestaurantFoodsQueryError = ErrorType<ApiMessage | void>
 
 
 /**
  * @summary Search branded restaurant foods from the configured nutrition provider
  */
 
-export function useListRestaurantFoods<TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<void>>(
+export function useListRestaurantFoods<TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<ApiMessage | void>>(
  params: ListRestaurantFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2167,7 +2167,7 @@ export const getGetRestaurantFoodQueryKey = (sourceId: string,) => {
     }
 
 
-export const getGetRestaurantFoodQueryOptions = <TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<void>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetRestaurantFoodQueryOptions = <TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<ApiMessage | void>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2186,14 +2186,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetRestaurantFoodQueryResult = NonNullable<Awaited<ReturnType<typeof getRestaurantFood>>>
-export type GetRestaurantFoodQueryError = ErrorType<void>
+export type GetRestaurantFoodQueryError = ErrorType<ApiMessage | void>
 
 
 /**
  * @summary Get nutrition and serving options for a branded restaurant food
  */
 
-export function useGetRestaurantFood<TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<void>>(
+export function useGetRestaurantFood<TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<ApiMessage | void>>(
  sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2315,7 +2315,7 @@ export const approveCapture = async (sessionId: string, options?: Parameters<typ
 
 
 
-export const getApproveCaptureMutationOptions = <TError = ErrorType<void>,
+export const getApproveCaptureMutationOptions = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext> => {
 
@@ -2344,12 +2344,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ApproveCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof approveCapture>>>
 
-    export type ApproveCaptureMutationError = ErrorType<void>
+    export type ApproveCaptureMutationError = ErrorType<ApiMessage | void>
 
     /**
  * @summary Confirm a reviewed image or barcode capture
  */
-export const useApproveCapture = <TError = ErrorType<void>,
+export const useApproveCapture = <TError = ErrorType<ApiMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof approveCapture>>,
@@ -2389,7 +2389,7 @@ export const generatePlanner = async (plannerGenerateInput: PlannerGenerateInput
 
 
 
-export const getGeneratePlannerMutationOptions = <TError = ErrorType<void>,
+export const getGeneratePlannerMutationOptions = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext> => {
 
@@ -2418,12 +2418,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GeneratePlannerMutationResult = NonNullable<Awaited<ReturnType<typeof generatePlanner>>>
     export type GeneratePlannerMutationBody = BodyType<PlannerGenerateInput>
-    export type GeneratePlannerMutationError = ErrorType<void>
+    export type GeneratePlannerMutationError = ErrorType<ApiMessage>
 
     /**
  * @summary Generate a personalized weekly meal plan
  */
-export const useGeneratePlanner = <TError = ErrorType<void>,
+export const useGeneratePlanner = <TError = ErrorType<ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generatePlanner>>,
@@ -2464,7 +2464,7 @@ export const respondCoachFactContext = async (coachFactContextRequest: CoachFact
 
 
 
-export const getRespondCoachFactContextMutationOptions = <TError = ErrorType<void>,
+export const getRespondCoachFactContextMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext> => {
 
@@ -2493,12 +2493,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RespondCoachFactContextMutationResult = NonNullable<Awaited<ReturnType<typeof respondCoachFactContext>>>
     export type RespondCoachFactContextMutationBody = BodyType<CoachFactContextRequest>
-    export type RespondCoachFactContextMutationError = ErrorType<void>
+    export type RespondCoachFactContextMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Consented, bounded Coach Fact Context response path
  */
-export const useRespondCoachFactContext = <TError = ErrorType<void>,
+export const useRespondCoachFactContext = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof respondCoachFactContext>>,
@@ -2507,6 +2507,78 @@ export const useRespondCoachFactContext = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRespondCoachFactContextMutationOptions(options));
+    }
+
+export const getLegacyCoachCompatibilityUrl = () => {
+
+
+
+
+  return `/api/v1/coach/respond`
+}
+
+/**
+ * The legacy broad-context Coach endpoint is intentionally terminal and no longer invokes a provider.
+ * @summary Retained legacy Coach compatibility endpoint
+ */
+export const legacyCoachCompatibility = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getLegacyCoachCompatibilityUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLegacyCoachCompatibilityMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof legacyCoachCompatibility>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof legacyCoachCompatibility>>, TError,void, TContext> => {
+
+const mutationKey = ['legacyCoachCompatibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof legacyCoachCompatibility>>, void> = () => {
+
+
+          return  legacyCoachCompatibility(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LegacyCoachCompatibilityMutationResult = NonNullable<Awaited<ReturnType<typeof legacyCoachCompatibility>>>
+
+    export type LegacyCoachCompatibilityMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Retained legacy Coach compatibility endpoint
+ */
+export const useLegacyCoachCompatibility = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof legacyCoachCompatibility>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof legacyCoachCompatibility>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLegacyCoachCompatibilityMutationOptions(options));
     }
 
 export const getGetCoachFactContextConsentUrl = () => {
@@ -2542,7 +2614,7 @@ export const getGetCoachFactContextConsentQueryKey = () => {
     }
 
 
-export const getGetCoachFactContextConsentQueryOptions = <TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCoachFactContextConsentQueryOptions = <TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2561,14 +2633,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetCoachFactContextConsentQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachFactContextConsent>>>
-export type GetCoachFactContextConsentQueryError = ErrorType<void>
+export type GetCoachFactContextConsentQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Read current server-authoritative Fact Context consent status
  */
 
-export function useGetCoachFactContextConsent<TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void>>(
+export function useGetCoachFactContextConsent<TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2612,7 +2684,7 @@ export const acceptCoachFactContextConsent = async (coachFactConsentAccept: Coac
 
 
 
-export const getAcceptCoachFactContextConsentMutationOptions = <TError = ErrorType<void>,
+export const getAcceptCoachFactContextConsentMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext> => {
 
@@ -2641,12 +2713,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type AcceptCoachFactContextConsentMutationResult = NonNullable<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>>
     export type AcceptCoachFactContextConsentMutationBody = BodyType<CoachFactConsentAccept>
-    export type AcceptCoachFactContextConsentMutationError = ErrorType<void>
+    export type AcceptCoachFactContextConsentMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Accept the current Fact Context disclosure version
  */
-export const useAcceptCoachFactContextConsent = <TError = ErrorType<void>,
+export const useAcceptCoachFactContextConsent = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof acceptCoachFactContextConsent>>,
@@ -2683,7 +2755,7 @@ export const revokeCoachFactContextConsent = async ( options?: Parameters<typeof
 
 
 
-export const getRevokeCoachFactContextConsentMutationOptions = <TError = ErrorType<void>,
+export const getRevokeCoachFactContextConsentMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext> => {
 
@@ -2712,12 +2784,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RevokeCoachFactContextConsentMutationResult = NonNullable<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>>
 
-    export type RevokeCoachFactContextConsentMutationError = ErrorType<void>
+    export type RevokeCoachFactContextConsentMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Revoke Fact Context consent for future requests
  */
-export const useRevokeCoachFactContextConsent = <TError = ErrorType<void>,
+export const useRevokeCoachFactContextConsent = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof revokeCoachFactContextConsent>>,
@@ -2837,7 +2909,7 @@ export const getGetCoachV2ConversationQueryKey = () => {
     }
 
 
-export const getGetCoachV2ConversationQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCoachV2ConversationQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2856,14 +2928,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetCoachV2ConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachV2Conversation>>>
-export type GetCoachV2ConversationQueryError = ErrorType<void>
+export type GetCoachV2ConversationQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Read the signed-in account's current Coach conversation
  */
 
-export function useGetCoachV2Conversation<TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void>>(
+export function useGetCoachV2Conversation<TData = Awaited<ReturnType<typeof getCoachV2Conversation>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Conversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2907,7 +2979,7 @@ export const clearCoachV2Conversation = async ( options?: Parameters<typeof cust
 
 
 
-export const getClearCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+export const getClearCoachV2ConversationMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext> => {
 
@@ -2936,12 +3008,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ClearCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof clearCoachV2Conversation>>>
 
-    export type ClearCoachV2ConversationMutationError = ErrorType<void>
+    export type ClearCoachV2ConversationMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Delete the signed-in account's Coach conversation history
  */
-export const useClearCoachV2Conversation = <TError = ErrorType<void>,
+export const useClearCoachV2Conversation = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof clearCoachV2Conversation>>,
@@ -2985,7 +3057,7 @@ export const getListCoachV2ConversationsQueryKey = () => {
     }
 
 
-export const getListCoachV2ConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListCoachV2ConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -3004,14 +3076,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListCoachV2ConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listCoachV2Conversations>>>
-export type ListCoachV2ConversationsQueryError = ErrorType<void>
+export type ListCoachV2ConversationsQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary List the signed-in account's current and saved Coach chats
  */
 
-export function useListCoachV2Conversations<TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void>>(
+export function useListCoachV2Conversations<TData = Awaited<ReturnType<typeof listCoachV2Conversations>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoachV2Conversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -3056,7 +3128,7 @@ export const startNewCoachV2Conversation = async ( options?: Parameters<typeof c
 
 
 
-export const getStartNewCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+export const getStartNewCoachV2ConversationMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext> => {
 
@@ -3085,12 +3157,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type StartNewCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof startNewCoachV2Conversation>>>
 
-    export type StartNewCoachV2ConversationMutationError = ErrorType<void>
+    export type StartNewCoachV2ConversationMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Archive the active Coach chat and start a new empty chat
  */
-export const useStartNewCoachV2Conversation = <TError = ErrorType<void>,
+export const useStartNewCoachV2Conversation = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNewCoachV2Conversation>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof startNewCoachV2Conversation>>,
@@ -3128,7 +3200,7 @@ export const deleteCoachV2Conversation = async (conversationId: string, options?
 
 
 
-export const getDeleteCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+export const getDeleteCoachV2ConversationMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext> => {
 
@@ -3157,12 +3229,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCoachV2Conversation>>>
 
-    export type DeleteCoachV2ConversationMutationError = ErrorType<void>
+    export type DeleteCoachV2ConversationMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Permanently delete one completed saved Coach chat
  */
-export const useDeleteCoachV2Conversation = <TError = ErrorType<void>,
+export const useDeleteCoachV2Conversation = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteCoachV2Conversation>>,
@@ -3199,7 +3271,7 @@ export const reportCoachV2Content = async (coachV2ReportInput: CoachV2ReportInpu
 
 
 
-export const getReportCoachV2ContentMutationOptions = <TError = ErrorType<void>,
+export const getReportCoachV2ContentMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext> => {
 
@@ -3228,12 +3300,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ReportCoachV2ContentMutationResult = NonNullable<Awaited<ReturnType<typeof reportCoachV2Content>>>
     export type ReportCoachV2ContentMutationBody = BodyType<CoachV2ReportInput>
-    export type ReportCoachV2ContentMutationError = ErrorType<void>
+    export type ReportCoachV2ContentMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Report a Coach response without storing its content
  */
-export const useReportCoachV2Content = <TError = ErrorType<void>,
+export const useReportCoachV2Content = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportCoachV2Content>>, TError,{data: BodyType<CoachV2ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof reportCoachV2Content>>,
@@ -3270,7 +3342,7 @@ export const openCoachV2Conversation = async (conversationId: string, options?: 
 
 
 
-export const getOpenCoachV2ConversationMutationOptions = <TError = ErrorType<void>,
+export const getOpenCoachV2ConversationMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext> => {
 
@@ -3299,12 +3371,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type OpenCoachV2ConversationMutationResult = NonNullable<Awaited<ReturnType<typeof openCoachV2Conversation>>>
 
-    export type OpenCoachV2ConversationMutationError = ErrorType<void>
+    export type OpenCoachV2ConversationMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Reopen one of the signed-in account's saved Coach chats
  */
-export const useOpenCoachV2Conversation = <TError = ErrorType<void>,
+export const useOpenCoachV2Conversation = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCoachV2Conversation>>, TError,{conversationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof openCoachV2Conversation>>,
@@ -3348,7 +3420,7 @@ export const getGetCoachV2SettingsQueryKey = () => {
     }
 
 
-export const getGetCoachV2SettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCoachV2SettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -3367,14 +3439,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetCoachV2SettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachV2Settings>>>
-export type GetCoachV2SettingsQueryError = ErrorType<void>
+export type GetCoachV2SettingsQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Read signed-in Coach personalization settings
  */
 
-export function useGetCoachV2Settings<TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void>>(
+export function useGetCoachV2Settings<TData = Awaited<ReturnType<typeof getCoachV2Settings>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachV2Settings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -3418,7 +3490,7 @@ export const updateCoachV2Settings = async (coachV2SettingsInput: CoachV2Setting
 
 
 
-export const getUpdateCoachV2SettingsMutationOptions = <TError = ErrorType<void>,
+export const getUpdateCoachV2SettingsMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext> => {
 
@@ -3447,12 +3519,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateCoachV2SettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCoachV2Settings>>>
     export type UpdateCoachV2SettingsMutationBody = BodyType<CoachV2SettingsInput>
-    export type UpdateCoachV2SettingsMutationError = ErrorType<void>
+    export type UpdateCoachV2SettingsMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Update signed-in Coach personalization settings
  */
-export const useUpdateCoachV2Settings = <TError = ErrorType<void>,
+export const useUpdateCoachV2Settings = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoachV2Settings>>, TError,{data: BodyType<CoachV2SettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateCoachV2Settings>>,
@@ -3461,6 +3533,154 @@ export const useUpdateCoachV2Settings = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateCoachV2SettingsMutationOptions(options));
+    }
+
+export const getListPrivacyRightsRequestsUrl = () => {
+
+
+
+
+  return `/api/v1/privacy/requests`
+}
+
+/**
+ * @summary List the authenticated account's privacy-rights requests
+ */
+export const listPrivacyRightsRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<PrivacyRightsRequestList> => {
+
+  return customFetch<PrivacyRightsRequestList>(getListPrivacyRightsRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPrivacyRightsRequestsQueryKey = () => {
+    return [
+    `/api/v1/privacy/requests`
+    ] as const;
+    }
+
+
+export const getListPrivacyRightsRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listPrivacyRightsRequests>>, TError = ErrorType<ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrivacyRightsRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPrivacyRightsRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPrivacyRightsRequests>>> = ({ signal }) => listPrivacyRightsRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPrivacyRightsRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPrivacyRightsRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listPrivacyRightsRequests>>>
+export type ListPrivacyRightsRequestsQueryError = ErrorType<ApiMessage>
+
+
+/**
+ * @summary List the authenticated account's privacy-rights requests
+ */
+
+export function useListPrivacyRightsRequests<TData = Awaited<ReturnType<typeof listPrivacyRightsRequests>>, TError = ErrorType<ApiMessage>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrivacyRightsRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPrivacyRightsRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePrivacyRightsRequestUrl = () => {
+
+
+
+
+  return `/api/v1/privacy/requests`
+}
+
+/**
+ * @summary Submit a privacy-rights request for the authenticated account
+ */
+export const createPrivacyRightsRequest = async (privacyRightsRequestInput: PrivacyRightsRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<PrivacyRightsRequestCreated> => {
+
+  return customFetch<PrivacyRightsRequestCreated>(getCreatePrivacyRightsRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(privacyRightsRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePrivacyRightsRequestMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPrivacyRightsRequest>>, TError,{data: BodyType<PrivacyRightsRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPrivacyRightsRequest>>, TError,{data: BodyType<PrivacyRightsRequestInput>}, TContext> => {
+
+const mutationKey = ['createPrivacyRightsRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPrivacyRightsRequest>>, {data: BodyType<PrivacyRightsRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPrivacyRightsRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePrivacyRightsRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createPrivacyRightsRequest>>>
+    export type CreatePrivacyRightsRequestMutationBody = BodyType<PrivacyRightsRequestInput>
+    export type CreatePrivacyRightsRequestMutationError = ErrorType<ApiMessage>
+
+    /**
+ * @summary Submit a privacy-rights request for the authenticated account
+ */
+export const useCreatePrivacyRightsRequest = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPrivacyRightsRequest>>, TError,{data: BodyType<PrivacyRightsRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPrivacyRightsRequest>>,
+        TError,
+        {data: BodyType<PrivacyRightsRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePrivacyRightsRequestMutationOptions(options));
     }
 
 export const getDeleteAccountUrl = () => {
@@ -3572,7 +3792,7 @@ export const getGetReferralQueryKey = () => {
     }
 
 
-export const getGetReferralQueryOptions = <TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetReferralQueryOptions = <TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void | ApiMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -3591,14 +3811,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetReferralQueryResult = NonNullable<Awaited<ReturnType<typeof getReferral>>>
-export type GetReferralQueryError = ErrorType<void>
+export type GetReferralQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Get the caller's referral code, invite link, and reward stats
  */
 
-export function useGetReferral<TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void>>(
+export function useGetReferral<TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void | ApiMessage>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -3646,7 +3866,7 @@ export const redeemReferral = async (referralRedeemInput: ReferralRedeemInput, o
 
 
 
-export const getRedeemReferralMutationOptions = <TError = ErrorType<void>,
+export const getRedeemReferralMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext> => {
 
@@ -3675,12 +3895,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RedeemReferralMutationResult = NonNullable<Awaited<ReturnType<typeof redeemReferral>>>
     export type RedeemReferralMutationBody = BodyType<ReferralRedeemInput>
-    export type RedeemReferralMutationError = ErrorType<void>
+    export type RedeemReferralMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Redeem an invite code on a new account
  */
-export const useRedeemReferral = <TError = ErrorType<void>,
+export const useRedeemReferral = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof redeemReferral>>,
@@ -3723,7 +3943,7 @@ export const syncFirstDiaryEntry = async (diaryFirstLogInput: DiaryFirstLogInput
 
 
 
-export const getSyncFirstDiaryEntryMutationOptions = <TError = ErrorType<void>,
+export const getSyncFirstDiaryEntryMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext> => {
 
@@ -3752,12 +3972,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SyncFirstDiaryEntryMutationResult = NonNullable<Awaited<ReturnType<typeof syncFirstDiaryEntry>>>
     export type SyncFirstDiaryEntryMutationBody = BodyType<DiaryFirstLogInput>
-    export type SyncFirstDiaryEntryMutationError = ErrorType<void>
+    export type SyncFirstDiaryEntryMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Persist the user's first capture-backed food log on the server
  */
-export const useSyncFirstDiaryEntry = <TError = ErrorType<void>,
+export const useSyncFirstDiaryEntry = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof syncFirstDiaryEntry>>,
@@ -3799,7 +4019,7 @@ export const activateReferral = async ( options?: Parameters<typeof customFetch>
 
 
 
-export const getActivateReferralMutationOptions = <TError = ErrorType<void>,
+export const getActivateReferralMutationOptions = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext> => {
 
@@ -3828,12 +4048,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ActivateReferralMutationResult = NonNullable<Awaited<ReturnType<typeof activateReferral>>>
 
-    export type ActivateReferralMutationError = ErrorType<void>
+    export type ActivateReferralMutationError = ErrorType<void | ApiMessage>
 
     /**
  * @summary Unlock referral rewards after a verified capture-backed meal
  */
-export const useActivateReferral = <TError = ErrorType<void>,
+export const useActivateReferral = <TError = ErrorType<void | ApiMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof activateReferral>>,
