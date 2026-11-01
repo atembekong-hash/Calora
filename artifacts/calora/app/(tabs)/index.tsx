@@ -76,12 +76,13 @@ const GAUGE_R   = 90;
 const GAUGE_STROKE = 13;
 const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
+const TODAY_WIDGET_HEIGHT_SCALE = 0.8;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_RING_SCALE = 1.2;
 // The greeting header and calorie card read as one merged surface on Home.
 // Keep their content and math unchanged while controlling only the vertical footprint.
-const MERGED_WIDGET_HEIGHT_SCALE = 0.9973152; // Current merged height reduced by 3%.
+const MERGED_WIDGET_HEIGHT_SCALE = TODAY_WIDGET_HEIGHT_SCALE;
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
   y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
@@ -561,7 +562,7 @@ function WaterCard({
 
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
-      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 221, backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 221 * TODAY_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
@@ -647,7 +648,7 @@ function stepStatusCopy(
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
-const STEPS_RING_SIZE = 142;
+const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;
 const STEPS_RING_STROKE = 10;
 const STEPS_RING_RADIUS = (STEPS_RING_SIZE - STEPS_RING_STROKE) / 2;
 const STEPS_RING_LENGTH = 2 * Math.PI * STEPS_RING_RADIUS;
@@ -1406,7 +1407,7 @@ function CalorieGauge({
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
-  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * MERGED_WIDGET_HEIGHT_SCALE;
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * TODAY_WIDGET_HEIGHT_SCALE;
   const ringW      = gaugeW * CALORIE_RING_SCALE;
   const ringH      = gaugeH * CALORIE_RING_SCALE;
   const ringLeft   = (gaugeW - ringW) / 2;
@@ -2153,6 +2154,7 @@ export default function HomeScreen() {
 }
 
 function makeStyles(f: number) {
+  const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;
   return StyleSheet.create({
    page: { flex: 1 },
    hydrationRecoveryOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, zIndex: 20 },
@@ -2179,8 +2181,8 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardCustomLink: { alignSelf: 'flex-end', minHeight: 32, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, marginBottom: 9, flexDirection: 'row', alignItems: 'center', gap: 6 },
   dashboardCustomLinkText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  dashboardFastingCard: { minHeight: 74, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dashboardFastingIcon: { height: 40, width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+   dashboardFastingCard: { minHeight: h(74), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: h(20), flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardFastingIcon: { height: h(40), width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
   dashboardFastingCopy: { fontFamily: 'Inter_500Medium', marginTop: 3, lineHeight: 15 },
   dashboardFastingAction: { fontFamily: 'Inter_700Bold' },
@@ -2190,8 +2192,8 @@ function makeStyles(f: number) {
   greeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 17 * f },
-    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: 18 * MERGED_WIDGET_HEIGHT_SCALE, paddingHorizontal: 20, marginHorizontal: -10, marginBottom: 20, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
-   todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, marginTop: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: h(18), paddingHorizontal: 20, marginHorizontal: -10, marginBottom: h(20), borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
+   todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: h(16), marginTop: h(16), marginBottom: h(20), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 * f },
@@ -2200,87 +2202,87 @@ function makeStyles(f: number) {
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
    fuelSnapshotLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, textAlign: 'center' },
-     livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 36, width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: 40 * MERGED_WIDGET_HEIGHT_SCALE },
+     livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: h(36), width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: h(40) },
    livingActionSecondary: { borderWidth: StyleSheet.hairlineWidth },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
-  livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 17, paddingHorizontal: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(17), paddingHorizontal: 20, marginBottom: h(24), shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   livingRhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   livingRhythmIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   livingRhythmTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.3 },
   livingRhythmStage: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
   livingRhythmStageText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textTransform: 'capitalize' },
-  livingRhythmSignals: { flexDirection: 'row', alignItems: 'center', marginTop: 17 },
+  livingRhythmSignals: { flexDirection: 'row', alignItems: 'center', marginTop: h(17) },
   livingRhythmSignal: { flex: 1 },
   livingRhythmValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, letterSpacing: -0.4 },
   livingRhythmUnit: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   livingRhythmLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 4 },
-  livingRhythmDivider: { width: 1, height: 28, marginHorizontal: 16 },
-  livingRhythmTracks: { flexDirection: 'row', gap: 14, marginTop: 17 },
+  livingRhythmDivider: { width: 1, height: h(28), marginHorizontal: 16 },
+  livingRhythmTracks: { flexDirection: 'row', gap: 14, marginTop: h(17) },
   livingRhythmTrackGroup: { flex: 1, gap: 6 },
   livingRhythmTrackLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, textTransform: 'uppercase', letterSpacing: 0.8 },
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
-  livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 16 },
-  stepsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
+  stepsCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: h(24), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepsIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepsCardTitleGroup: { flex: 1, minWidth: 0 },
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
-  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: h(16) },
   stepsRingCopy: { position: 'absolute', left: 22, right: 22, alignItems: 'center', justifyContent: 'center' },
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
   stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
-  stepsAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingHorizontal: 12 },
+  stepsAction: { minHeight: h(44), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(14), paddingHorizontal: 12 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-    quickLogSection: { marginBottom: 28 },
+    quickLogSection: { marginBottom: h(28) },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
-    quickAction: { flex: 1, minWidth: 0, minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
+    quickAction: { flex: 1, minWidth: 0, minHeight: h(76), alignItems: 'center', justifyContent: 'center', gap: 4 },
     quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, textAlign: 'center' },
-  recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(14), paddingHorizontal: 16, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4 },
-  recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 13 },
+  recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(13) },
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 8 },
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
   recipeWidgetNavButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
-  recipeWidgetCard: { height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
-  recipeWidgetGlyph: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', margin: 14 },
-  recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: 14 },
+  recipeWidgetCard: { height: h(146), borderRadius: 18, overflow: 'hidden', position: 'relative' },
+  recipeWidgetGlyph: { width: 48, height: h(48), borderRadius: 16, alignItems: 'center', justifyContent: 'center', margin: h(14) },
+  recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: h(14) },
   recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
   recipeWidgetTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, lineHeight: 24, letterSpacing: -0.4, maxWidth: 260 },
-  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11 },
+  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: h(11) },
   recipeWidgetMeta: { color: '#d4eadc', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  recipeWidgetLoading: { height: 146, alignItems: 'center', justifyContent: 'center', gap: 9 },
+  recipeWidgetLoading: { height: h(146), alignItems: 'center', justifyContent: 'center', gap: 9 },
   recipeWidgetRetry: { minHeight: 44, minWidth: 144, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 12 },
   recipeWidgetRetryText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   loadingText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
-  wellnessSection: { gap: 14, marginBottom: 28 },
+  wellnessSection: { gap: 14, marginBottom: h(28) },
   wellnessRow: { flexDirection: 'row', gap: 12 },
-  wellnessCard: { flex: 1, minHeight: 182, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  wellnessCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  wellnessIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  wellnessCard: { flex: 1, minHeight: h(182), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  wellnessCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(14) },
+  wellnessIcon: { width: 34, height: h(34), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 44, marginTop: 12, marginBottom: 14 },
-   waterSlot: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'flex-end' },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44), marginTop: h(12), marginBottom: h(14) },
+   waterSlot: { flex: 1, height: h(44), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
-  mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
-  wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
+  mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: h(14), minHeight: h(18) },
+  wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  waterAdjustActions: { gap: 8, marginTop: 8 },
+  waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
-  waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: 10 },
-  moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
+  moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: h(24), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(16) },
   moodOptions: { flexDirection: 'row', gap: 8 },
-  moodOption: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 2, gap: 4 },
+  moodOption: { flex: 1, minHeight: h(56), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 2, gap: 4 },
   moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
      heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, borderBottomWidth: StyleSheet.hairlineWidth },
    dateNavCenter: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 3, minWidth: 150 },
@@ -2307,9 +2309,9 @@ function makeStyles(f: number) {
    calendarTodayDot: { width: 4, height: 4, borderRadius: 2, marginTop: 3 },
    calendarTodayAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 12, marginTop: 14 },
    calendarTodayActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  sectionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  sectionHeaderAction: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  sectionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: h(18) },
+  sectionHeaderAction: { width: 38, height: h(38), borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, letterSpacing: -0.4 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
@@ -2333,19 +2335,19 @@ function makeStyles(f: number) {
   addMealButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7 },
   addMealText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   logCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  logCardHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth },
-  mealGroup: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 1.2, marginTop: 16, marginBottom: 4, textTransform: 'uppercase' },
-  mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
-  mealRowGlyph: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  logCardHeader: { minHeight: h(62), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth },
+  mealGroup: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 1.2, marginTop: h(16), marginBottom: h(4), textTransform: 'uppercase' },
+  mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: h(14), borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  mealRowGlyph: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1, minWidth: 0 },
   mealName: { fontFamily: 'Inter_600SemiBold', fontSize: 14 * f },
   mealMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   mealType: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   mealCalories: { fontFamily: 'Inter_800ExtraBold', fontSize: 16 * f },
   kcalLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginLeft: -8, marginTop: 20 },
-  emptyDiary: { alignItems: 'center', paddingVertical: 28, gap: 6 },
-   emptyDiaryGlyph: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: 4 },
+  emptyDiary: { alignItems: 'center', paddingVertical: h(28), gap: 6 },
+   emptyDiaryGlyph: { width: 48, height: h(48), borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: h(4) },
+  emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: h(4) },
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
   footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
