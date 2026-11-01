@@ -6,12 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Only diaryEntry mutations are currently accepted by the server.
+ */
 export type SyncMutationEntity = typeof SyncMutationEntity[keyof typeof SyncMutationEntity];
 
 
 export const SyncMutationEntity = {
-  profile: 'profile',
   diaryEntry: 'diaryEntry',
-  weight: 'weight',
-  savedMeal: 'savedMeal',
 } as const;

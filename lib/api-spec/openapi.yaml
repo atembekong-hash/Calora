@@ -31,6 +31,18 @@ tags:
   - name: profile
     description: Durable onboarding profile
 paths:
+  /:
+    get:
+      operationId: apiHealthAlias
+      tags: [health]
+      summary: Dependency-free API health alias
+      responses:
+        "200":
+          description: API process is serving requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
   /healthz:
     get:
       operationId: healthCheck
@@ -50,6 +62,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /version:
+    get:
+      operationId: getVersion
+      tags: [health]
+      summary: Read the compiled release attestation
+      description: Returns no-store release identity for diagnostics; source/uncompiled builds fail closed.
+      responses:
+        "200":
+          description: Compiled release attestation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseAttestation"
+        "503":
+          description: Release identity is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiMessage"
   /v1/profile:
     get:
       operationId: getProfile
@@ -67,6 +98,11 @@ paths:
           description: Missing or invalid token
         "404":
           description: No profile saved for this account
+        "500":
+          description: Profile lookup failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
     put:
       operationId: updateProfile
       tags: [profile]
@@ -89,6 +125,16 @@ paths:
           description: Invalid profile
         "401":
           description: Missing or invalid token
+        "503":
+          description: Profile unavailable while account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Profile could not be saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
     delete:
       operationId: deleteProfile
       tags: [profile]
@@ -99,6 +145,16 @@ paths:
           description: Profile deleted
         "401":
           description: Missing or invalid token
+        "503":
+          description: Profile unavailable while account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Profile could not be cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/diary:
     get:
       operationId: listDiaryEntries
@@ -123,6 +179,16 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/DiaryEntry"
+        "400":
+          description: Invalid calendar date
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Diary lookup failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
     post:
       operationId: createDiaryEntry
       tags: [diary]
@@ -141,27 +207,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DiaryEntry"
-  /v1/diary/{entryId}:
-    patch:
-      operationId: updateDiaryEntry
-      tags: [diary]
-      summary: Edit a diary entry
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: "#/components/parameters/EntryId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DiaryEntryPatch"
-      responses:
-        "200":
-          description: Updated diary entry
+        "503":
+          description: Diary unavailable while account deletion is in progress
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/DiaryEntry"
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Diary entry could not be saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+  /v1/diary/{entryId}:
     delete:
       operationId: deleteDiaryEntry
       tags: [diary]
@@ -172,47 +228,16 @@ paths:
       responses:
         "204":
           description: Entry deleted
-  /v1/foods/search:
-    get:
-      operationId: searchFoods
-      tags: [foods]
-      summary: Search verified foods and brands
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema:
-            type: string
-            minLength: 2
-        - name: barcode
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 20
-      responses:
-        "200":
-          description: Matching verified foods
+        "503":
+          description: Diary deletion unavailable while account deletion is in progress
           content:
             application/json:
-              schema:
-                type: object
-                required: [items, provenance]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/FoodItem"
-                  provenance:
-                    $ref: "#/components/schemas/Provenance"
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Diary entry could not be deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/sync:
     post:
       operationId: syncOutbox
@@ -232,6 +257,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Synchronization is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes:
     get:
       operationId: listRecipes
@@ -262,6 +297,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecipeList"
+        "400":
+          description: Invalid recipe filters
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "429":
+          description: Recipe catalogue rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Recipe provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe catalogue is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/concepts:
     post:
       operationId: generateRecipeConcepts
@@ -279,6 +337,21 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeConceptResponse" } } }
         "401": { description: Authentication is required }
         "429": { description: Recipe-generation quota exceeded }
+        "400":
+          description: Invalid recipe concept request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Recipe generation provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe generation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/guest-concepts:
     post:
       operationId: generateGuestRecipeConcepts
@@ -294,6 +367,21 @@ paths:
           description: Generated recipe concepts
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeConceptResponse" } } }
         "429": { description: Guest recipe-generation quota exceeded }
+        "400":
+          description: Invalid guest recipe concept request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Recipe generation provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe generation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/generated:
     post:
       operationId: generateRecipe
@@ -311,6 +399,21 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/GeneratedRecipeResponse" } } }
         "401": { description: Authentication is required }
         "429": { description: Recipe-generation quota exceeded }
+        "400":
+          description: Invalid generated recipe request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Recipe generation provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe generation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/nutrition-estimate:
     post:
       operationId: estimateRecipeNutrition
@@ -351,9 +454,6 @@ paths:
         "200":
           description: Existing active media for this owner, recipe, and content hash
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } }
-        "201":
-          description: Newly generated private media
-          content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } }
         "202":
           description: Concurrent generation already claimed
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } }
@@ -367,6 +467,11 @@ paths:
         "502":
           description: Retryable photo provider or private storage failure
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMediaError" } } }
+        "503":
+          description: Recipe photo generation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/photo-url:
     post:
       operationId: refreshRecipePhotoUrl
@@ -384,6 +489,11 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } }
         "401": { description: A signed-in Calora account is required }
         "404": { description: No owner-scoped media exists }
+        "400":
+          description: A valid imageId or mediaId is required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/media:
     get:
       operationId: listRecipeMedia
@@ -401,6 +511,11 @@ paths:
                 properties:
                   media: { type: array, items: { $ref: "#/components/schemas/RecipeMedia" } }
         "401": { description: A signed-in Calora account is required }
+        "503":
+          description: Recipe media is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/media/{mediaId}/review-preview:
     get:
       operationId: getRecipeMediaReviewPreview
@@ -434,6 +549,29 @@ paths:
         "200": { description: Retried media, content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } } }
         "409": { description: Media is not retryable }
         "502": { description: Retryable provider or storage failure, content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMediaError" } } } }
+        "400":
+          description: Invalid media identifier or state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "429":
+          description: Recipe photo retry quota exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe photo retry is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/media/{mediaId}/review:
     post:
       operationId: reviewRecipeMedia
@@ -447,6 +585,16 @@ paths:
       responses:
         "200": { description: Updated semantic review state, content: { application/json: { schema: { $ref: "#/components/schemas/RecipeMedia" } } } }
         "404": { description: No owner-scoped media exists }
+        "400":
+          description: Invalid media identifier or review state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/media/{mediaId}/rendered:
     post:
       operationId: acknowledgeRecipeMediaRendered
@@ -457,6 +605,16 @@ paths:
       responses:
         "204": { description: Render acknowledgement recorded }
         "404": { description: No owner-scoped URL-ready media exists }
+        "400":
+          description: Invalid media identifier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/recipes/{recipeId}:
     get:
       operationId: getRecipe
@@ -474,6 +632,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recipe"
+        "404":
+          description: Recipe not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "429":
+          description: Recipe catalogue rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Recipe provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Recipe catalogue is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/premium-recipes:
     get:
       operationId: listPremiumRecipes
@@ -508,6 +689,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiMessage" }
+        "400":
+          description: Invalid premium recipe filters
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Premium recipe provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/premium-recipes/{sourceId}:
     get:
       operationId: getPremiumRecipe
@@ -531,6 +722,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiMessage" }
+        "404":
+          description: Premium recipe not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Premium recipe provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/restaurant-foods:
     get:
       operationId: listRestaurantFoods
@@ -551,6 +752,16 @@ paths:
           description: A signed-in Calora account is required
         "429":
           description: Search quota exceeded
+        "400":
+          description: Invalid restaurant-food query
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Restaurant food search is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/restaurant-foods/{sourceId}:
     get:
       operationId: getRestaurantFood
@@ -571,6 +782,21 @@ paths:
           description: Food item not found
         "429":
           description: Detail quota exceeded
+        "400":
+          description: Invalid restaurant food identifier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Restaurant food provider failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Restaurant food provider is unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/capture/analyze:
     post:
       operationId: analyzeCapture
@@ -649,11 +875,22 @@ paths:
           description: Not signed in
         "409":
           description: Capture expired, already used, or belongs to another account
+        "400":
+          description: Invalid capture session identifier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Capture approval is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/planner/generate:
     post:
       operationId: generatePlanner
       tags: [planner]
       summary: Generate a personalized weekly meal plan
+      security: [{ bearerAuth: [] }]
       description: |
         Uses the user's goals and preferences to select a reviewable weekly
         meal plan from Calora's nutrition-labeled meal catalog. The client
@@ -666,15 +903,34 @@ paths:
               $ref: "#/components/schemas/PlannerGenerateInput"
       responses:
         "200":
-          description: Generated weekly meal plan
+          description: Generated weekly meal plan or deterministic seven-day starter fallback
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlannerGenerateResponse"
         "400":
-          description: Invalid planner input
-        "502":
-          description: Planner provider unavailable
+          description: Invalid planner input or no complete week satisfies the selected constraints
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "429":
+          description: Planner request quota exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Planner is temporarily unavailable or account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/fact-context/respond:
     post:
       operationId: respondCoachFactContext
@@ -707,6 +963,41 @@ paths:
           description: Current server-confirmed consent is required
         "502":
           description: Coach provider unavailable
+        "404":
+          description: Current consent is no longer available
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "409":
+          description: Request nonce was already used
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "429":
+          description: Coach request rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Coach Fact Context is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+  /v1/coach/respond:
+    post:
+      operationId: legacyCoachCompatibility
+      tags: [coach]
+      summary: Retained legacy Coach compatibility endpoint
+      description: The legacy broad-context Coach endpoint is intentionally terminal and no longer invokes a provider.
+      responses:
+        "404":
+          description: Legacy Coach is unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/fact-context/consent:
     get:
       operationId: getCoachFactContextConsent
@@ -721,6 +1012,11 @@ paths:
               schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
         "401":
           description: Not signed in
+        "500":
+          description: Coach consent status is unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/fact-context/consent/accept:
     post:
       operationId: acceptCoachFactContextConsent
@@ -742,6 +1038,11 @@ paths:
           description: Invalid consent request
         "401":
           description: Not signed in
+        "500":
+          description: Coach consent could not be saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/fact-context/consent/revoke:
     post:
       operationId: revokeCoachFactContextConsent
@@ -756,6 +1057,11 @@ paths:
               schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
         "401":
           description: Not signed in
+        "500":
+          description: Coach consent could not be revoked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/chat:
     post:
       operationId: sendCoachV2Message
@@ -798,6 +1104,11 @@ paths:
               schema: { $ref: "#/components/schemas/CoachV2Conversation" }
         "401":
           description: Not signed in
+        "503":
+          description: Coach conversation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
     delete:
       operationId: clearCoachV2Conversation
       tags: [coach]
@@ -808,6 +1119,16 @@ paths:
           description: Conversation history cleared
         "401":
           description: Not signed in
+        "409":
+          description: Coach is still replying
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Coach conversation could not be cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/conversations:
     get:
       operationId: listCoachV2Conversations
@@ -822,6 +1143,11 @@ paths:
               schema: { $ref: "#/components/schemas/CoachV2ConversationList" }
         "401":
           description: Not signed in
+        "503":
+          description: Coach conversations are temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/conversation/new:
     post:
       operationId: startNewCoachV2Conversation
@@ -836,6 +1162,11 @@ paths:
           description: Not signed in
         "409":
           description: Coach is still replying
+        "503":
+          description: Coach conversation could not be started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/conversation/{conversationId}:
     delete:
       operationId: deleteCoachV2Conversation
@@ -862,6 +1193,11 @@ paths:
           description: Saved chat does not exist for the signed-in account
         "409":
           description: The chat is active or has a pending assistant reply
+        "503":
+          description: Coach conversation could not be deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/report:
     post:
       operationId: reportCoachV2Content
@@ -882,6 +1218,11 @@ paths:
           description: Invalid report
         "429":
           description: Too many reports
+        "503":
+          description: Coach reporting is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/conversation/{conversationId}/open:
     post:
       operationId: openCoachV2Conversation
@@ -905,6 +1246,11 @@ paths:
           description: Not signed in
         "409":
           description: Coach is still replying or the saved chat cannot be opened
+        "503":
+          description: Coach conversation could not be opened
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/coach/v2/settings:
     get:
       operationId: getCoachV2Settings
@@ -919,6 +1265,11 @@ paths:
               schema: { $ref: "#/components/schemas/CoachV2Settings" }
         "401":
           description: Not signed in
+        "503":
+          description: Coach settings are temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
     put:
       operationId: updateCoachV2Settings
       tags: [coach]
@@ -939,6 +1290,67 @@ paths:
           description: Invalid settings input
         "401":
           description: Not signed in
+        "503":
+          description: Coach settings could not be saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+  /v1/privacy/requests:
+    get:
+      operationId: listPrivacyRightsRequests
+      tags: [privacy]
+      summary: List the authenticated account's privacy-rights requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Recent privacy-rights requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivacyRightsRequestList"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+    post:
+      operationId: createPrivacyRightsRequest
+      tags: [privacy]
+      summary: Submit a privacy-rights request for the authenticated account
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivacyRightsRequestInput"
+      responses:
+        "201":
+          description: Privacy-rights request recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivacyRightsRequestCreated"
+        "400":
+          description: Invalid request type or note
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "409":
+          description: Request unavailable during account deletion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "500":
+          description: Request could not be recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/account:
     delete:
       operationId: deleteAccount
@@ -992,6 +1404,16 @@ paths:
                 $ref: "#/components/schemas/ReferralSummary"
         "401":
           description: Missing or invalid token
+        "423":
+          description: Referral data unavailable while account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Referral data is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/referral/redeem:
     post:
       operationId: redeemReferral
@@ -1024,6 +1446,16 @@ paths:
           description: Unknown invite code
         "409":
           description: Account already redeemed an invite code
+        "423":
+          description: Referral redemption unavailable while account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Referral redemption is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/diary/first-log:
     post:
       operationId: syncFirstDiaryEntry
@@ -1054,6 +1486,16 @@ paths:
           description: Invalid entry payload
         "401":
           description: Missing or invalid token
+        "422":
+          description: Capture session or nutrition validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Diary sync is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/referral/activate:
     post:
       operationId: activateReferral
@@ -1075,6 +1517,21 @@ paths:
                 $ref: "#/components/schemas/ReferralActivateResult"
         "401":
           description: Missing or invalid token
+        "423":
+          description: Referral activation unavailable while account deletion is in progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: Referral reward provider unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Referral activation is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
 components:
   securitySchemes:
     bearerAuth:
@@ -1089,6 +1546,7 @@ components:
       schema:
         type: string
         format: date
+        description: Calendar date in YYYY-MM-DD form; impossible dates such as 2026-02-31 are rejected.
     EntryId:
       name: entryId
       in: path
@@ -1108,6 +1566,49 @@ components:
       properties:
         message:
           type: string
+    ReleaseAttestation:
+      type: object
+      required: [schemaVersion, gitCommit, sourceTree, sourceDigest, buildTimestamp, releaseId, nodeVersion, nodeMajor, supabaseSdk]
+      properties:
+        schemaVersion: { type: string, enum: [calora.release-attestation.v1] }
+        gitCommit: { type: string, minLength: 40, maxLength: 40 }
+        sourceTree: { type: string, minLength: 40, maxLength: 40 }
+        sourceDigest: { type: string, minLength: 64, maxLength: 64 }
+        buildTimestamp: { type: string, format: date-time }
+        releaseId: { type: string }
+        nodeVersion: { type: string }
+        nodeMajor: { type: integer, enum: [22] }
+        supabaseSdk: { type: string }
+    PrivacyRightsRequestInput:
+      type: object
+      required: [requestType]
+      additionalProperties: false
+      properties:
+        requestType: { type: string, enum: [access, correct, delete, portability, restrict, withdraw_consent] }
+        note: { type: string, maxLength: 1000 }
+    PrivacyRightsRequest:
+      type: object
+      required: [id, requestType, status, createdAt, updatedAt, closedAt]
+      properties:
+        id: { type: string, format: uuid }
+        requestType: { type: string, enum: [access, correct, delete, portability, restrict, withdraw_consent] }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+    PrivacyRightsRequestList:
+      type: object
+      required: [requests]
+      properties:
+        requests:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/PrivacyRightsRequest" }
+    PrivacyRightsRequestCreated:
+      type: object
+      required: [request]
+      properties:
+        request: { $ref: "#/components/schemas/PrivacyRightsRequest" }
     HealthStatus:
       type: object
       required: [status]
@@ -1123,7 +1624,7 @@ components:
         goal: { type: string, enum: [lose, maintain, gain] }
         activity: { type: string, enum: [low, moderate, high] }
         diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
-        age: { type: integer, minimum: 13, maximum: 120 }
+        age: { type: integer, minimum: 18, maximum: 120 }
         heightCm: { type: number, minimum: 80, maximum: 250 }
         weightKg: { type: number, minimum: 25, maximum: 500 }
         targetWeightKg: { type: number, minimum: 25, maximum: 500 }
@@ -1280,7 +1781,7 @@ components:
       required: [mutationId, entity, operation, clientUpdatedAt, payload]
       properties:
         mutationId: { type: string, format: uuid }
-        entity: { type: string, enum: [profile, diaryEntry, weight, savedMeal] }
+        entity: { type: string, enum: [diaryEntry], description: Only diaryEntry mutations are currently accepted by the server. }
         operation: { type: string, enum: [upsert, delete] }
         clientUpdatedAt: { type: string, format: date-time }
         payload: { type: object, additionalProperties: true }
@@ -1289,7 +1790,6 @@ components:
       required: [deviceId, mutations]
       properties:
         deviceId: { type: string, minLength: 1 }
-        cursor: { type: string, nullable: true }
         mutations:
           type: array
           maxItems: 100
@@ -1338,7 +1838,7 @@ components:
         accepted: { type: array, items: { type: string, format: uuid } }
         conflicts: { type: array, items: { $ref: "#/components/schemas/SyncConflict" } }
         records: { type: array, items: { $ref: "#/components/schemas/SyncDiaryRecord" } }
-        nextCursor: { type: string }
+        nextCursor: { type: string, description: Reserved for future server cursor pagination; currently returned as the sync continuation token. }
     RecipeConceptInput:
       type: object
       additionalProperties: false

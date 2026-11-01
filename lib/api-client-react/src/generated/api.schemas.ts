@@ -9,6 +9,92 @@ export interface ApiMessage {
   message: string;
 }
 
+export type ReleaseAttestationSchemaVersion = typeof ReleaseAttestationSchemaVersion[keyof typeof ReleaseAttestationSchemaVersion];
+
+
+export const ReleaseAttestationSchemaVersion = {
+  'calorarelease-attestationv1': 'calora.release-attestation.v1',
+} as const;
+
+export type ReleaseAttestationNodeMajor = typeof ReleaseAttestationNodeMajor[keyof typeof ReleaseAttestationNodeMajor];
+
+
+export const ReleaseAttestationNodeMajor = {
+  NUMBER_22: 22,
+} as const;
+
+export interface ReleaseAttestation {
+  schemaVersion: ReleaseAttestationSchemaVersion;
+  /**
+     * @minLength 40
+     * @maxLength 40
+     */
+  gitCommit: string;
+  /**
+     * @minLength 40
+     * @maxLength 40
+     */
+  sourceTree: string;
+  /**
+     * @minLength 64
+     * @maxLength 64
+     */
+  sourceDigest: string;
+  buildTimestamp: string;
+  releaseId: string;
+  nodeVersion: string;
+  nodeMajor: ReleaseAttestationNodeMajor;
+  supabaseSdk: string;
+}
+
+export type PrivacyRightsRequestInputRequestType = typeof PrivacyRightsRequestInputRequestType[keyof typeof PrivacyRightsRequestInputRequestType];
+
+
+export const PrivacyRightsRequestInputRequestType = {
+  access: 'access',
+  correct: 'correct',
+  delete: 'delete',
+  portability: 'portability',
+  restrict: 'restrict',
+  withdraw_consent: 'withdraw_consent',
+} as const;
+
+export interface PrivacyRightsRequestInput {
+  requestType: PrivacyRightsRequestInputRequestType;
+  /** @maxLength 1000 */
+  note?: string;
+}
+
+export type PrivacyRightsRequestRequestType = typeof PrivacyRightsRequestRequestType[keyof typeof PrivacyRightsRequestRequestType];
+
+
+export const PrivacyRightsRequestRequestType = {
+  access: 'access',
+  correct: 'correct',
+  delete: 'delete',
+  portability: 'portability',
+  restrict: 'restrict',
+  withdraw_consent: 'withdraw_consent',
+} as const;
+
+export interface PrivacyRightsRequest {
+  id: string;
+  requestType: PrivacyRightsRequestRequestType;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+export interface PrivacyRightsRequestList {
+  /** @maxItems 50 */
+  requests: PrivacyRightsRequest[];
+}
+
+export interface PrivacyRightsRequestCreated {
+  request: PrivacyRightsRequest;
+}
+
 export type HealthStatusStatus = typeof HealthStatusStatus[keyof typeof HealthStatusStatus];
 
 
@@ -82,7 +168,7 @@ export interface Profile {
   activity: ProfileActivity;
   diet: ProfileDiet;
   /**
-     * @minimum 13
+     * @minimum 18
      * @maximum 120
      */
   age: number;
@@ -422,14 +508,14 @@ export interface DiaryEntryPatch {
   clientUpdatedAt?: string;
 }
 
+/**
+ * Only diaryEntry mutations are currently accepted by the server.
+ */
 export type SyncMutationEntity = typeof SyncMutationEntity[keyof typeof SyncMutationEntity];
 
 
 export const SyncMutationEntity = {
-  profile: 'profile',
   diaryEntry: 'diaryEntry',
-  weight: 'weight',
-  savedMeal: 'savedMeal',
 } as const;
 
 export type SyncMutationOperation = typeof SyncMutationOperation[keyof typeof SyncMutationOperation];
@@ -444,6 +530,7 @@ export type SyncMutationPayload = { [key: string]: unknown };
 
 export interface SyncMutation {
   mutationId: string;
+  /** Only diaryEntry mutations are currently accepted by the server. */
   entity: SyncMutationEntity;
   operation: SyncMutationOperation;
   clientUpdatedAt: string;
@@ -453,7 +540,6 @@ export interface SyncMutation {
 export interface SyncRequest {
   /** @minLength 1 */
   deviceId: string;
-  cursor?: string | null;
   /** @maxItems 100 */
   mutations: SyncMutation[];
 }
@@ -556,6 +642,7 @@ export interface SyncResponse {
   accepted: string[];
   conflicts: SyncConflict[];
   records: SyncDiaryRecord[];
+  /** Reserved for future server cursor pagination; currently returned as the sync continuation token. */
   nextCursor: string;
 }
 
@@ -2689,30 +2776,15 @@ export interface ReferralActivateResult {
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {
+/**
+ * Calendar date in YYYY-MM-DD form; impossible dates such as 2026-02-31 are rejected.
+ */
 date: DateQueryParameter;
 };
 
 export type ListDiaryEntries200 = {
   date: string;
   entries: DiaryEntry[];
-};
-
-export type SearchFoodsParams = {
-/**
- * @minLength 2
- */
-q: string;
-barcode?: string;
-/**
- * @minimum 1
- * @maximum 50
- */
-limit?: number;
-};
-
-export type SearchFoods200 = {
-  items: FoodItem[];
-  provenance: Provenance;
 };
 
 export type ListRecipesParams = {

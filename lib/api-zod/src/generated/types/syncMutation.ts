@@ -11,6 +11,7 @@ import type { SyncMutationPayload } from './syncMutationPayload';
 
 export interface SyncMutation {
   mutationId: string;
+  /** Only diaryEntry mutations are currently accepted by the server. */
   entity: SyncMutationEntity;
   operation: SyncMutationOperation;
   clientUpdatedAt: Date;

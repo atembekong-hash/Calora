@@ -22,7 +22,7 @@ export interface Profile {
   activity: ProfileActivity;
   diet: ProfileDiet;
   /**
-     * @minimum 13
+     * @minimum 18
      * @maximum 120
      */
   age: number;
