@@ -96,6 +96,22 @@ describe('living-state-action button — static render guarantee', () => {
 });
 
 describe('Today dashboard visual-source boundary', () => {
+  it('applies one shared 20 percent vertical compression to Today widgets', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
+    expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
+    expect(source).toContain('minHeight: h(74)');
+    expect(source).toContain('height: h(146)');
+    expect(source).toContain('minHeight: 221 * TODAY_WIDGET_HEIGHT_SCALE');
+    expect(source).toContain('const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;');
+  });
+
   it('keeps the profile shortcut as an image-free semantic control', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
