@@ -216,12 +216,18 @@ async function ensureDataUser(externalId: string, email: string | null) {
 }
 
 function serialize(row: typeof diaryEntriesTable.$inferSelect) {
+  const metadata = row.syncMetadata as Record<string, unknown>;
   return {
     id: row.id,
     entryDate: row.entryDate,
     meal: row.meal,
     name: row.name,
     serving: row.serving,
+    servingQuantity: metadata.servingQuantity,
+    servingUnit: metadata.servingUnit,
+    servingWeightG: metadata.servingWeightG,
+    nutritionBasis: metadata.nutritionBasis,
+    servingMetadataSource: metadata.servingMetadataSource,
     calories: Number(row.calories),
     proteinG: Number(row.proteinG),
     carbsG: Number(row.carbsG),
@@ -301,6 +307,11 @@ router.post("/v1/diary", async (req, res) => {
       imageUrl: image.imageUrl,
       imageSource: image.imageSource,
       syncMetadata: {
+        ...(entry.servingQuantity != null ? { servingQuantity: entry.servingQuantity } : {}),
+        ...(entry.servingUnit ? { servingUnit: entry.servingUnit } : {}),
+        ...(entry.servingWeightG != null ? { servingWeightG: entry.servingWeightG } : {}),
+        ...(entry.nutritionBasis ? { nutritionBasis: entry.nutritionBasis } : {}),
+        ...(entry.servingMetadataSource ? { servingMetadataSource: entry.servingMetadataSource } : {}),
         ...(typeof entry.imageAssetKey === "string"
           ? { imageAssetKey: entry.imageAssetKey }
           : {}),

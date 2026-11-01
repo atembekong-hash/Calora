@@ -16,6 +16,7 @@ import {
 } from "../lib/image-metadata.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
+import { lookupFatSecretFoodByBarcode } from "../lib/premiumRecipes.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -358,16 +359,88 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
   }, 0);
 }
 
+export function fatSecretCandidate(food: {
+  id: string;
+  name: string;
+  brandName: string | null;
+  serving: string | null;
+  servings: Array<{
+    description: string;
+    metricServingAmount?: number | null;
+    metricServingUnit?: string | null;
+    numberOfUnits?: number | null;
+    measurementDescription?: string | null;
+    isDefault?: boolean;
+    calories: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+  }>;
+}, barcode: string): CaptureCandidate | null {
+  const complete = food.servings.filter((serving) =>
+    serving.metricServingAmount != null
+    && serving.metricServingAmount > 0
+    && (serving.metricServingUnit === "g" || serving.metricServingUnit === "ml")
+    && serving.calories !== null
+    && serving.proteinG !== null
+    && serving.carbsG !== null
+    && serving.fatG !== null,
+  );
+  const serving = complete.find((item) => item.isDefault) ?? complete[0];
+  if (!serving) return null;
+  if (serving.calories === null || serving.proteinG === null || serving.carbsG === null || serving.fatG === null) return null;
+  const metricUnit = serving.metricServingUnit!;
+  const description = serving.description.trim() || food.serving?.trim();
+  if (!description) return null;
+  const displayUnit = description.match(/^\s*\d+(?:\.\d+)?\s*([a-zA-Z]+)/)?.[1]?.toLowerCase() ?? "serving";
+  const quantity = serving.numberOfUnits && serving.numberOfUnits > 0 ? serving.numberOfUnits : 1;
+  const displayServing = metricUnit === "g" && !/\b\d+(?:\.\d+)?\s*g\b/i.test(description)
+    ? `${description} (${serving.metricServingAmount} g)`
+    : description;
+  return ensureCandidate({
+    id: `fatsecret-${barcode}`,
+    name: food.name,
+    brand: food.brandName,
+    serving: displayServing,
+    servingQuantity: quantity,
+    servingUnit: displayUnit,
+    servingWeightG: metricUnit === "g" ? serving.metricServingAmount : null,
+    nutritionBasis: "per_serving",
+    servingMetadataSource: "FatSecret exact barcode serving",
+    calories: serving.calories,
+    proteinG: serving.proteinG,
+    carbsG: serving.carbsG,
+    fatG: serving.fatG,
+    confidence: 92,
+    provenance: "Barcode verified",
+    sourceLabel: "FatSecret",
+  }, 0);
+}
+
 async function lookupBarcode(barcode: string) {
+  let openFoodFactsFallback: CaptureCandidate | null = null;
   try {
-    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
+    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,quantity,serving_size,serving_quantity,serving_quantity_unit,nutrition_data_per,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
     const returnedCode = String(data.code ?? data.product?.code ?? '').replace(/\D/g, '');
     if (data.status === 1 && data.product && barcodeMatches(barcode, returnedCode)) {
       const candidate = offCandidate(data.product, barcode);
-      if (candidate) return { candidate, provider: "Open Food Facts" };
+      if (candidate && candidate.servingMetadataSource === "Open Food Facts nutrition reference") {
+        openFoodFactsFallback = candidate;
+      } else if (candidate) {
+        return { candidate, provider: "Open Food Facts" };
+      }
     }
   } catch {
     // Continue to USDA when the public product service is unavailable.
+  }
+
+  try {
+    const food = await lookupFatSecretFoodByBarcode(barcode);
+    const candidate = food ? fatSecretCandidate(food, barcode) : null;
+    if (candidate) return { candidate, provider: "FatSecret" };
+  } catch {
+    // An unavailable or restricted secondary provider must not block the safe
+    // USDA/reference fallback and must never create a fabricated serving.
   }
 
   try {
@@ -399,7 +472,7 @@ async function lookupBarcode(barcode: string) {
     // Fall through to a clear unavailable response.
   }
 
-  return null;
+  return openFoodFactsFallback ? { candidate: openFoodFactsFallback, provider: "Open Food Facts" } : null;
 }
 
 function parseVisionResponse(content: string) {

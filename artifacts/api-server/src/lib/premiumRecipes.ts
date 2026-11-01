@@ -44,6 +44,11 @@ export type PremiumRecipe = {
 export type RestaurantFoodServing = {
   servingId: string | null;
   description: string;
+  metricServingAmount?: number | null;
+  metricServingUnit?: string | null;
+  numberOfUnits?: number | null;
+  measurementDescription?: string | null;
+  isDefault?: boolean;
   calories: number | null;
   proteinG: number | null;
   carbsG: number | null;
@@ -246,6 +251,11 @@ function fatSecretServing(input: unknown): RestaurantFoodServing | null {
   return {
     servingId: string(raw.serving_id),
     description,
+    metricServingAmount: fatSecretNumber(raw.metric_serving_amount),
+    metricServingUnit: string(raw.metric_serving_unit),
+    numberOfUnits: fatSecretNumber(raw.number_of_units),
+    measurementDescription: string(raw.measurement_description),
+    isDefault: raw.is_default === 1 || raw.is_default === "1",
     calories: fatSecretNumber(raw.calories),
     proteinG: fatSecretNumber(raw.protein),
     carbsG: fatSecretNumber(raw.carbohydrate),
@@ -285,11 +295,16 @@ export function normalizeFatSecretFood(input: unknown): RestaurantFood | null {
   const servings = rows(servingSource).map(fatSecretServing).filter((serving): serving is RestaurantFoodServing => Boolean(serving));
   const parsedDescription = string(raw.food_description);
   const descriptionServing = parsedDescription
-    ? { servingId: null, description: parsedDescription.split(" - ")[0]?.trim() || "1 serving", ...nutrientsFromDescription(parsedDescription) }
+    ? { ...nutrientsFromDescription(parsedDescription), servingId: null, description: parsedDescription.split(" - ")[0]?.trim() || "1 serving", metricServingAmount: null, metricServingUnit: null, numberOfUnits: null, measurementDescription: null, isDefault: false }
     : null;
   const primary = servings[0] ?? descriptionServing ?? {
     servingId: null,
     description: "1 serving",
+    metricServingAmount: null,
+    metricServingUnit: null,
+    numberOfUnits: null,
+    measurementDescription: null,
+    isDefault: false,
     calories: null,
     proteinG: null,
     carbsG: null,
@@ -343,6 +358,22 @@ function fatSecretError(payload: Record<string, unknown>, status: number): FatSe
   return new FatSecretProviderError(kind, code, status, providerMessage);
 }
 
+/**
+ * Performs one exact-GTIN lookup through the already configured FatSecret
+ * client or gateway. The caller decides whether the returned serving is
+ * complete enough for barcode capture; this helper never performs a name
+ * search or invents a serving.
+ */
+export async function lookupFatSecretFoodByBarcode(barcode: string): Promise<RestaurantFood | null> {
+  if (!fatSecretTransportEnabled) return null;
+  const normalized = barcode.replace(/\D/g, "");
+  const gtin13 = normalized.length === 12 ? `0${normalized}` : normalized;
+  if (gtin13.length !== 13) return null;
+  const payload = await fatSecretFetch("/food/barcode/find-by-id/v2", { barcode: gtin13, flag_default_serving: "true" });
+  const raw = payload.food && typeof payload.food === "object" ? payload.food : payload;
+  return normalizeFatSecretFood(raw);
+}
+
 async function fatSecretFetch(path: string, params: Record<string, string | number>) {
   if (configuredFatSecretGatewayUrl) return fatSecretGatewayFetch(path, params);
   const token = await fatSecretAccessToken();
@@ -382,6 +413,7 @@ function gatewayOperation(path: string, params: Record<string, string | number>)
     return { path: "/fatsecret/foods/search", body: { query: params.search_expression, limit: params.max_results, offset: Number(params.page_number) * Number(params.max_results) } };
   }
   if (path === "/food/v4") return { path: "/fatsecret/foods/detail", body: { sourceId: `fatsecret-food:${params.food_id}` } };
+  if (path === "/food/barcode/find-by-id/v2") return { path: "/fatsecret/foods/barcode", body: { barcode: params.barcode } };
   throw new FatSecretProviderError("upstream", "gateway_operation_unsupported", null);
 }
 

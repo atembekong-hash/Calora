@@ -1102,12 +1102,27 @@ function MacroGoalsModal({
   );
 }
 
+function formatDiaryServingForEdit(log: FoodLog): string {
+  const raw = log.serving?.trim() || '';
+  const hasSelectedMetadata = log.servingQuantity != null && log.servingUnit;
+  const staleReferenceLabel = /reference quantity/i.test(raw)
+    && hasSelectedMetadata
+    && (log.servingWeightG != null && log.servingWeightG !== 100 || log.servingQuantity !== 100);
+  if (!staleReferenceLabel) return raw;
+  const quantity = Number.isInteger(log.servingQuantity) ? String(log.servingQuantity) : String(log.servingQuantity);
+  const unit = log.servingUnit!.toLowerCase();
+  if ((unit === 'packet' || unit === 'sachet') && log.servingWeightG != null) {
+    return `${quantity} ${unit}${Number(log.servingWeightG) > 0 ? ` (${log.servingWeightG} g)` : ''}`;
+  }
+  return `${quantity} ${unit}`;
+}
+
 function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => void }) {
   const { colors, updateLog, removeLog } = useCalora();
   const [name, setName] = useState(log?.name ?? '');
   const [calories, setCalories] = useState(log ? `${Math.round(log.calories)}` : '');
   const [meal, setMeal] = useState<MealType>(log?.meal ?? 'Snack');
-  const [serving, setServing] = useState(log?.serving ?? '1 serving');
+  const [serving, setServing] = useState(log ? formatDiaryServingForEdit(log) : '1 serving');
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -1115,7 +1130,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
     setName(log.name);
     setCalories(`${Math.round(log.calories)}`);
     setMeal(log.meal);
-    setServing(log.serving);
+    setServing(formatDiaryServingForEdit(log));
     setError(null);
   }, [log]);
 

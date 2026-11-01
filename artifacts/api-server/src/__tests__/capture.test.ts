@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import { offCandidate } from '../routes/capture.js';
+import { fatSecretCandidate, offCandidate } from '../routes/capture.js';
 
 // ---------------------------------------------------------------------------
 // Shared in-memory state that backs the pool.query mock below.
@@ -270,7 +270,7 @@ const validJpegBase64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64')
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('POST /v1/capture/analyze', () => {
+describe('/v1/capture/analyze', () => {
   let app: ReturnType<typeof buildApp>;
   let mockFetch: ReturnType<typeof vi.fn>;
 
@@ -1484,5 +1484,55 @@ describe('barcode candidate identity', () => {
 
   it('accepts a provider product only when its returned code matches', () => {
     expect(offCandidate({ code: '1111111111111', product_name: 'Matching item' }, '1111111111111')).not.toBeNull();
+  });
+  it('selects a complete provider-designated metric serving', () => {
+    const candidate = fatSecretCandidate({
+      id: 'fatsecret-food:example',
+      name: 'Example powder',
+      brandName: 'Example',
+      serving: '1 packet',
+      servings: [{
+        description: '1 packet',
+        metricServingAmount: 9.4,
+        metricServingUnit: 'g',
+        numberOfUnits: 1,
+        measurementDescription: 'packet',
+        isDefault: true,
+        calories: 35,
+        proteinG: 0,
+        carbsG: 8,
+        fatG: 0,
+      }],
+    }, '012345678905');
+    expect(candidate).toMatchObject({
+      serving: '1 packet (9.4 g)',
+      servingQuantity: 1,
+      servingUnit: 'packet',
+      servingWeightG: 9.4,
+      nutritionBasis: 'per_serving',
+      servingMetadataSource: 'FatSecret exact barcode serving',
+      calories: 35,
+      carbsG: 8,
+    });
+  });
+  it('rejects incomplete or unitless secondary-provider servings', () => {
+    expect(fatSecretCandidate({
+      id: 'fatsecret-food:incomplete',
+      name: 'Incomplete item',
+      brandName: null,
+      serving: '1 serving',
+      servings: [{
+        description: '1 serving',
+        metricServingAmount: null,
+        metricServingUnit: null,
+        numberOfUnits: 1,
+        measurementDescription: null,
+        isDefault: true,
+        calories: 35,
+        proteinG: 0,
+        carbsG: null,
+        fatG: 0,
+      }],
+    }, '012345678905')).toBeNull();
   });
 });
