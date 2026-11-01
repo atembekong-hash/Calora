@@ -65,6 +65,7 @@ import { deriveExportHasData, makeExportHandler } from "@/lib/exportUiHandler";
 import { launchExternalUrl } from "@/lib/externalLink";
 import { SettingRowPressable } from "@/components/SettingRowPressable";
 import { AccountSection } from "@/components/auth/AccountSection";
+import { PrivacyRightsSection } from "@/components/PrivacyRightsSection";
 import { useAuth } from "@/context/AuthContext";
 import { AppHeader } from "@/components/AppChrome";
 import { SwipeableSectionPager } from "@/components/SwipeableTabList";
@@ -3684,6 +3685,7 @@ export default function ProfileScreen({
                     </Text>
                   </Pressable>
                 </View>
+                <PrivacyRightsSection fontScale={fontScale} />
                 {[
                   {
                     icon: "download" as const,
