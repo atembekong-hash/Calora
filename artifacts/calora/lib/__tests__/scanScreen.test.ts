@@ -35,12 +35,11 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('.catch(() => undefined)');
   });
 
-  it('captures and submits Auto barcode detections without requiring a second shutter tap', () => {
+  it('routes Auto barcode detections through the direct barcode lookup without a second shutter capture', () => {
     expect(source).toContain('const takePhoto = async (detectedBarcode?: string, barcodeSequence?: number) => {');
-    expect(source).toContain('void takePhoto(barcode, sequence);');
-    expect(source).toContain("...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),");
-    expect(source).toContain('}, operationId, barcodeSequence);');
-    expect(source).toContain("if (mode === 'auto') {");
+    expect(source).toContain("void submitAnalysis({ mode: mode === 'auto' ? 'barcode' : mode, barcode }, undefined, sequence);");
+    expect(source).toContain('Auto uses the same direct lookup as Barcode');
+    expect(source).not.toContain('void takePhoto(barcode, sequence);');
     expect(source).not.toContain('autoBarcodeHintRef');
   });
 
