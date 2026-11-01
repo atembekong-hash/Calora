@@ -209,5 +209,11 @@ export function createGatewayApp(config: GatewayConfig) {
     return { path: "/food/v4", params: { food_id: sourceId } };
   }));
 
+  app.post("/fatsecret/foods/barcode", (req, res) => execute(req, res, () => {
+    const barcode = requiredString((req.body as Record<string, unknown>).barcode, "barcode");
+    if (!/^\d{13}$/.test(barcode)) throw providerError("invalid_request", "barcode must be a GTIN-13 value.", 400);
+    return { path: "/food/barcode/find-by-id/v2", params: { barcode, flag_default_serving: "true" } };
+  }));
+
   return app;
 }

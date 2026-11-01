@@ -80,6 +80,21 @@ describe("FatSecret gateway", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("food_id=41963");
   });
 
+  it("forwards a validated GTIN-13 barcode lookup with the default-serving flag", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ food: { food_id: "41963" } }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await request(app())
+      .post("/fatsecret/foods/barcode")
+      .set(auth)
+      .send({ barcode: "0076314300556" });
+    expect(response.status).toBe(200);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/food/barcode/find-by-id/v2");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("barcode=0076314300556");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("flag_default_serving=true");
+  });
+
   it("forwards provider error codes with a sanitized message", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(tokenResponse())
