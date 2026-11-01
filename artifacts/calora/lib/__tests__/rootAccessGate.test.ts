@@ -104,7 +104,7 @@ describe('barcode duplicate-capture contract', () => {
 
     expect(source).toContain('if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy');
     expect(source).toContain('barcodeLockRef.current = { barcode, sequence };');
-    expect(source).toContain('setHasScanned(true);\n    void submitAnalysis({ mode, barcode }, undefined, sequence);');
+    expect(source).toContain("setHasScanned(true);\n    void submitAnalysis({ mode: mode === 'auto' ? 'barcode' : mode, barcode }, undefined, sequence);");
     expect(source).toContain("barcodeLockRef.current?.sequence !== barcodeSequence");
     expect(source).toContain("onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current || !cameraReady ? undefined : onBarcodeScanned}");
   });

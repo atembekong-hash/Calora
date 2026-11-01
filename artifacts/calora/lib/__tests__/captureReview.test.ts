@@ -673,7 +673,7 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toContain('requestPermission()');
     expect(scanSource).toContain('onBarcodeScanned={');
     expect(scanSource).toContain('barcodeLockRef.current = { barcode, sequence };');
-    expect(scanSource).toContain('void submitAnalysis({ mode, barcode }, undefined, sequence);');
+    expect(scanSource).toContain("void submitAnalysis({ mode: mode === 'auto' ? 'barcode' : mode, barcode }, undefined, sequence);");
   });
 
   it('pauses barcode scanning while the camera is recording video', () => {

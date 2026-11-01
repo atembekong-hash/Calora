@@ -574,15 +574,12 @@ export default function ScanScreen() {
     if (!barcode) return;
     const sequence = ++barcodeSequenceRef.current;
     // Camera callbacks can repeat synchronously before React commits state.
-    // Claim the sequence first. In Auto, retain a native photo so unmatched
-    // codes can fall through to the existing reviewed photo-estimate path.
+    // Claim the sequence first. Auto uses the same direct lookup as Barcode;
+    // taking a second native photo here needlessly recreates the CameraX
+    // capture session and made the physical Auto preview unstable.
     barcodeLockRef.current = { barcode, sequence };
-    if (mode === 'auto') {
-      void takePhoto(barcode, sequence);
-      return;
-    }
     setHasScanned(true);
-    void submitAnalysis({ mode, barcode }, undefined, sequence);
+    void submitAnalysis({ mode: mode === 'auto' ? 'barcode' : mode, barcode }, undefined, sequence);
   };
 
   const takePhoto = async (detectedBarcode?: string, barcodeSequence?: number) => {
