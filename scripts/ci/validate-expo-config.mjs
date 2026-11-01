@@ -24,8 +24,8 @@ if (expo?.ios?.buildNumber !== "17") {
 if (expo?.android?.package !== "com.etiendem.caloraapp") {
   failures.push("expo.android.package is incorrect");
 }
-if (expo?.android?.versionCode !== 26) {
-  failures.push("Android versionCode must be 26");
+if (expo?.android?.versionCode !== 27) {
+  failures.push("Android versionCode must be 27");
 }
 if (!expo?.android?.permissions?.includes("android.permission.HIGH_SAMPLING_RATE_SENSORS")) {
   failures.push("Android high-rate sensor permission is required for responsive live steps");
