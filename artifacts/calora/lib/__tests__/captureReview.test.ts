@@ -37,6 +37,7 @@ import {
   confidenceForComponents,
   updateDraftComponents,
   captureAnalysisToDraft,
+  updateComponentServing,
 } from '../foodMemory';
 import type {
   FoodMemoryDraft,
@@ -207,6 +208,32 @@ describe('buildAcceptResult — review approval', () => {
     expect(log.protein).toBeCloseTo(25);
     expect(log.carbs).toBeCloseTo(20);
     expect(log.fat).toBeCloseTo(8);
+  });
+
+  it('persists manually entered barcode quantity and recalculated nutrition', () => {
+    const original = makeComponent({
+      name: 'Emergen-C Tangerine',
+      serving: '100 g (reference quantity)',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightG: 100,
+      nutritionBasis: 'per_100g',
+      calories: 372,
+      carbsG: 85,
+      proteinG: 0,
+      fatG: 0,
+      provenance: 'verified_barcode',
+    });
+    const draft = makeDraft({ components: [original] });
+    const updated = updateDraftComponents(draft, [updateComponentServing(original, '9.4 g')], LATER);
+    const { log, memory } = buildAcceptResult(updated, nextId('log'), LATER);
+    expect(log.serving).toBe('9.4 g');
+    expect(log.servingQuantity).toBe(9.4);
+    expect(log.servingWeightG).toBe(9.4);
+    expect(log.calories).toBe(35);
+    expect(log.carbs).toBe(8);
+    expect(log.nutritionSnapshot).toMatchObject({ calories: 35, carbsG: 8 });
+    expect(memory.nutrition).toMatchObject({ calories: 35, carbsG: 8 });
   });
 
   it('log.memoryId links back to the draft.id', () => {
