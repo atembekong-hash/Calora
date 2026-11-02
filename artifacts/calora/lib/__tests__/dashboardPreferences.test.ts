@@ -13,7 +13,7 @@ describe("dashboard preferences", () => {
       order: ["fasting", "unknown", "water"],
       density: { water: "expanded", fasting: "not-valid" },
     });
-    expect(result.visible).toEqual(["calories", "water"]);
+    expect(result.visible).toEqual(["calories", "water", "mood", "recipes", "quickLog", "log"]);
     expect(result.order.slice(0, 2)).toEqual(["fasting", "water"]);
     expect(result.order).toHaveLength(
       DEFAULT_DASHBOARD_PREFERENCES.order.length,
@@ -41,26 +41,37 @@ describe("dashboard preferences", () => {
   it("moves widgets one position at a time without losing any widget", () => {
     const firstMove = reorderDashboardWidget(
       DEFAULT_DASHBOARD_PREFERENCES,
-      "fasting",
+      "steps",
       "up",
     );
-    expect(firstMove.order.at(-2)).toBe("fasting");
+    expect(firstMove.order.slice(0, 3)).toEqual(["calories", "steps", "fasting"]);
     const atTop = reorderDashboardWidget(
       {
         ...DEFAULT_DASHBOARD_PREFERENCES,
         order: [
-          "fasting",
+          "steps",
           ...DEFAULT_DASHBOARD_PREFERENCES.order.filter(
-            (id) => id !== "fasting",
+            (id) => id !== "steps",
           ),
         ],
       },
-      "fasting",
+      "steps",
       "up",
     );
-    expect(atTop.order[0]).toBe("fasting");
+    expect(atTop.order[0]).toBe("steps");
     expect(new Set(firstMove.order).size).toBe(
       DEFAULT_DASHBOARD_PREFERENCES.order.length,
     );
+  });
+
+  it("migrates the previous default so Water takes the Recipes position", () => {
+    const migrated = normalizeDashboardPreferences({
+      version: 2,
+      visible: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
+      order: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
+      density: {},
+    });
+    expect(migrated.version).toBe(3);
+    expect(migrated.order.slice(5, 8)).toEqual(["water", "recipes", "quickLog"]);
   });
 });

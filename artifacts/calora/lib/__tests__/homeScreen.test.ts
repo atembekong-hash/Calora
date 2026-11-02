@@ -106,7 +106,7 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
-    expect(source).toContain('height: h(180)');
+    expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
@@ -625,8 +625,8 @@ describe('Today dashboard — date context and display contracts', () => {
       'utf8',
     );
 
-    expect(source).toContain('moodOptionsCompact: { flexWrap: \'nowrap\'');
-    expect(source).toContain('moodOptionCompact: { flexBasis: \'19.5%\'');
+    expect(source).toContain('moodOptionsCompact: { flexWrap: \'wrap\'');
+    expect(source).toContain('moodOptionCompact: { flexBasis: \'31%\'');
     expect(source).toContain('MacroBalanceDonut');
     expect(source).toContain('macroLegendValue');
   });
@@ -701,8 +701,13 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(grid.indexOf('Macros Balance')).toBeLessThan(grid.indexOf('<MoodCard'));
     expect(source).toContain('function MacroBalanceDonut');
     expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
-    expect(source).toContain('height: h(180)');
-    expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: 0");
+    expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
+    expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0");
+    expect(source).toContain('dashboardFastingMiddle');
+    expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
+    expect(source.indexOf("dashboardPreferences.visible.includes('water')")
+      < source.indexOf("dashboardPreferences.visible.includes('recipes')"))
+      .toBe(true);
     const calorieStart = source.indexOf('function CalorieGauge');
     const fastingStart = source.indexOf('function DashboardFastingCard');
     expect(calorieStart).toBeGreaterThan(-1);

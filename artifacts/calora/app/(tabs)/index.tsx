@@ -98,6 +98,7 @@ const GAUGE_STROKE = 13;
 const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
 const TODAY_WIDGET_HEIGHT_SCALE = 0.8;
+const SUPPORTING_WIDGET_BASE_HEIGHT = 162;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_RING_SCALE = 1.2;
@@ -597,7 +598,7 @@ function WaterCard({
 
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
-      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 221 * TODAY_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 199 * TODAY_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
@@ -869,9 +870,6 @@ function StepsTodayCard({
       testID="dashboard-steps-card"
       style={[styles.stepsCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}
     >
-      <View style={styles.stepsCardHeader}>
-        {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: referenceColors.green }]} />}
-      </View>
       <View style={styles.stepsCardBody}>
         <StepProgressRing
           steps={steps}
@@ -929,16 +927,16 @@ function MoodCard({
     <View style={[styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
       <View style={styles.moodHeading}>
         <View style={[styles.wellnessIcon, { backgroundColor: referenceColors.orange }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} /></View>
-        <Text numberOfLines={narrowCompact ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.58} style={[styles.moodHeadingTitle, narrowCompact && { fontSize: 8.2, lineHeight: 9.5 }, { color: referenceColors.foreground }]}>How are you feeling?</Text>
-        <Feather name="chevron-right" size={16} color={referenceColors.foreground} />
+        <Text numberOfLines={narrowCompact ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.moodHeadingTitle, narrowCompact && { fontSize: 10, lineHeight: 11 }, { color: referenceColors.foreground }]}>How are you feeling?</Text>
+        <Feather name="chevron-right" size={17} color={referenceColors.foreground} />
       </View>
       <View style={[styles.moodOptions, compact && styles.moodOptionsCompact]}>
         {moodOptions.map((item) => {
           const selected = mood === item.value;
           return (
             <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, narrowCompact && { minHeight: 32, gap: 1 }, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
-              <Feather name={item.icon} size={narrowCompact ? 13 : 15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
-              <Text adjustsFontSizeToFit={!compact} numberOfLines={compact ? (item.value === 'energized' || item.value === 'stressed' ? 1 : 2) : 1} minimumFontScale={0.82} style={[styles.moodOptionText, compact && { fontSize: 7.2, lineHeight: 8.5, letterSpacing: -0.3 }, compact && (item.value === 'energized' || item.value === 'stressed') && { fontSize: 6.4, letterSpacing: -0.55 }, narrowCompact && item.value !== 'energized' && item.value !== 'stressed' && { fontSize: 7.5 }, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
+              <Feather name={item.icon} size={compact ? 17 : 15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
+              <Text adjustsFontSizeToFit={!compact} numberOfLines={1} minimumFontScale={0.74} style={[styles.moodOptionText, compact && { fontSize: 7.4, lineHeight: 8.6, letterSpacing: -0.32 }, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
             </ScalePressable>
           );
         })}
@@ -1687,18 +1685,18 @@ function DashboardFastingCard({
         <View style={[styles.dashboardFastingIcon, { backgroundColor: 'rgba(36,164,104,0.12)' }]}>
           <Feather name="clock" size={20} color={referenceColors.green} />
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: referenceColors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
-          {isRunning ? (
-            <View>
-              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.elapsedMs)} elapsed</Text>
-              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.remainingMs)} remaining</Text>
-            </View>
-          ) : (
-            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
-          )}
-        </View>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: referenceColors.foreground, fontSize: 14 * fontScale, flex: 1 }]}>Fasting</Text>
         <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
+      </View>
+      <View style={styles.dashboardFastingMiddle}>
+        {isRunning ? (
+          <View>
+            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.elapsedMs)} elapsed</Text>
+            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.remainingMs)} remaining</Text>
+          </View>
+        ) : (
+          <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
+        )}
       </View>
       <View style={[styles.dashboardFastingTrack, { backgroundColor: referenceColors.track }]}>
         <View style={[styles.dashboardFastingFill, { backgroundColor: referenceColors.green, width: `${Math.round(status.progress * 100)}%` }]} />
@@ -1997,8 +1995,8 @@ export default function HomeScreen() {
               </ScalePressable>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
-            <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
-            <Text style={styles.homeHeaderSubtitle}>{livingState.message}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68} style={styles.homeHeaderSubtitle}>{livingState.message}</Text>
           </View>
         </View>
 
@@ -2071,9 +2069,9 @@ export default function HomeScreen() {
           <>
             <View testID="today-supporting-widgets-grid" style={useSingleColumnWellness ? styles.dashboardSingleColumnGrid : styles.dashboardTwoColumnGrid}>
               {dashboardPreferences.visible.includes('fasting') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
-              <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
+              {dashboardPreferences.visible.includes('steps') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
                 <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} />
-              </View>
+              </View>}
               {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
                 <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.sectionHeader}>
@@ -2083,20 +2081,16 @@ export default function HomeScreen() {
                   <MacroBalanceDonut colors={supportingWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
                 </View>
               </View>}
-              <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
+              {dashboardPreferences.visible.includes('mood') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>}
             </View>
-            <View style={styles.recipeSection}>
+            {dashboardPreferences.visible.includes('water') && <View style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>}
+            {dashboardPreferences.visible.includes('recipes') && <View style={styles.recipeSection}>
               <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} onViewAll={() => router.navigate('/(tabs)/recipes')} />
-            </View>
+            </View>}
           </>
         )}
-        <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions"><View style={styles.quickActions}><IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} /><IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} /><IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} /></View></View>
-        {dashboardPreferences.order.map((widgetId) => {
-          if (!dashboardPreferences.visible.includes(widgetId) || widgetId !== 'water') return null;
-          return <View key={widgetId} style={dashboardPreferences.density[widgetId] === 'compact' ? styles.dashboardCompactWidget : undefined}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>;
-        })}
-
-        <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {dashboardPreferences.visible.includes('quickLog') && <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions"><View style={styles.quickActions}><IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} /><IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} /><IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} /></View></View>}
+        {dashboardPreferences.visible.includes('log') && <View style={[styles.logCard, styles.dashboardWideSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.logCardHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
             <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
@@ -2119,7 +2113,7 @@ export default function HomeScreen() {
               </View>
             );
           })}
-        </View>
+        </View>}
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-attention' ? 'Saved locally · backup needs attention' : syncState === 'needs-connection' ? 'Saved locally · sync pending' : syncState === 'local' ? 'Saved locally · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Verified core nutrition.'}</Text>
@@ -2204,8 +2198,8 @@ function makeStyles(f: number) {
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
     homeHeaderImage: { ...StyleSheet.absoluteFillObject },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
-    homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 66, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
-  homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
+  homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   homeHeaderCustomize: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
   homeHeaderThemeToggle: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
@@ -2215,21 +2209,23 @@ function makeStyles(f: number) {
   homeHeaderCoachIcon: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 0.1 },
    homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.5, textAlign: 'right', maxWidth: 146, textTransform: 'uppercase', transform: [{ translateY: -12 }] },
-    homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateY: 2 }] },
-    homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 11 }] },
+  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -18 }, { translateY: 2 }] },
+  homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -18 }, { translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
-  dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: h(180), overflow: 'hidden', marginBottom: 0, paddingVertical: h(8), paddingHorizontal: 10, borderRadius: 18 },
+  dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
+  dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
-  dashboardFastingCard: { height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(8), marginBottom: 0, gap: h(4) },
-  dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dashboardFastingCard: { height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, gap: h(3) },
+  dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   dashboardFastingIcon: { height: h(34), width: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
+  dashboardFastingMiddle: { flex: 1, justifyContent: 'center', minHeight: 0, paddingLeft: 40 },
   dashboardFastingCopy: { fontFamily: 'Inter_500Medium', marginTop: 3, lineHeight: 14 },
-  dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 'auto' },
   dashboardFastingFill: { height: 7, borderRadius: 4 },
   dashboardFastingFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' },
   dashboardFastingPlan: { fontFamily: 'Inter_600SemiBold' },
@@ -2240,17 +2236,17 @@ function makeStyles(f: number) {
   greeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 17 * f },
-    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: h(18), paddingHorizontal: 20, marginHorizontal: -10, marginBottom: h(20), borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
+    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: h(16), paddingHorizontal: 20, marginHorizontal: -10, marginBottom: h(20), borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
    todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: h(16), marginTop: h(16), marginBottom: h(20), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 * f },
     todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 10.4 * f, lineHeight: 15.2 * f, marginTop: 4 },
-     fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginTop: 25 * MERGED_WIDGET_HEIGHT_SCALE },
+     fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 13 * MERGED_WIDGET_HEIGHT_SCALE, marginTop: 22 * MERGED_WIDGET_HEIGHT_SCALE },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
    fuelSnapshotLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, textAlign: 'center' },
-     livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: h(36), width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: h(40) },
+     livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: h(36), width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: h(32) },
    livingActionSecondary: { borderWidth: StyleSheet.hairlineWidth },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(17), paddingHorizontal: 20, marginBottom: h(24), shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
@@ -2271,15 +2267,15 @@ function makeStyles(f: number) {
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
-  stepsCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(8), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(7), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepsCardTitleGroup: { flex: 1, minWidth: 0 },
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
-  stepsCardBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, minWidth: 0 },
-  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
+  stepsCardBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6, flex: 1, minWidth: 0 },
+  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingTop: h(2) },
   stepsSummaryValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19 * f, letterSpacing: -0.5 },
   stepsSummaryGoal: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   stepsSummaryLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -2288,7 +2284,7 @@ function makeStyles(f: number) {
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
   stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
-  stepsAction: { minHeight: h(44), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(6), paddingHorizontal: 8 },
+  stepsAction: { minHeight: h(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(4), paddingHorizontal: 8 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
@@ -2340,13 +2336,13 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodCard: { flex: 1, height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(8) },
-  moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f, letterSpacing: -0.25 },
+  moodCard: { flex: 1, height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(5) },
+  moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 11 * f, letterSpacing: -0.25, transform: [{ translateX: 3 }] },
   moodOptions: { flexDirection: 'row', gap: 4 },
-  moodOptionsCompact: { flexWrap: 'nowrap', columnGap: 1 },
+  moodOptionsCompact: { flexWrap: 'wrap', columnGap: 3, rowGap: 3, justifyContent: 'center', alignContent: 'center', flex: 1 },
   moodOption: { flex: 1, minWidth: 0, minHeight: h(42), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 1, gap: 3 },
-  moodOptionCompact: { flexBasis: '19.5%', maxWidth: '19.5%', flexGrow: 0 },
+  moodOptionCompact: { flexBasis: '31%', maxWidth: '31%', minHeight: h(38), flexGrow: 0 },
   moodOptionText: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 8.5 * f, letterSpacing: -0.1 },
   moodOptionTextCompact: { fontSize: 5.8 * f, letterSpacing: -0.45 },
      heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -2383,11 +2379,11 @@ function makeStyles(f: number) {
   macroDonutCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   macroDonutCenterTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f },
   macroDonutCenterSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 7 * f, marginTop: 1 },
-  macroLegend: { flex: 1, minWidth: 0, gap: 6 },
+  macroLegend: { flex: 1, minWidth: 0, gap: 4 },
   macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 2 },
   macroLegendDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
-  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 7.5 * f, width: 29 },
-  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 6.5 * f, flexShrink: 1, letterSpacing: -0.25 },
+  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 8.2 * f, width: 34 },
+  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 7.2 * f, flexShrink: 1, letterSpacing: -0.25 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
   macroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
