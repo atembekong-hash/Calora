@@ -461,8 +461,8 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
             <Text style={[styles.recipeWidgetSubtitle, { color: colors.mutedForeground }]}>Simple, healthy ideas to fuel your day.</Text>
           </View>
           <ScalePressable accessibilityRole="button" accessibilityLabel="View all recipes" onPress={onViewAll} scale={0.96} haptic="none" style={styles.recipeWidgetViewAll}>
-            <Text style={[styles.recipeWidgetViewAllText, { color: colors.accent }]}>View all</Text>
-            <Feather name="chevron-right" size={16} color={colors.accent} />
+            <Text style={[styles.recipeWidgetViewAllText, { color: colors.foreground }]}>View all</Text>
+            <Feather name="chevron-right" size={16} color={colors.foreground} />
           </ScalePressable>
         <View style={styles.recipeWidgetHeaderActions}>
           {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
@@ -670,12 +670,14 @@ function StepProgressRing({
   progress,
   colors,
   accessibilitySummary,
+  compact = false,
 }: {
   steps: number | null;
   dailyStepGoal: number;
   progress: number;
   colors: ReturnType<typeof useCalora>['colors'];
   accessibilitySummary: string;
+  compact?: boolean;
 }) {
   const dashOffset = useSharedValue(STEPS_RING_LENGTH);
   const scale = useSharedValue(1);
@@ -737,11 +739,17 @@ function StepProgressRing({
         />
       </Svg>
       <View pointerEvents="none" accessible={false} style={styles.stepsRingCopy}>
-        <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.stepsRingValue, { color: colors.foreground }]}>
-          {steps === null ? '—' : formatWhole(steps)}
-        </Text>
-        <Text style={[styles.stepsRingLabel, { color: colors.mutedForeground }]}>steps</Text>
-        <Text style={[styles.stepsRingGoal, { color: colors.mutedForeground }]}>of {formatWhole(dailyStepGoal)}</Text>
+        {compact ? (
+          <Feather name="navigation" size={25} color={colors.primary} />
+        ) : (
+          <>
+            <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.stepsRingValue, { color: colors.foreground }]}>
+              {steps === null ? '—' : formatWhole(steps)}
+            </Text>
+            <Text style={[styles.stepsRingLabel, { color: colors.mutedForeground }]}>steps</Text>
+            <Text style={[styles.stepsRingGoal, { color: colors.mutedForeground }]}>of {formatWhole(dailyStepGoal)}</Text>
+          </>
+        )}
       </View>
     </Animated.View>
   );
@@ -793,7 +801,7 @@ function StepsTodayCard({
   const needsRetry = tracking.status === 'error';
   const needsDailyStepTotal = !hasDailyProviderTotal && (tracking.status !== 'live' || sessionOnly);
   const actionLabel = Platform.OS === 'web'
-    ? null
+    ? 'Connect Health'
     : needsMotionSettings
     ? 'Open motion settings'
     : needsMotionAccess
@@ -808,7 +816,7 @@ function StepsTodayCard({
           : 'Connect Health'
       : null;
   const onPress = Platform.OS === 'web'
-    ? undefined
+    ? onOpenHealth
     : needsMotionSettings
     ? onOpenMotionSettings
     : needsMotionAccess
@@ -842,13 +850,20 @@ function StepsTodayCard({
         </View>
         {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
       </View>
-      <StepProgressRing
-        steps={steps}
-        dailyStepGoal={dailyStepGoal}
-        progress={progress}
-        colors={colors}
-        accessibilitySummary={accessibilitySummary}
-      />
+      <View style={styles.stepsCardBody}>
+        <StepProgressRing
+          steps={steps}
+          dailyStepGoal={dailyStepGoal}
+          progress={progress}
+          colors={colors}
+          accessibilitySummary={accessibilitySummary}
+          compact
+        />
+        <View style={styles.stepsSummary}>
+          <Text style={[styles.stepsSummaryValue, { color: colors.foreground }]}>{steps === null ? '—' : formatWhole(steps)} <Text style={[styles.stepsSummaryGoal, { color: colors.mutedForeground }]}>/ {formatWhole(dailyStepGoal)}</Text></Text>
+          <Text style={[styles.stepsSummaryLabel, { color: colors.mutedForeground }]}>steps</Text>
+        </View>
+      </View>
       {milestone !== null && (
         <StepMilestoneCelebration
           milestone={milestone}
@@ -886,10 +901,9 @@ function MoodCard({
   return (
     <View style={[styles.moodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.moodHeading}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
-        </View>
         <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.42} style={[styles.moodHeadingTitle, { color: colors.foreground }]}>How are you feeling?</Text>
+        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
       </View>
       <View style={[styles.moodOptions, compact && styles.moodOptionsCompact]}>
         {moodOptions.map((item) => {
@@ -955,7 +969,7 @@ function MacroBalanceDonut({
           <View key={item.label} style={styles.macroLegendRow}>
             <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
             <Text style={[styles.macroLegendLabel, { color: colors.foreground }]}>{item.label}</Text>
-            <Text testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: colors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.55} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: colors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
           </View>
         ))}
       </View>
@@ -2232,6 +2246,11 @@ function makeStyles(f: number) {
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
+  stepsCardBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, minWidth: 0 },
+  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
+  stepsSummaryValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19 * f, letterSpacing: -0.5 },
+  stepsSummaryGoal: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
+  stepsSummaryLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: h(7) },
   stepsRingCopy: { position: 'absolute', left: 22, right: 22, alignItems: 'center', justifyContent: 'center' },
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
@@ -2289,13 +2308,14 @@ function makeStyles(f: number) {
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
   moodCard: { flex: 1, minHeight: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(11), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  moodHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: h(8) },
+  moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(8) },
+  moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f, letterSpacing: -0.25 },
   moodOptions: { flexDirection: 'row', gap: 4 },
-  moodOptionsCompact: { flexWrap: 'wrap', rowGap: 6, columnGap: 6 },
-  moodOption: { flex: 1, minWidth: 0, minHeight: h(42), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 1, gap: 3 },
-  moodOptionCompact: { flexBasis: '19%', maxWidth: '20%', flexGrow: 0 },
+  moodOptionsCompact: { flexWrap: 'nowrap', columnGap: 1 },
+  moodOption: { flex: 1, minWidth: 0, minHeight: h(42), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 1, gap: 3 },
+  moodOptionCompact: { flexBasis: '19.5%', maxWidth: '19.5%', flexGrow: 0 },
   moodOptionText: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 8.5 * f, letterSpacing: -0.1 },
-  moodOptionTextCompact: { fontSize: 8.5 * f, letterSpacing: -0.2 },
+  moodOptionTextCompact: { fontSize: 5.8 * f, letterSpacing: -0.45 },
      heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, borderBottomWidth: StyleSheet.hairlineWidth },
    dateNavCenter: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 3, minWidth: 150 },
    dateNavCenterLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
@@ -2325,16 +2345,16 @@ function makeStyles(f: number) {
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: h(8) },
   sectionHeaderAction: { width: 38, height: h(38), borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, letterSpacing: -0.4 },
-  macroDonutLayout: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  macroDonutWrap: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
+  macroDonutLayout: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
+  macroDonutWrap: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center' },
   macroDonutCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  macroDonutCenterTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 * f },
-  macroDonutCenterSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 9 * f, marginTop: 1 },
+  macroDonutCenterTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f },
+  macroDonutCenterSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 7 * f, marginTop: 1 },
   macroLegend: { flex: 1, minWidth: 0, gap: 8 },
-  macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 4 },
-  macroLegendDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, width: 40 },
-  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 8.5 * f, flexShrink: 1 },
+  macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 3 },
+  macroLegendDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
+  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 7.5 * f, width: 29 },
+  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 6.5 * f, flexShrink: 1, letterSpacing: -0.25 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
   macroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
