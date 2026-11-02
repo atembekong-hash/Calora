@@ -48,6 +48,26 @@ const widgetCopy: Partial<Record<
     description: "Your selected fasting rhythm and active window.",
     icon: "clock",
   },
+  mood: {
+    title: "Mood",
+    description: "Record how you are feeling today.",
+    icon: "heart",
+  },
+  recipes: {
+    title: "Recipes for You",
+    description: "Browse recipe ideas and nutrition details.",
+    icon: "book-open",
+  },
+  quickLog: {
+    title: "Quick logging",
+    description: "Photo log, food search, and restaurants.",
+    icon: "zap",
+  },
+  log: {
+    title: "Today's log",
+    description: "Review and edit meals logged today.",
+    icon: "list",
+  },
 };
 
 export default function DashboardLayoutScreen() {
@@ -66,7 +86,7 @@ export default function DashboardLayoutScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.intro}>
-          Make Today your own. Steps and Macro balance share a row, while Fasting and mood stay together below it. Your choices stay on this device.
+          Make Today your own. Every dashboard section except calorie progress can be shown, hidden, reordered, or resized here. Your choices stay on this device.
         </Text>
         {dashboardPreferences.order
           .filter(
