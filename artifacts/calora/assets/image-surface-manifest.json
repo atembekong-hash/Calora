@@ -3440,7 +3440,7 @@
     {
       "id": "today-welcome-food-photo",
       "path": "artifacts/calora/app/(tabs)/index.tsx",
-      "anchor": "require('../../assets/images/calora-home-header.jpg')",
+      "anchor": "source={headerPhoto}",
       "classification": "decorative",
       "role": "Today compact welcome banner food photography",
       "owner": "Calora product team",

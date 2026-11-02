@@ -22,7 +22,7 @@ export type DashboardPreferences = {
   density: Record<DashboardWidgetId, DashboardDensity>;
 };
 
-const DASHBOARD_PREFERENCES_VERSION = 3;
+const DASHBOARD_PREFERENCES_VERSION = 4;
 const LEGACY_DEFAULT_DASHBOARD_ORDER: readonly DashboardWidgetId[] = [
   "calories",
   "fasting",
@@ -73,7 +73,7 @@ const DEFAULT_DENSITY: Record<DashboardWidgetId, DashboardDensity> = {
 export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
   version: DASHBOARD_PREFERENCES_VERSION,
   visible: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
-  order: ["calories", "fasting", "steps", "nutrients", "mood", "water", "recipes", "quickLog", "log"],
+  order: ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "recipes"],
   density: { ...DEFAULT_DENSITY },
 };
 
@@ -114,11 +114,13 @@ export function normalizeDashboardPreferences(
   const suppliedOrder = uniqueWidgetIds(candidate.order).filter((id) =>
     ACTIVE_DASHBOARD_WIDGET_IDS.includes(id),
   );
-  const normalizedOrder = candidate.version !== DASHBOARD_PREFERENCES_VERSION
+  const normalizedOrder: DashboardWidgetId[] = candidate.version !== DASHBOARD_PREFERENCES_VERSION
     && suppliedOrder.length === LEGACY_DEFAULT_DASHBOARD_ORDER.length
     && suppliedOrder.every((id, index) => id === LEGACY_DEFAULT_DASHBOARD_ORDER[index])
-    ? ["calories", "fasting", "steps", "nutrients", "mood", "water", "recipes", "quickLog", "log"] as DashboardWidgetId[]
-    : suppliedOrder;
+    ? ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "recipes"] as DashboardWidgetId[]
+    : candidate.version !== DASHBOARD_PREFERENCES_VERSION && suppliedOrder.includes("recipes")
+      ? [...suppliedOrder.filter((id) => id !== "recipes"), "recipes"]
+      : suppliedOrder;
   const order = [
     ...normalizedOrder,
     ...ACTIVE_DASHBOARD_WIDGET_IDS.filter((id) => !normalizedOrder.includes(id)),

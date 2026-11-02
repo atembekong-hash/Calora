@@ -705,9 +705,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0");
     expect(source).toContain('dashboardFastingMiddle');
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
-    expect(source.indexOf("dashboardPreferences.visible.includes('water')")
-      < source.indexOf("dashboardPreferences.visible.includes('recipes')"))
-      .toBe(true);
+    expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
+    expect(source).toContain("if (widgetId === 'recipes')");
     const calorieStart = source.indexOf('function CalorieGauge');
     const fastingStart = source.indexOf('function DashboardFastingCard');
     expect(calorieStart).toBeGreaterThan(-1);

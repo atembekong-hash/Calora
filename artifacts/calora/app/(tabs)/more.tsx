@@ -48,7 +48,7 @@ function FastingCard() {
   const styles = makeStyles(fontScale, colors, mode);
   const subtitle = progress.active
     ? `${formatFastingDuration(progress.remainingMs)} remaining in your ${progress.plannedHours}-hour window`
-    : "Choose a flexible fasting schedule.";
+    : "Ready to start · choose your duration.";
 
   return (
       <View style={styles.fastingCard}>
@@ -172,6 +172,28 @@ function LearningCard() {
   );
 }
 
+function CaloraProCard() {
+  const { fontScale, colors, mode } = useCalora();
+  const styles = makeStyles(fontScale, colors, mode);
+  return (
+    <ScalePressable
+      accessibilityRole="button"
+      accessibilityLabel="Open Calora Pro"
+      onPress={() => router.push("/profile?tab=membership")}
+      style={styles.proCard}
+    >
+      <View style={[styles.proIcon, { backgroundColor: mode === "dark" ? "rgba(242,192,77,.16)" : colors.accent }]}>
+        <Feather name="award" size={20} color="#f2c04d" />
+      </View>
+      <View style={styles.proCopy}>
+        <Text style={styles.proTitle}>Calora Pro</Text>
+        <Text numberOfLines={1} style={styles.proSubtitle}>Unlock more guidance, planning, and insights.</Text>
+      </View>
+      <Feather name="chevron-right" size={18} color={mode === "dark" ? TEXT : colors.foreground} />
+    </ScalePressable>
+  );
+}
+
 export default function MoreScreen() {
   const { fontScale, colors, mode } = useCalora();
   const styles = makeStyles(fontScale, colors, mode);
@@ -179,7 +201,7 @@ export default function MoreScreen() {
     { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
     { label: "Reminders", icon: "bell" as const, route: "/profile?tab=you&open=reminders", tint: "#f3b33f" },
-    { label: "Calora Pro", icon: "award" as const, route: "/profile?tab=membership", tint: "#f2c04d" },
+    { label: "Customize Today", icon: "sliders" as const, route: "/dashboard-layout", tint: GREEN },
     { label: "Meal plan", icon: "calendar" as const, route: "/planner", tint: "#a78bfa" },
     { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
@@ -194,7 +216,7 @@ export default function MoreScreen() {
             <Text style={styles.headerTitle}>More</Text>
             <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push("/profile")} style={styles.gear}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open Settings" onPress={() => router.push("/settings")} style={styles.gear}>
             <Feather name="settings" size={15} color={colors.foreground} />
           </Pressable>
         </View>
@@ -207,6 +229,7 @@ export default function MoreScreen() {
         <View style={styles.quickGrid}>
           {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={26} /><Text style={styles.quickLabel}>{item.label}</Text></ScalePressable>)}
         </View>
+        <CaloraProCard />
       </ScrollView>
     </SafeAreaView>
   );
@@ -261,5 +284,10 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "33%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, paddingVertical: 6 },
     quickLabel: { color: colors.foreground, fontSize: 10.5 * scale, fontWeight: "700", textAlign: "center" },
+    proCard: { minHeight: 76, borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: dark ? "#0a352b" : colors.card, borderWidth: 1, borderColor: dark ? "rgba(140,203,177,.16)" : colors.border },
+    proIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    proCopy: { flex: 1, minWidth: 0 },
+    proTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14 * scale, fontWeight: "800" },
+    proSubtitle: { color: dark ? MUTED : colors.mutedForeground, fontSize: 10 * scale, marginTop: 3 },
   });
 }
