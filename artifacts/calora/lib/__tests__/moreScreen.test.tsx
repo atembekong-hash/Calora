@@ -139,7 +139,7 @@ describe("MoreScreen feature hierarchy", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
     expect(harness.router.push).toHaveBeenLastCalledWith("/settings");
 
-    fireEvent.click(screen.getByRole("button", { name: "Open fasting Reminders" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Reminders" }));
     expect(harness.router.push).toHaveBeenLastCalledWith("/profile?tab=you&open=reminders");
   });
 
@@ -188,8 +188,14 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('sectionTitle: { fontSize: 17 * scale');
     expect(source).toContain("Shortcuts to the things you use most");
     expect(source).toContain('sectionCaption, { color: colors.mutedForeground }');
-    const miniStatSource = source.slice(source.indexOf("function MiniStat"), source.indexOf("function ProgressCard"));
-    expect(miniStatSource).not.toContain('name="chevron-right"');
+    expect(source).not.toContain("function MiniStat");
+    expect(source).not.toContain("Current plan");
+    expect(source).not.toContain("Zero completed");
+    expect(source).not.toContain('caption="Off"');
+    expect(source).not.toContain("Set your rhythm");
+    expect(source).not.toContain("choose your duration");
+    expect(source).toContain("fastingPlanLabel(fasting)");
+    expect(source).toContain("`${progress.plannedHours}:00 fast`");
     expect(source).toContain("fontSize: 14 * scale");
     expect(source).toContain("sectionHeading: { marginTop: 14 }");
     expect(source).not.toContain("lowerPanel:");
@@ -207,6 +213,14 @@ describe("MoreScreen feature hierarchy", () => {
       screen.getByText("06:00 remaining in your 12-hour window"),
     ).toBeTruthy();
     expect(screen.queryByText("Window complete — end when ready.")).toBeNull();
+  });
+
+  it("shows the configured fasting duration before a window starts", () => {
+    render(<MoreScreen />);
+
+    expect(screen.getByText("12:00 fast")).toBeTruthy();
+    expect(screen.getByText("12:12 · ready to start")).toBeTruthy();
+    expect(screen.queryByText("Set your rhythm")).toBeNull();
   });
 
   it("keeps supporting destinations compact and does not duplicate primary routes", () => {
@@ -229,7 +243,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(screen.getByRole("button", { name: "Open Settings" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Edit quick access" })).toBeNull();
     expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
-    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(17);
+    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(14);
     expect(screen.getByRole("button", { name: "Open Calora Pro" })).toBeTruthy();
     expect(screen.queryByText("Your Calora")).toBeNull();
   });

@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ScalePressable } from "@/components/ScalePressable";
 import { useCalora } from "@/context/CaloraContext";
 import { dateKey } from "@/lib/dates";
-import { deriveFastingProgress, formatFastingDuration } from "@/lib/fasting";
+import { deriveFastingProgress, fastingPlanLabel, formatFastingDuration } from "@/lib/fasting";
 import { selectProgressWeightSummary } from "@/lib/progressWeightSummary";
 import { formatWeight } from "@/lib/weightInput";
 
@@ -48,7 +48,7 @@ function FastingCard() {
   const styles = makeStyles(fontScale, colors, mode);
   const subtitle = progress.active
     ? `${formatFastingDuration(progress.remainingMs)} remaining in your ${progress.plannedHours}-hour window`
-    : "Ready to start · choose your duration.";
+    : `${fastingPlanLabel(fasting)} · ready to start`;
 
   return (
       <View style={styles.fastingCard}>
@@ -77,7 +77,7 @@ function FastingCard() {
           </View>
           <View style={styles.fastCopy}>
             <Text style={styles.fastMain} numberOfLines={1}>
-              {progress.active ? formatFastingDuration(progress.elapsedMs) : "Set your rhythm"}
+              {progress.active ? formatFastingDuration(progress.elapsedMs) : `${progress.plannedHours}:00 fast`}
             </Text>
             <Text numberOfLines={1} style={styles.fastSubtitle}>{subtitle}</Text>
           </View>
@@ -89,38 +89,7 @@ function FastingCard() {
       <View style={styles.fastingLeaves} pointerEvents="none">
         <Feather name="feather" size={44} color="rgba(69,226,155,.16)" />
       </View>
-      <View style={styles.miniStats}>
-        <MiniStat colors={colors} icon="calendar" label={fasting.selectedPlanId ?? "12:12"} caption="Current plan" color={GREEN} route="/(tabs)/planner" />
-        <MiniStat colors={colors} icon="bar-chart-2" label="History" caption={`${fasting.history.length} completed`} color="#5dd4a5" route="/fasting" />
-        <MiniStat colors={colors} icon="bell" label="Reminders" caption="Off" color="#f3b33f" route="/profile?tab=you&open=reminders" />
-      </View>
     </View>
-  );
-}
-
-function MiniStat({
-  colors,
-  icon,
-  label,
-  caption,
-  color,
-  route,
-}: {
-  colors: ReturnType<typeof useCalora>["colors"];
-  icon: React.ComponentProps<typeof Feather>["name"];
-  label: string;
-  caption: string;
-  color: string;
-  route: string;
-}) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`Open fasting ${label}`} onPress={() => router.push(route as never)} style={[styles.miniStat, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Feather name={icon} size={18} color={color} />
-      <View style={styles.miniStatCopy}>
-        <Text numberOfLines={1} style={[styles.miniStatLabel, { color: colors.foreground }]}>{label}</Text>
-        <Text numberOfLines={1} style={[styles.miniStatCaption, { color: colors.mutedForeground }]}>{caption}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -237,10 +206,6 @@ export default function MoreScreen() {
 
 const styles = {
   iconBox: { borderRadius: 13, alignItems: "center" as const, justifyContent: "center" as const },
-  miniStat: { flex: 1, minHeight: 40, borderRadius: 12, paddingHorizontal: 6, flexDirection: "row" as const, alignItems: "center" as const, gap: 4, backgroundColor: "rgba(8, 30, 24, .64)", borderWidth: 1, borderColor: "rgba(140,203,177,.10)" },
-  miniStatCopy: { flex: 1 },
-  miniStatLabel: { color: TEXT, fontSize: 10, fontWeight: "800" as const },
-  miniStatCaption: { color: MUTED, fontSize: 8, marginTop: 1 },
 };
 
 function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"], mode: "light" | "dark") {
@@ -266,7 +231,6 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     fastSubtitle: { color: dark ? "#b8d3c8" : colors.mutedForeground, fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },
     fastAction: { height: 32, width: 32, flexShrink: 0, borderRadius: 16, backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card, borderWidth: 1, borderColor: dark ? "rgba(255,255,255,.14)" : colors.border, alignItems: "center", justifyContent: "center" },
     fastingLeaves: { position: "absolute", right: 20, top: 14, opacity: 0.4, transform: [{ rotate: "-25deg" }] },
-    miniStats: { position: "absolute", left: 8, right: 8, bottom: 8, flexDirection: "row", gap: 4 },
     featureRow: { flexDirection: "row", gap: 14 },
     featureCard: { flex: 1, height: 111.77, borderRadius: 16, overflow: "hidden", position: "relative", padding: 9, justifyContent: "flex-start" },
     progressCard: { backgroundColor: dark ? "#3b2b22" : "#f7e9df" },
