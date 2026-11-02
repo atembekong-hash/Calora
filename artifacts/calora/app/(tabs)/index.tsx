@@ -740,7 +740,7 @@ function StepProgressRing({
       </Svg>
       <View pointerEvents="none" accessible={false} style={styles.stepsRingCopy}>
         {compact ? (
-          <Feather name="navigation" size={25} color={colors.primary} />
+          <CaloraFeatureIcon name="steps" size={31} primaryColor={colors.primary} accentColor={colors.success} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
         ) : (
           <>
             <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.stepsRingValue, { color: colors.foreground }]}>
@@ -841,13 +841,6 @@ function StepsTodayCard({
       style={[styles.stepsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={styles.stepsCardHeader}>
-        <View style={[styles.stepsIcon, { backgroundColor: colors.accent }]}>
-          <Feather name="activity" size={20} color={colors.accentForeground} />
-        </View>
-        <View style={styles.stepsCardTitleGroup}>
-          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps today</Text>
-          <Text testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? colors.success : colors.mutedForeground }]}>{status}</Text>
-        </View>
         {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
       </View>
       <View style={styles.stepsCardBody}>
@@ -860,8 +853,9 @@ function StepsTodayCard({
           compact
         />
         <View style={styles.stepsSummary}>
+          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps</Text>
           <Text style={[styles.stepsSummaryValue, { color: colors.foreground }]}>{steps === null ? '—' : formatWhole(steps)} <Text style={[styles.stepsSummaryGoal, { color: colors.mutedForeground }]}>/ {formatWhole(dailyStepGoal)}</Text></Text>
-          <Text style={[styles.stepsSummaryLabel, { color: colors.mutedForeground }]}>steps</Text>
+          <Text testID="dashboard-steps-status" style={[styles.stepsSummaryLabel, { color: tracking.status === 'live' ? colors.success : colors.mutedForeground }]}>{tracking.status === 'live' ? 'Live steps' : 'Steps today'}</Text>
         </View>
       </View>
       {milestone !== null && (
@@ -879,7 +873,8 @@ function StepsTodayCard({
           onPress={onPress}
           style={[styles.stepsAction, { backgroundColor: colors.muted, borderColor: colors.border }]}
         >
-          <Text style={[styles.stepsActionText, { color: colors.primary }]}>{actionLabel}</Text>
+          <CaloraFeatureIcon name="mood" size={22} primaryColor={colors.warning} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
+          <Text style={[styles.stepsActionText, { color: colors.foreground }]}>{actionLabel}</Text>
           <Feather name="chevron-right" size={15} color={colors.primary} />
         </Pressable>
       )}
@@ -1658,13 +1653,14 @@ function DashboardFastingCard({
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
-          <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>
-            {isRunning
-              ? `${formatFastingDuration(status.elapsedMs)} elapsed · ${formatFastingDuration(status.remainingMs)} remaining`
-              : status.active
-                ? 'Window complete'
-                : 'Ready when you are'}
-          </Text>
+          {isRunning ? (
+            <View>
+              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.elapsedMs)} elapsed</Text>
+              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.remainingMs)} remaining</Text>
+            </View>
+          ) : (
+            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
+          )}
         </View>
         <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
       </View>
@@ -1689,9 +1685,10 @@ export default function HomeScreen() {
   } = useCalora();
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
-  // Two columns are the default for ordinary phones. Only very narrow
-  // layouts or substantially enlarged accessibility text fall back safely.
-  const useSingleColumnWellness = viewportWidth < 350 || fontScale > 1.22;
+  // Two columns are the default once each card can preserve readable content.
+  // Below 400px, a single column prevents Macro and Mood text from becoming
+  // truncated or microscopic while retaining the same aligned outer width.
+  const useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22;
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -2186,9 +2183,9 @@ function makeStyles(f: number) {
     homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateY: 2 }] },
     homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
-  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: h(18) },
-  dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginBottom: h(18) },
-  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '47%', width: '47%', minWidth: 0, maxWidth: '47%' },
+  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
+  dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardGridCard: { flex: 1, minHeight: h(154), marginBottom: 0, paddingVertical: h(12), paddingHorizontal: 12, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
@@ -2240,7 +2237,7 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
   stepsCard: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(14), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  stepsCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepsCardTitleGroup: { flex: 1, minWidth: 0 },
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
@@ -2263,7 +2260,7 @@ function makeStyles(f: number) {
     quickAction: { flex: 1, minWidth: 0, minHeight: h(76), alignItems: 'center', justifyContent: 'center', gap: 4 },
     quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, textAlign: 'center' },
   recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingVertical: h(13), paddingHorizontal: 14, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
-   recipeSection: { marginTop: 4 },
+   recipeSection: { marginTop: 4, marginHorizontal: -10 },
   recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(11) },
   recipeWidgetHeadingCopy: { flex: 1, minWidth: 0 },
   recipeWidgetTitleHeading: { fontFamily: 'Inter_800ExtraBold', fontSize: 17 * f, letterSpacing: -0.25 },
