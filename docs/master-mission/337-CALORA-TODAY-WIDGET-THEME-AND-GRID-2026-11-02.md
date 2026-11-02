@@ -44,3 +44,21 @@ The temporary lower-dashboard CDP helper could not be rerun after the final patc
 ## 7. Verdict
 
 **PASS for the requested source repair and responsive validation.** Ready for protected GitHub delivery and the authorized Railway rollout, subject to final PR checks and serving-commit verification.
+
+## 8. Protected delivery and Railway deployment
+
+PR #333 passed all required protected checks: portable PostgreSQL integrations, release validation, and both account-deletion fence validations. The PR was merged normally into protected main.
+
+Protected-main merge commit: `6a4c6e4344782e651ff56c7c2d7002e533240712`.
+
+Railway automatically deployed that exact protected-main commit to the established `attractive-harmony` production environment. The three successful deployment IDs are:
+
+- Calora web: `e8ce3e43-0db5-4e92-82b4-677ce3ed65bd`
+- `@workspace/calora`: `fbe52b71-acc4-4509-9479-097a440e09be`
+- `@workspace/api-server`: `247d3aae-386e-4a8f-8d8b-b96fdc085623`
+
+Final Railway status reported all three services online, with no staged/applying work and zero recent service issues. Public smoke checks returned HTTP 200 for `https://app.mycaloraapp.com/`, `https://mycaloraapp.com/health`, and `https://mycaloraapp.com/api/healthz`.
+
+## 9. Final verdict
+
+**PASS — merged and deployed.** No native, EAS, APK, AAB, iOS, or app-store build was initiated.
