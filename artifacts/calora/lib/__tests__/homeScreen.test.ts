@@ -106,8 +106,8 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
-    expect(source).toContain('minHeight: h(154)');
-    expect(source).toContain('height: h(154)');
+    expect(source).toContain('minHeight: h(210)');
+    expect(source).toContain('height: h(210)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
@@ -688,7 +688,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(widget).toContain('Recipes for you');
     expect(widget).toContain('View all recipes');
     expect(widget).toContain('name="restaurant"');
-    expect(widget).toContain('referenceColors.orange');
+    expect(widget).toContain('supportingWidgetColors(colors)');
+    expect(widget).not.toContain('REFERENCE_WIDGET_PALETTE');
   });
 
   it('keeps the approved supporting-widget order and protects the calorie component boundary', async () => {
@@ -701,6 +702,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(grid.indexOf('Macros Balance')).toBeLessThan(grid.indexOf('<MoodCard'));
     expect(source).toContain('function MacroBalanceDonut');
     expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
+    expect(source).toContain('height: h(210), minHeight: h(210)');
+    expect(source).toContain('stepsCard: { flex: 1, height: h(210), minHeight: h(210)');
     const calorieStart = source.indexOf('function CalorieGauge');
     const fastingStart = source.indexOf('function DashboardFastingCard');
     expect(calorieStart).toBeGreaterThan(-1);

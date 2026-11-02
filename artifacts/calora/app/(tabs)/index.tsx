@@ -69,40 +69,24 @@ import { normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const REFERENCE_WIDGET_PALETTE = {
-  surface: '#063d2d',
-  border: '#0d7454',
-  foreground: '#f4fff8',
-  mutedForeground: '#c4ddd2',
-  muted: '#165a45',
-  track: '#29594a',
-  green: '#16e89b',
-  orange: '#ffb86e',
-  blue: '#169fe8',
-  iconSurface: '#075840',
-  pill: '#0a654a',
-};
-
 type CaloraColors = ReturnType<typeof useCalora>['colors'];
-type ReferenceWidgetColors = CaloraColors & typeof REFERENCE_WIDGET_PALETTE;
-const referenceWidgetColors = (colors: CaloraColors): ReferenceWidgetColors => ({
+type SupportingWidgetColors = CaloraColors & {
+  surface: string;
+  track: string;
+  green: string;
+  orange: string;
+  blue: string;
+  pill: string;
+};
+const supportingWidgetColors = (colors: CaloraColors): SupportingWidgetColors => ({
   ...colors,
-  card: REFERENCE_WIDGET_PALETTE.surface,
-  hero: REFERENCE_WIDGET_PALETTE.surface,
-  border: REFERENCE_WIDGET_PALETTE.border,
-  foreground: REFERENCE_WIDGET_PALETTE.foreground,
-  mutedForeground: REFERENCE_WIDGET_PALETTE.mutedForeground,
-  muted: REFERENCE_WIDGET_PALETTE.muted,
-  primary: REFERENCE_WIDGET_PALETTE.green,
-  primaryForeground: '#04291e',
-  success: REFERENCE_WIDGET_PALETTE.green,
-  warning: REFERENCE_WIDGET_PALETTE.orange,
-  accent: REFERENCE_WIDGET_PALETTE.pill,
-  accentForeground: REFERENCE_WIDGET_PALETTE.orange,
-  protein: REFERENCE_WIDGET_PALETTE.green,
-  carbs: REFERENCE_WIDGET_PALETTE.blue,
-  fat: REFERENCE_WIDGET_PALETTE.orange,
-}) as unknown as ReferenceWidgetColors;
+  surface: colors.muted,
+  track: colors.muted,
+  green: colors.primary,
+  orange: colors.warning,
+  blue: colors.carbs,
+  pill: colors.accent,
+});
 
 // Calorie gauge geometry — computed once at module load, stable across renders
 const GAUGE_VBW = 260;
@@ -425,7 +409,7 @@ function LivingRhythmCard({
 function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void; onViewAll: () => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
-  const referenceColors = referenceWidgetColors(colors);
+  const referenceColors = supportingWidgetColors(colors);
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -817,7 +801,7 @@ function StepsTodayCard({
   milestone: number | null;
   onDismissMilestone: (milestone: number) => void;
 }) {
-  const referenceColors = referenceWidgetColors(colors);
+  const referenceColors = supportingWidgetColors(colors);
   const steps = tracking.displayedSteps;
   const progress = steps === null ? 0 : Math.min(steps / dailyStepGoal, 1);
   const sessionOnly = isLiveSessionOnly(tracking);
@@ -933,7 +917,7 @@ function MoodCard({
   mood?: Mood;
   onMood: (mood: Mood) => void;
 }) {
-  const referenceColors = referenceWidgetColors(colors);
+  const referenceColors = supportingWidgetColors(colors);
   return (
     <View style={[styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
       <View style={styles.moodHeading}>
@@ -969,7 +953,7 @@ function MacroBalanceDonut({
   fat: number;
   targets: Pick<MacroTargets, 'protein' | 'carbs' | 'fat'>;
 }) {
-  const referenceColors = referenceWidgetColors(colors);
+  const referenceColors = supportingWidgetColors(colors);
   const size = 104;
   const stroke = 16;
   const radius = (size - stroke) / 2;
@@ -1675,7 +1659,7 @@ function DashboardFastingCard({
   fontScale: number;
 }) {
   const { fasting } = useCalora();
-  const referenceColors = referenceWidgetColors(colors);
+  const referenceColors = supportingWidgetColors(colors);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -2083,12 +2067,12 @@ export default function HomeScreen() {
                 <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} />
               </View>
               {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
-                <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: REFERENCE_WIDGET_PALETTE.surface, borderColor: REFERENCE_WIDGET_PALETTE.border }]}>
+                <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.dashboardCardTitle, { color: REFERENCE_WIDGET_PALETTE.foreground }]}>Macros Balance</Text>
-                    <ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: REFERENCE_WIDGET_PALETTE.muted }]}><Feather name="sliders" size={17} color={REFERENCE_WIDGET_PALETTE.foreground} /></ScalePressable>
+                    <Text style={[styles.dashboardCardTitle, { color: colors.foreground }]}>Macros Balance</Text>
+                    <ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></ScalePressable>
                   </View>
-                  <MacroBalanceDonut colors={referenceWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
+                  <MacroBalanceDonut colors={supportingWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
                 </View>
               </View>}
               <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
@@ -2230,9 +2214,9 @@ function makeStyles(f: number) {
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
-  dashboardGridCard: { flex: 1, minHeight: h(154), marginBottom: 0, paddingVertical: h(12), paddingHorizontal: 12, borderRadius: 18 },
+  dashboardGridCard: { flex: 1, height: h(210), minHeight: h(210), marginBottom: 0, paddingVertical: h(12), paddingHorizontal: 12, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
-  dashboardFastingCard: { minHeight: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(12), marginBottom: 0, gap: h(7) },
+  dashboardFastingCard: { height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(12), marginBottom: 0, gap: h(7) },
   dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dashboardFastingIcon: { height: h(34), width: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
@@ -2279,7 +2263,7 @@ function makeStyles(f: number) {
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
-  stepsCard: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(14), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsCard: { flex: 1, height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(14), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepsCardTitleGroup: { flex: 1, minWidth: 0 },
@@ -2348,7 +2332,7 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodCard: { flex: 1, minHeight: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(11), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodCard: { flex: 1, height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(11), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(8) },
   moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f, letterSpacing: -0.25 },
   moodOptions: { flexDirection: 'row', gap: 4 },
