@@ -387,7 +387,7 @@ function LivingRhythmCard({
   );
 }
 
-function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void }) {
+function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void; onViewAll: () => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
@@ -396,7 +396,9 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
   const autoScrollFrameRef = React.useRef<number | null>(null);
   const [activeRecipe, setActiveRecipe] = useState(0);
   const [carouselInteractionActive, setCarouselInteractionActive] = useState(false);
-  const pageWidth = Math.max(240, Math.min(360, width - 72));
+  // Keep several previews visible on ordinary phones while retaining a safe
+  // minimum for very narrow screens and larger accessibility text.
+  const pageWidth = Math.max(154, Math.min(220, width - 88));
   const stopCarouselAnimation = () => {
     if (autoScrollFrameRef.current !== null) {
       cancelAnimationFrame(autoScrollFrameRef.current);
@@ -454,9 +456,14 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
   return (
     <View style={[styles.recipeWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.recipeWidgetHeader}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recipes</Text>
-        </View>
+          <View style={styles.recipeWidgetHeadingCopy}>
+            <Text style={[styles.recipeWidgetTitleHeading, { color: colors.foreground }]}>Recipes for you</Text>
+            <Text style={[styles.recipeWidgetSubtitle, { color: colors.mutedForeground }]}>Simple, healthy ideas to fuel your day.</Text>
+          </View>
+          <ScalePressable accessibilityRole="button" accessibilityLabel="View all recipes" onPress={onViewAll} scale={0.96} haptic="none" style={styles.recipeWidgetViewAll}>
+            <Text style={[styles.recipeWidgetViewAllText, { color: colors.accent }]}>View all</Text>
+            <Feather name="chevron-right" size={16} color={colors.accent} />
+          </ScalePressable>
         <View style={styles.recipeWidgetHeaderActions}>
           {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
             <ScalePressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></ScalePressable>
@@ -510,22 +517,19 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
             }
           }}
           renderItem={({ item: recipe }) => (
-            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: colors.hero }]}>
+            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: colors.hero, borderColor: colors.border }]}>
               {normalizeFoodImageUrl(recipe.image) ? <Image source={{ uri: normalizeFoodImageUrl(recipe.image) }} style={styles.recipeWidgetImage} resizeMode="cover" /> : <View style={[styles.recipeWidgetImageUnavailable, { backgroundColor: colors.accent }]}><Feather name="image" size={24} color={colors.accentForeground} /></View>}
-              <View style={styles.recipeWidgetOverlay} />
               <View style={styles.recipeWidgetTopActions}>
-                <ScalePressable accessibilityRole="button" accessibilityLabel={`${savedRecipeIds.includes(recipe.id) ? 'Remove' : 'Save'} recipe ${recipe.name}`} onPress={() => toggleSavedRecipe(recipe.id)} scale={0.94} haptic="none" style={styles.recipeWidgetSaveButton}>
-                  <Feather name="bookmark" size={17} color={savedRecipeIds.includes(recipe.id) ? colors.primary : '#ffffff'} />
+                <ScalePressable accessibilityRole="button" accessibilityLabel={`${savedRecipeIds.includes(recipe.id) ? 'Remove' : 'Save'} recipe ${recipe.name}`} onPress={() => toggleSavedRecipe(recipe.id)} scale={0.94} haptic="none" style={[styles.recipeWidgetSaveButton, { backgroundColor: colors.card }]}>
+                  <Feather name="heart" size={17} color={colors.accent} />
                 </ScalePressable>
               </View>
               <View style={styles.recipeWidgetCopy}>
-                <Text style={styles.recipeWidgetEyebrow}>{recipe.area ? `${recipe.area.toUpperCase()} · RECIPE` : 'RECIPE FOR YOU'}</Text>
-                <Text numberOfLines={2} style={styles.recipeWidgetTitle}>{recipe.name}</Text>
+                <Text numberOfLines={2} style={[styles.recipeWidgetTitle, { color: colors.foreground }]}>{recipe.name}</Text>
                 <View style={styles.recipeWidgetFooter}>
-                  <Text style={styles.recipeWidgetMeta}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
+                  <Text style={[styles.recipeWidgetMeta, { color: colors.mutedForeground }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
                   <ScalePressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} scale={0.98} haptic="none" style={styles.recipeWidgetAction}>
-                    <Text style={styles.recipeWidgetActionText}>View details</Text>
-                    <Feather name="arrow-up-right" size={13} color="#ffffff" />
+                    <Feather name="chevron-right" size={14} color={colors.accent} />
                   </ScalePressable>
                 </View>
               </View>
@@ -655,7 +659,7 @@ function stepStatusCopy(
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
-const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;
+const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;
 const STEPS_RING_STROKE = 10;
 const STEPS_RING_RADIUS = (STEPS_RING_SIZE - STEPS_RING_STROKE) / 2;
 const STEPS_RING_LENGTH = 2 * Math.PI * STEPS_RING_RADIUS;
@@ -897,6 +901,63 @@ function MoodCard({
             </ScalePressable>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+function MacroBalanceDonut({
+  colors,
+  protein,
+  carbs,
+  fat,
+  targets,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  protein: number;
+  carbs: number;
+  fat: number;
+  targets: Pick<MacroTargets, 'protein' | 'carbs' | 'fat'>;
+}) {
+  const size = 104;
+  const stroke = 16;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const values = [
+    { label: 'Protein', value: protein, target: targets.protein, color: colors.protein },
+    { label: 'Carbs', value: carbs, target: targets.carbs, color: colors.carbs },
+    { label: 'Fat', value: fat, target: targets.fat, color: colors.fat },
+  ];
+  const weights = values.map(({ value, target }) => Math.max(value / Math.max(target, 1), 0));
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+  let offset = 0;
+
+  return (
+    <View style={styles.macroDonutLayout} accessible accessibilityRole="summary" accessibilityLabel={`Macro balance: ${formatQuantity(protein)} grams protein, ${formatQuantity(carbs)} grams carbs, and ${formatQuantity(fat)} grams fat.`}>
+      <View style={styles.macroDonutWrap}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <Circle cx={size / 2} cy={size / 2} r={radius} stroke={colors.muted} strokeWidth={stroke} fill="none" />
+          {values.map((item, index) => {
+            const share = totalWeight > 0 ? weights[index] / totalWeight : 1 / values.length;
+            const segment = circumference * share;
+            const dashOffset = -offset;
+            offset += segment;
+            return <Circle key={item.label} cx={size / 2} cy={size / 2} r={radius} stroke={item.color} strokeWidth={stroke} fill="none" strokeLinecap="butt" strokeDasharray={`${segment} ${circumference - segment}`} strokeDashoffset={dashOffset} transform={`rotate(-90 ${size / 2} ${size / 2})`} />;
+          })}
+        </Svg>
+        <View pointerEvents="none" style={styles.macroDonutCenter}>
+          <Text style={[styles.macroDonutCenterTitle, { color: colors.foreground }]}>Macros</Text>
+          <Text style={[styles.macroDonutCenterSubtitle, { color: colors.mutedForeground }]}>balance</Text>
+        </View>
+      </View>
+      <View style={styles.macroLegend}>
+        {values.map((item) => (
+          <View key={item.label} style={styles.macroLegendRow}>
+            <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
+            <Text style={[styles.macroLegendLabel, { color: colors.foreground }]}>{item.label}</Text>
+            <Text testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: colors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -1582,7 +1643,7 @@ function DashboardFastingCard({
           <Feather name="clock" size={20} color={colors.success} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
           <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>
             {isRunning
               ? `${formatFastingDuration(status.elapsedMs)} elapsed · ${formatFastingDuration(status.remainingMs)} remaining`
@@ -1614,7 +1675,9 @@ export default function HomeScreen() {
   } = useCalora();
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
-  const useSingleColumnWellness = viewportWidth < 400;
+  // Two columns are the default for ordinary phones. Only very narrow
+  // layouts or substantially enlarged accessibility text fall back safely.
+  const useSingleColumnWellness = viewportWidth < 350 || fontScale > 1.22;
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1961,25 +2024,23 @@ export default function HomeScreen() {
         {isViewingToday && (
           <>
             <View testID="today-supporting-widgets-grid" style={useSingleColumnWellness ? styles.dashboardSingleColumnGrid : styles.dashboardTwoColumnGrid}>
+              {dashboardPreferences.visible.includes('fasting') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
               <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
                 <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} />
               </View>
               {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
                 <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
+                    <Text style={[styles.dashboardCardTitle, { color: colors.foreground }]}>Macros Balance</Text>
                     <ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.mutedForeground} /></ScalePressable>
                   </View>
-                  <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} />
-                  <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} />
-                  <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} />
+                  <MacroBalanceDonut colors={colors} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
                 </View>
               </View>}
-              {dashboardPreferences.visible.includes('fasting') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
               <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
             </View>
             <View style={styles.recipeSection}>
-              <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
+              <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} onViewAll={() => router.navigate('/(tabs)/recipes')} />
             </View>
           </>
         )}
@@ -2115,12 +2176,13 @@ function makeStyles(f: number) {
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginBottom: h(18) },
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '47%', width: '47%', minWidth: 0, maxWidth: '47%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
-  dashboardGridCard: { flex: 1, minHeight: h(182), marginBottom: 0 },
-  dashboardFastingCard: { minHeight: h(182), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: h(14), marginBottom: 0, gap: h(11) },
+  dashboardGridCard: { flex: 1, minHeight: h(154), marginBottom: 0, paddingVertical: h(12), paddingHorizontal: 12, borderRadius: 18 },
+  dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
+  dashboardFastingCard: { minHeight: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(12), marginBottom: 0, gap: h(7) },
   dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dashboardFastingIcon: { height: h(40), width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
-  dashboardFastingCopy: { fontFamily: 'Inter_500Medium', marginTop: 3, lineHeight: 15 },
+  dashboardFastingCopy: { fontFamily: 'Inter_500Medium', marginTop: 3, lineHeight: 14 },
   dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   dashboardFastingFill: { height: 7, borderRadius: 4 },
   dashboardFastingFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' },
@@ -2170,38 +2232,41 @@ function makeStyles(f: number) {
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
-  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: h(16) },
+  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: h(7) },
   stepsRingCopy: { position: 'absolute', left: 22, right: 22, alignItems: 'center', justifyContent: 'center' },
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
   stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
-  stepsAction: { minHeight: h(44), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(14), paddingHorizontal: 12 },
+  stepsAction: { minHeight: h(44), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(6), paddingHorizontal: 8 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
     quickAction: { flex: 1, minWidth: 0, minHeight: h(76), alignItems: 'center', justifyContent: 'center', gap: 4 },
     quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, textAlign: 'center' },
-  recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(14), paddingHorizontal: 16, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingVertical: h(13), paddingHorizontal: 14, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4 },
-  recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(13) },
+  recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(11) },
+  recipeWidgetHeadingCopy: { flex: 1, minWidth: 0 },
+  recipeWidgetTitleHeading: { fontFamily: 'Inter_800ExtraBold', fontSize: 17 * f, letterSpacing: -0.25 },
+  recipeWidgetSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 10.5 * f, marginTop: 3 },
+  recipeWidgetViewAll: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 34, paddingLeft: 8 },
+  recipeWidgetViewAllText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 8 },
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
   recipeWidgetNavButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
-  recipeWidgetCard: { height: h(131), borderRadius: 18, overflow: 'hidden', position: 'relative' },
-  recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
-  recipeWidgetImageUnavailable: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  recipeWidgetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,30,23,0.42)' },
-  recipeWidgetTopActions: { position: 'absolute', top: 10, right: 10 },
-  recipeWidgetSaveButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9,31,24,0.55)' },
-  recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: h(14) },
-  recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
-  recipeWidgetTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, lineHeight: 24, letterSpacing: -0.4, maxWidth: 260 },
-  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: h(11) },
-  recipeWidgetMeta: { color: '#d4eadc', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  recipeWidgetCard: { height: h(166), borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, overflow: 'hidden', position: 'relative' },
+  recipeWidgetImage: { width: '100%', height: h(88) },
+  recipeWidgetImageUnavailable: { width: '100%', height: h(88), alignItems: 'center', justifyContent: 'center' },
+  recipeWidgetTopActions: { position: 'absolute', top: 8, right: 8 },
+  recipeWidgetSaveButton: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  recipeWidgetCopy: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8 },
+  recipeWidgetTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 * f, lineHeight: 15 * f, letterSpacing: -0.1 },
+  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  recipeWidgetMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f, flexShrink: 1 },
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  recipeWidgetLoading: { height: h(131), alignItems: 'center', justifyContent: 'center', gap: 9 },
+  recipeWidgetActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  recipeWidgetLoading: { height: h(120), alignItems: 'center', justifyContent: 'center', gap: 9 },
   recipeWidgetRetry: { minHeight: 44, minWidth: 144, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 12 },
   recipeWidgetRetryText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   loadingText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
@@ -2223,12 +2288,12 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodCard: { flex: 1, minHeight: h(182), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(14), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(16) },
-  moodOptions: { flexDirection: 'row', gap: 8 },
+  moodCard: { flex: 1, minHeight: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(11), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: h(8) },
+  moodOptions: { flexDirection: 'row', gap: 4 },
   moodOptionsCompact: { flexWrap: 'wrap', rowGap: 6, columnGap: 6 },
-  moodOption: { flex: 1, minWidth: 0, minHeight: h(56), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 1, gap: 4 },
-  moodOptionCompact: { flexBasis: '30%', maxWidth: '31%', flexGrow: 0 },
+  moodOption: { flex: 1, minWidth: 0, minHeight: h(42), alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 1, gap: 3 },
+  moodOptionCompact: { flexBasis: '19%', maxWidth: '20%', flexGrow: 0 },
   moodOptionText: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 8.5 * f, letterSpacing: -0.1 },
   moodOptionTextCompact: { fontSize: 8.5 * f, letterSpacing: -0.2 },
      heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -2257,9 +2322,19 @@ function makeStyles(f: number) {
    calendarTodayAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 12, marginTop: 14 },
    calendarTodayActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   sectionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: h(18) },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: h(8) },
   sectionHeaderAction: { width: 38, height: h(38), borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, letterSpacing: -0.4 },
+  macroDonutLayout: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  macroDonutWrap: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
+  macroDonutCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  macroDonutCenterTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 * f },
+  macroDonutCenterSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 9 * f, marginTop: 1 },
+  macroLegend: { flex: 1, minWidth: 0, gap: 8 },
+  macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 4 },
+  macroLegendDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, width: 40 },
+  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 8.5 * f, flexShrink: 1 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
   macroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
