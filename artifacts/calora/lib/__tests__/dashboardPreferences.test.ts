@@ -64,14 +64,14 @@ describe("dashboard preferences", () => {
     );
   });
 
-  it("migrates the previous default so Water takes the Recipes position", () => {
+  it("migrates the previous default so Recipes becomes the final widget", () => {
     const migrated = normalizeDashboardPreferences({
       version: 2,
       visible: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
       order: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
       density: {},
     });
-    expect(migrated.version).toBe(3);
-    expect(migrated.order.slice(5, 8)).toEqual(["water", "recipes", "quickLog"]);
+    expect(migrated.version).toBe(4);
+    expect(migrated.order.slice(5, 9)).toEqual(["water", "quickLog", "log", "recipes"]);
   });
 });

@@ -136,8 +136,8 @@ describe("MoreScreen feature hierarchy", () => {
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
-    fireEvent.click(screen.getByRole("button", { name: "Open profile" }));
-    expect(harness.router.push).toHaveBeenLastCalledWith("/profile");
+    fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
+    expect(harness.router.push).toHaveBeenLastCalledWith("/settings");
 
     fireEvent.click(screen.getByRole("button", { name: "Open fasting Reminders" }));
     expect(harness.router.push).toHaveBeenLastCalledWith("/profile?tab=you&open=reminders");
@@ -178,7 +178,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('icon={item.icon} size={26}');
     expect(source).toContain('name="settings" size={15}');
-    expect(source).toContain('accessibilityLabel="Open profile"');
+    expect(source).toContain('accessibilityLabel="Open Settings"');
     expect(source).not.toContain("const SURFACE");
     expect(source).not.toContain("const BORDER");
     expect(source).toContain('color={colors.foreground}');
@@ -216,7 +216,7 @@ describe("MoreScreen feature hierarchy", () => {
       ["Open Saved meals", "/saved-meals"],
       ["Open Coach", "/coach"],
       ["Open Reminders", "/profile?tab=you&open=reminders"],
-      ["Open Calora Pro", "/profile?tab=membership"],
+      ["Open Customize Today", "/dashboard-layout"],
       ["Open Goals", "/profile?tab=you&open=goals"],
       ["Open Health sync", "/profile?tab=account&open=health"],
       ["Open Recipes", "/recipes"],
@@ -226,10 +226,11 @@ describe("MoreScreen feature hierarchy", () => {
       expect(harness.router.push).toHaveBeenLastCalledWith(route);
     }
 
-    expect(screen.getByRole("button", { name: "Open profile" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Settings" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Edit quick access" })).toBeNull();
     expect(screen.queryByText("Your tools, preferences, and progress in one place")).toBeNull();
-    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(16);
+    expect(screen.getAllByRole("button", { name: /^Open / })).toHaveLength(17);
+    expect(screen.getByRole("button", { name: "Open Calora Pro" })).toBeTruthy();
     expect(screen.queryByText("Your Calora")).toBeNull();
   });
 

@@ -983,6 +983,9 @@ export function CaloraProvider({
 
   const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (rawSaved) => {
     if (!rawSaved) {
+      // A newly scoped account (or guest scope) must not inherit the previous
+      // account's avatar while its empty snapshot is being hydrated.
+      setProfilePhotoUriState(null);
       const initial = notificationPreferencesRef.current;
       setNotificationPreferencesState(initial);
       notificationHydrationAppliedRef.current = true;
@@ -1096,7 +1099,9 @@ export function CaloraProvider({
      if (saved.dashboardPreferences !== undefined) setDashboardPreferencesState(normalizeDashboardPreferences(saved.dashboardPreferences));
      if (saved.learningReaderState !== undefined) setLearningReaderState(normalizeLearningReaderState(saved.learningReaderState));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
-     if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
+     // Apply the field even when it is absent. A truthy-only assignment leaves
+     // the prior account's photo visible after an account switch.
+     setProfilePhotoUriState(saved.profilePhotoUri ?? null);
      if (base) {
        const hydratedHealthConnection = saved.healthConnection
          ? normalizeHealthConnection(saved.healthConnection)

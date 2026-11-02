@@ -105,6 +105,15 @@ const CALORIE_RING_SCALE = 1.2;
 // The greeting header and calorie card read as one merged surface on Home.
 // Keep their content and math unchanged while controlling only the vertical footprint.
 const MERGED_WIDGET_HEIGHT_SCALE = TODAY_WIDGET_HEIGHT_SCALE;
+// Local, approved food imagery keeps this rotation instant and offline-safe.
+const HOME_HEADER_FOOD_PHOTOS = [
+  require('../../assets/images/calora-home-header.jpg'),
+  require('../../assets/images/foods/avocado-toast.jpg'),
+  require('../../assets/images/foods/berry-protein-smoothie.jpg'),
+  require('../../assets/images/foods/grilled-chicken-vegetables.jpg'),
+  require('../../assets/images/foods/salmon-rice-bowl.jpg'),
+  require('../../assets/images/foods/tofu-vegetable-stir-fry.jpg'),
+] as const;
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
   y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
@@ -482,7 +491,6 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
             <CaloraFeatureIcon name="restaurant" size={27} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.orange} highlightColor={referenceColors.foreground} />
             <View style={styles.recipeWidgetHeadingCopy}>
               <Text style={[styles.recipeWidgetTitleHeading, { color: referenceColors.foreground }]}>Recipes for you</Text>
-              <Text style={[styles.recipeWidgetSubtitle, { color: referenceColors.mutedForeground }]}>Simple, healthy ideas to fuel your day.</Text>
             </View>
           </View>
           <ScalePressable accessibilityRole="button" accessibilityLabel="View all recipes" onPress={onViewAll} scale={0.96} haptic="none" style={styles.recipeWidgetViewAll}>
@@ -550,7 +558,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
                 </ScalePressable>
               </View>
               <View style={styles.recipeWidgetCopy}>
-                <Text numberOfLines={2} style={[styles.recipeWidgetTitle, { color: referenceColors.foreground }]}>{recipe.name}</Text>
+                <Text numberOfLines={1} style={[styles.recipeWidgetTitle, { color: referenceColors.foreground }]}>{recipe.name}</Text>
                 <View style={styles.recipeWidgetFooter}>
                   <Text style={[styles.recipeWidgetMeta, { color: referenceColors.mutedForeground }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
                   <ScalePressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} scale={0.98} haptic="none" style={styles.recipeWidgetAction}>
@@ -1818,6 +1826,11 @@ export default function HomeScreen() {
     .replace(' local-calendar', '')
     .replace('today’s logged calories', 'logged calories')
     .replace('while more than half of daily calories are logged.', 'after half your calories are logged.');
+  const postGridWidgetOrder = useMemo(
+    () => dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log'),
+    [dashboardPreferences.order],
+  );
+  const headerPhoto = HOME_HEADER_FOOD_PHOTOS[now.getHours() % HOME_HEADER_FOOD_PHOTOS.length];
 
   useFocusEffect(
     useCallback(() => {
@@ -1986,7 +1999,7 @@ export default function HomeScreen() {
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.homeHeader}>
-          <Image source={require('../../assets/images/calora-home-header.jpg')} style={styles.homeHeaderImage} resizeMode="cover" />
+          <Image source={headerPhoto} style={styles.homeHeaderImage} resizeMode="cover" />
           <View pointerEvents="none" style={styles.homeHeaderScrim} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
@@ -2083,37 +2096,25 @@ export default function HomeScreen() {
               </View>}
               {dashboardPreferences.visible.includes('mood') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>}
             </View>
-            {dashboardPreferences.visible.includes('water') && <View style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>}
-            {dashboardPreferences.visible.includes('recipes') && <View style={styles.recipeSection}>
-              <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} onViewAll={() => router.navigate('/(tabs)/recipes')} />
-            </View>}
+            {postGridWidgetOrder.map((widgetId) => {
+              if (!dashboardPreferences.visible.includes(widgetId)) return null;
+              if (widgetId === 'water') {
+                return <View key={widgetId} style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>;
+              }
+              if (widgetId === 'recipes') {
+                return <View key={widgetId} style={styles.recipeSection}><RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} onViewAll={() => router.navigate('/(tabs)/recipes')} /></View>;
+              }
+              if (widgetId === 'quickLog') {
+                return <View key={widgetId} style={styles.quickLogSection} accessibilityLabel="Quick food logging actions"><View style={styles.quickActions}><IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} /><IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} /><IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} /></View></View>;
+              }
+              return <View key={widgetId} style={[styles.logCard, styles.dashboardWideSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.logCardHeader, { borderBottomColor: colors.border }]}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text><ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text></ScalePressable></View>
+                {!selectedLogs.length && <View style={styles.emptyDiary}><View style={[styles.emptyDiaryGlyph, { backgroundColor: colors.muted }]}><Feather name="calendar" size={22} color={colors.primary} /></View><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
+                {mealOrder.map((meal) => { const mealLogs = selectedLogs.filter((log) => log.meal === meal); if (!mealLogs.length) return null; return <View key={meal}><Text style={[styles.mealGroup, { color: colors.mutedForeground }]}>{meal.toUpperCase()}</Text>{mealLogs.map((log, logIndex) => <Animated.View key={log.id} entering={enterMotion('component', logIndex)}><MealRow log={log} colors={colors} onEdit={() => setEditingLog(log)} onSave={() => saveLoggedMeal(log)} /></Animated.View>)}</View>; })}
+              </View>;
+            })}
           </>
         )}
-        {dashboardPreferences.visible.includes('quickLog') && <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions"><View style={styles.quickActions}><IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} /><IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} /><IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} /></View></View>}
-        {dashboardPreferences.visible.includes('log') && <View style={[styles.logCard, styles.dashboardWideSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.logCardHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
-            <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
-              <Feather name="plus" size={14} color={colors.primaryForeground} />
-              <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
-            </ScalePressable>
-          </View>
-          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={[styles.emptyDiaryGlyph, { backgroundColor: colors.muted }]}><Feather name="calendar" size={22} color={colors.primary} /></View><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
-          {mealOrder.map((meal) => {
-            const mealLogs = selectedLogs.filter((log) => log.meal === meal);
-            if (!mealLogs.length) return null;
-            return (
-              <View key={meal}>
-                <Text style={[styles.mealGroup, { color: colors.mutedForeground }]}>{meal.toUpperCase()}</Text>
-                {mealLogs.map((log, logIndex) => (
-                  <Animated.View key={log.id} entering={enterMotion('component', logIndex)}>
-                    <MealRow log={log} colors={colors} onEdit={() => setEditingLog(log)} onSave={() => saveLoggedMeal(log)} />
-                  </Animated.View>
-                ))}
-              </View>
-            );
-          })}
-        </View>}
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-attention' ? 'Saved locally · backup needs attention' : syncState === 'needs-connection' ? 'Saved locally · sync pending' : syncState === 'local' ? 'Saved locally · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Verified core nutrition.'}</Text>
