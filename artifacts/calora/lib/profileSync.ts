@@ -24,16 +24,21 @@ class ProfileIdentityChangedError extends Error {
 function scopedRequestOptions(options: ProfileRequestOptions = {}) {
   const { accountId, signal } = options;
   if (!accountId) return { signal, timeoutMs: PROFILE_SYNC_TIMEOUT_MS };
+  let sessionForToken: ReturnType<typeof supabase.auth.getSession> | null = null;
+  const readSession = () =>
+    withTimeout(supabase.auth.getSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session read');
   const assertIdentity = async () => {
     if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
-    const { data } = await withTimeout(supabase.auth.getSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session check');
+    sessionForToken = readSession();
+    const { data } = await sessionForToken;
     if (data.session?.user.id !== accountId) {
       throw new ProfileIdentityChangedError('Profile request identity changed.');
     }
   };
   const getToken = async () => {
-    await assertIdentity();
-    const { data } = await withTimeout(supabase.auth.getSession(), PROFILE_SYNC_TIMEOUT_MS, 'Supabase session read');
+    const sessionRead = sessionForToken ?? readSession();
+    sessionForToken = null;
+    const { data } = await sessionRead;
     if (data.session?.user.id !== accountId) throw new ProfileIdentityChangedError('Profile request identity changed.');
     return data.session.access_token;
   };

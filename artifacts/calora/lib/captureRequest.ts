@@ -46,10 +46,13 @@ export function createCaptureRequestOptions(
 ): CustomFetchOptions {
   const expectedAccountId = accountId?.trim();
   if (!expectedAccountId) throw new CaptureRequestAuthenticationError();
+  let sessionForToken: ReturnType<typeof supabase.auth.getSession> | null = null;
+  const readSession = () => supabase.auth.getSession();
 
   const requireCurrentSession = async () => {
     if (signal.aborted) throw captureAbortError(signal.reason);
-    const { data, error } = await supabase.auth.getSession();
+    sessionForToken = readSession();
+    const { data, error } = await sessionForToken;
     if (error || !data.session?.access_token) {
       throw new CaptureRequestAuthenticationError();
     }
@@ -63,7 +66,18 @@ export function createCaptureRequestOptions(
     await requireCurrentSession();
   };
 
-  const getToken = async () => (await requireCurrentSession()).access_token;
+  const getToken = async () => {
+    const sessionRead = sessionForToken ?? readSession();
+    sessionForToken = null;
+    const { data, error } = await sessionRead;
+    if (error || !data.session?.access_token) {
+      throw new CaptureRequestAuthenticationError();
+    }
+    if (data.session.user.id !== expectedAccountId) {
+      throw new CaptureRequestIdentityChangedError();
+    }
+    return data.session.access_token;
+  };
 
   const refreshToken = async () => {
     await assertIdentity();

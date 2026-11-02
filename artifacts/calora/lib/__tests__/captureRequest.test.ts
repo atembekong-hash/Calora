@@ -94,6 +94,9 @@ describe("requestAuthenticatedCaptureAnalysis", () => {
     expect(
       new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("authorization"),
     ).toBe("Bearer refreshed-token");
+    // The initial identity guard and token getter share one session read; the
+    // second guard remains a fresh account-boundary check before send.
+    expect(mockGetSession).toHaveBeenCalledTimes(5);
   });
 
   it("does not send a protected Scan request after the active account changes", async () => {
