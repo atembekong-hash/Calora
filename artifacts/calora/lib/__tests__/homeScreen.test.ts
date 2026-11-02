@@ -106,8 +106,7 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
-    expect(source).toContain('minHeight: h(210)');
-    expect(source).toContain('height: h(210)');
+    expect(source).toContain('height: h(180)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
@@ -144,7 +143,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('styles.recipeWidgetImage');
     expect(source).toContain('today-supporting-widgets-grid');
     expect(source).toContain('dashboard-macro-card');
-    expect(source).toContain('useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22');
+    expect(source).toContain('useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22');
     expect(source).toContain('status.remainingMs > 0');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
@@ -593,7 +592,7 @@ describe('Today dashboard — date context and display contracts', () => {
 
     expect(source).toContain('function StepProgressRing');
     expect(source).toContain('testID="dashboard-steps-value"');
-    expect(source).toContain('strokeDasharray={STEPS_RING_LENGTH}');
+    expect(source).toContain('strokeDasharray={ringLength}');
     expect(source).toContain('testID="dashboard-steps-ring"');
     expect(source).toContain('<StepMilestoneCelebration');
     expect(source).toContain('milestone={liveStepMilestones[0] ?? null}');
@@ -615,7 +614,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', gap: 10, marginHorizontal: -10');
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' }");
-    expect(source).toContain('const useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22;');
+    expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
   });
 
   it('keeps all five mood controls and macro values in the compact responsive cards', async () => {
@@ -702,8 +701,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(grid.indexOf('Macros Balance')).toBeLessThan(grid.indexOf('<MoodCard'));
     expect(source).toContain('function MacroBalanceDonut');
     expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
-    expect(source).toContain('height: h(210), minHeight: h(210)');
-    expect(source).toContain('stepsCard: { flex: 1, height: h(210), minHeight: h(210)');
+    expect(source).toContain('height: h(180)');
+    expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: 0");
     const calorieStart = source.indexOf('function CalorieGauge');
     const fastingStart = source.indexOf('function DashboardFastingCard');
     expect(calorieStart).toBeGreaterThan(-1);

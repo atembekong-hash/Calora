@@ -410,6 +410,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const referenceColors = supportingWidgetColors(colors);
+  const recipeCardSurface = colors.background === '#101916' ? referenceColors.hero : colors.card;
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -540,7 +541,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
             }
           }}
           renderItem={({ item: recipe }) => (
-            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: referenceColors.hero, borderColor: referenceColors.border }] }>
+            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: recipeCardSurface, borderColor: referenceColors.border }] }>
               {normalizeFoodImageUrl(recipe.image) ? <Image source={{ uri: normalizeFoodImageUrl(recipe.image) }} style={styles.recipeWidgetImage} resizeMode="cover" /> : <View style={[styles.recipeWidgetImageUnavailable, { backgroundColor: referenceColors.accent }]}><Feather name="image" size={24} color={referenceColors.accentForeground} /></View>}
               <View style={styles.recipeWidgetTopActions}>
                 <ScalePressable accessibilityRole="button" accessibilityLabel={`${savedRecipeIds.includes(recipe.id) ? 'Remove' : 'Save'} recipe ${recipe.name}`} onPress={() => toggleSavedRecipe(recipe.id)} scale={0.94} haptic="none" style={[styles.recipeWidgetSaveButton, { backgroundColor: referenceColors.muted }]}>
@@ -702,17 +703,21 @@ function StepProgressRing({
   accessibilitySummary: string;
   compact?: boolean;
 }) {
-  const dashOffset = useSharedValue(STEPS_RING_LENGTH);
+  const { width: viewportWidth } = useWindowDimensions();
+  const ringSize = compact ? (viewportWidth < 400 ? 64 : 72) : STEPS_RING_SIZE;
+  const ringRadius = (ringSize - STEPS_RING_STROKE) / 2;
+  const ringLength = 2 * Math.PI * ringRadius;
+  const dashOffset = useSharedValue(ringLength);
   const scale = useSharedValue(1);
   const previousSteps = useRef<number | null>(steps);
 
   useEffect(() => {
-    dashOffset.value = withTiming(STEPS_RING_LENGTH * (1 - progress), {
+    dashOffset.value = withTiming(ringLength * (1 - progress), {
       duration: 180,
       easing: Easing.out(Easing.cubic),
       reduceMotion: ReduceMotion.System,
     });
-  }, [dashOffset, progress]);
+  }, [dashOffset, progress, ringLength]);
 
   useEffect(() => {
     if (steps !== null && previousSteps.current !== null && steps > previousSteps.current) {
@@ -737,33 +742,33 @@ function StepProgressRing({
       accessibilityRole="text"
       accessibilityLabel={accessibilitySummary}
       testID="dashboard-steps-value"
-      style={[styles.stepsRing, ringStyle]}
+      style={[styles.stepsRing, compact && { width: ringSize, height: ringSize }, ringStyle]}
     >
-      <Svg testID="dashboard-steps-ring" width={STEPS_RING_SIZE} height={STEPS_RING_SIZE} viewBox={`0 0 ${STEPS_RING_SIZE} ${STEPS_RING_SIZE}`}>
+      <Svg testID="dashboard-steps-ring" width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`}>
         <Circle
-          cx={STEPS_RING_SIZE / 2}
-          cy={STEPS_RING_SIZE / 2}
-          r={STEPS_RING_RADIUS}
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={ringRadius}
           stroke={colors.muted}
           strokeWidth={STEPS_RING_STROKE}
           fill="none"
         />
         <AnimatedCircle
           animatedProps={ringProps}
-          cx={STEPS_RING_SIZE / 2}
-          cy={STEPS_RING_SIZE / 2}
-          r={STEPS_RING_RADIUS}
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={ringRadius}
           stroke={colors.primary}
           strokeWidth={STEPS_RING_STROKE}
           strokeLinecap="round"
           fill="none"
-          strokeDasharray={STEPS_RING_LENGTH}
-          transform={`rotate(-90 ${STEPS_RING_SIZE / 2} ${STEPS_RING_SIZE / 2})`}
+          strokeDasharray={ringLength}
+          transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
         />
       </Svg>
       <View pointerEvents="none" accessible={false} style={styles.stepsRingCopy}>
         {compact ? (
-          <CaloraFeatureIcon name="steps" size={31} primaryColor={colors.primary} accentColor={colors.success} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
+              <CaloraFeatureIcon name="steps" size={compact && viewportWidth < 400 ? 25 : 31} primaryColor={colors.primary} accentColor={colors.success} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
         ) : (
           <>
             <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.stepsRingValue, { color: colors.foreground }]}>
@@ -918,20 +923,22 @@ function MoodCard({
   onMood: (mood: Mood) => void;
 }) {
   const referenceColors = supportingWidgetColors(colors);
+  const { width: viewportWidth } = useWindowDimensions();
+  const narrowCompact = compact && viewportWidth < 400;
   return (
     <View style={[styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
       <View style={styles.moodHeading}>
         <View style={[styles.wellnessIcon, { backgroundColor: referenceColors.orange }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} /></View>
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.42} style={[styles.moodHeadingTitle, { color: referenceColors.foreground }]}>How are you feeling?</Text>
+        <Text numberOfLines={narrowCompact ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.58} style={[styles.moodHeadingTitle, narrowCompact && { fontSize: 8.2, lineHeight: 9.5 }, { color: referenceColors.foreground }]}>How are you feeling?</Text>
         <Feather name="chevron-right" size={16} color={referenceColors.foreground} />
       </View>
       <View style={[styles.moodOptions, compact && styles.moodOptionsCompact]}>
         {moodOptions.map((item) => {
           const selected = mood === item.value;
           return (
-            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
-              <Feather name={item.icon} size={15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
-              <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.72} style={[styles.moodOptionText, compact && styles.moodOptionTextCompact, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
+            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, narrowCompact && { minHeight: 32, gap: 1 }, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
+              <Feather name={item.icon} size={narrowCompact ? 13 : 15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
+              <Text adjustsFontSizeToFit={!compact} numberOfLines={compact ? (item.value === 'energized' || item.value === 'stressed' ? 1 : 2) : 1} minimumFontScale={0.82} style={[styles.moodOptionText, compact && { fontSize: 7.2, lineHeight: 8.5, letterSpacing: -0.3 }, compact && (item.value === 'energized' || item.value === 'stressed') && { fontSize: 6.4, letterSpacing: -0.55 }, narrowCompact && item.value !== 'energized' && item.value !== 'stressed' && { fontSize: 7.5 }, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
             </ScalePressable>
           );
         })}
@@ -954,8 +961,10 @@ function MacroBalanceDonut({
   targets: Pick<MacroTargets, 'protein' | 'carbs' | 'fat'>;
 }) {
   const referenceColors = supportingWidgetColors(colors);
-  const size = 104;
-  const stroke = 16;
+  const { width: viewportWidth } = useWindowDimensions();
+  const narrowCompact = viewportWidth < 400;
+  const size = narrowCompact ? 58 : 70;
+  const stroke = narrowCompact ? 9 : 11;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const values = [
@@ -969,7 +978,7 @@ function MacroBalanceDonut({
 
   return (
     <View style={styles.macroDonutLayout} accessible accessibilityRole="summary" accessibilityLabel={`Macro balance: ${formatQuantity(protein)} grams protein, ${formatQuantity(carbs)} grams carbs, and ${formatQuantity(fat)} grams fat.`}>
-      <View style={styles.macroDonutWrap}>
+      <View style={[styles.macroDonutWrap, { width: size, height: size }]}>
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Circle cx={size / 2} cy={size / 2} r={radius} stroke={referenceColors.track} strokeWidth={stroke} fill="none" />
           {values.map((item, index) => {
@@ -981,16 +990,16 @@ function MacroBalanceDonut({
           })}
         </Svg>
         <View pointerEvents="none" style={styles.macroDonutCenter}>
-          <Text style={[styles.macroDonutCenterTitle, { color: referenceColors.foreground }]}>Macros</Text>
-          <Text style={[styles.macroDonutCenterSubtitle, { color: referenceColors.mutedForeground }]}>Balance</Text>
+          <Text style={[styles.macroDonutCenterTitle, narrowCompact && { fontSize: 7.5 }, { color: referenceColors.foreground }]}>Macros</Text>
+          <Text style={[styles.macroDonutCenterSubtitle, narrowCompact && { fontSize: 6.2 }, { color: referenceColors.mutedForeground }]}>Balance</Text>
         </View>
       </View>
       <View style={styles.macroLegend}>
         {values.map((item) => (
           <View key={item.label} style={styles.macroLegendRow}>
             <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
-            <Text style={[styles.macroLegendLabel, { color: referenceColors.foreground }]}>{item.label}</Text>
-            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.55} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit={!narrowCompact} style={[styles.macroLegendLabel, narrowCompact && { width: 31, fontSize: 7.1, letterSpacing: -0.2 }, { color: referenceColors.foreground }]}>{item.label}</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.78} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, narrowCompact && { fontSize: 7.1, letterSpacing: -0.35 }, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
           </View>
         ))}
       </View>
@@ -1712,10 +1721,9 @@ export default function HomeScreen() {
   } = useCalora();
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
-  // Two columns are the default once each card can preserve readable content.
-  // Below 400px, a single column prevents Macro and Mood text from becoming
-  // truncated or microscopic while retaining the same aligned outer width.
-  const useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22;
+  // Keep the requested 2x2 composition on ordinary phones. At 320px and below,
+  // or with large accessibility text, use one column to preserve readability.
+  const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -2214,9 +2222,9 @@ function makeStyles(f: number) {
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
-  dashboardGridCard: { flex: 1, height: h(210), minHeight: h(210), marginBottom: 0, paddingVertical: h(12), paddingHorizontal: 12, borderRadius: 18 },
+  dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: h(180), overflow: 'hidden', marginBottom: 0, paddingVertical: h(8), paddingHorizontal: 10, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
-  dashboardFastingCard: { height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(12), marginBottom: 0, gap: h(7) },
+  dashboardFastingCard: { height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(8), marginBottom: 0, gap: h(4) },
   dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dashboardFastingIcon: { height: h(34), width: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   dashboardFastingTitle: { fontFamily: 'Inter_800ExtraBold' },
@@ -2263,7 +2271,7 @@ function makeStyles(f: number) {
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
-  stepsCard: { flex: 1, height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(14), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsCard: { flex: 1, alignSelf: 'stretch', height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(8), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepsCardTitleGroup: { flex: 1, minWidth: 0 },
@@ -2305,9 +2313,9 @@ function makeStyles(f: number) {
   recipeWidgetTopActions: { position: 'absolute', top: 8, right: 8 },
   recipeWidgetSaveButton: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetCopy: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8 },
-  recipeWidgetTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 * f, lineHeight: 15 * f, letterSpacing: -0.1 },
-  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  recipeWidgetMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f, flexShrink: 1 },
+  recipeWidgetTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 11.2 * f, lineHeight: 13.2 * f, letterSpacing: -0.15, flexShrink: 1 },
+  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2, marginTop: 3 },
+  recipeWidgetMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 8.8 * f, lineHeight: 10.5 * f, flex: 1, minWidth: 0 },
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recipeWidgetActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   recipeWidgetLoading: { height: h(120), alignItems: 'center', justifyContent: 'center', gap: 9 },
@@ -2332,7 +2340,7 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodCard: { flex: 1, height: h(210), minHeight: h(210), borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(11), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodCard: { flex: 1, height: h(180), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(8) },
   moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f, letterSpacing: -0.25 },
   moodOptions: { flexDirection: 'row', gap: 4 },
@@ -2375,8 +2383,8 @@ function makeStyles(f: number) {
   macroDonutCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   macroDonutCenterTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 9 * f },
   macroDonutCenterSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 7 * f, marginTop: 1 },
-  macroLegend: { flex: 1, minWidth: 0, gap: 8 },
-  macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 3 },
+  macroLegend: { flex: 1, minWidth: 0, gap: 6 },
+  macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 2 },
   macroLegendDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
   macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 7.5 * f, width: 29 },
   macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 6.5 * f, flexShrink: 1, letterSpacing: -0.25 },
