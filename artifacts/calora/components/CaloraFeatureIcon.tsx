@@ -21,6 +21,7 @@ export type CaloraFeatureIconName =
   | 'shopping'
   | 'coach'
   | 'rhythm'
+  | 'steps'
   | 'water'
   | 'mood'
   | 'progress'
@@ -191,6 +192,15 @@ export function CaloraFeatureIcon({
           <Path d="M20 28.3S10.8 22 10.8 15.5a4.1 4.1 0 0 1 7.8-1.8 1.5 1.5 0 0 0 2.8 0 4.1 4.1 0 0 1 7.8 1.8c0 6.5-9.2 12.8-9.2 12.8Z" fill={`url(#${ids.accent})`} opacity={0.8} />
           <Path d="M14.2 16.3c1.1-1.2 2.3-1.4 3.7-.6M22.1 15.7c1.4-.8 2.6-.6 3.7.6" stroke={highlightColor} strokeOpacity={0.75} strokeWidth="1.4" strokeLinecap="round" />
           <Path d="M15.5 21c2.7 2.3 6.3 2.3 9 0" stroke={highlightColor} strokeOpacity={0.78} strokeWidth="1.6" strokeLinecap="round" />
+        </G>
+      )}
+
+      {name === 'steps' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="13" ry="2.6" fill={foregroundColor} opacity={0.14} />
+          <Path d="M12.2 8.6c2.3-1.3 4.8-.4 6.1 1.8l3.9 6.7c1.5 2.5 4 4.1 7.1 4.8l2.2.5c1.3.3 2.1 1.5 1.8 2.8-.3 1.5-1.7 2.4-3.2 2.1l-5.8-1.2c-3.5-.7-6.6-2.8-8.4-5.8L10.1 14c-1.1-2-.2-4.3 2.1-5.4Z" fill={`url(#${ids.main})`} />
+          <Path d="m15.3 8.1 3.7 6.2c.8 1.4 2.2 2.3 3.8 2.5l3.9.6-1.3 3.6-4.2-1c-2.5-.6-4.6-2.2-5.9-4.4l-3-5.1c.7-1.2 1.7-2 3-2.4Z" fill={`url(#${ids.accent})`} opacity={0.9} />
+          <Path d="M11.4 24.1c2.4 1.1 4.7 1.4 6.8.9M25.4 25.7l4.1.8" stroke={highlightColor} strokeOpacity={0.75} strokeWidth="1.6" strokeLinecap="round" />
         </G>
       )}
 

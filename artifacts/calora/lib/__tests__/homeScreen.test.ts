@@ -144,7 +144,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('styles.recipeWidgetImage');
     expect(source).toContain('today-supporting-widgets-grid');
     expect(source).toContain('dashboard-macro-card');
-    expect(source).toContain('useSingleColumnWellness = viewportWidth < 350 || fontScale > 1.22');
+    expect(source).toContain('useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22');
     expect(source).toContain('status.remainingMs > 0');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
@@ -598,6 +598,38 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('<StepMilestoneCelebration');
     expect(source).toContain('milestone={liveStepMilestones[0] ?? null}');
     expect(source).toContain('onDismissMilestone={dismissLiveStepMilestone}');
+  });
+
+  it('keeps the reference Steps composition and supporting section aligned with the calorie card', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("<CaloraFeatureIcon name=\"steps\"");
+    expect(source).toContain('accessibilityRole="header" style={[styles.stepsCardTitle');
+    expect(source).toContain('testID="dashboard-steps-action"');
+    expect(source).toContain("<CaloraFeatureIcon name=\"mood\" size={22}");
+    expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', gap: 10, marginHorizontal: -10');
+    expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
+    expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' }");
+    expect(source).toContain('const useSingleColumnWellness = viewportWidth < 400 || fontScale > 1.22;');
+  });
+
+  it('keeps all five mood controls and macro values in the compact responsive cards', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('moodOptionsCompact: { flexWrap: \'nowrap\'');
+    expect(source).toContain('moodOptionCompact: { flexBasis: \'19.5%\'');
+    expect(source).toContain('MacroBalanceDonut');
+    expect(source).toContain('macroLegendValue');
   });
 
   it('follows today across a local-day change without overwriting a deliberate historical date', async () => {
