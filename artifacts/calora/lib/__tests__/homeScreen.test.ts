@@ -106,10 +106,10 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
-    expect(source).toContain('minHeight: h(182)');
-    expect(source).toContain('height: h(131)');
+    expect(source).toContain('minHeight: h(154)');
+    expect(source).toContain('height: h(166)');
     expect(source).toContain('dashboardSingleColumnGrid');
-    expect(source).toContain('const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;');
+    expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
 
   it('keeps the profile shortcut as an image-free semantic control', async () => {
@@ -144,7 +144,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('styles.recipeWidgetImage');
     expect(source).toContain('today-supporting-widgets-grid');
     expect(source).toContain('dashboard-macro-card');
-    expect(source).toContain('useSingleColumnWellness = viewportWidth < 400');
+    expect(source).toContain('useSingleColumnWellness = viewportWidth < 350 || fontScale > 1.22');
     expect(source).toContain('status.remainingMs > 0');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
@@ -535,10 +535,11 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('carbsTargetGrams: values.carbs');
     expect(source).toContain('fatTargetGrams: values.fat');
     const macroSection = source.slice(
-      source.indexOf('>Macro balance</Text>'),
-      source.indexOf('<MoodCard', source.indexOf('>Macro balance</Text>')),
+      source.indexOf('>Macros Balance</Text>'),
+      source.indexOf('<MoodCard', source.indexOf('>Macros Balance</Text>')),
     );
     expect(macroSection).not.toContain("router.navigate('/(tabs)/profile')");
+    expect(macroSection).toContain('MacroBalanceDonut');
   });
 
   it('labels a no-Health Pedometer stream as session-only and keeps Health recovery reachable', async () => {
@@ -650,7 +651,26 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(widget).not.toContain('if (isError || (!isLoading && recipes.length === 0)) return null;');
     expect(widget).toContain('accessibilityLabel="Retry dashboard recipes"');
     expect(widget).toContain('accessibilityRole="alert"');
-    expect(widget).toContain('const pageWidth = Math.max(240, Math.min(360, width - 72));');
+    expect(widget).toContain('const pageWidth = Math.max(154, Math.min(220, width - 88));');
     expect(widget).toContain('width: pageWidth');
+    expect(widget).toContain('Recipes for you');
+    expect(widget).toContain('View all recipes');
+  });
+
+  it('keeps the approved supporting-widget order and protects the calorie component boundary', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(resolve(__dirname, '../../app/(tabs)/index.tsx'), 'utf8');
+    const grid = source.slice(source.indexOf('testID="today-supporting-widgets-grid"'), source.indexOf('styles.recipeSection'));
+    expect(grid.indexOf('DashboardFastingCard')).toBeLessThan(grid.indexOf('StepsTodayCard'));
+    expect(grid.indexOf('StepsTodayCard')).toBeLessThan(grid.indexOf('Macros Balance'));
+    expect(grid.indexOf('Macros Balance')).toBeLessThan(grid.indexOf('<MoodCard'));
+    expect(source).toContain('function MacroBalanceDonut');
+    expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
+    const calorieStart = source.indexOf('function CalorieGauge');
+    const fastingStart = source.indexOf('function DashboardFastingCard');
+    expect(calorieStart).toBeGreaterThan(-1);
+    expect(fastingStart).toBeGreaterThan(calorieStart);
+    expect(source.slice(calorieStart, fastingStart)).toContain('dashboard-burned-stat');
   });
 });
