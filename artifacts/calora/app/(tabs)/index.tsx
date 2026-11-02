@@ -69,6 +69,41 @@ import { normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+const REFERENCE_WIDGET_PALETTE = {
+  surface: '#063d2d',
+  border: '#0d7454',
+  foreground: '#f4fff8',
+  mutedForeground: '#c4ddd2',
+  muted: '#165a45',
+  track: '#29594a',
+  green: '#16e89b',
+  orange: '#ffb86e',
+  blue: '#169fe8',
+  iconSurface: '#075840',
+  pill: '#0a654a',
+};
+
+type CaloraColors = ReturnType<typeof useCalora>['colors'];
+type ReferenceWidgetColors = CaloraColors & typeof REFERENCE_WIDGET_PALETTE;
+const referenceWidgetColors = (colors: CaloraColors): ReferenceWidgetColors => ({
+  ...colors,
+  card: REFERENCE_WIDGET_PALETTE.surface,
+  hero: REFERENCE_WIDGET_PALETTE.surface,
+  border: REFERENCE_WIDGET_PALETTE.border,
+  foreground: REFERENCE_WIDGET_PALETTE.foreground,
+  mutedForeground: REFERENCE_WIDGET_PALETTE.mutedForeground,
+  muted: REFERENCE_WIDGET_PALETTE.muted,
+  primary: REFERENCE_WIDGET_PALETTE.green,
+  primaryForeground: '#04291e',
+  success: REFERENCE_WIDGET_PALETTE.green,
+  warning: REFERENCE_WIDGET_PALETTE.orange,
+  accent: REFERENCE_WIDGET_PALETTE.pill,
+  accentForeground: REFERENCE_WIDGET_PALETTE.orange,
+  protein: REFERENCE_WIDGET_PALETTE.green,
+  carbs: REFERENCE_WIDGET_PALETTE.blue,
+  fat: REFERENCE_WIDGET_PALETTE.orange,
+}) as unknown as ReferenceWidgetColors;
+
 // Calorie gauge geometry — computed once at module load, stable across renders
 const GAUGE_VBW = 260;
 const GAUGE_VBH = 186;
@@ -390,6 +425,7 @@ function LivingRhythmCard({
 function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void; onViewAll: () => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
+  const referenceColors = referenceWidgetColors(colors);
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -398,7 +434,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const [carouselInteractionActive, setCarouselInteractionActive] = useState(false);
   // Keep several previews visible on ordinary phones while retaining a safe
   // minimum for very narrow screens and larger accessibility text.
-  const pageWidth = Math.max(154, Math.min(220, width - 88));
+  const pageWidth = Math.max(110, Math.min(140, (width - 70) / 3));
   const stopCarouselAnimation = () => {
     if (autoScrollFrameRef.current !== null) {
       cancelAnimationFrame(autoScrollFrameRef.current);
@@ -454,36 +490,39 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   }, [activeRecipe, carouselInteractionActive, recipes.length]);
 
   return (
-    <View style={[styles.recipeWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.recipeWidget, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
       <View style={styles.recipeWidgetHeader}>
-          <View style={styles.recipeWidgetHeadingCopy}>
-            <Text style={[styles.recipeWidgetTitleHeading, { color: colors.foreground }]}>Recipes for you</Text>
-            <Text style={[styles.recipeWidgetSubtitle, { color: colors.mutedForeground }]}>Simple, healthy ideas to fuel your day.</Text>
+          <View style={styles.recipeWidgetTitleRow}>
+            <CaloraFeatureIcon name="restaurant" size={27} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.orange} highlightColor={referenceColors.foreground} />
+            <View style={styles.recipeWidgetHeadingCopy}>
+              <Text style={[styles.recipeWidgetTitleHeading, { color: referenceColors.foreground }]}>Recipes for you</Text>
+              <Text style={[styles.recipeWidgetSubtitle, { color: referenceColors.mutedForeground }]}>Simple, healthy ideas to fuel your day.</Text>
+            </View>
           </View>
           <ScalePressable accessibilityRole="button" accessibilityLabel="View all recipes" onPress={onViewAll} scale={0.96} haptic="none" style={styles.recipeWidgetViewAll}>
-            <Text style={[styles.recipeWidgetViewAllText, { color: colors.foreground }]}>View all</Text>
-            <Feather name="chevron-right" size={16} color={colors.foreground} />
+            <Text style={[styles.recipeWidgetViewAllText, { color: referenceColors.orange }]}>View all</Text>
+            <Feather name="chevron-right" size={16} color={referenceColors.foreground} />
           </ScalePressable>
         <View style={styles.recipeWidgetHeaderActions}>
           {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
-            <ScalePressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></ScalePressable>
-            <ScalePressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></ScalePressable>
+            <ScalePressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: referenceColors.muted }]}><Feather name="chevron-left" size={15} color={referenceColors.foreground} /></ScalePressable>
+            <ScalePressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: referenceColors.muted }]}><Feather name="chevron-right" size={15} color={referenceColors.foreground} /></ScalePressable>
           </View>}
         </View>
       </View>
       {isLoading ? (
-        <View style={styles.recipeWidgetLoading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View>
+        <View style={styles.recipeWidgetLoading}><ActivityIndicator color={referenceColors.green} /><Text style={[styles.loadingText, { color: referenceColors.mutedForeground }]}>Finding recipes…</Text></View>
       ) : isError ? (
         <View accessible accessibilityRole="alert" accessibilityLabel="Recipes could not be loaded" style={styles.recipeWidgetLoading}>
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Recipes are unavailable right now.</Text>
-          <ScalePressable accessibilityLabel="Retry dashboard recipes" accessibilityState={{ busy: isFetching }} disabled={isFetching} onPress={() => { void refetch(); }} haptic="none" style={[styles.recipeWidgetRetry, { borderColor: colors.border, opacity: isFetching ? 0.65 : 1 }]}>
-            <Feather name="refresh-cw" size={14} color={colors.foreground} />
-            <Text style={[styles.recipeWidgetRetryText, { color: colors.foreground }]}>{isFetching ? 'Retrying…' : 'Retry recipes'}</Text>
+          <Text style={[styles.loadingText, { color: referenceColors.mutedForeground }]}>Recipes are unavailable right now.</Text>
+          <ScalePressable accessibilityLabel="Retry dashboard recipes" accessibilityState={{ busy: isFetching }} disabled={isFetching} onPress={() => { void refetch(); }} haptic="none" style={[styles.recipeWidgetRetry, { borderColor: referenceColors.border, opacity: isFetching ? 0.65 : 1 }]}>
+            <Feather name="refresh-cw" size={14} color={referenceColors.foreground} />
+            <Text style={[styles.recipeWidgetRetryText, { color: referenceColors.foreground }]}>{isFetching ? 'Retrying…' : 'Retry recipes'}</Text>
           </ScalePressable>
         </View>
       ) : recipes.length === 0 ? (
         <View accessible accessibilityLiveRegion="polite" accessibilityLabel="No recipe suggestions are available" style={styles.recipeWidgetLoading}>
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>No recipe suggestions are available yet.</Text>
+          <Text style={[styles.loadingText, { color: referenceColors.mutedForeground }]}>No recipe suggestions are available yet.</Text>
         </View>
       ) : (
         <FlatList
@@ -517,19 +556,19 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
             }
           }}
           renderItem={({ item: recipe }) => (
-            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: colors.hero, borderColor: colors.border }]}>
-              {normalizeFoodImageUrl(recipe.image) ? <Image source={{ uri: normalizeFoodImageUrl(recipe.image) }} style={styles.recipeWidgetImage} resizeMode="cover" /> : <View style={[styles.recipeWidgetImageUnavailable, { backgroundColor: colors.accent }]}><Feather name="image" size={24} color={colors.accentForeground} /></View>}
+            <View style={[styles.recipeWidgetCard, { width: pageWidth, backgroundColor: referenceColors.hero, borderColor: referenceColors.border }] }>
+              {normalizeFoodImageUrl(recipe.image) ? <Image source={{ uri: normalizeFoodImageUrl(recipe.image) }} style={styles.recipeWidgetImage} resizeMode="cover" /> : <View style={[styles.recipeWidgetImageUnavailable, { backgroundColor: referenceColors.accent }]}><Feather name="image" size={24} color={referenceColors.accentForeground} /></View>}
               <View style={styles.recipeWidgetTopActions}>
-                <ScalePressable accessibilityRole="button" accessibilityLabel={`${savedRecipeIds.includes(recipe.id) ? 'Remove' : 'Save'} recipe ${recipe.name}`} onPress={() => toggleSavedRecipe(recipe.id)} scale={0.94} haptic="none" style={[styles.recipeWidgetSaveButton, { backgroundColor: colors.card }]}>
-                  <Feather name="heart" size={17} color={colors.accent} />
+                <ScalePressable accessibilityRole="button" accessibilityLabel={`${savedRecipeIds.includes(recipe.id) ? 'Remove' : 'Save'} recipe ${recipe.name}`} onPress={() => toggleSavedRecipe(recipe.id)} scale={0.94} haptic="none" style={[styles.recipeWidgetSaveButton, { backgroundColor: referenceColors.muted }]}>
+                  <Feather name="heart" size={17} color={referenceColors.orange} />
                 </ScalePressable>
               </View>
               <View style={styles.recipeWidgetCopy}>
-                <Text numberOfLines={2} style={[styles.recipeWidgetTitle, { color: colors.foreground }]}>{recipe.name}</Text>
+                <Text numberOfLines={2} style={[styles.recipeWidgetTitle, { color: referenceColors.foreground }]}>{recipe.name}</Text>
                 <View style={styles.recipeWidgetFooter}>
-                  <Text style={[styles.recipeWidgetMeta, { color: colors.mutedForeground }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
+                  <Text style={[styles.recipeWidgetMeta, { color: referenceColors.mutedForeground }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
                   <ScalePressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} scale={0.98} haptic="none" style={styles.recipeWidgetAction}>
-                    <Feather name="chevron-right" size={14} color={colors.accent} />
+                    <Feather name="chevron-right" size={14} color={referenceColors.orange} />
                   </ScalePressable>
                 </View>
               </View>
@@ -778,6 +817,7 @@ function StepsTodayCard({
   milestone: number | null;
   onDismissMilestone: (milestone: number) => void;
 }) {
+  const referenceColors = referenceWidgetColors(colors);
   const steps = tracking.displayedSteps;
   const progress = steps === null ? 0 : Math.min(steps / dailyStepGoal, 1);
   const sessionOnly = isLiveSessionOnly(tracking);
@@ -838,30 +878,30 @@ function StepsTodayCard({
   return (
     <View
       testID="dashboard-steps-card"
-      style={[styles.stepsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.stepsCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}
     >
       <View style={styles.stepsCardHeader}>
-        {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: colors.success }]} />}
+        {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: referenceColors.green }]} />}
       </View>
       <View style={styles.stepsCardBody}>
         <StepProgressRing
           steps={steps}
           dailyStepGoal={dailyStepGoal}
           progress={progress}
-          colors={colors}
+          colors={referenceColors}
           accessibilitySummary={accessibilitySummary}
           compact
         />
         <View style={styles.stepsSummary}>
-          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: colors.foreground }]}>Steps</Text>
-          <Text style={[styles.stepsSummaryValue, { color: colors.foreground }]}>{steps === null ? '—' : formatWhole(steps)} <Text style={[styles.stepsSummaryGoal, { color: colors.mutedForeground }]}>/ {formatWhole(dailyStepGoal)}</Text></Text>
-          <Text testID="dashboard-steps-status" style={[styles.stepsSummaryLabel, { color: tracking.status === 'live' ? colors.success : colors.mutedForeground }]}>{tracking.status === 'live' ? 'Live steps' : 'Steps today'}</Text>
+          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps</Text>
+          <Text style={[styles.stepsSummaryValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)} <Text style={[styles.stepsSummaryGoal, { color: referenceColors.mutedForeground }]}>/ {formatWhole(dailyStepGoal)}</Text></Text>
+          <Text testID="dashboard-steps-status" style={[styles.stepsSummaryLabel, { color: tracking.status === 'live' ? referenceColors.green : referenceColors.mutedForeground }]}>{tracking.status === 'live' ? 'Live steps' : 'Steps today'}</Text>
         </View>
       </View>
       {milestone !== null && (
         <StepMilestoneCelebration
           milestone={milestone}
-          colors={colors}
+          colors={referenceColors}
           onDismiss={() => onDismissMilestone(milestone)}
         />
       )}
@@ -871,11 +911,11 @@ function StepsTodayCard({
           accessibilityLabel={actionLabel}
           testID="dashboard-steps-action"
           onPress={onPress}
-          style={[styles.stepsAction, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          style={[styles.stepsAction, { backgroundColor: referenceColors.pill, borderColor: referenceColors.border }]}
         >
-          <CaloraFeatureIcon name="mood" size={22} primaryColor={colors.warning} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
-          <Text style={[styles.stepsActionText, { color: colors.foreground }]}>{actionLabel}</Text>
-          <Feather name="chevron-right" size={15} color={colors.primary} />
+          <CaloraFeatureIcon name="mood" size={22} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} />
+          <Text style={[styles.stepsActionText, { color: referenceColors.foreground }]}>{actionLabel}</Text>
+          <Feather name="chevron-right" size={15} color={referenceColors.foreground} />
         </Pressable>
       )}
     </View>
@@ -893,20 +933,21 @@ function MoodCard({
   mood?: Mood;
   onMood: (mood: Mood) => void;
 }) {
+  const referenceColors = referenceWidgetColors(colors);
   return (
-    <View style={[styles.moodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
       <View style={styles.moodHeading}>
-        <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.42} style={[styles.moodHeadingTitle, { color: colors.foreground }]}>How are you feeling?</Text>
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        <View style={[styles.wellnessIcon, { backgroundColor: referenceColors.orange }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} /></View>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.42} style={[styles.moodHeadingTitle, { color: referenceColors.foreground }]}>How are you feeling?</Text>
+        <Feather name="chevron-right" size={16} color={referenceColors.foreground} />
       </View>
       <View style={[styles.moodOptions, compact && styles.moodOptionsCompact]}>
         {moodOptions.map((item) => {
           const selected = mood === item.value;
           return (
-            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
-              <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-              <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.72} style={[styles.moodOptionText, compact && styles.moodOptionTextCompact, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
+              <Feather name={item.icon} size={15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
+              <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.72} style={[styles.moodOptionText, compact && styles.moodOptionTextCompact, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
             </ScalePressable>
           );
         })}
@@ -928,14 +969,15 @@ function MacroBalanceDonut({
   fat: number;
   targets: Pick<MacroTargets, 'protein' | 'carbs' | 'fat'>;
 }) {
+  const referenceColors = referenceWidgetColors(colors);
   const size = 104;
   const stroke = 16;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const values = [
-    { label: 'Protein', value: protein, target: targets.protein, color: colors.protein },
-    { label: 'Carbs', value: carbs, target: targets.carbs, color: colors.carbs },
-    { label: 'Fat', value: fat, target: targets.fat, color: colors.fat },
+    { label: 'Protein', value: protein, target: targets.protein, color: referenceColors.green },
+    { label: 'Carbs', value: carbs, target: targets.carbs, color: referenceColors.blue },
+    { label: 'Fat', value: fat, target: targets.fat, color: referenceColors.orange },
   ];
   const weights = values.map(({ value, target }) => Math.max(value / Math.max(target, 1), 0));
   const totalWeight = weights.reduce((sum, value) => sum + value, 0);
@@ -945,7 +987,7 @@ function MacroBalanceDonut({
     <View style={styles.macroDonutLayout} accessible accessibilityRole="summary" accessibilityLabel={`Macro balance: ${formatQuantity(protein)} grams protein, ${formatQuantity(carbs)} grams carbs, and ${formatQuantity(fat)} grams fat.`}>
       <View style={styles.macroDonutWrap}>
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <Circle cx={size / 2} cy={size / 2} r={radius} stroke={colors.muted} strokeWidth={stroke} fill="none" />
+          <Circle cx={size / 2} cy={size / 2} r={radius} stroke={referenceColors.track} strokeWidth={stroke} fill="none" />
           {values.map((item, index) => {
             const share = totalWeight > 0 ? weights[index] / totalWeight : 1 / values.length;
             const segment = circumference * share;
@@ -955,16 +997,16 @@ function MacroBalanceDonut({
           })}
         </Svg>
         <View pointerEvents="none" style={styles.macroDonutCenter}>
-          <Text style={[styles.macroDonutCenterTitle, { color: colors.foreground }]}>Macros</Text>
-          <Text style={[styles.macroDonutCenterSubtitle, { color: colors.mutedForeground }]}>balance</Text>
+          <Text style={[styles.macroDonutCenterTitle, { color: referenceColors.foreground }]}>Macros</Text>
+          <Text style={[styles.macroDonutCenterSubtitle, { color: referenceColors.mutedForeground }]}>Balance</Text>
         </View>
       </View>
       <View style={styles.macroLegend}>
         {values.map((item) => (
           <View key={item.label} style={styles.macroLegendRow}>
             <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
-            <Text style={[styles.macroLegendLabel, { color: colors.foreground }]}>{item.label}</Text>
-            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.55} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: colors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+            <Text style={[styles.macroLegendLabel, { color: referenceColors.foreground }]}>{item.label}</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.55} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
           </View>
         ))}
       </View>
@@ -1633,6 +1675,7 @@ function DashboardFastingCard({
   fontScale: number;
 }) {
   const { fasting } = useCalora();
+  const referenceColors = referenceWidgetColors(colors);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -1645,31 +1688,31 @@ function DashboardFastingCard({
       accessibilityRole="button"
       accessibilityLabel="Open fasting"
       onPress={() => router.push('/fasting')}
-      style={[styles.dashboardFastingCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.dashboardFastingCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}
     >
       <View style={styles.dashboardFastingTopRow}>
         <View style={[styles.dashboardFastingIcon, { backgroundColor: 'rgba(36,164,104,0.12)' }]}>
-          <Feather name="clock" size={20} color={colors.success} />
+          <Feather name="clock" size={20} color={referenceColors.green} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82} style={[styles.dashboardFastingTitle, { color: referenceColors.foreground, fontSize: 14 * fontScale }]}>Fasting</Text>
           {isRunning ? (
             <View>
-              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.elapsedMs)} elapsed</Text>
-              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.remainingMs)} remaining</Text>
+              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.elapsedMs)} elapsed</Text>
+              <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{formatFastingDuration(status.remainingMs)} remaining</Text>
             </View>
           ) : (
-            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: colors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
+            <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
           )}
         </View>
-        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+        <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
       </View>
-      <View style={[styles.dashboardFastingTrack, { backgroundColor: colors.muted }]}>
-        <View style={[styles.dashboardFastingFill, { backgroundColor: colors.success, width: `${Math.round(status.progress * 100)}%` }]} />
+      <View style={[styles.dashboardFastingTrack, { backgroundColor: referenceColors.track }]}>
+        <View style={[styles.dashboardFastingFill, { backgroundColor: referenceColors.green, width: `${Math.round(status.progress * 100)}%` }]} />
       </View>
       <View style={styles.dashboardFastingFooter}>
-        <Text style={[styles.dashboardFastingPlan, { color: colors.mutedForeground, fontSize: 10 * fontScale }]}>{fastingPlanLabel(fasting)} plan</Text>
-        <Text style={[styles.dashboardFastingAction, { color: colors.success, fontSize: 11 * fontScale }]}>{isRunning ? 'View' : 'Set up'}</Text>
+        <Text style={[styles.dashboardFastingPlan, { color: referenceColors.mutedForeground, fontSize: 10 * fontScale }]}>{fastingPlanLabel(fasting)} plan</Text>
+        <Text style={[styles.dashboardFastingAction, { color: referenceColors.orange, fontSize: 11 * fontScale }]}>{isRunning ? 'View' : 'Set up'}</Text>
       </View>
     </ScalePressable>
   );
@@ -2040,12 +2083,12 @@ export default function HomeScreen() {
                 <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} />
               </View>
               {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
-                <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: REFERENCE_WIDGET_PALETTE.surface, borderColor: REFERENCE_WIDGET_PALETTE.border }]}>
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.dashboardCardTitle, { color: colors.foreground }]}>Macros Balance</Text>
-                    <ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.mutedForeground} /></ScalePressable>
+                    <Text style={[styles.dashboardCardTitle, { color: REFERENCE_WIDGET_PALETTE.foreground }]}>Macros Balance</Text>
+                    <ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: REFERENCE_WIDGET_PALETTE.muted }]}><Feather name="sliders" size={17} color={REFERENCE_WIDGET_PALETTE.foreground} /></ScalePressable>
                   </View>
-                  <MacroBalanceDonut colors={colors} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
+                  <MacroBalanceDonut colors={referenceWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />
                 </View>
               </View>}
               <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><MoodCard compact={!useSingleColumnWellness} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>
@@ -2262,6 +2305,7 @@ function makeStyles(f: number) {
   recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingVertical: h(13), paddingHorizontal: 14, marginBottom: h(28), shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4, marginHorizontal: -10 },
   recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: h(11) },
+  recipeWidgetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1, minWidth: 0 },
   recipeWidgetHeadingCopy: { flex: 1, minWidth: 0 },
   recipeWidgetTitleHeading: { fontFamily: 'Inter_800ExtraBold', fontSize: 17 * f, letterSpacing: -0.25 },
   recipeWidgetSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 10.5 * f, marginTop: 3 },
@@ -2271,9 +2315,9 @@ function makeStyles(f: number) {
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
   recipeWidgetNavButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
-  recipeWidgetCard: { height: h(166), borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, overflow: 'hidden', position: 'relative' },
-  recipeWidgetImage: { width: '100%', height: h(88) },
-  recipeWidgetImageUnavailable: { width: '100%', height: h(88), alignItems: 'center', justifyContent: 'center' },
+  recipeWidgetCard: { height: h(154), borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, overflow: 'hidden', position: 'relative' },
+  recipeWidgetImage: { width: '100%', height: h(78) },
+  recipeWidgetImageUnavailable: { width: '100%', height: h(78), alignItems: 'center', justifyContent: 'center' },
   recipeWidgetTopActions: { position: 'absolute', top: 8, right: 8 },
   recipeWidgetSaveButton: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetCopy: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 8 },
