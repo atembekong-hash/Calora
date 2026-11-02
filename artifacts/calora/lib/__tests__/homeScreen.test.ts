@@ -107,7 +107,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain('minHeight: h(154)');
-    expect(source).toContain('height: h(166)');
+    expect(source).toContain('height: h(154)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
@@ -683,10 +683,12 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(widget).not.toContain('if (isError || (!isLoading && recipes.length === 0)) return null;');
     expect(widget).toContain('accessibilityLabel="Retry dashboard recipes"');
     expect(widget).toContain('accessibilityRole="alert"');
-    expect(widget).toContain('const pageWidth = Math.max(154, Math.min(220, width - 88));');
+    expect(widget).toContain('const pageWidth = Math.max(110, Math.min(140, (width - 70) / 3));');
     expect(widget).toContain('width: pageWidth');
     expect(widget).toContain('Recipes for you');
     expect(widget).toContain('View all recipes');
+    expect(widget).toContain('name="restaurant"');
+    expect(widget).toContain('referenceColors.orange');
   });
 
   it('keeps the approved supporting-widget order and protects the calorie component boundary', async () => {
