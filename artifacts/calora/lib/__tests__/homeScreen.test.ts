@@ -106,7 +106,7 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
-    expect(source).toContain('minHeight: h(74)');
+    expect(source).toContain('minHeight: h(182)');
     expect(source).toContain('height: h(131)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 142 * TODAY_WIDGET_HEIGHT_SCALE;');
@@ -142,7 +142,8 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).not.toContain('useHourlyHeaderImage');
     expect(source).toContain('normalizeFoodImageUrl(recipe.image)');
     expect(source).toContain('styles.recipeWidgetImage');
-    expect(source).toContain('today-wellness-grid');
+    expect(source).toContain('today-supporting-widgets-grid');
+    expect(source).toContain('dashboard-macro-card');
     expect(source).toContain('useSingleColumnWellness = viewportWidth < 400');
     expect(source).toContain('status.remainingMs > 0');
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
@@ -474,7 +475,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('gaugeStyles.remainingNumber, { color: colors.strongForeground }');
   });
 
-  it('mounts a single secondary Today insight after the diary footer and before recipe discovery', async () => {
+  it('mounts Recipes for You immediately below the supporting grid and keeps the secondary insight unique', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -484,7 +485,7 @@ describe('Today dashboard — date context and display contracts', () => {
 
     expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
     expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
-    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('styles.recipeSection'));
+    expect(source.indexOf('styles.recipeSection')).toBeLessThan(source.indexOf('testID="today-contextual-insight"'));
     expect(source).not.toContain("widgetId === 'mealRhythm'");
     expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
     expect(source).toContain('selectVisibleTodayInsight');
