@@ -182,7 +182,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('backgroundColor: colors.card, borderWidth: 1');
-    expect(source).toContain('IconBox color={colors.mutedForeground}');
+    expect(source).toContain('IconBox color={item.tint}');
     expect(source).toContain('quickLabel: { color: colors.foreground');
     expect(source).toContain('icon={item.icon} size={30}');
     expect(source).toContain('name="chevron-right" size={18}');
