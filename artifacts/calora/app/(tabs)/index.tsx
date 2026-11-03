@@ -2224,7 +2224,7 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
-  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '43.3%', width: '43.3%', minWidth: 0, maxWidth: '43.3%' },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '47.6%', width: '47.6%', minWidth: 0, maxWidth: '47.6%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },

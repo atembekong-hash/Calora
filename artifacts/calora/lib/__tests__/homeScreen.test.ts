@@ -615,7 +615,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("<CaloraFeatureIcon name=\"mood\" size={22}");
     expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', justifyContent: \'center\', gap: 10, marginHorizontal: -10');
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
-    expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '43.3%', width: '43.3%', minWidth: 0, maxWidth: '43.3%' }");
+    expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '47.6%', width: '47.6%', minWidth: 0, maxWidth: '47.6%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
   });
 
