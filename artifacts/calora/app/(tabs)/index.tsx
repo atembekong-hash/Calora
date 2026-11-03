@@ -893,6 +893,9 @@ function StepsTodayCard({
           <Text style={[styles.stepsSummaryValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)} <Text style={[styles.stepsSummaryGoal, { color: referenceColors.mutedForeground }]}>/ {formatWhole(dailyStepGoal)}</Text></Text>
           <Text testID="dashboard-steps-status" style={[styles.stepsSummaryLabel, { color: tracking.status === 'live' ? referenceColors.green : referenceColors.mutedForeground }]}>{tracking.status === 'live' ? 'Live steps' : 'Steps today'}</Text>
         </View>
+        <View pointerEvents="none" style={styles.stepsBodyArrow}>
+          <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
+        </View>
       </View>
       {milestone !== null && (
         <StepMilestoneCelebration
@@ -911,7 +914,6 @@ function StepsTodayCard({
         >
           <CaloraFeatureIcon name="mood" size={22} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} />
           <Text style={[styles.stepsActionText, { color: referenceColors.foreground }]}>{actionLabel}</Text>
-          <Feather name="chevron-right" size={15} color={referenceColors.foreground} />
         </Pressable>
       )}
     </View>
@@ -1994,6 +1996,7 @@ export default function HomeScreen() {
               style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border, overflow: 'hidden' }]}
             >
               <ProfilePhoto
+                key={profilePhotoUri ?? 'profile-photo-empty'}
                 uri={profilePhotoUri}
                 size={40}
                 accessibilityLabel="Profile photo"
@@ -2009,7 +2012,7 @@ export default function HomeScreen() {
           <View pointerEvents="none" style={styles.homeHeaderScrim} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={styles.homeHeaderCustomize}>
+              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={[styles.homeHeaderCustomize, { transform: [{ translateX: -5 }, { translateY: -4 }] }]}>
                 <Feather name="sliders" size={17} color="#d4eadc" />
               </ScalePressable>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
@@ -2203,7 +2206,7 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.16 }] },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2221,7 +2224,7 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
-  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '45.6%', width: '45.6%', minWidth: 0, maxWidth: '45.6%' },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '43.3%', width: '43.3%', minWidth: 0, maxWidth: '43.3%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
@@ -2281,16 +2284,17 @@ function makeStyles(f: number) {
   stepsCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
-  stepsCardBody: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6, flex: 1, minWidth: 0 },
-  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingTop: h(2) },
+  stepsCardBody: { position: 'relative', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 10, flex: 1, minWidth: 0 },
+  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingTop: h(2), paddingLeft: 4, paddingRight: 20 },
   stepsSummaryValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19 * f, letterSpacing: -0.5 },
   stepsSummaryGoal: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   stepsSummaryLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: h(7) },
+  stepsRing: { width: STEPS_RING_SIZE, height: STEPS_RING_SIZE, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   stepsRingCopy: { position: 'absolute', left: 22, right: 22, alignItems: 'center', justifyContent: 'center' },
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
   stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
+  stepsBodyArrow: { position: 'absolute', right: 2, top: '50%', marginTop: -10, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   stepsAction: { minHeight: h(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(4), paddingHorizontal: 8 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
