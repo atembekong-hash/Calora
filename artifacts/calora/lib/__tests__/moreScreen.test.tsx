@@ -158,7 +158,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("fastingCard: { height: 153.97");
     expect(source).toContain("marginTop: 18, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
-    expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#d2e9dc"');
+    expect(source).toContain('backgroundColor: dark ? "#06241f" : "#d2e9dc"');
     expect(source).toContain('color={mode === "dark" ? TEXT : colors.foreground}');
     expect(source).toContain('backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card');
@@ -170,13 +170,15 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("Fasting in progress");
     expect(source).toContain("featureCard: { flex: 1, height: 111.77");
     expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
-    expect(source).toContain('progressCard: { backgroundColor: dark ? "#3b2b22" : "#f7e9df" }');
-    expect(source).toContain('learningCard: { backgroundColor: dark ? "#262148" : "#eeeafd" }');
+    expect(source).toContain('progressCard: { backgroundColor: dark ? "#32170f" : "#f7e9df" }');
+    expect(source).toContain('learningCard: { backgroundColor: dark ? "#19183f" : "#eeeafd" }');
     expect(source).toContain('featureTitle: { color: dark ? TEXT : colors.foreground');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.card');
     expect(source).toContain('chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary }');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
-    expect(source).toContain('icon={item.icon} size={26}');
+    expect(source).toContain('icon={item.icon} size={30}');
+    expect(source).toContain('name="chevron-right" size={18}');
+    expect(source).toContain('quickArrow: { position: "absolute", right: 8');
     expect(source).toContain('name="settings" size={15}');
     expect(source).toContain('accessibilityLabel="Open Settings"');
     expect(source).not.toContain("const SURFACE");
