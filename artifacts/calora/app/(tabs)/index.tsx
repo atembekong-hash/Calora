@@ -421,7 +421,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const referenceColors = supportingWidgetColors(colors);
-  const recipeCardSurface = colors.background === '#101916' ? '#123f31' : '#dceee3';
+  const recipeCardSurface = colors.background === '#101916' ? '#0f3328' : '#cfe5d7';
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -1007,8 +1007,8 @@ function MacroBalanceDonut({
         {values.map((item) => (
           <View key={item.label} style={styles.macroLegendRow}>
             <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
-            <Text numberOfLines={1} adjustsFontSizeToFit={!narrowCompact} style={[styles.macroLegendLabel, narrowCompact && { width: 34, fontSize: 7.8, letterSpacing: -0.2 }, { color: referenceColors.foreground }]}>{item.label}</Text>
-            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.78} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, narrowCompact && { fontSize: 7.7, letterSpacing: -0.35 }, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.macroLegendLabel, narrowCompact && { width: 34, fontSize: 8.6, letterSpacing: -0.35 }, { color: referenceColors.foreground }]}>{item.label}</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.6} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, narrowCompact && { fontSize: 8.1, letterSpacing: -0.45 }, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)} / {formatQuantity(item.target)}g</Text>
           </View>
         ))}
       </View>
@@ -1708,9 +1708,9 @@ function DashboardFastingCard({
         ) : (
           <Text numberOfLines={1} style={[styles.dashboardFastingCopy, { color: referenceColors.mutedForeground, fontSize: 11 * fontScale }]}>{status.active ? 'Window complete' : 'Ready to start'}</Text>
         )}
-      </View>
-      <View style={[styles.dashboardFastingTrack, { backgroundColor: referenceColors.track }]}>
-        <View style={[styles.dashboardFastingFill, { backgroundColor: referenceColors.green, width: `${Math.round(status.progress * 100)}%` }]} />
+        <View style={[styles.dashboardFastingTrack, { backgroundColor: referenceColors.track }]}>
+          <View style={[styles.dashboardFastingFill, { backgroundColor: referenceColors.green, width: `${Math.round(status.progress * 100)}%` }]} />
+        </View>
       </View>
       <View style={styles.dashboardFastingFooter}>
         <Text style={[styles.dashboardFastingPlan, { color: referenceColors.mutedForeground, fontSize: 10 * fontScale }]}>{fastingPlanLabel(fasting)} plan</Text>
@@ -2012,7 +2012,7 @@ export default function HomeScreen() {
           <View pointerEvents="none" style={styles.homeHeaderScrim} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={[styles.homeHeaderCustomize, { transform: [{ translateX: -5 }, { translateY: -4 }] }]}>
+              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={[styles.homeHeaderCustomize, { transform: [{ translateX: -9 }, { translateY: -7 }] }]}>
                 <Feather name="sliders" size={17} color="#d4eadc" />
               </ScalePressable>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
@@ -2206,7 +2206,7 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.16 }] },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.32 }] },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2219,8 +2219,8 @@ function makeStyles(f: number) {
   homeHeaderCoachIcon: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 0.1 },
    homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.5, textAlign: 'right', maxWidth: 146, textTransform: 'uppercase', transform: [{ translateY: -12 }] },
-  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -18 }, { translateY: 2 }] },
-  homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -18 }, { translateY: 11 }] },
+  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -9 }, { translateY: 2 }] },
+  homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -9 }, { translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
@@ -2285,7 +2285,7 @@ function makeStyles(f: number) {
   stepsCardStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2 },
   stepsLiveDot: { width: 8, height: 8, borderRadius: 4 },
   stepsCardBody: { position: 'relative', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 10, flex: 1, minWidth: 0 },
-  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingTop: h(2), paddingLeft: 4, paddingRight: 20 },
+  stepsSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', justifyContent: 'flex-start', paddingTop: 0, paddingLeft: 8, paddingRight: 12 },
   stepsSummaryValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19 * f, letterSpacing: -0.5 },
   stepsSummaryGoal: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   stepsSummaryLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -2393,8 +2393,8 @@ function makeStyles(f: number) {
   macroLegend: { flex: 1, minWidth: 0, gap: 4 },
   macroLegendRow: { flexDirection: 'row', alignItems: 'center', minWidth: 0, gap: 2 },
   macroLegendDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
-  macroLegendLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 8.2 * f, width: 34 },
-  macroLegendValue: { fontFamily: 'Inter_500Medium', fontSize: 7.2 * f, flexShrink: 1, letterSpacing: -0.25 },
+  macroLegendLabel: { fontFamily: 'Inter_700Bold', fontSize: 9.3 * f, width: 37, flexShrink: 0 },
+  macroLegendValue: { fontFamily: 'Inter_600SemiBold', fontSize: 8.1 * f, flexShrink: 1, letterSpacing: -0.35 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
   macroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },

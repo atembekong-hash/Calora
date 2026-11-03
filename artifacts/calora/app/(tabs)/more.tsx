@@ -18,7 +18,6 @@ import { formatWeight } from "@/lib/weightInput";
 
 const TEXT = "#f4fbf7";
 const MUTED = "#9ab1a7";
-const GREEN = "#0b5f3d";
 const ORANGE = "#ff876c";
 
 function IconBox({
@@ -167,16 +166,16 @@ export default function MoreScreen() {
   const { fontScale, colors, mode } = useCalora();
   const styles = makeStyles(fontScale, colors, mode);
   const quick = useMemo(() => [
-    { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: GREEN },
+    { label: "Saved meals", icon: "bookmark" as const, route: "/saved-meals", tint: colors.accentForeground },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#5ea4ff" },
     { label: "Reminders", icon: "bell" as const, route: "/profile?tab=you&open=reminders", tint: "#f3b33f" },
-    { label: "Customize Today", icon: "sliders" as const, route: "/dashboard-layout", tint: GREEN },
+    { label: "Customize Today", icon: "sliders" as const, route: "/dashboard-layout", tint: colors.accentForeground },
     { label: "Meal plan", icon: "calendar" as const, route: "/planner", tint: "#a78bfa" },
     { label: "Scan history", icon: "rotate-ccw" as const, route: "/scan", tint: "#62b9ff" },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },
-    { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: GREEN },
+    { label: "Health sync", icon: "heart" as const, route: "/profile?tab=account&open=health", tint: colors.accentForeground },
     { label: "Recipes", icon: "book-open" as const, route: "/recipes", tint: ORANGE },
-  ], []);
+  ], [colors.accentForeground]);
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
@@ -196,7 +195,7 @@ export default function MoreScreen() {
         <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Shortcuts to the things you use most</Text>
         </View>
         <View style={styles.quickGrid}>
-          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={colors.mutedForeground} icon={item.icon} size={30} /><Text numberOfLines={1} style={styles.quickLabel}>{item.label}</Text><View style={styles.quickArrow}><Feather name="chevron-right" size={18} color={colors.mutedForeground} /></View></ScalePressable>)}
+          {quick.map((item) => <ScalePressable key={item.label} accessibilityRole="button" accessibilityLabel={`Open ${item.label}`} onPress={() => router.push(item.route as never)} style={styles.quickItem}><IconBox color={item.tint} icon={item.icon} size={30} /><Text numberOfLines={1} style={styles.quickLabel}>{item.label}</Text><View style={styles.quickArrow}><Feather name="chevron-right" size={18} color={colors.mutedForeground} /></View></ScalePressable>)}
         </View>
         <CaloraProCard />
       </ScrollView>
@@ -225,7 +224,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     fastRing: { height: 52, width: 52, borderRadius: 26, borderWidth: 6, borderLeftColor: dark ? "#456b5f" : colors.border, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-35deg" }] },
     fastCopy: { flex: 1, minWidth: 0, paddingTop: 0 },
     statusPill: { maxWidth: "62%", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint },
-    statusText: { color: GREEN, fontSize: 11 * scale, fontWeight: "700" },
+    statusText: { color: colors.accentForeground, fontSize: 11 * scale, fontWeight: "700" },
     fastTitle: { color: colors.foreground, fontSize: 14 * scale, fontWeight: "800" },
     fastMain: { color: colors.foreground, fontSize: 24 * scale, fontWeight: "800", letterSpacing: -1, transform: [{ translateY: -3 }] },
     fastSubtitle: { color: dark ? "#b8d3c8" : colors.mutedForeground, fontSize: 10 * scale, lineHeight: 12 * scale, flexShrink: 1 },

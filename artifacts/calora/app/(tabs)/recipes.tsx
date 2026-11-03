@@ -3628,7 +3628,7 @@ export default function RecipesScreen() {
         action={
           <View style={styles.headerActions}>
             <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
-              <Feather name="bookmark" size={17} color="#f4fbf7" />
+              <Feather name="bookmark" size={16} color="#f4fbf7" />
               {savedRecipeIds.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
@@ -3636,7 +3636,7 @@ export default function RecipesScreen() {
                 )}
               </Pressable>
             <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
-              <Feather name="coffee" size={17} color="#f4fbf7" />
+              <Feather name="coffee" size={16} color="#f4fbf7" />
               {savedMeals.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.accent }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.accentForeground }]}>{savedMeals.length > 99 ? '99+' : savedMeals.length}</Text>
@@ -3649,9 +3649,9 @@ export default function RecipesScreen() {
               onPress={() => setShoppingVisible(true)}
               hitSlop={8}
               accessibilityRole="button"
-              style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}
+              style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}
             >
-              <Feather name="shopping-bag" size={18} color={colors.accentForeground} />
+              <Feather name="shopping-bag" size={16} color="#f4fbf7" />
               {uncheckedShopping > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{uncheckedShopping > 99 ? '99+' : uncheckedShopping}</Text>
@@ -3897,9 +3897,9 @@ function makeStyles(f: number) {
     sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     headerSavedButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
+      width: 38,
+      height: 38,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
