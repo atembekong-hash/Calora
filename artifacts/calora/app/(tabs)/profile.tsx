@@ -2903,7 +2903,7 @@ export default function ProfileScreen({
                   style={[
                     styles.planCard,
                     {
-                      backgroundColor: colors.card,
+                      backgroundColor: colors.background === "#101916" ? "#0a352b" : "#d2e9dc",
                       borderColor: colors.primary,
                     },
                   ]}
@@ -3621,7 +3621,7 @@ export default function ProfileScreen({
                 <View
                   style={[
                     styles.connectionRow,
-                    { backgroundColor: colors.accent },
+                    { backgroundColor: colors.background === "#101916" ? "#0a352b" : "#d2e9dc" },
                   ]}
                 >
                   <View

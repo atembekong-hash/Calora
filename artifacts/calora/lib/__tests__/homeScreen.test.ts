@@ -111,7 +111,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
   });
 
-  it('keeps the profile shortcut as an image-free semantic control', async () => {
+  it('keeps the profile shortcut bound to the shared persisted photo control', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
@@ -123,7 +123,8 @@ describe('Today dashboard visual-source boundary', () => {
     const avatarSection = source.slice(avatarStart, avatarEnd);
 
     expect(avatarSection).toContain('<Feather name="user"');
-    expect(avatarSection).not.toMatch(/Image|ProfilePhoto|uri=|source=/);
+    expect(avatarSection).toContain('<ProfilePhoto');
+    expect(avatarSection).toContain('uri={profilePhotoUri}');
   });
 
   it('uses the shared honest food-thumbnail resolver for diary rows without adding a large gallery', async () => {
@@ -611,9 +612,9 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('accessibilityRole="header" style={[styles.stepsCardTitle');
     expect(source).toContain('testID="dashboard-steps-action"');
     expect(source).toContain("<CaloraFeatureIcon name=\"mood\" size={22}");
-    expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', gap: 10, marginHorizontal: -10');
+    expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', justifyContent: \'center\', gap: 10, marginHorizontal: -10');
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
-    expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' }");
+    expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '45.6%', width: '45.6%', minWidth: 0, maxWidth: '45.6%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
   });
 

@@ -158,7 +158,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("fastingCard: { height: 153.97");
     expect(source).toContain("marginTop: 18, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
-    expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#e4f1e9"');
+    expect(source).toContain('backgroundColor: dark ? "#0a352b" : "#d2e9dc"');
     expect(source).toContain('color={mode === "dark" ? TEXT : colors.foreground}');
     expect(source).toContain('backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card');
