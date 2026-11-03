@@ -158,8 +158,8 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("fastingCard: { height: 153.97");
     expect(source).toContain("marginTop: 18, borderRadius: 18");
     expect(source).toContain("transform: [{ translateY: -3 }]");
-    expect(source).toContain('backgroundColor: dark ? "#06241f" : "#d2e9dc"');
-    expect(source).toContain('color={mode === "dark" ? TEXT : colors.foreground}');
+    expect(source).toContain('backgroundColor: colors.accent');
+    expect(source).toContain('color={colors.accentForeground}');
     expect(source).toContain('backgroundColor: dark ? "rgba(69,226,155,.14)" : colors.successTint');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.10)" : colors.card');
     expect(source).toContain("fastTopRow: { flexDirection: \"row\", alignItems: \"center\"");
@@ -175,7 +175,13 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('featureTitle: { color: dark ? TEXT : colors.foreground');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.card');
     expect(source).toContain('chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary }');
+    expect(source).toContain('safe: { flex: 1, backgroundColor: colors.background }');
+    expect(source).toContain('header: { paddingHorizontal: 12');
+    expect(source).toContain('backgroundColor: colors.background }');
+    expect(source).toContain('gear: { height: 42, width: 42');
+    expect(source).toContain('backgroundColor: colors.accent, borderWidth: 1, borderColor: colors.border');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
+    expect(source).toContain('backgroundColor: colors.accent, borderWidth: 1');
     expect(source).toContain('icon={item.icon} size={30}');
     expect(source).toContain('name="chevron-right" size={18}');
     expect(source).toContain('quickArrow: { position: "absolute", right: 8');
@@ -183,7 +189,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('accessibilityLabel="Open Settings"');
     expect(source).not.toContain("const SURFACE");
     expect(source).not.toContain("const BORDER");
-    expect(source).toContain('color={colors.foreground}');
+    expect(source).toContain('color: colors.foreground');
     expect(source).toContain('style={[styles.sectionTitle, { color: colors.foreground }]}');
     expect(source).toContain('Guides, Recipes, Tips..');
     expect(source).toContain('headerTitle: { color: colors.foreground, fontSize: 18 * scale');
