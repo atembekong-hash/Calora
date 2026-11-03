@@ -156,7 +156,7 @@ function CaloraProCard() {
       </View>
       <View style={styles.proCopy}>
         <Text style={styles.proTitle}>Calora Pro</Text>
-        <Text numberOfLines={1} style={styles.proSubtitle}>Unlock more guidance, planning, and insights.</Text>
+        <Text numberOfLines={1} style={styles.proSubtitle}>Manage your plan, subscription, and referrals.</Text>
       </View>
       <Feather name="chevron-right" size={18} color={mode === "dark" ? TEXT : colors.foreground} />
     </ScalePressable>
@@ -179,16 +179,16 @@ export default function MoreScreen() {
   ], []);
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>More</Text>
-            <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open Settings" onPress={() => router.push("/settings")} style={styles.gear}>
-            <Feather name="settings" size={15} color={colors.foreground} />
-          </Pressable>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>More</Text>
+          <Text style={styles.headerCaption}>Your wellness, insights & tools</Text>
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Settings" onPress={() => router.push("/settings")} style={styles.gear}>
+          <Feather name="settings" size={15} color={colors.foreground} />
+        </Pressable>
+      </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <FastingCard />
         <View style={styles.featureRow}><ProgressCard /><LearningCard /></View>
         <View style={styles.sectionHeading}>
@@ -212,12 +212,12 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
   const dark = mode === "dark";
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
-    content: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 124, gap: 13 },
-    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    content: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 124, gap: 13 },
+    header: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     headerTitle: { color: colors.foreground, fontSize: 18 * scale, fontWeight: "800", letterSpacing: -0.6 },
     headerCaption: { color: colors.mutedForeground, fontSize: 14 * scale, marginTop: 1 },
     gear: { height: 42, width: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    fastingCard: { height: 153.97, marginTop: 18, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: dark ? "#0a352b" : "#e4f1e9", overflow: "hidden", position: "relative" },
+    fastingCard: { height: 153.97, marginTop: 18, borderRadius: 18, padding: 10, paddingBottom: 42, backgroundColor: dark ? "#0a352b" : "#d2e9dc", overflow: "hidden", position: "relative" },
     fastingMainPressable: { flex: 1, marginHorizontal: -2, marginTop: -2, marginBottom: 5 },
     fastTopRow: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 74 },
     fastLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 2 },
@@ -248,7 +248,7 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 12 },
     quickItem: { width: "33%", minHeight: 62.4, borderRadius: 17, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 4, paddingVertical: 6 },
     quickLabel: { color: colors.foreground, fontSize: 10.5 * scale, fontWeight: "700", textAlign: "center" },
-    proCard: { minHeight: 76, borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: dark ? "#0a352b" : colors.card, borderWidth: 1, borderColor: dark ? "rgba(140,203,177,.16)" : colors.border },
+    proCard: { minHeight: 76, borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: dark ? "#0a352b" : "#d2e9dc", borderWidth: 1, borderColor: dark ? "rgba(140,203,177,.16)" : colors.border },
     proIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
     proCopy: { flex: 1, minWidth: 0 },
     proTitle: { color: dark ? TEXT : colors.foreground, fontSize: 14 * scale, fontWeight: "800" },

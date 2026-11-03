@@ -48,6 +48,7 @@ export default function SavedMealsScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <AppHeader
         title="Saved meals"
+        back
         onBack={() => router.back()}
         action={(
           <ScalePressable

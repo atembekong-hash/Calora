@@ -3627,16 +3627,16 @@ export default function RecipesScreen() {
         title="Recipes"
         action={
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}>
-              <Feather name="bookmark" size={17} color={colors.accentForeground} />
+            <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
+              <Feather name="bookmark" size={17} color="#f4fbf7" />
               {savedRecipeIds.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
                 </View>
                 )}
               </Pressable>
-            <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.primary }]}>
-              <Feather name="coffee" size={17} color={colors.primaryForeground} />
+            <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
+              <Feather name="coffee" size={17} color="#f4fbf7" />
               {savedMeals.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.accent }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.accentForeground }]}>{savedMeals.length > 99 ? '99+' : savedMeals.length}</Text>

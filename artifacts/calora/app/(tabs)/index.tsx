@@ -21,6 +21,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { StepMilestoneCelebration } from '@/components/StepMilestoneCelebration';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -420,7 +421,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const referenceColors = supportingWidgetColors(colors);
-  const recipeCardSurface = colors.background === '#101916' ? referenceColors.hero : colors.card;
+  const recipeCardSurface = colors.background === '#101916' ? '#123f31' : '#dceee3';
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -1004,8 +1005,8 @@ function MacroBalanceDonut({
         {values.map((item) => (
           <View key={item.label} style={styles.macroLegendRow}>
             <View style={[styles.macroLegendDot, { backgroundColor: item.color }]} />
-            <Text numberOfLines={1} adjustsFontSizeToFit={!narrowCompact} style={[styles.macroLegendLabel, narrowCompact && { width: 31, fontSize: 7.1, letterSpacing: -0.2 }, { color: referenceColors.foreground }]}>{item.label}</Text>
-            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.78} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, narrowCompact && { fontSize: 7.1, letterSpacing: -0.35 }, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit={!narrowCompact} style={[styles.macroLegendLabel, narrowCompact && { width: 34, fontSize: 7.8, letterSpacing: -0.2 }, { color: referenceColors.foreground }]}>{item.label}</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.78} testID={`macro-target-${item.label.toLowerCase()}`} style={[styles.macroLegendValue, narrowCompact && { fontSize: 7.7, letterSpacing: -0.35 }, { color: referenceColors.mutedForeground }]}>{formatQuantity(item.value)}g / {formatQuantity(item.target)}g</Text>
           </View>
         ))}
       </View>
@@ -1631,7 +1632,7 @@ function CalorieGauge({
 
 function makeGaugeStyles(f: number) {
   return StyleSheet.create({
-  container: { marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, alignItems: 'center' },
+  container: { marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 0, alignItems: 'center' },
   arcWrap:   { position: 'relative' as const },
   ringLayer: { position: 'absolute' as const },
   textOverlay: {
@@ -1719,7 +1720,7 @@ function DashboardFastingCard({
 
 export default function HomeScreen() {
   const {
-    logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
+    logs, colors, profile, profilePhotoUri, syncState, waterLogs, moodLogs, addWater, setMood,
     livingState, fontScale, healthConnection, healthConnected, liveStepTracking, liveStepMilestones, dailyStepGoal,
     startLiveStepTracking, setLiveStepsDashboardFocused, dismissLiveStepMilestone, openMotionSettings, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated, hydrationError, retryHydration, isRetrying,
@@ -1992,7 +1993,12 @@ export default function HomeScreen() {
               onPress={() => router.navigate('/(tabs)/profile')}
               style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border, overflow: 'hidden' }]}
             >
-              <Feather name="user" size={18} color={colors.foreground} />
+              <ProfilePhoto
+                uri={profilePhotoUri}
+                size={40}
+                accessibilityLabel="Profile photo"
+                fallback={<Feather name="user" size={18} color={colors.foreground} />}
+              />
             </Pressable>
           </View>
         }
@@ -2197,7 +2203,7 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2213,9 +2219,9 @@ function makeStyles(f: number) {
   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -18 }, { translateY: 2 }] },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -18 }, { translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
-  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
+  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
-  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '48%', width: '48%', minWidth: 0, maxWidth: '48%' },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '45.6%', width: '45.6%', minWidth: 0, maxWidth: '45.6%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
