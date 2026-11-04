@@ -3627,16 +3627,16 @@ export default function RecipesScreen() {
         title="Recipes"
         action={
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
-              <Feather name="bookmark" size={16} color="#f4fbf7" />
+            <Pressable accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`} testID="saved-recipes-header-button" onPress={() => router.push('/saved-recipes')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.hero }]}>
+              <Feather name="bookmark" size={14} color={colors.onHero} />
               {savedRecipeIds.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
                 </View>
                 )}
               </Pressable>
-            <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}>
-              <Feather name="coffee" size={16} color="#f4fbf7" />
+            <Pressable accessibilityLabel={`Open saved meals${savedMeals.length ? `, ${savedMeals.length} saved` : ''}`} testID="saved-meals-header-button" onPress={() => router.push('/saved-meals')} hitSlop={8} accessibilityRole="button" style={[styles.headerSavedButton, { backgroundColor: colors.hero }]}>
+              <Feather name="coffee" size={14} color={colors.onHero} />
               {savedMeals.length > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.accent }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.accentForeground }]}>{savedMeals.length > 99 ? '99+' : savedMeals.length}</Text>
@@ -3649,9 +3649,9 @@ export default function RecipesScreen() {
               onPress={() => setShoppingVisible(true)}
               hitSlop={8}
               accessibilityRole="button"
-              style={[styles.headerSavedButton, { backgroundColor: '#0b5f3d' }]}
+              style={[styles.headerSavedButton, { backgroundColor: colors.hero }]}
             >
-              <Feather name="shopping-bag" size={16} color="#f4fbf7" />
+              <Feather name="shopping-bag" size={14} color={colors.onHero} />
               {uncheckedShopping > 0 && (
                 <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{uncheckedShopping > 99 ? '99+' : uncheckedShopping}</Text>

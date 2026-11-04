@@ -421,7 +421,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const referenceColors = supportingWidgetColors(colors);
-  const recipeCardSurface = colors.background === '#101916' ? '#0f3328' : '#cfe5d7';
+  const recipeCardSurface = colors.background === '#101916' ? '#0b2b21' : '#376b52';
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -2014,8 +2014,8 @@ export default function HomeScreen() {
           <View pointerEvents="none" style={styles.homeHeaderScrim} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={[styles.homeHeaderCustomize, { transform: [{ translateX: -9 }, { translateY: -7 }] }]}>
-                <Feather name="sliders" size={17} color="#d4eadc" />
+              <ScalePressable accessibilityRole="button" accessibilityLabel="Customize dashboard" testID="customize-dashboard-button" onPress={() => router.push('/dashboard-layout')} scale={0.94} haptic="none" style={[styles.homeHeaderCustomize, { transform: [{ translateX: -9 }, { translateY: -7 }], backgroundColor: colors.warning, borderColor: colors.warningForeground, shadowColor: colors.warningForeground }]}>
+                <Feather name="sliders" size={17} color={colors.warningForeground} />
               </ScalePressable>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
@@ -2208,12 +2208,12 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.48 }] },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.72 }] },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  homeHeaderCustomize: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
+  homeHeaderCustomize: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 6, elevation: 4 },
   homeHeaderThemeToggle: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatar: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 16 * f },
@@ -2224,9 +2224,9 @@ function makeStyles(f: number) {
   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -9 }, { translateY: 2 }] },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -9 }, { translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
-  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
+  dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5, marginHorizontal: -10, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
-  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '47.6%', width: '47.6%', minWidth: 0, maxWidth: '47.6%' },
+  dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
@@ -2296,7 +2296,7 @@ function makeStyles(f: number) {
   stepsRingValue: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8, textAlign: 'center' },
   stepsRingLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.6, marginTop: 1, textTransform: 'uppercase' },
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
-  stepsBodyArrow: { position: 'absolute', right: 2, top: '50%', marginTop: -10, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  stepsBodyArrow: { position: 'absolute', right: 2, top: 2, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   stepsAction: { minHeight: h(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(4), paddingHorizontal: 8 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
