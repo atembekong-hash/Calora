@@ -106,6 +106,7 @@ describe('Today dashboard visual-source boundary', () => {
 
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
+    expect(source).toContain('const HYDRATION_WIDGET_HEIGHT = 199;');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
@@ -707,6 +708,11 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0");
+    expect(source).toContain('dashboardExpandedWidgetRow: { marginHorizontal: 8, marginBottom: 8 }');
+    expect(source).toContain('dashboardFastingExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
+    expect(source).toContain('stepsExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
+    expect(source).toContain('moodExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
+    expect(source).toContain('macroExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
     expect(source).toContain('dashboardFastingMiddle');
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
