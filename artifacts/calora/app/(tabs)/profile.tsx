@@ -346,6 +346,9 @@ export default function ProfileScreen({
   const [goalReminderStatus, setGoalReminderStatus] = useState<
     "idle" | "denied" | "scheduled" | "failed"
   >("idle");
+  const [movementReminderStatus, setMovementReminderStatus] = useState<
+    "idle" | "denied" | "scheduled" | "failed"
+  >("idle");
   const [notificationPermissionDenied, setNotificationPermissionDenied] =
     useState(false);
   const [notificationReconcileError, setNotificationReconcileError] = useState<
@@ -777,7 +780,7 @@ export default function ProfileScreen({
         `To receive movement reminders, allow ${BRAND.name} to send notifications in your device settings.`,
       );
     }
-    setGoalReminderStatus(
+    setMovementReminderStatus(
       result.status === "scheduled" && desired.masterEnabled && next.enabled
         ? "scheduled"
         : result.status === "failed"
@@ -2129,7 +2132,11 @@ export default function ProfileScreen({
                       <Text style={[styles.settingTitle, { color: colors.foreground }]}>Movement reminders</Text>
                       <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
                         {movementReminderPrefs.enabled
-                          ? `After ${movementReminderPrefs.inactivityMinutes} minutes without steps`
+                          ? movementReminderStatus === "denied"
+                            ? "Permission required in device settings"
+                            : movementReminderStatus === "failed"
+                              ? "Setup incomplete · retry above"
+                              : `After ${movementReminderPrefs.inactivityMinutes} minutes without steps`
                           : "Off · get a gentle movement nudge"}
                       </Text>
                     </View>
