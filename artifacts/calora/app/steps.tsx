@@ -38,6 +38,28 @@ function hourLabel(value: string): string {
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric' }).format(new Date(value));
 }
 
+type TrendPeriod = 'week' | 'month';
+type TrendSummary = { average: number | null; total: number | null; measured: number; goalDays: number };
+function summarizeTrend(values: Array<{ steps: number | null }>, goal: number): TrendSummary {
+  const measured = values.filter((item) => item.steps !== null);
+  const total = measured.length ? measured.reduce((sum, item) => sum + (item.steps ?? 0), 0) : null;
+  return { average: total === null ? null : Math.round(total / measured.length), total, measured: measured.length, goalDays: measured.filter((item) => (item.steps ?? 0) >= goal).length };
+}
+function TrendComparison({ metrics, fallback, goal, colors }: { metrics: Array<{ date: string; steps: number | null }>; fallback: Array<{ date: string; steps: number | null }>; goal: number; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const [period, setPeriod] = useState<TrendPeriod>('week');
+  const source = metrics.length ? metrics : fallback;
+  const windowSize = period === 'week' ? 7 : 30;
+  const current = source.slice(-windowSize);
+  const previous = source.slice(-(windowSize * 2), -windowSize);
+  const currentSummary = summarizeTrend(current, goal);
+  const previousSummary = summarizeTrend(previous, goal);
+  const hasComparison = currentSummary.average !== null && previousSummary.average !== null;
+  const delta = hasComparison && previousSummary.average ? Math.round(((currentSummary.average! - previousSummary.average) / previousSummary.average) * 100) : null;
+  const max = Math.max(currentSummary.average ?? 0, previousSummary.average ?? 0, goal, 1);
+  const periodLabel = period === 'week' ? '7-day average' : '30-day average';
+  const renderPeriod = (label: string, summary: TrendSummary, color: string) => <View style={styles.trendRow}><View style={styles.trendRowLabel}><Text style={[styles.trendPeriodLabel, { color: colors.foreground }]}>{label}</Text><Text style={[styles.trendPeriodMeta, { color: colors.mutedForeground }]}>{summary.measured ? `${summary.measured} days measured` : 'No provider data'}</Text></View><View style={[styles.trendBarTrack, { backgroundColor: colors.muted }]}><View style={[styles.trendBar, { width: `${Math.max(summary.average === null ? 0 : (summary.average / max) * 100, summary.average === null ? 0 : 7)}%`, backgroundColor: color, opacity: summary.average === null ? 0.2 : 1 }]} /></View><Text style={[styles.trendValue, { color: colors.foreground }]}>{summary.average === null ? '—' : formatWhole(summary.average)}</Text></View>;
+  return <View style={[styles.chart, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.chartHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Trend comparison</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Average daily steps against the previous period</Text></View><View style={[styles.trendToggle, { backgroundColor: colors.muted }]}>{(['week', 'month'] as const).map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: period === value }} accessibilityLabel={`Show ${value} trend`} onPress={() => setPeriod(value)} style={[styles.trendToggleItem, period === value && { backgroundColor: colors.success }]}><Text style={[styles.trendToggleText, { color: period === value ? colors.successForeground : colors.mutedForeground }]}>{value === 'week' ? 'WEEK' : 'MONTH'}</Text></Pressable>)}</View></View><View style={styles.trendSummaryRow}><View><Text style={[styles.trendHeadline, { color: colors.foreground }]}>{currentSummary.average === null ? '—' : formatWhole(currentSummary.average)}</Text><Text style={[styles.trendHeadlineLabel, { color: colors.mutedForeground }]}>{periodLabel}</Text></View><View style={[styles.trendDelta, { backgroundColor: delta !== null && delta >= 0 ? colors.successTint : colors.muted }]}><Feather name={delta !== null && delta >= 0 ? 'trending-up' : 'trending-down'} size={14} color={delta !== null && delta >= 0 ? colors.success : colors.mutedForeground} /><Text style={[styles.trendDeltaText, { color: delta !== null && delta >= 0 ? colors.successForeground : colors.mutedForeground }]}>{delta === null ? 'Need more history' : `${delta >= 0 ? '+' : ''}${delta}% vs prior`}</Text></View></View>{renderPeriod('Current', currentSummary, colors.primary)}{renderPeriod('Previous', previousSummary, colors.success)}<Text style={[styles.chartFootnote, { color: colors.mutedForeground }]}>{hasComparison ? `${currentSummary.goalDays} current days reached your ${formatWhole(goal)} step goal.` : period === 'month' ? 'Monthly comparison will appear after two complete 30-day periods.' : 'Weekly comparison will appear after another week of synced history.'}</Text></View>;
+}
 function HourlyMovementChart({ values, total, colors }: { values: Array<{ hour: string; steps: number | null }>; total: number | null; colors: ReturnType<typeof useCalora>['colors'] }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const measured = values.filter((item) => item.steps !== null);
@@ -94,6 +116,7 @@ export default function StepsScreen() {
   }, [healthConnection.snapshot?.dailyMetrics, liveStepTracking.displayedSteps, today]);
   const todaySteps = values[values.length - 1]?.steps ?? null;
   const hourlyValues = useMemo(() => (healthConnection.snapshot?.hourlyMetrics ?? []).map((item) => ({ hour: item.hour, steps: item.steps })), [healthConnection.snapshot?.hourlyMetrics]);
+  const trendValues = useMemo(() => (healthConnection.snapshot?.trendMetrics ?? []).map((item) => ({ date: item.date, steps: item.steps })), [healthConnection.snapshot?.trendMetrics]);
   const progress = todaySteps === null ? 0 : todaySteps / dailyStepGoal;
   const measured = values.filter((item) => item.steps !== null);
   const average = measured.length ? Math.round(measured.reduce((sum, item) => sum + (item.steps ?? 0), 0) / measured.length) : null;
@@ -140,6 +163,7 @@ export default function StepsScreen() {
           </View>
         </View>
         <WeekBars values={values} goal={dailyStepGoal} colors={colors} />
+        <TrendComparison metrics={trendValues} fallback={values} goal={dailyStepGoal} colors={colors} />
         <HourlyMovementChart values={hourlyValues} total={todaySteps} colors={colors} />
         {!isConnected || todaySteps === null ? (
           <ScalePressable accessibilityRole="button" accessibilityLabel={isConnected ? `Refresh ${providerLabel}` : `Connect ${providerLabel}`} onPress={onPrimaryAction} style={[styles.connectCard, { backgroundColor: colors.hero, borderColor: colors.border }]}>
@@ -208,6 +232,21 @@ const styles = StyleSheet.create({
   barLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 },
   goalLine: { position: 'absolute', left: 17, right: 17, top: 86, borderTopWidth: 1, borderStyle: 'dashed', opacity: 0.7 },
   chartFootnote: { fontFamily: 'Inter_500Medium', fontSize: 10, marginTop: 4 },
+  trendToggle: { flexDirection: 'row', borderRadius: 10, padding: 3, gap: 2 },
+  trendToggleItem: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 5 },
+  trendToggleText: { fontFamily: 'Inter_800ExtraBold', fontSize: 9, letterSpacing: 0.6 },
+  trendSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, marginBottom: 14 },
+  trendHeadline: { fontFamily: 'Inter_800ExtraBold', fontSize: 25, letterSpacing: -0.8 },
+  trendHeadlineLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 2 },
+  trendDelta: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: 150 },
+  trendDeltaText: { fontFamily: 'Inter_800ExtraBold', fontSize: 10 },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 11 },
+  trendRowLabel: { width: 68 },
+  trendPeriodLabel: { fontFamily: 'Inter_800ExtraBold', fontSize: 11 },
+  trendPeriodMeta: { fontFamily: 'Inter_500Medium', fontSize: 8, marginTop: 2 },
+  trendBarTrack: { flex: 1, height: 10, borderRadius: 8, overflow: 'hidden' },
+  trendBar: { height: '100%', borderRadius: 8 },
+  trendValue: { width: 47, textAlign: 'right', fontFamily: 'Inter_800ExtraBold', fontSize: 11 },
   connectCard: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   connectIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   connectCopy: { flex: 1 },

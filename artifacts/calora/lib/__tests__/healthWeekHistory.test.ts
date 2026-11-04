@@ -11,6 +11,7 @@ import {
 } from '../health/healthService.ios';
 import {
   buildHealthDailyMetrics,
+  HEALTH_TREND_DAY_COUNT,
   normalizeHealthHourlyMetrics,
   localHealthHistoryRange,
   normalizeHealthDailyMetrics,
@@ -136,6 +137,16 @@ describe('provider seven-day health history', () => {
     expect(metrics.find((metric) => metric.date === '2026-08-30')).toEqual({
       date: '2026-08-30', steps: 1234, activeEnergyKcal: null,
     });
+  });
+
+  it('supports a 60-day trend axis without changing the seven-day default', () => {
+    expect(HEALTH_TREND_DAY_COUNT).toBe(60);
+    const trend = buildHealthDailyMetrics(new Map([
+      ['2026-08-30', { steps: 1234 }],
+    ]), now, HEALTH_TREND_DAY_COUNT);
+    expect(trend).toHaveLength(60);
+    expect(trend.at(-1)).toEqual({ date: '2026-08-30', steps: 1234, activeEnergyKcal: null });
+    expect(buildHealthDailyMetrics(new Map(), now)).toHaveLength(7);
   });
 
   it('keeps real hourly provider readings interactive without inventing missing hours', () => {

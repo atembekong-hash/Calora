@@ -1,6 +1,7 @@
 import { dateFromKey, dateKey, dateList } from '@/lib/dates';
 
 export const HEALTH_HISTORY_DAY_COUNT = 7;
+export const HEALTH_TREND_DAY_COUNT = 60;
 
 /**
  * A provider-measured calendar-day aggregate. `null` means the provider did
@@ -65,8 +66,9 @@ export function localHealthHistoryRange(
 export function buildHealthDailyMetrics(
   values: ReadonlyMap<string, Partial<Omit<HealthDailyMetric, 'date'>>>,
   now = new Date(),
+  days = HEALTH_HISTORY_DAY_COUNT,
 ): HealthDailyMetric[] {
-  return localHealthHistoryRange(now).dates.map((date) => {
+  return localHealthHistoryRange(now, days).dates.map((date) => {
     const value = values.get(date);
     return {
       date,
@@ -81,7 +83,7 @@ export function buildHealthDailyMetrics(
  * local-date keys and finite non-negative values, keeps the newest seven
  * unique records, and drops malformed input rather than presenting it.
  */
-export function normalizeHealthDailyMetrics(value: unknown): HealthDailyMetric[] {
+export function normalizeHealthDailyMetrics(value: unknown, maxDays = HEALTH_HISTORY_DAY_COUNT): HealthDailyMetric[] {
   if (!Array.isArray(value)) return [];
 
   const byDate = new Map<string, HealthDailyMetric>();
@@ -97,7 +99,7 @@ export function normalizeHealthDailyMetrics(value: unknown): HealthDailyMetric[]
 
   return [...byDate.values()]
     .sort((left, right) => left.date.localeCompare(right.date))
-    .slice(-HEALTH_HISTORY_DAY_COUNT);
+    .slice(-maxDays);
 }
 
 export function healthMetricForDate(
@@ -135,4 +137,8 @@ export function normalizeHealthHourlyMetrics(value: unknown, now = new Date()): 
     byHour.set(metric.hour, { hour: metric.hour, steps, activeEnergyKcal });
   }
   return [...byHour.values()].sort((left, right) => left.hour.localeCompare(right.hour));
+}
+
+export function normalizeHealthTrendMetrics(value: unknown): HealthDailyMetric[] {
+  return normalizeHealthDailyMetrics(value, HEALTH_TREND_DAY_COUNT);
 }

@@ -1,6 +1,6 @@
 import type { HealthConnection, HealthMetric, HealthService, HealthSnapshot } from './types';
 import { currentLocalDayRange } from './dayRange';
-import { buildHealthDailyMetrics, buildHealthHourlyMetrics, localHealthHistoryRange, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
+import { buildHealthDailyMetrics, buildHealthHourlyMetrics, localHealthHistoryRange, HEALTH_TREND_DAY_COUNT, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
 import { dateKey } from '@/lib/dates';
 
 const requested = [
@@ -104,6 +104,16 @@ export const healthConnectHistoryRange = (now = new Date()) => {
     },
   };
 };
+export const healthConnectTrendRange = (now = new Date()) => {
+  const range = localHealthHistoryRange(now, HEALTH_TREND_DAY_COUNT);
+  return {
+    timeRangeFilter: {
+      operator: 'between' as const,
+      startTime: range.startTime,
+      endTime: range.endTime,
+    },
+  };
+};
 
 type HealthConnectAggregationGroup = {
   startTime?: unknown;
@@ -161,6 +171,7 @@ export function healthConnectDailyMetrics(
   stepsGroups: unknown,
   activeEnergyGroups: unknown,
   now = new Date(),
+  days = 7,
 ): HealthDailyMetric[] {
   const stepsByDate = healthConnectGroupValues(stepsGroups, healthConnectSteps);
   const activeEnergyByDate = healthConnectGroupValues(activeEnergyGroups, healthConnectActiveEnergyKcal);
@@ -194,7 +205,7 @@ export const healthService: HealthService = {
     if (connection.authorization === 'unavailable' || connection.granted.length === 0) throw new Error('Allow Health Connect access before syncing.');
     const now = new Date();
     const range = healthConnectDayRange(now);
-    const historyRange = healthConnectHistoryRange(now);
+    const trendRange = healthConnectTrendRange(now);
     const syncedAt = now.toISOString();
     const [steps, calories, workouts, weights, groupedSteps, groupedCalories] = await Promise.all([
       connection.granted.includes('steps') ? hc.aggregateRecord({ recordType: 'Steps', ...range }) : null,
@@ -202,10 +213,10 @@ export const healthService: HealthService = {
       connection.granted.includes('workouts') ? hc.readRecords('ExerciseSession', range) : { records: [] },
       connection.granted.includes('bodyWeight') ? hc.readRecords('Weight', range) : { records: [] },
       connection.granted.includes('steps')
-        ? hc.aggregateGroupByPeriod({ recordType: 'Steps', ...historyRange, timeRangeSlicer: { period: 'DAYS', length: 1 } })
+        ? hc.aggregateGroupByPeriod({ recordType: 'Steps', ...trendRange, timeRangeSlicer: { period: 'DAYS', length: 1 } })
         : null,
       connection.granted.includes('activeEnergy')
-        ? hc.aggregateGroupByPeriod({ recordType: 'ActiveCaloriesBurned', ...historyRange, timeRangeSlicer: { period: 'DAYS', length: 1 } })
+        ? hc.aggregateGroupByPeriod({ recordType: 'ActiveCaloriesBurned', ...trendRange, timeRangeSlicer: { period: 'DAYS', length: 1 } })
         : null,
     ]);
     const hourlyRange = healthConnectDayRange(now);
@@ -219,7 +230,7 @@ export const healthService: HealthService = {
     ]);
     const stepTotal = connection.granted.includes('steps') ? healthConnectSteps(steps) : null;
     const activeEnergyTotal = connection.granted.includes('activeEnergy') ? healthConnectActiveEnergyKcal(calories) : null;
-    const dailyMetrics = healthConnectDailyMetrics(groupedSteps, groupedCalories, now).map((metric) => (
+    const trendMetrics = healthConnectDailyMetrics(groupedSteps, groupedCalories, now, HEALTH_TREND_DAY_COUNT).map((metric) => (
       metric.date === dateKey(now)
         ? {
           ...metric,
@@ -228,11 +239,13 @@ export const healthService: HealthService = {
         }
         : metric
     ));
+    const dailyMetrics = trendMetrics.slice(-7);
     return {
       syncedAt,
       steps: stepTotal,
       activeEnergyKcal: activeEnergyTotal,
       dailyMetrics,
+      trendMetrics,
       hourlyMetrics: healthConnectHourlyMetrics(hourlySteps, hourlyCalories, now),
       workouts: (workouts?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.startTime}-${item.endTime}`, startAt: item.startTime, endAt: item.endTime, type: String(item.exerciseType ?? 'workout') })),
       weights: (weights?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.time}-${item.startTime}`, recordedAt: item.time ?? item.startTime, kg: Number(item.weight?.inKilograms ?? item.weight?.inKilogram ?? 0) })).filter((item: { kg: number }) => item.kg > 0),

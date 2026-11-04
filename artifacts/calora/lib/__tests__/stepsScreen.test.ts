@@ -20,6 +20,14 @@ describe('Steps experience', () => {
     expect(stepsScreen).toContain('Connect your health data');
   });
 
+  it('exposes compact weekly and monthly comparison controls without replacing the existing charts', () => {
+    expect(stepsScreen).toContain('TrendComparison');
+    expect(stepsScreen).toContain('Trend comparison');
+    expect(stepsScreen).toContain("value === 'week' ? 'WEEK' : 'MONTH'");
+    expect(stepsScreen).toContain('healthConnection.snapshot?.trendMetrics');
+    expect(stepsScreen).toContain('Monthly comparison will appear after two complete 30-day periods.');
+  });
+
   it('opens from the Today Steps widget without replacing health actions', () => {
     expect(homeScreen).toContain('accessibilityLabel="Open Steps"');
     expect(homeScreen).toContain("onOpenSteps={() => router.push({ pathname: '/steps' } as never)}");

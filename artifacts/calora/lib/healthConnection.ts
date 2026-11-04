@@ -8,7 +8,7 @@ import {
   type HealthWeight,
   type HealthWorkout,
 } from './health/types';
-import { normalizeHealthDailyMetrics, normalizeHealthHourlyMetrics } from './health/weekHistory';
+import { normalizeHealthDailyMetrics, normalizeHealthHourlyMetrics, normalizeHealthTrendMetrics } from './health/weekHistory';
 
 export const HEALTH_INTEGRATION_AVAILABLE = true;
 
@@ -57,6 +57,9 @@ function healthSnapshot(value: unknown): HealthSnapshot | undefined {
   const dailyMetrics = snapshot.dailyMetrics === undefined
     ? undefined
     : normalizeHealthDailyMetrics(snapshot.dailyMetrics);
+  const trendMetrics = snapshot.trendMetrics === undefined
+    ? undefined
+    : normalizeHealthTrendMetrics(snapshot.trendMetrics);
   const hourlyMetrics = snapshot.hourlyMetrics === undefined
     ? undefined
     : normalizeHealthHourlyMetrics(snapshot.hourlyMetrics);
@@ -65,6 +68,7 @@ function healthSnapshot(value: unknown): HealthSnapshot | undefined {
     steps,
     activeEnergyKcal,
     ...(dailyMetrics === undefined ? {} : { dailyMetrics }),
+    ...(trendMetrics === undefined ? {} : { trendMetrics }),
     ...(hourlyMetrics === undefined ? {} : { hourlyMetrics }),
     workouts: workouts as HealthWorkout[],
     weights: weights as HealthWeight[],
