@@ -101,6 +101,7 @@ const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
 const TODAY_WIDGET_HEIGHT_SCALE = 0.8;
 const SUPPORTING_WIDGET_BASE_HEIGHT = 162;
+const HYDRATION_WIDGET_HEIGHT = 199;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_RING_SCALE = 1.2;
@@ -2127,7 +2128,7 @@ export default function HomeScreen() {
           <>
             <View testID="today-supporting-widgets-grid" style={styles.dashboardRows}>
               {supportingRows.map((row, rowIndex) => (
-                <View key={`supporting-row-${rowIndex}`} style={styles.dashboardWidgetRow}>
+                <View key={`supporting-row-${rowIndex}`} style={[styles.dashboardWidgetRow, row.some((widgetId) => dashboardPreferences.density[widgetId] === 'expanded') && styles.dashboardExpandedWidgetRow]}>
                   {row.map((widgetId) => {
                     const expanded = dashboardPreferences.density[widgetId] === 'expanded';
                     const cellStyle = expanded ? styles.dashboardFullWidthCell : styles.dashboardGridCell;
@@ -2259,6 +2260,7 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardRows: { gap: 10, marginHorizontal: -18, marginBottom: h(18) },
   dashboardWidgetRow: { flexDirection: 'row', gap: 10, width: '100%' },
+  dashboardExpandedWidgetRow: { marginHorizontal: 8, marginBottom: 8 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5, marginHorizontal: -18, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardFullWidthCell: { width: '100%', minWidth: 0 },
@@ -2267,7 +2269,7 @@ function makeStyles(f: number) {
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
-  dashboardFastingExpandedCard: { minHeight: h(74), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardFastingExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, marginBottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   dashboardFastingCard: { height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, gap: h(3) },
   dashboardFastingTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   dashboardFastingIcon: { height: h(34), width: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -2316,7 +2318,7 @@ function makeStyles(f: number) {
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
-  stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(7), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
@@ -2388,9 +2390,9 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodOptionsExpanded: { gap: 8 },
-  macroExpandedCard: { borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  macroExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   moodCard: { flex: 1, height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(5) },
   moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 11 * f, letterSpacing: -0.25, transform: [{ translateX: 3 }] },
