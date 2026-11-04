@@ -28,6 +28,18 @@ describe('Steps experience', () => {
     expect(stepsScreen).toContain('Monthly comparison will appear after two complete 30-day periods.');
   });
 
+  it('exposes an accessible daily goal editor backed by the shared persisted goal setter', () => {
+    expect(stepsScreen).toContain('StepGoalSheet');
+    expect(stepsScreen).toContain('setDailyStepGoal');
+    expect(stepsScreen).toContain('Edit daily step goal');
+    expect(stepsScreen).toContain('Daily step goal');
+    expect(stepsScreen).toContain('Save daily step goal');
+    expect(stepsScreen).toContain('STEP_GOAL_PRESETS');
+    expect(stepsScreen).toContain('MIN_DAILY_STEP_GOAL');
+    expect(stepsScreen).toContain('MAX_DAILY_STEP_GOAL');
+    expect(stepsScreen).toContain('Choose a goal from');
+  });
+
   it('opens from the Today Steps widget without replacing health actions', () => {
     expect(homeScreen).toContain('accessibilityLabel="Open Steps"');
     expect(homeScreen).toContain("onOpenSteps={() => router.push({ pathname: '/steps' } as never)}");

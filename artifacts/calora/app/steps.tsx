@@ -1,15 +1,17 @@
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppChrome';
+import { BottomSheet } from '@/components/BottomSheet';
 import { ScalePressable } from '@/components/ScalePressable';
 import { useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import { formatWhole } from '@/lib/formatters';
 import { localHealthHistoryRange, type HealthDailyMetric } from '@/lib/health/weekHistory';
+import { MAX_DAILY_STEP_GOAL, MIN_DAILY_STEP_GOAL, normalizeDailyStepGoal } from '@/lib/steps/stepTracking';
 
 function shortDay(value: string): string {
   return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(`${value}T12:00:00`));
@@ -103,11 +105,96 @@ function WeekBars({ values, goal, colors }: { values: Array<{ date: string; step
   );
 }
 
+const STEP_GOAL_PRESETS = [5_000, 7_500, 10_000, 12_500, 15_000];
+
+function StepGoalSheet({
+  visible,
+  goal,
+  colors,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  goal: number;
+  colors: ReturnType<typeof useCalora>['colors'];
+  onClose: () => void;
+  onSave: (value: number) => void;
+}) {
+  const goalAccent = '#8B5CF6';
+  const goalAccentForeground = '#FFFFFF';
+  const goalAccentTint = '#F0EAFE';
+  const goalWarmAccent = '#F59E0B';
+  const [draft, setDraft] = useState(String(goal));
+  const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (visible) {
+      setDraft(String(goal));
+      setError(null);
+    }
+  }, [goal, visible]);
+
+  const submit = () => {
+    const parsed = Number(draft.replace(/,/g, '').trim());
+    if (!Number.isFinite(parsed) || parsed < MIN_DAILY_STEP_GOAL || parsed > MAX_DAILY_STEP_GOAL) {
+      setError(`Choose a goal from ${formatWhole(MIN_DAILY_STEP_GOAL)} to ${formatWhole(MAX_DAILY_STEP_GOAL)} steps.`);
+      return;
+    }
+    onSave(normalizeDailyStepGoal(parsed));
+  };
+
+  return (
+    <BottomSheet visible={visible} onRequestClose={onClose} onBackdropPress={onClose} sheetStyle={styles.goalSheet}>
+      <View style={styles.goalSheetHeader}>
+        <View style={styles.goalSheetHeading}>
+          <View style={styles.goalKickerRow}><View style={[styles.goalKickerDot, { backgroundColor: goalWarmAccent }]} /><Text style={[styles.goalSheetKicker, { color: goalAccent }]}>PERSONAL TARGET</Text></View>
+          <Text style={[styles.goalSheetTitle, { color: colors.foreground }]}>Set your daily step goal</Text>
+          <Text style={[styles.goalSheetSubtitle, { color: colors.mutedForeground }]}>Make the target fit your current rhythm. You can change it anytime.</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close step goal editor" onPress={onClose} hitSlop={10} style={[styles.goalClose, { backgroundColor: goalAccentTint }]}>
+          <Feather name="x" size={17} color={goalAccent} />
+        </Pressable>
+      </View>
+      <Text style={[styles.goalFieldLabel, { color: colors.mutedForeground }]}>STEPS PER DAY</Text>
+      <View style={[styles.goalInputWrap, { backgroundColor: colors.background, borderColor: error ? colors.destructive : colors.border }]}>
+        <TextInput
+          accessibilityLabel="Daily step goal"
+          value={draft}
+          onChangeText={(value) => { setDraft(value.replace(/[^0-9,]/g, '')); setError(null); }}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          returnKeyType="done"
+          onSubmitEditing={submit}
+          selectTextOnFocus
+          style={[styles.goalInput, { color: colors.foreground }]}
+        />
+        <Text style={[styles.goalInputUnit, { color: colors.mutedForeground }]}>steps</Text>
+      </View>
+      <View style={styles.goalPresetRow}>
+        {STEP_GOAL_PRESETS.map((preset) => (
+          <Pressable key={preset} accessibilityRole="button" accessibilityLabel={`Set goal to ${formatWhole(preset)} steps`} onPress={() => { setDraft(String(preset)); setError(null); }} style={[styles.goalPreset, { backgroundColor: draft.replace(/,/g, '') === String(preset) ? colors.successTint : colors.muted, borderColor: draft.replace(/,/g, '') === String(preset) ? colors.success : colors.border }]}>
+            <Text style={[styles.goalPresetText, { color: draft.replace(/,/g, '') === String(preset) ? colors.successForeground : colors.mutedForeground }]}>{preset >= 1000 ? `${preset / 1000}k` : preset}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {error ? <Text style={[styles.goalError, { color: colors.destructive }]}>{error}</Text> : null}
+      <ScalePressable accessibilityRole="button" accessibilityLabel="Save daily step goal" onPress={submit} style={[styles.goalSave, { backgroundColor: goalAccent }]}>
+        <Text style={[styles.goalSaveText, { color: goalAccentForeground }]}>Save step goal</Text>
+        <Feather name="arrow-right" size={17} color={goalAccentForeground} />
+      </ScalePressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Cancel step goal editor" onPress={onClose} style={styles.goalCancel}>
+        <Text style={[styles.goalCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+      </Pressable>
+    </BottomSheet>
+  );
+}
+
 export default function StepsScreen() {
   const {
     colors, fontScale, hydrated, healthConnection, liveStepTracking, dailyStepGoal,
-    startLiveStepTracking, setLiveStepsDashboardFocused,
+    setDailyStepGoal, startLiveStepTracking, setLiveStepsDashboardFocused,
   } = useCalora();
+  const [goalSheetVisible, setGoalSheetVisible] = useState(false);
   const today = dateKey();
   const values = useMemo(() => {
     const range = localHealthHistoryRange(new Date()).dates;
@@ -134,6 +221,7 @@ export default function StepsScreen() {
   }, [hydrated, setLiveStepsDashboardFocused, startLiveStepTracking]));
 
   const openHealth = () => router.push('/profile?tab=account&open=health');
+  const openGoalEditor = () => setGoalSheetVisible(true);
   const onPrimaryAction = () => {
     if (Platform.OS === 'web' || !isConnected) {
       openHealth();
@@ -144,7 +232,7 @@ export default function StepsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
-      <AppHeader title="Steps" back onBack={() => router.back()} action={<Pressable accessibilityRole="button" accessibilityLabel="Open step settings" onPress={openHealth} hitSlop={10}><Feather name="settings" size={19} color={colors.foreground} /></Pressable>} />
+      <AppHeader title="Steps" back onBack={() => router.back()} action={<View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Edit daily step goal" onPress={openGoalEditor} hitSlop={10} style={[styles.headerAction, { backgroundColor: colors.successTint }]}><Feather name="target" size={17} color={colors.success} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open step settings" onPress={openHealth} hitSlop={10} style={styles.headerAction}><Feather name="settings" size={18} color={colors.foreground} /></Pressable></View>} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.eyebrowRow, { backgroundColor: colors.successTint }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.eyebrow, { color: colors.successForeground }]}>{liveStepTracking.status === 'live' ? 'LIVE TRACKING' : 'DAILY MOVEMENT'}</Text><Text style={[styles.eyebrowDate, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date())}</Text></View>
         <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -152,6 +240,7 @@ export default function StepsScreen() {
             <Text style={[styles.heroKicker, { color: colors.mutedForeground }]}>TODAY'S MOVEMENT</Text>
             <Text style={[styles.heroTitle, { color: colors.foreground, fontSize: stylesForScale.title }]}>Keep your body in motion.</Text>
             <Text style={[styles.heroDescription, { color: colors.mutedForeground }]}>Small walks add up. Your daily goal is a gentle guide, not a judgment.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit daily step goal of ${formatWhole(dailyStepGoal)} steps`} onPress={openGoalEditor} style={[styles.goalPill, { backgroundColor: '#F0EAFE' }]}><Feather name="target" size={13} color="#8B5CF6" /><Text style={[styles.goalPillText, { color: '#6D28D9' }]}>Goal {formatWhole(dailyStepGoal)} steps</Text><Feather name="edit-2" size={12} color="#8B5CF6" /></Pressable>
           </View>
           <StepRing progress={progress} value={todaySteps} goal={dailyStepGoal} colors={colors} />
           <View style={styles.heroStats}>
@@ -178,12 +267,15 @@ export default function StepsScreen() {
         </View>
         <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>Steps are wellness information, not medical advice. Provider totals may arrive after a short delay.</Text>
       </ScrollView>
+      <StepGoalSheet visible={goalSheetVisible} goal={dailyStepGoal} colors={colors} onClose={() => setGoalSheetVisible(false)} onSave={(value) => { setDailyStepGoal(value); setGoalSheetVisible(false); }} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerAction: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
   eyebrowRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 7, marginTop: 16 },
   liveDot: { width: 7, height: 7, borderRadius: 4 },
@@ -194,6 +286,8 @@ const styles = StyleSheet.create({
   heroKicker: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 1.6 },
   heroTitle: { fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.8, marginTop: 6, maxWidth: 290 },
   heroDescription: { fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 18, marginTop: 7, maxWidth: 295 },
+  goalPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 7, marginTop: 11 },
+  goalPillText: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 0.2 },
   ringCopy: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' },
   ringValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 25, letterSpacing: -1, marginTop: 7 },
   ringCaption: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 2 },
@@ -262,4 +356,25 @@ const styles = StyleSheet.create({
   tipTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 13, marginTop: 10 },
   tipText: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 4 },
   disclaimer: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 3 },
+  goalSheet: { paddingHorizontal: 20 },
+  goalSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
+  goalSheetHeading: { flex: 1 },
+  goalSheetKicker: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 1.4 },
+  goalKickerRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  goalKickerDot: { width: 7, height: 7, borderRadius: 4 },
+  goalSheetTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 23, letterSpacing: -0.6, marginTop: 5 },
+  goalSheetSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  goalClose: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  goalFieldLabel: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 1, marginTop: 24, marginBottom: 7 },
+  goalInputWrap: { height: 58, borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 },
+  goalInput: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 25, padding: 0 },
+  goalInputUnit: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  goalPresetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  goalPreset: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  goalPresetText: { fontFamily: 'Inter_800ExtraBold', fontSize: 11 },
+  goalError: { fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 16, marginTop: 10 },
+  goalSave: { minHeight: 50, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 22 },
+  goalSaveText: { fontFamily: 'Inter_800ExtraBold', fontSize: 13 },
+  goalCancel: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 4 },
+  goalCancelText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
 });
