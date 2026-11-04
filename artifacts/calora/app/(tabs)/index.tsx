@@ -802,6 +802,7 @@ function StepsTodayCard({
   onRetryLiveSteps,
   onOpenMotionSettings,
   onOpenHealth,
+  onOpenSteps,
   milestone,
   onDismissMilestone,
 }: {
@@ -813,6 +814,7 @@ function StepsTodayCard({
   onRetryLiveSteps: () => void;
   onOpenMotionSettings: () => void;
   onOpenHealth: () => void;
+  onOpenSteps: () => void;
   milestone: number | null;
   onDismissMilestone: (milestone: number) => void;
 }) {
@@ -879,7 +881,7 @@ function StepsTodayCard({
       testID="dashboard-steps-card"
       style={[styles.stepsCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}
     >
-      <View style={styles.stepsCardBody}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsCardBody}>
         <StepProgressRing
           steps={steps}
           dailyStepGoal={dailyStepGoal}
@@ -896,7 +898,7 @@ function StepsTodayCard({
         <View pointerEvents="none" style={styles.stepsBodyArrow}>
           <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
         </View>
-      </View>
+      </Pressable>
       {milestone !== null && (
         <StepMilestoneCelebration
           milestone={milestone}
@@ -2092,7 +2094,7 @@ export default function HomeScreen() {
             <View testID="today-supporting-widgets-grid" style={useSingleColumnWellness ? styles.dashboardSingleColumnGrid : styles.dashboardTwoColumnGrid}>
               {dashboardPreferences.visible.includes('fasting') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}><DashboardFastingCard colors={colors} fontScale={fontScale} /></View>}
               {dashboardPreferences.visible.includes('steps') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
-                <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} />
+                <StepsTodayCard colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} onOpenSteps={() => router.push({ pathname: '/steps' } as never)} />
               </View>}
               {dashboardPreferences.visible.includes('nutrients') && <View style={useSingleColumnWellness ? styles.dashboardSingleColumnCell : styles.dashboardGridCell}>
                 <View testID="dashboard-macro-card" style={[styles.sectionCard, styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
