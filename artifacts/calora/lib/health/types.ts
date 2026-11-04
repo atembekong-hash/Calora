@@ -12,6 +12,8 @@ export type HealthSnapshot = {
   activeEnergyKcal: number | null;
   /** Last seven provider-measured local-day aggregates; absent on legacy snapshots. */
   dailyMetrics?: HealthDailyMetric[];
+  /** Provider-measured daily aggregates for the last 60 local days; absent on legacy snapshots. */
+  trendMetrics?: HealthDailyMetric[];
   /** Current-day provider-measured hourly aggregates; absent on legacy snapshots/providers. */
   hourlyMetrics?: HealthHourlyMetric[];
   workouts: HealthWorkout[];

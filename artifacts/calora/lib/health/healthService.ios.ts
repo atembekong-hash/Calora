@@ -1,6 +1,6 @@
 import type { HealthAuthorization, HealthConnection, HealthMetric, HealthService, HealthSnapshot } from './types';
 import { currentLocalDayRange } from './dayRange';
-import { buildHealthDailyMetrics, buildHealthHourlyMetrics, healthMetricForDate, localHealthHistoryRange, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
+import { buildHealthDailyMetrics, buildHealthHourlyMetrics, healthMetricForDate, localHealthHistoryRange, HEALTH_TREND_DAY_COUNT, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
 import { AuthorizationRequestStatus } from '@kingstinct/react-native-healthkit';
 import { dateKey } from '@/lib/dates';
 
@@ -43,6 +43,13 @@ export function healthKitHistoryFilter(now = new Date()) {
 
 export function healthKitHistoryActiveEnergyOptions(now = new Date()) {
   return { ...healthKitHistoryFilter(now), unit: 'kcal' as const };
+}
+export function healthKitTrendFilter(now = new Date()) {
+  const range = localHealthHistoryRange(now, HEALTH_TREND_DAY_COUNT);
+  return { filter: { date: { startDate: range.startDate, endDate: range.endDate } } };
+}
+export function healthKitTrendActiveEnergyOptions(now = new Date()) {
+  return { ...healthKitTrendFilter(now), unit: 'kcal' as const };
 }
 
 async function native() {
@@ -111,6 +118,7 @@ export function healthKitDailyMetrics(
   stepsGroups: unknown,
   activeEnergyGroups: unknown,
   now = new Date(),
+  days = 7,
 ): HealthDailyMetric[] {
   const stepsByDate = healthKitGroupValues(stepsGroups);
   const activeEnergyByDate = healthKitGroupValues(activeEnergyGroups);
@@ -145,25 +153,27 @@ export const healthService: HealthService = {
     if (current.authorization !== 'requested') throw new Error('Request Apple Health access before syncing.');
     const now = new Date();
     const todayFilter = healthKitDayFilter(now);
-    const historyFilter = healthKitHistoryFilter(now);
-    const historyEnergyOptions = healthKitHistoryActiveEnergyOptions(now);
+    const trendFilter = healthKitTrendFilter(now);
+    const trendEnergyOptions = healthKitTrendActiveEnergyOptions(now);
     const range = localHealthHistoryRange(now);
     const syncedAt = now.toISOString();
     const [steps, energy, hourlySteps, hourlyEnergy, weight, workouts] = await Promise.all([
-      hk.queryStatisticsCollectionForQuantity(identifiers.steps, ['cumulativeSum'], range.startDate, { day: 1 }, historyFilter),
-      hk.queryStatisticsCollectionForQuantity(identifiers.activeEnergy, ['cumulativeSum'], range.startDate, { day: 1 }, historyEnergyOptions),
+      hk.queryStatisticsCollectionForQuantity(identifiers.steps, ['cumulativeSum'], trendFilter.filter.date.startDate, { day: 1 }, trendFilter),
+      hk.queryStatisticsCollectionForQuantity(identifiers.activeEnergy, ['cumulativeSum'], trendFilter.filter.date.startDate, { day: 1 }, trendEnergyOptions),
       hk.queryStatisticsCollectionForQuantity(identifiers.steps, ['cumulativeSum'], range.startDate, { hour: 1 }, todayFilter),
       hk.queryStatisticsCollectionForQuantity(identifiers.activeEnergy, ['cumulativeSum'], range.startDate, { hour: 1 }, healthKitActiveEnergyOptions(now)),
       hk.getMostRecentQuantitySample(identifiers.bodyWeight, HEALTH_KIT_BODY_WEIGHT_UNIT),
       hk.queryWorkoutSamples({ limit: -1, filter: todayFilter.filter }),
     ]);
-    const dailyMetrics = healthKitDailyMetrics(steps, energy, now);
+    const trendMetrics = healthKitDailyMetrics(steps, energy, now, HEALTH_TREND_DAY_COUNT);
+    const dailyMetrics = trendMetrics.slice(-7);
     const today = healthMetricForDate(dailyMetrics, dateKey(now));
     return {
       syncedAt,
       steps: today?.steps ?? null,
       activeEnergyKcal: today?.activeEnergyKcal ?? null,
       dailyMetrics,
+      trendMetrics,
       hourlyMetrics: healthKitHourlyMetrics(hourlySteps, hourlyEnergy, now),
       workouts: (workouts ?? []).map((item: any) => ({ id: item.uuid ?? `${item.startDate}-${item.endDate}`, startAt: item.startDate, endAt: item.endDate, type: String(item.workoutActivityType ?? 'workout') })),
       weights: weight?.quantity ? [{ id: weight.uuid ?? `${weight.startDate}-${weight.endDate}`, recordedAt: weight.startDate, kg: Number(weight.quantity) }] : [],
