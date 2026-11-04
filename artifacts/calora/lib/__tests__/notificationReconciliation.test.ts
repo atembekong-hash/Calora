@@ -122,6 +122,31 @@ describe('local notification reconciliation', () => {
     expect(isTimeInQuietHours({ hour: 12, minute: 0 }, overnight)).toBe(false);
   });
 
+  it('schedules one opt-in movement reminder from the last observed step activity', () => {
+    const preferences = normalizeNotificationPreferences({
+      categories: { movement: { enabled: true, preferences: { enabled: true, inactivityMinutes: 60 } } },
+    });
+    const plan = buildLocalNotificationPlan(preferences, {
+      now: new Date('2026-11-04T10:00:00'),
+      lastActivityAt: '2026-11-04T09:30:00',
+    });
+    expect(plan).toHaveLength(1);
+    expect(plan[0]?.content.data).toMatchObject({ tag: 'calora-movement', category: 'movement' });
+    expect(plan[0]?.trigger).toEqual({ date: new Date('2026-11-04T10:30:00') });
+  });
+
+  it('moves a movement reminder beyond quiet hours instead of scheduling inside them', () => {
+    const preferences = normalizeNotificationPreferences({
+      quietHours: { enabled: true, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } },
+      categories: { movement: { enabled: true, preferences: { enabled: true, inactivityMinutes: 60 } } },
+    });
+    const plan = buildLocalNotificationPlan(preferences, {
+      now: new Date('2026-11-04T21:30:00'),
+      lastActivityAt: '2026-11-04T21:30:00',
+    });
+    expect(plan[0]?.trigger).toEqual({ date: new Date('2026-11-05T07:00:00') });
+  });
+
   it('assigns the internally managed Android channel for each reminder category', () => {
     const preferences = normalizeNotificationPreferences({
       categories: {
@@ -243,7 +268,7 @@ describe('local notification reconciliation', () => {
       permissionGranted: async () => true,
       schedule: async (request) => {
         const identifier = `schedule-${++nextId}`;
-        events.push(`schedule:${request.trigger.hour}`);
+        events.push(`schedule:${'hour' in request.trigger ? request.trigger.hour : request.trigger.date.toISOString()}`);
         scheduled.push({ identifier, content: { data: request.content.data } });
         return identifier;
       },

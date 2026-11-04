@@ -1,11 +1,16 @@
 import type { GoalReminderPrefs } from './goalReminder';
 import type { HydrationReminderPrefs } from './hydrationReminders';
 import type { MealReminderPrefs } from './mealReminders';
+import { DEFAULT_MOVEMENT_INACTIVITY_MINUTES, normalizeMovementInactivityMinutes } from './movementReminder';
 
 export const NOTIFICATION_PREFERENCES_VERSION = 1 as const;
 
 export type NotificationTime = { hour: number; minute: number };
 export type NotificationCategory<T> = { enabled: boolean; preferences: T };
+export type MovementReminderPrefs = {
+  enabled: boolean;
+  inactivityMinutes: number;
+};
 
 export type LocalNotificationPreferences = {
   version: typeof NOTIFICATION_PREFERENCES_VERSION;
@@ -22,6 +27,7 @@ export type LocalNotificationPreferences = {
     hydration: NotificationCategory<HydrationReminderPrefs>;
     meal: NotificationCategory<MealReminderPrefs>;
     goal: NotificationCategory<GoalReminderPrefs>;
+    movement: NotificationCategory<MovementReminderPrefs>;
   };
 };
 
@@ -65,6 +71,10 @@ export const DEFAULT_LOCAL_NOTIFICATION_PREFERENCES: LocalNotificationPreference
       },
     },
     goal: { enabled: false, preferences: { enabled: false, hour: 20, minute: 0 } },
+    movement: {
+      enabled: false,
+      preferences: { enabled: false, inactivityMinutes: DEFAULT_MOVEMENT_INACTIVITY_MINUTES },
+    },
   },
 };
 
@@ -112,6 +122,7 @@ export function normalizeNotificationPreferences(
   const hydration = categories?.hydration?.preferences ?? legacy.hydrationReminders ?? defaults.categories.hydration.preferences;
   const meal = categories?.meal?.preferences ?? legacy.mealReminders ?? defaults.categories.meal.preferences;
   const goal = categories?.goal?.preferences ?? legacy.goalReminder ?? defaults.categories.goal.preferences;
+  const movement = categories?.movement?.preferences ?? defaults.categories.movement.preferences;
   const quiet = candidate?.quietHours;
 
   return {
@@ -157,6 +168,13 @@ export function normalizeNotificationPreferences(
         preferences: {
           enabled: goal.enabled === true,
           ...time({ hour: goal.hour, minute: goal.minute }, defaults.categories.goal.preferences),
+        },
+      },
+      movement: {
+        enabled: categories?.movement?.enabled === true && movement.enabled === true,
+        preferences: {
+          enabled: movement.enabled === true,
+          inactivityMinutes: normalizeMovementInactivityMinutes(movement.inactivityMinutes),
         },
       },
     },

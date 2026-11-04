@@ -1,4 +1,5 @@
 import type { LocalNotificationPreferences } from './notificationPreferences';
+import type { MovementReminderContext } from './movementReminder';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import {
@@ -59,9 +60,10 @@ export function reconcileUserNotificationPlan(
   preferences: LocalNotificationPreferences,
   adapter?: NotificationReconciliationAdapter,
   platform = Platform.OS,
+  movement?: MovementReminderContext,
 ): Promise<NotificationReconciliationResult> {
   if (!supportsLocalNotificationScheduling(platform)) return Promise.resolve(unavailableResult());
-  return enqueue(() => reconcileLocalNotifications(preferences, adapter));
+  return enqueue(() => reconcileLocalNotifications(preferences, adapter, { movement }));
 }
 
 /**
@@ -72,6 +74,7 @@ export function reconcileHydratedNotificationPlan(
   preferences: LocalNotificationPreferences,
   adapter?: NotificationReconciliationAdapter,
   platform = Platform.OS,
+  movement?: MovementReminderContext,
 ): Promise<NotificationReconciliationResult> {
   if (!supportsLocalNotificationScheduling(platform)) return Promise.resolve(unavailableResult());
   return enqueue(async () => {
@@ -80,6 +83,7 @@ export function reconcileHydratedNotificationPlan(
     return reconcileLocalNotifications(preferences, adapter, {
       requestPermission: false,
       afterCancel: () => dismissPresentedCaloraNotifications(preferences.scopeToken),
+      movement,
     });
   });
 }

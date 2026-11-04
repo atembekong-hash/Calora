@@ -745,6 +745,7 @@ export function CaloraProvider({
   /** The Supabase identity that owns this provider instance (null = guest). */
   accountId?: string | null;
 }) {
+  const clockNow = useClock();
   const systemScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingStep, setOnboardingStepState] = useState(0);
@@ -1336,7 +1337,10 @@ export function CaloraProvider({
     if (!hydrated || hydrationError) return;
     let active = true;
     setNotificationScopeReady(false);
-    void reconcileHydratedNotificationPlan(notificationPreferences)
+    void reconcileHydratedNotificationPlan(notificationPreferences, undefined, undefined, {
+      now: clockNow,
+      lastActivityAt: liveStepTracking.updatedAt,
+    })
       .then((result) => {
         // A denied or disabled plan is still safely reconciled. A failed plan
         // is not a safe capture boundary because the native state is unknown.
@@ -1351,7 +1355,7 @@ export function CaloraProvider({
   // notificationPreferences is intentionally read from the hydration commit;
   // user edits reconcile themselves through the same native lifecycle queue.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, hydrated, hydrationError]);
+  }, [accountId, hydrated, hydrationError, clockNow, liveStepTracking.updatedAt]);
 
   // The former device-wide key had no reliable owner. Never attach it to an
   // account automatically; quarantine it only after a successful raw copy.
@@ -1727,7 +1731,6 @@ export function CaloraProvider({
     };
   }, [disposeLiveStepSubscription, hydrated, reconcileLiveStepSubscription, syncHealth]);
 
-  const clockNow = useClock();
   const healthDayKey = dateKey(clockNow);
 
   // ── Health availability probe ──────────────────────────────────────────────

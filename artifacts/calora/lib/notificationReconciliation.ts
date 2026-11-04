@@ -1,11 +1,13 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { LocalNotificationPreferences, NotificationTime } from './notificationPreferences';
+import { movementReminderAt, type MovementReminderContext } from './movementReminder';
 
 export const CALORA_NOTIFICATION_TAGS = [
   'calora-hydration',
   'calora-meals',
   'calora-goal',
+  'calora-movement',
 ] as const;
 
 type ScheduledNotification = {
@@ -22,7 +24,7 @@ type ScheduleRequest = {
     /** Android delivery channel selected internally from the reminder category. */
     channelId: typeof CALORA_NOTIFICATION_TAGS[number];
   };
-  trigger: { hour: number; minute: number };
+  trigger: { hour: number; minute: number } | { date: Date };
 };
 
 export type NotificationReconciliationAdapter = {
@@ -70,7 +72,10 @@ export function isTimeInQuietHours(
     : current >= start || current < end;
 }
 
-export function buildLocalNotificationPlan(preferences: LocalNotificationPreferences): ScheduleRequest[] {
+export function buildLocalNotificationPlan(
+  preferences: LocalNotificationPreferences,
+  movement?: MovementReminderContext,
+): ScheduleRequest[] {
   if (!preferences.masterEnabled) return [];
   const requests: ScheduleRequest[] = [];
   const hydrationCategory = preferences.categories.hydration;
@@ -133,6 +138,19 @@ export function buildLocalNotificationPlan(preferences: LocalNotificationPrefere
       trigger: goalAt,
     });
   }
+  const movementAt = movementReminderAt(preferences, movement ?? { now: new Date(), lastActivityAt: null });
+  if (movementAt) {
+    requests.push({
+      content: {
+        title: 'Time to move',
+        body: 'You have been still for a while. A short movement break can help.',
+        data: { tag: 'calora-movement', category: 'movement', scopeToken: preferences.scopeToken },
+        sound: true,
+        channelId: 'calora-movement',
+      },
+      trigger: { date: movementAt },
+    });
+  }
   return requests;
 }
 
@@ -148,10 +166,9 @@ const expoAdapter: NotificationReconciliationAdapter = {
   },
   schedule: (request) => Notifications.scheduleNotificationAsync({
     content: request.content,
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      ...request.trigger,
-    },
+    trigger: 'date' in request.trigger
+      ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: request.trigger.date }
+      : { type: Notifications.SchedulableTriggerInputTypes.DAILY, ...request.trigger },
   }),
   provisionChannels: async () => {
     // This call is intentionally in reconciliation's serialized lifecycle:
@@ -172,6 +189,12 @@ const expoAdapter: NotificationReconciliationAdapter = {
       }),
       Notifications.setNotificationChannelAsync('calora-goal', {
         name: 'Goal check-ins',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#4caf7d',
+      }),
+      Notifications.setNotificationChannelAsync('calora-movement', {
+        name: 'Movement reminders',
         importance: Notifications.AndroidImportance.DEFAULT,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#4caf7d',
@@ -199,7 +222,7 @@ export async function cancelCaloraLocalNotifications(
 export async function reconcileLocalNotifications(
   preferences: LocalNotificationPreferences,
   adapter: NotificationReconciliationAdapter = expoAdapter,
-  options: { requestPermission?: boolean; afterCancel?: () => Promise<void> } = {},
+  options: { requestPermission?: boolean; afterCancel?: () => Promise<void>; movement?: MovementReminderContext } = {},
 ): Promise<NotificationReconciliationResult> {
   try {
     await cancelCaloraLocalNotifications(adapter);
@@ -214,7 +237,7 @@ export async function reconcileLocalNotifications(
     return { status: 'failed', scheduledCount: 0, failure: 'presented' };
   }
 
-  const plan = buildLocalNotificationPlan(preferences);
+  const plan = buildLocalNotificationPlan(preferences, options.movement);
   if (!plan.length) return { status: 'disabled', scheduledCount: 0 };
   if (!await adapter.permissionGranted({ requestPermission: options.requestPermission ?? true })) {
     return { status: 'denied', scheduledCount: 0 };
