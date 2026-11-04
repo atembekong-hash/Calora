@@ -170,8 +170,8 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain("Fasting in progress");
     expect(source).toContain("featureCard: { flex: 1, height: 111.77");
     expect(source).toContain("featureCopy: { position: \"absolute\", top: 9, right: 9");
-    expect(source).toContain('progressCard: { backgroundColor: colors.card }');
-    expect(source).toContain('learningCard: { backgroundColor: colors.card }');
+    expect(source).toContain('progressCard: { backgroundColor: dark ? "#32170f" : "#f7e9df" }');
+    expect(source).toContain('learningCard: { backgroundColor: dark ? "#19183f" : "#eeeafd" }');
     expect(source).toContain('featureTitle: { color: dark ? TEXT : colors.foreground');
     expect(source).toContain('backgroundColor: dark ? "rgba(255,255,255,.20)" : colors.card');
     expect(source).toContain('chartBar: { width: 7, borderRadius: 4, backgroundColor: dark ? ORANGE : colors.primary }');
@@ -182,6 +182,7 @@ describe("MoreScreen feature hierarchy", () => {
     expect(source).toContain('backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border');
     expect(source).toContain('quickItem: { width: "33%", minHeight: 62.4');
     expect(source).toContain('backgroundColor: colors.card, borderWidth: 1');
+    expect(source).toContain('backgroundColor: dark ? "#21154d" : "#dceaff", borderWidth: 1, borderColor: dark ? "rgba(193,137,255,.52)" : colors.border');
     expect(source).toContain('IconBox color={item.tint}');
     expect(source).toContain('quickLabel: { color: colors.foreground');
     expect(source).toContain('icon={item.icon} size={30}');
