@@ -613,7 +613,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('accessibilityRole="header" style={[styles.stepsCardTitle');
     expect(source).toContain('testID="dashboard-steps-action"');
     expect(source).toContain("<CaloraFeatureIcon name=\"mood\" size={22}");
-    expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', justifyContent: \'center\', gap: 5, marginHorizontal: -10');
+    expect(source).toContain('dashboardTwoColumnGrid: { flexDirection: \'row\', flexWrap: \'wrap\', justifyContent: \'center\', gap: 5, marginHorizontal: -18');
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
