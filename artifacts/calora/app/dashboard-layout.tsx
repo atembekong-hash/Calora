@@ -8,6 +8,7 @@ import { ScalePressable } from "@/components/ScalePressable";
 import {
   CONFIGURABLE_DASHBOARD_WIDGET_IDS,
   DASHBOARD_WIDGET_IDS,
+  RESPONSIVE_DASHBOARD_WIDGET_IDS,
   reorderDashboardWidget,
   toggleDashboardWidgetVisibility,
   type DashboardWidgetId,
@@ -211,6 +212,29 @@ export default function DashboardLayoutScreen() {
                       {density === "compact" ? "Compact" : "Expanded"}
                     </Text>
                   </ScalePressable>
+                  {RESPONSIVE_DASHBOARD_WIDGET_IDS.includes(id) && density === "compact" && (
+                    <View style={styles.placementGroup}>
+                      <Text style={styles.placementLabel}>Position</Text>
+                      <View style={styles.placementOptions}>
+                        {(["left", "right"] as const).map((position) => (
+                          <ScalePressable
+                            key={position}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Place ${item.title} on the ${position}`}
+                            onPress={() =>
+                              updateDashboardPreferences((current) => ({
+                                ...current,
+                                placement: { ...current.placement, [id]: position },
+                              }))
+                            }
+                            style={[styles.placementButton, dashboardPreferences.placement[id] === position && styles.placementButtonSelected]}
+                          >
+                            <Text style={[styles.placementButtonText, dashboardPreferences.placement[id] === position && styles.placementButtonTextSelected]}>{position === "left" ? "Left" : "Right"}</Text>
+                          </ScalePressable>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
             );
@@ -299,6 +323,13 @@ const makeStyles = (
       fontWeight: "800",
       fontSize: 11 * scale,
     },
+    placementGroup: { alignItems: "flex-end", gap: 5 },
+    placementLabel: { color: colors.mutedForeground, fontWeight: "700", fontSize: 10 * scale },
+    placementOptions: { flexDirection: "row", gap: 5 },
+    placementButton: { minWidth: 49, height: 30, paddingHorizontal: 8, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+    placementButtonSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+    placementButtonText: { color: colors.mutedForeground, fontWeight: "800", fontSize: 10 * scale },
+    placementButtonTextSelected: { color: colors.accentForeground },
     note: {
       flexDirection: "row",
       gap: 9,
