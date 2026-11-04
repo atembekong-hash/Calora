@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DASHBOARD_PREFERENCES,
+  buildDashboardRows,
   normalizeDashboardPreferences,
   reorderDashboardWidget,
   toggleDashboardWidgetVisibility,
@@ -71,7 +72,24 @@ describe("dashboard preferences", () => {
       order: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
       density: {},
     });
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.order.slice(5, 9)).toEqual(["water", "quickLog", "log", "recipes"]);
+    expect(migrated.placement.fasting).toBe("left");
+    expect(migrated.placement.steps).toBe("right");
+  });
+
+  it("builds only deliberate opposite-side compact pairs and keeps expanded cards full width", () => {
+    expect(buildDashboardRows(DEFAULT_DASHBOARD_PREFERENCES)).toEqual([["fasting", "steps"], ["nutrients", "mood"]]);
+    const sameSide = normalizeDashboardPreferences({ ...DEFAULT_DASHBOARD_PREFERENCES, placement: { ...DEFAULT_DASHBOARD_PREFERENCES.placement, steps: "left" } });
+    expect(buildDashboardRows(sameSide)).toEqual([["fasting"], ["steps"], ["nutrients", "mood"]]);
+    const expanded = normalizeDashboardPreferences({ ...DEFAULT_DASHBOARD_PREFERENCES, density: { ...DEFAULT_DASHBOARD_PREFERENCES.density, fasting: "expanded" } });
+    expect(buildDashboardRows(expanded)).toEqual([["fasting"], ["nutrients", "steps"], ["mood"]]);
+  });
+
+  it("preserves size and placement independently when normalizing persisted settings", () => {
+    const result = normalizeDashboardPreferences({ version: 5, visible: DEFAULT_DASHBOARD_PREFERENCES.visible, order: DEFAULT_DASHBOARD_PREFERENCES.order, density: { ...DEFAULT_DASHBOARD_PREFERENCES.density, mood: "expanded" }, placement: { ...DEFAULT_DASHBOARD_PREFERENCES.placement, fasting: "right", steps: "left" } });
+    expect(result.density.mood).toBe("expanded");
+    expect(result.placement.fasting).toBe("right");
+    expect(result.placement.steps).toBe("left");
   });
 });
