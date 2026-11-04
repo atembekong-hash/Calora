@@ -40,6 +40,16 @@ describe('Steps experience', () => {
     expect(stepsScreen).toContain('Choose a goal from');
   });
 
+  it('connects Steps to walking guidance and related Learning suggestions', () => {
+    expect(stepsScreen).toContain('Learn about walking');
+    expect(stepsScreen).toContain('movement-breaks-count');
+    expect(stepsScreen).toContain('Movement breaks count');
+    expect(stepsScreen).toContain('movement-snacks');
+    expect(stepsScreen).toContain('recovery-is-part-of-routine');
+    expect(stepsScreen).toContain("pathname: '/learning/[lessonId]'");
+    expect(stepsScreen).toContain('Open Movement breaks count lesson');
+  });
+
   it('opens from the Today Steps widget without replacing health actions', () => {
     expect(homeScreen).toContain('accessibilityLabel="Open Steps"');
     expect(homeScreen).toContain("onOpenSteps={() => router.push({ pathname: '/steps' } as never)}");

@@ -265,6 +265,39 @@ export default function StepsScreen() {
         <View style={styles.tipGrid}>
           {[['sunrise', 'Start small', 'A ten-minute walk is a meaningful start.'], ['navigation', 'Take the long way', 'Add a little distance to routines you already have.'], ['check-circle', 'Celebrate consistency', 'Your trend matters more than one perfect day.']].map(([icon, title, copy]) => <View key={title} style={[styles.tip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name={icon as React.ComponentProps<typeof Feather>['name']} size={19} color={colors.success} /><Text style={[styles.tipTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.tipText, { color: colors.mutedForeground }]}>{copy}</Text></View>)}
         </View>
+        <View style={styles.learningSection}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Learn about walking</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Optional guides to help movement fit your real day.</Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open Movement breaks count lesson"
+            accessibilityHint="Opens the walking and movement guide in Learning"
+            onPress={() => router.push({ pathname: '/learning/[lessonId]', params: { lessonId: 'movement-breaks-count' } } as never)}
+            style={[styles.learningFeature, { backgroundColor: colors.hero, borderColor: colors.border }]}
+          >
+            <View style={[styles.learningIcon, { backgroundColor: colors.success }]}><Feather name="book-open" size={20} color={colors.successForeground} /></View>
+            <View style={styles.learningCopy}><Text style={[styles.learningTitle, { color: colors.onHero }]}>Movement breaks count</Text><Text style={[styles.learningText, { color: colors.heroMuted }]}>Short walks, stretches, and daily tasks can all be meaningful ways to move.</Text></View>
+            <Feather name="chevron-right" size={20} color={colors.onHero} />
+          </Pressable>
+          <View style={styles.learningSuggestions}>
+            {[
+              ['activity', 'Movement snacks', 'Make room for a few comfortable minutes of movement.', 'movement-snacks'],
+              ['refresh-cw', 'Make room for recovery', 'Use rest and lower-energy days in a sustainable rhythm.', 'recovery-is-part-of-routine'],
+            ].map(([icon, title, copy, lessonId]) => (
+              <Pressable
+                key={lessonId}
+                accessibilityRole="link"
+                accessibilityLabel={`Open ${title} lesson`}
+                onPress={() => router.push({ pathname: '/learning/[lessonId]', params: { lessonId } } as never)}
+                style={[styles.learningSuggestion, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <View style={[styles.learningSuggestionIcon, { backgroundColor: colors.successTint }]}><Feather name={icon as React.ComponentProps<typeof Feather>['name']} size={17} color={colors.success} /></View>
+                <View style={styles.learningCopy}><Text style={[styles.learningSuggestionTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.learningSuggestionText, { color: colors.mutedForeground }]}>{copy}</Text></View>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
         <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>Steps are wellness information, not medical advice. Provider totals may arrive after a short delay.</Text>
       </ScrollView>
       <StepGoalSheet visible={goalSheetVisible} goal={dailyStepGoal} colors={colors} onClose={() => setGoalSheetVisible(false)} onSave={(value) => { setDailyStepGoal(value); setGoalSheetVisible(false); }} />
@@ -355,6 +388,17 @@ const styles = StyleSheet.create({
   tip: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, padding: 15 },
   tipTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 13, marginTop: 10 },
   tipText: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 4 },
+  learningSection: { gap: 10, marginTop: 2 },
+  learningFeature: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  learningIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  learningCopy: { flex: 1, minWidth: 0 },
+  learningTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 13 },
+  learningText: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 15, marginTop: 3 },
+  learningSuggestions: { gap: 8 },
+  learningSuggestion: { borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  learningSuggestionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  learningSuggestionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 },
+  learningSuggestionText: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: 2 },
   disclaimer: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 3 },
   goalSheet: { paddingHorizontal: 20 },
   goalSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
