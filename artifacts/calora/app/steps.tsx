@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,20 @@ function StepRing({ progress, value, goal, colors, size = 184 }: { progress: num
       </View>
     </View>
   );
+}
+
+function hourLabel(value: string): string {
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric' }).format(new Date(value));
+}
+
+function HourlyMovementChart({ values, total, colors }: { values: Array<{ hour: string; steps: number | null }>; total: number | null; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const measured = values.filter((item) => item.steps !== null);
+  const max = Math.max(...measured.map((item) => item.steps ?? 0), 1);
+  const selected = selectedIndex === null ? null : values[selectedIndex];
+  const hasData = measured.length > 0;
+  return <View style={[styles.chart, { backgroundColor: colors.card, borderColor: colors.border }]}>    <View style={styles.chartHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Movement by hour</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Tap a bar to inspect your day</Text></View><View style={[styles.hourlyBadge, { backgroundColor: colors.successTint }]}><Feather name="bar-chart-2" size={14} color={colors.success} /><Text style={[styles.goalKeyText, { color: colors.successForeground }]}>HOURLY</Text></View></View>    {hasData ? <><View style={styles.hourlyChartArea} accessibilityRole="image" accessibilityLabel="Interactive hourly movement chart"><View style={styles.hourlyGrid}><View style={[styles.hourlyGridLine, { borderTopColor: colors.border }]} /><View style={[styles.hourlyGridLine, { borderTopColor: colors.border }]} /><View style={[styles.hourlyGridLine, { borderTopColor: colors.border }]} /></View><View style={styles.hourlyBars}>{values.map((item, index) => { const active = selectedIndex === index; return <Pressable key={item.hour} accessibilityRole="button" accessibilityLabel={`${hourLabel(item.hour)}, ${item.steps === null ? 'no movement data' : `${formatWhole(item.steps)} steps`}`} onPress={() => setSelectedIndex(active ? null : index)} style={styles.hourColumn}><View style={[styles.hourBarTrack, { backgroundColor: colors.muted }]}><View style={[styles.hourBar, { height: item.steps === null ? 4 : Math.max(5, ((item.steps ?? 0) / max) * 112), backgroundColor: active ? colors.primary : colors.success, opacity: item.steps === null ? 0.22 : 1 }]} /></View>{index % 3 === 0 || active ? <Text style={[styles.hourLabel, { color: active ? colors.foreground : colors.mutedForeground }]}>{hourLabel(item.hour)}</Text> : <View style={styles.hourLabelSpacer} />}</Pressable>; })}</View></View><View style={[styles.hourlyDetail, { backgroundColor: colors.successTint, borderColor: colors.border }]}><View><Text style={[styles.hourlyDetailLabel, { color: colors.mutedForeground }]}>{selected ? hourLabel(selected.hour) : 'Today'}</Text><Text style={[styles.hourlyDetailValue, { color: colors.foreground }]}>{selected?.steps === null || selected === null ? (selected ? 'No data' : total === null ? '—' : `${formatWhole(total)} steps`) : `${formatWhole(selected.steps)} steps`}</Text></View><Text style={[styles.hourlyDetailShare, { color: colors.successForeground }]}>{selected?.steps !== null && selected?.steps !== undefined && total ? `${Math.round((selected.steps / total) * 100)}% of today` : selected ? 'No provider reading' : 'Select an hour'}</Text></View></> : <View style={[styles.hourlyEmpty, { backgroundColor: colors.successTint }]}><Feather name="clock" size={18} color={colors.success} /><Text style={[styles.hourlyEmptyText, { color: colors.successForeground }]}>Hourly detail will appear after your next Health sync.</Text></View>}
+  </View>;
 }
 
 function WeekBars({ values, goal, colors }: { values: Array<{ date: string; steps: number | null }>; goal: number; colors: ReturnType<typeof useCalora>['colors'] }) {
@@ -79,6 +93,7 @@ export default function StepsScreen() {
     return range.map((date) => ({ date, steps: date === today && liveStepTracking.displayedSteps !== null ? liveStepTracking.displayedSteps : (metrics.get(date) ?? null) }));
   }, [healthConnection.snapshot?.dailyMetrics, liveStepTracking.displayedSteps, today]);
   const todaySteps = values[values.length - 1]?.steps ?? null;
+  const hourlyValues = useMemo(() => (healthConnection.snapshot?.hourlyMetrics ?? []).map((item) => ({ hour: item.hour, steps: item.steps })), [healthConnection.snapshot?.hourlyMetrics]);
   const progress = todaySteps === null ? 0 : todaySteps / dailyStepGoal;
   const measured = values.filter((item) => item.steps !== null);
   const average = measured.length ? Math.round(measured.reduce((sum, item) => sum + (item.steps ?? 0), 0) / measured.length) : null;
@@ -125,6 +140,7 @@ export default function StepsScreen() {
           </View>
         </View>
         <WeekBars values={values} goal={dailyStepGoal} colors={colors} />
+        <HourlyMovementChart values={hourlyValues} total={todaySteps} colors={colors} />
         {!isConnected || todaySteps === null ? (
           <ScalePressable accessibilityRole="button" accessibilityLabel={isConnected ? `Refresh ${providerLabel}` : `Connect ${providerLabel}`} onPress={onPrimaryAction} style={[styles.connectCard, { backgroundColor: colors.hero, borderColor: colors.border }]}>
             <View style={[styles.connectIcon, { backgroundColor: colors.success }]}><Feather name="heart" size={22} color={colors.successForeground} /></View>
@@ -163,6 +179,22 @@ const styles = StyleSheet.create({
   statDivider: { height: 30, width: StyleSheet.hairlineWidth },
   chart: { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, padding: 17, overflow: 'hidden' },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  hourlyBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 },
+  hourlyChartArea: { height: 156, marginTop: 18, position: 'relative' },
+  hourlyGrid: { position: 'absolute', left: 0, right: 0, top: 8, bottom: 25, justifyContent: 'space-between' },
+  hourlyGridLine: { borderTopWidth: StyleSheet.hairlineWidth, borderStyle: 'dashed' },
+  hourlyBars: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2 },
+  hourColumn: { flex: 1, height: 156, alignItems: 'center', justifyContent: 'flex-end', zIndex: 1 },
+  hourBarTrack: { width: 9, height: 116, borderRadius: 7, justifyContent: 'flex-end', overflow: 'hidden' },
+  hourBar: { width: '100%', borderRadius: 7 },
+  hourLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, marginTop: 7 },
+  hourLabelSpacer: { height: 18 },
+  hourlyDetail: { borderRadius: 15, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  hourlyDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.7 },
+  hourlyDetailValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 17, marginTop: 2 },
+  hourlyDetailShare: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  hourlyEmpty: { borderRadius: 16, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18 },
+  hourlyEmptyText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 16 },
   sectionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 17, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 11, marginTop: 4 },
   goalKey: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 },

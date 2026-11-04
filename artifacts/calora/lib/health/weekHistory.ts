@@ -13,6 +13,12 @@ export type HealthDailyMetric = {
   activeEnergyKcal: number | null;
 };
 
+export type HealthHourlyMetric = {
+  hour: string;
+  steps: number | null;
+  activeEnergyKcal: number | null;
+};
+
 export type LocalHealthHistoryRange = {
   startDate: Date;
   endDate: Date;
@@ -99,4 +105,34 @@ export function healthMetricForDate(
   date: string,
 ): HealthDailyMetric | undefined {
   return metrics?.find((metric) => metric.date === date);
+}
+
+export function buildHealthHourlyMetrics(
+  values: ReadonlyMap<string, Partial<Omit<HealthHourlyMetric, 'hour'>>>,
+  now = new Date(),
+): HealthHourlyMetric[] {
+  const today = dateKey(now);
+  return [...values.entries()]
+    .filter(([hour]) => /^\d{4}-\d{2}-\d{2}T\d{2}:00:00$/.test(hour) && hour.slice(0, 10) === today)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([hour, value]) => ({
+      hour,
+      steps: nonNegativeNumberOrNull(value.steps) ?? null,
+      activeEnergyKcal: nonNegativeNumberOrNull(value.activeEnergyKcal) ?? null,
+    }));
+}
+
+export function normalizeHealthHourlyMetrics(value: unknown, now = new Date()): HealthHourlyMetric[] {
+  if (!Array.isArray(value)) return [];
+  const byHour = new Map<string, HealthHourlyMetric>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const metric = entry as Partial<HealthHourlyMetric>;
+    if (typeof metric.hour !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:00:00$/.test(metric.hour) || metric.hour.slice(0, 10) !== dateKey(now)) continue;
+    const steps = nonNegativeNumberOrNull(metric.steps);
+    const activeEnergyKcal = nonNegativeNumberOrNull(metric.activeEnergyKcal);
+    if (steps === undefined || activeEnergyKcal === undefined) continue;
+    byHour.set(metric.hour, { hour: metric.hour, steps, activeEnergyKcal });
+  }
+  return [...byHour.values()].sort((left, right) => left.hour.localeCompare(right.hour));
 }

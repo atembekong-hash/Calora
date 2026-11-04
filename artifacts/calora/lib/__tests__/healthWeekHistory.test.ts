@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   healthConnectDailyMetrics,
+  healthConnectHourlyMetrics,
   healthConnectHistoryRange,
 } from '../health/healthService.android';
 import {
   healthKitDailyMetrics,
+  healthKitHourlyMetrics,
   healthKitHistoryFilter,
 } from '../health/healthService.ios';
 import {
   buildHealthDailyMetrics,
+  normalizeHealthHourlyMetrics,
   localHealthHistoryRange,
   normalizeHealthDailyMetrics,
 } from '../health/weekHistory';
@@ -133,5 +136,26 @@ describe('provider seven-day health history', () => {
     expect(metrics.find((metric) => metric.date === '2026-08-30')).toEqual({
       date: '2026-08-30', steps: 1234, activeEnergyKcal: null,
     });
+  });
+
+  it('keeps real hourly provider readings interactive without inventing missing hours', () => {
+    const android = healthConnectHourlyMetrics(
+      [{ startTime: new Date(2026, 7, 30, 14).toISOString(), result: { dataOrigins: ['fitness'], COUNT_TOTAL: 900 } }],
+      [{ startTime: new Date(2026, 7, 30, 14).toISOString(), result: { dataOrigins: ['fitness'], ACTIVE_CALORIES_TOTAL: { inKilocalories: 12 } } }],
+      now,
+    );
+    const apple = healthKitHourlyMetrics(
+      [{ startDate: new Date(2026, 7, 30, 9), sumQuantity: { quantity: 450 } }],
+      [{ startDate: new Date(2026, 7, 30, 9), sumQuantity: { quantity: 8 } }],
+      now,
+    );
+
+    expect(android).toEqual([{ hour: '2026-08-30T14:00:00', steps: 900, activeEnergyKcal: 12 }]);
+    expect(apple).toEqual([{ hour: '2026-08-30T09:00:00', steps: 450, activeEnergyKcal: 8 }]);
+    expect(normalizeHealthHourlyMetrics([
+      { hour: '2026-08-30T09:00:00', steps: 450, activeEnergyKcal: 8 },
+      { hour: 'invalid', steps: 999, activeEnergyKcal: 1 },
+      { hour: '2026-08-29T09:00:00', steps: 1, activeEnergyKcal: 1 },
+    ], now)).toEqual([{ hour: '2026-08-30T09:00:00', steps: 450, activeEnergyKcal: 8 }]);
   });
 });
