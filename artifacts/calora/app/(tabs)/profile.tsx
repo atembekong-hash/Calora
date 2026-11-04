@@ -223,6 +223,7 @@ export default function ProfileScreen({
     deleteSavedMeal,
     notificationPreferences,
     updateNotificationPreferences,
+    liveStepTracking,
     livingMemory,
     logs,
     fontSizeScale,
@@ -409,6 +410,10 @@ export default function ProfileScreen({
     notificationPreferences.categories.hydration.preferences;
   const mealReminderPrefs = notificationPreferences.categories.meal.preferences;
   const goalReminderPrefs = notificationPreferences.categories.goal.preferences;
+  const movementReminderPrefs = notificationPreferences.categories.movement?.preferences ?? {
+    enabled: false,
+    inactivityMinutes: 60,
+  };
 
   const openExternalLink = useCallback(async (title: string, url: string) => {
     if (externalLinkLockRef.current) return;
@@ -571,7 +576,10 @@ export default function ProfileScreen({
     );
     setNotificationUpdating(true);
     try {
-      const result = await reconcileUserNotificationPlan(desired);
+      const result = await reconcileUserNotificationPlan(desired, undefined, undefined, {
+        now: new Date(),
+        lastActivityAt: liveStepTracking.updatedAt,
+      });
       setNotificationPermissionDenied((wasDenied) =>
         result.status === "denied"
           ? true
@@ -754,6 +762,28 @@ export default function ProfileScreen({
           : "idle",
       );
     }
+  };
+  const applyMovementPrefs = async (next: typeof movementReminderPrefs) => {
+    const { result, desired } = await applyNotificationPrefs((current) => ({
+      ...current,
+      categories: {
+        ...current.categories,
+        movement: { enabled: next.enabled, preferences: next },
+      },
+    }));
+    if (result.status === "denied") {
+      Alert.alert(
+        "Notification permission needed",
+        `To receive movement reminders, allow ${BRAND.name} to send notifications in your device settings.`,
+      );
+    }
+    setGoalReminderStatus(
+      result.status === "scheduled" && desired.masterEnabled && next.enabled
+        ? "scheduled"
+        : result.status === "failed"
+          ? "failed"
+          : "idle",
+    );
   };
   const nudgeGoalTime = (field: "hour" | "minute", delta: number) =>
     applyNotificationPrefs((current) => {
@@ -2083,6 +2113,62 @@ export default function ProfileScreen({
                         Retry
                       </Text>
                     </Pressable>
+                  )}
+
+                  {/* Movement reminders */}
+                  <View
+                    style={[
+                      styles.reminderToggleRow,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                    ]}
+                  >
+                    <View style={[styles.settingIcon, { backgroundColor: "#e5f4ec" }]}>
+                      <Feather name="activity" size={17} color="#4caf7d" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.settingTitle, { color: colors.foreground }]}>Movement reminders</Text>
+                      <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+                        {movementReminderPrefs.enabled
+                          ? `After ${movementReminderPrefs.inactivityMinutes} minutes without steps`
+                          : "Off · get a gentle movement nudge"}
+                      </Text>
+                    </View>
+                    <Switch
+                      accessibilityLabel="Toggle movement reminders"
+                      testID="movement-reminder-toggle"
+                      value={movementReminderPrefs.enabled}
+                      onValueChange={(enabled) => void applyMovementPrefs({ ...movementReminderPrefs, enabled })}
+                      disabled={notificationControlsDisabled}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor={colors.primaryForeground}
+                      ios_backgroundColor={colors.border}
+                      style={styles.notificationSwitch}
+                    />
+                  </View>
+                  {movementReminderPrefs.enabled && (
+                    <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
+                      <View style={styles.reminderTimeRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>INACTIVITY THRESHOLD</Text>
+                          <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{movementReminderPrefs.inactivityMinutes} minutes</Text>
+                        </View>
+                        <View style={styles.reminderNudge}>
+                          {[30, 60, 90, 120].map((minutes) => (
+                            <Pressable
+                              key={minutes}
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected: movementReminderPrefs.inactivityMinutes === minutes }}
+                              accessibilityLabel={`Remind me after ${minutes} minutes`}
+                              onPress={() => void applyMovementPrefs({ ...movementReminderPrefs, inactivityMinutes: minutes })}
+                              disabled={notificationControlsDisabled}
+                              style={[styles.nudgeButton, { backgroundColor: movementReminderPrefs.inactivityMinutes === minutes ? colors.primary : colors.muted, minWidth: 38 }]}
+                            >
+                              <Text style={{ color: movementReminderPrefs.inactivityMinutes === minutes ? colors.primaryForeground : colors.foreground, fontSize: 11 * fontScale, fontFamily: "Inter_700Bold" }}>{minutes}m</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
                   )}
 
                   {/* Hydration */}
