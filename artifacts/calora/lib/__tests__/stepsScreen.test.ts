@@ -40,6 +40,13 @@ describe('Steps experience', () => {
     expect(stepsScreen).toContain('Choose a goal from');
   });
 
+  it('shows a transparent step-to-calorie conversion breakdown without replacing measured health calories', () => {
+    expect(stepsScreen).toContain('StepCalorieBreakdown');
+    expect(stepsScreen).toContain('Steps to energy');
+    expect(stepsScreen).toContain('ESTIMATED_KCAL_PER_STEP');
+    expect(stepsScreen).toContain('Health data calories remain the authoritative measured value');
+  });
+
   it('connects Steps to walking guidance and related Learning suggestions', () => {
     expect(stepsScreen).toContain('Learn about walking');
     expect(stepsScreen).toContain('movement-breaks-count');

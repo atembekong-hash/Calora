@@ -12,6 +12,7 @@ import { dateKey } from '@/lib/dates';
 import { formatWhole } from '@/lib/formatters';
 import { localHealthHistoryRange, type HealthDailyMetric } from '@/lib/health/weekHistory';
 import { MAX_DAILY_STEP_GOAL, MIN_DAILY_STEP_GOAL, normalizeDailyStepGoal } from '@/lib/steps/stepTracking';
+import { estimateStepCalories, ESTIMATED_KCAL_PER_STEP } from '@/lib/steps/stepCalories';
 
 function shortDay(value: string): string {
   return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(`${value}T12:00:00`));
@@ -101,6 +102,33 @@ function WeekBars({ values, goal, colors }: { values: Array<{ date: string; step
       </View>
       <View style={[styles.goalLine, { borderTopColor: colors.success }]} />
       <Text style={[styles.chartFootnote, { color: colors.mutedForeground }]}>A day counts toward your goal at {formatWhole(goal)} steps.</Text>
+    </View>
+  );
+}
+
+function StepCalorieBreakdown({ steps, colors }: { steps: number | null; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const estimate = steps === null ? null : estimateStepCalories(steps);
+  return (
+    <View style={[styles.calorieCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.calorieCardHeader}>
+        <View style={[styles.calorieIcon, { backgroundColor: '#FEF3C7' }]}><Feather name="zap" size={18} color="#D97706" /></View>
+        <View style={styles.calorieCopy}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Steps to energy</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>A transparent movement estimate for today</Text></View>
+      </View>
+      {estimate ? (
+        <>
+          <View style={styles.calorieBreakdownRow}>
+            <View style={styles.calorieMetric}><Text style={[styles.calorieMetricValue, { color: colors.foreground }]}>{formatWhole(estimate.steps)}</Text><Text style={[styles.calorieMetricLabel, { color: colors.mutedForeground }]}>steps</Text></View>
+            <Text style={[styles.calorieOperator, { color: colors.mutedForeground }]}>×</Text>
+            <View style={styles.calorieMetric}><Text style={[styles.calorieMetricValue, { color: colors.foreground }]}>{ESTIMATED_KCAL_PER_STEP.toFixed(2)}</Text><Text style={[styles.calorieMetricLabel, { color: colors.mutedForeground }]}>kcal / step</Text></View>
+            <Text style={[styles.calorieOperator, { color: colors.mutedForeground }]}>=</Text>
+            <View style={styles.calorieMetric}><Text style={[styles.calorieMetricValue, { color: '#D97706' }]}>{formatWhole(estimate.estimatedCalories)}</Text><Text style={[styles.calorieMetricLabel, { color: colors.mutedForeground }]}>estimated kcal</Text></View>
+          </View>
+          <View style={[styles.calorieDistance, { backgroundColor: colors.successTint }]}><Feather name="map-pin" size={14} color={colors.success} /><Text style={[styles.calorieDistanceText, { color: colors.successForeground }]}>Approximately {estimate.estimatedDistanceKm.toFixed(1)} km of movement</Text></View>
+        </>
+      ) : (
+        <View style={[styles.calorieEmpty, { backgroundColor: colors.successTint }]}><Text style={[styles.calorieEmptyText, { color: colors.successForeground }]}>Sync your steps to see an estimated movement calorie breakdown.</Text></View>
+      )}
+      <Text style={[styles.calorieDisclaimer, { color: colors.mutedForeground }]}>Estimate only — pace, terrain, stride, and body size can change actual energy use. Health data calories remain the authoritative measured value when available.</Text>
     </View>
   );
 }
@@ -251,6 +279,7 @@ export default function StepsScreen() {
             <View><Text style={[styles.heroStatValue, { color: colors.foreground }]}>{goalDays}</Text><Text style={[styles.heroStatLabel, { color: colors.mutedForeground }]}>goal days</Text></View>
           </View>
         </View>
+        <StepCalorieBreakdown steps={todaySteps} colors={colors} />
         <WeekBars values={values} goal={dailyStepGoal} colors={colors} />
         <TrendComparison metrics={trendValues} fallback={values} goal={dailyStepGoal} colors={colors} />
         <HourlyMovementChart values={hourlyValues} total={todaySteps} colors={colors} />
@@ -399,6 +428,20 @@ const styles = StyleSheet.create({
   learningSuggestionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   learningSuggestionTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 12 },
   learningSuggestionText: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: 2 },
+  calorieCard: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 15, gap: 12 },
+  calorieCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  calorieIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  calorieCopy: { flex: 1, minWidth: 0 },
+  calorieBreakdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  calorieMetric: { flex: 1, alignItems: 'center', minWidth: 0 },
+  calorieMetricValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 },
+  calorieMetricLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 2, textAlign: 'center' },
+  calorieOperator: { fontFamily: 'Inter_800ExtraBold', fontSize: 16 },
+  calorieDistance: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  calorieDistanceText: { fontFamily: 'Inter_700Bold', fontSize: 10, flex: 1 },
+  calorieEmpty: { borderRadius: 12, padding: 10 },
+  calorieEmptyText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 15 },
+  calorieDisclaimer: { fontFamily: 'Inter_500Medium', fontSize: 9, lineHeight: 13 },
   disclaimer: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 3 },
   goalSheet: { paddingHorizontal: 20 },
   goalSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
