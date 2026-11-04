@@ -1,6 +1,6 @@
 import type { HealthAuthorization, HealthConnection, HealthMetric, HealthService, HealthSnapshot } from './types';
 import { currentLocalDayRange } from './dayRange';
-import { buildHealthDailyMetrics, healthMetricForDate, localHealthHistoryRange, type HealthDailyMetric } from './weekHistory';
+import { buildHealthDailyMetrics, buildHealthHourlyMetrics, healthMetricForDate, localHealthHistoryRange, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
 import { AuthorizationRequestStatus } from '@kingstinct/react-native-healthkit';
 import { dateKey } from '@/lib/dates';
 
@@ -85,6 +85,27 @@ function healthKitGroupValues(groups: unknown): Map<string, number | null> {
   return values;
 }
 
+function healthKitHourValues(groups: unknown): Map<string, number | null> {
+  if (!Array.isArray(groups)) throw new Error('Apple Health returned invalid grouped health data.');
+  const values = new Map<string, number | null>();
+  for (const entry of groups as HealthKitStatistic[]) {
+    if (!entry || typeof entry !== 'object' || entry.startDate === undefined) throw new Error('Apple Health returned an invalid grouped health period.');
+    const start = entry.startDate instanceof Date ? entry.startDate : new Date(String(entry.startDate));
+    if (!Number.isFinite(start.getTime())) throw new Error('Apple Health returned an invalid grouped health date.');
+    values.set(`${dateKey(start)}T${String(start.getHours()).padStart(2, '0')}:00:00`, healthKitCumulativeQuantity(entry));
+  }
+  return values;
+}
+
+export function healthKitHourlyMetrics(stepsGroups: unknown, activeEnergyGroups: unknown, now = new Date()): HealthHourlyMetric[] {
+  const stepsByHour = healthKitHourValues(stepsGroups);
+  const energyByHour = healthKitHourValues(activeEnergyGroups);
+  const values = new Map<string, Partial<Omit<HealthHourlyMetric, 'hour'>>>();
+  for (const [hour, steps] of stepsByHour) values.set(hour, { ...(values.get(hour) ?? {}), steps });
+  for (const [hour, activeEnergyKcal] of energyByHour) values.set(hour, { ...(values.get(hour) ?? {}), activeEnergyKcal });
+  return buildHealthHourlyMetrics(values, now);
+}
+
 /** Builds a gap-preserving seven-day series from HealthKit statistics collections. */
 export function healthKitDailyMetrics(
   stepsGroups: unknown,
@@ -128,9 +149,11 @@ export const healthService: HealthService = {
     const historyEnergyOptions = healthKitHistoryActiveEnergyOptions(now);
     const range = localHealthHistoryRange(now);
     const syncedAt = now.toISOString();
-    const [steps, energy, weight, workouts] = await Promise.all([
+    const [steps, energy, hourlySteps, hourlyEnergy, weight, workouts] = await Promise.all([
       hk.queryStatisticsCollectionForQuantity(identifiers.steps, ['cumulativeSum'], range.startDate, { day: 1 }, historyFilter),
       hk.queryStatisticsCollectionForQuantity(identifiers.activeEnergy, ['cumulativeSum'], range.startDate, { day: 1 }, historyEnergyOptions),
+      hk.queryStatisticsCollectionForQuantity(identifiers.steps, ['cumulativeSum'], range.startDate, { hour: 1 }, todayFilter),
+      hk.queryStatisticsCollectionForQuantity(identifiers.activeEnergy, ['cumulativeSum'], range.startDate, { hour: 1 }, healthKitActiveEnergyOptions(now)),
       hk.getMostRecentQuantitySample(identifiers.bodyWeight, HEALTH_KIT_BODY_WEIGHT_UNIT),
       hk.queryWorkoutSamples({ limit: -1, filter: todayFilter.filter }),
     ]);
@@ -141,6 +164,7 @@ export const healthService: HealthService = {
       steps: today?.steps ?? null,
       activeEnergyKcal: today?.activeEnergyKcal ?? null,
       dailyMetrics,
+      hourlyMetrics: healthKitHourlyMetrics(hourlySteps, hourlyEnergy, now),
       workouts: (workouts ?? []).map((item: any) => ({ id: item.uuid ?? `${item.startDate}-${item.endDate}`, startAt: item.startDate, endAt: item.endDate, type: String(item.workoutActivityType ?? 'workout') })),
       weights: weight?.quantity ? [{ id: weight.uuid ?? `${weight.startDate}-${weight.endDate}`, recordedAt: weight.startDate, kg: Number(weight.quantity) }] : [],
     };

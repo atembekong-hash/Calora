@@ -1,6 +1,6 @@
 import type { HealthConnection, HealthMetric, HealthService, HealthSnapshot } from './types';
 import { currentLocalDayRange } from './dayRange';
-import { buildHealthDailyMetrics, localHealthHistoryRange, type HealthDailyMetric } from './weekHistory';
+import { buildHealthDailyMetrics, buildHealthHourlyMetrics, localHealthHistoryRange, type HealthDailyMetric, type HealthHourlyMetric } from './weekHistory';
 import { dateKey } from '@/lib/dates';
 
 const requested = [
@@ -131,7 +131,32 @@ function healthConnectGroupValues(
   return values;
 }
 
+function healthConnectHourValues(groups: unknown, select: (result: unknown) => number | null): Map<string, number | null> {
+  if (groups === null || groups === undefined) return new Map();
+  if (!Array.isArray(groups)) throw new Error('Health Connect returned invalid grouped health data.');
+  const values = new Map<string, number | null>();
+  for (const entry of groups as HealthConnectAggregationGroup[]) {
+    if (!entry || typeof entry !== 'object' || typeof entry.startTime !== 'string') throw new Error('Health Connect returned an invalid grouped health period.');
+    const start = new Date(entry.startTime);
+    if (!Number.isFinite(start.getTime())) throw new Error('Health Connect returned an invalid grouped health date.');
+    values.set(`${dateKey(start)}T${String(start.getHours()).padStart(2, '0')}:00:00`, select(entry.result));
+  }
+  return values;
+}
 /** Builds a gap-preserving local-week series from native daily aggregate groups. */
+export function healthConnectHourlyMetrics(
+  stepsGroups: unknown,
+  activeEnergyGroups: unknown,
+  now = new Date(),
+): HealthHourlyMetric[] {
+  const stepsByHour = healthConnectHourValues(stepsGroups, healthConnectSteps);
+  const activeEnergyByHour = healthConnectHourValues(activeEnergyGroups, healthConnectActiveEnergyKcal);
+  const values = new Map<string, Partial<Omit<HealthHourlyMetric, 'hour'>>>();
+  for (const [hour, steps] of stepsByHour) values.set(hour, { ...(values.get(hour) ?? {}), steps });
+  for (const [hour, activeEnergyKcal] of activeEnergyByHour) values.set(hour, { ...(values.get(hour) ?? {}), activeEnergyKcal });
+  return buildHealthHourlyMetrics(values, now);
+}
+
 export function healthConnectDailyMetrics(
   stepsGroups: unknown,
   activeEnergyGroups: unknown,
@@ -183,6 +208,15 @@ export const healthService: HealthService = {
         ? hc.aggregateGroupByPeriod({ recordType: 'ActiveCaloriesBurned', ...historyRange, timeRangeSlicer: { period: 'DAYS', length: 1 } })
         : null,
     ]);
+    const hourlyRange = healthConnectDayRange(now);
+    const [hourlySteps, hourlyCalories] = await Promise.all([
+      connection.granted.includes('steps')
+        ? hc.aggregateGroupByPeriod({ recordType: 'Steps', ...hourlyRange, timeRangeSlicer: { period: 'HOURS', length: 1 } })
+        : null,
+      connection.granted.includes('activeEnergy')
+        ? hc.aggregateGroupByPeriod({ recordType: 'ActiveCaloriesBurned', ...hourlyRange, timeRangeSlicer: { period: 'HOURS', length: 1 } })
+        : null,
+    ]);
     const stepTotal = connection.granted.includes('steps') ? healthConnectSteps(steps) : null;
     const activeEnergyTotal = connection.granted.includes('activeEnergy') ? healthConnectActiveEnergyKcal(calories) : null;
     const dailyMetrics = healthConnectDailyMetrics(groupedSteps, groupedCalories, now).map((metric) => (
@@ -199,6 +233,7 @@ export const healthService: HealthService = {
       steps: stepTotal,
       activeEnergyKcal: activeEnergyTotal,
       dailyMetrics,
+      hourlyMetrics: healthConnectHourlyMetrics(hourlySteps, hourlyCalories, now),
       workouts: (workouts?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.startTime}-${item.endTime}`, startAt: item.startTime, endAt: item.endTime, type: String(item.exerciseType ?? 'workout') })),
       weights: (weights?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.time}-${item.startTime}`, recordedAt: item.time ?? item.startTime, kg: Number(item.weight?.inKilograms ?? item.weight?.inKilogram ?? 0) })).filter((item: { kg: number }) => item.kg > 0),
     };

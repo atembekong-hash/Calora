@@ -10,6 +10,11 @@ describe('Steps experience', () => {
     expect(stepsScreen).toContain('export default function StepsScreen');
     expect(stepsScreen).toContain('StepRing');
     expect(stepsScreen).toContain('WeekBars');
+    expect(stepsScreen).toContain('HourlyMovementChart');
+    expect(stepsScreen).toContain('Movement by hour');
+    expect(stepsScreen).toContain('Tap a bar to inspect your day');
+    expect(stepsScreen).toContain('onPress={() => setSelectedIndex');
+    expect(stepsScreen).toContain('healthConnection.snapshot?.hourlyMetrics');
     expect(stepsScreen).toContain('healthConnection.snapshot?.dailyMetrics');
     expect(stepsScreen).toContain('startLiveStepTracking');
     expect(stepsScreen).toContain('Connect your health data');

@@ -1,4 +1,4 @@
-import type { HealthDailyMetric } from './weekHistory';
+import type { HealthDailyMetric, HealthHourlyMetric } from './weekHistory';
 
 export type HealthProvider = 'health-connect' | 'healthkit' | 'unsupported';
 export type HealthMetric = 'steps' | 'activeEnergy' | 'workouts' | 'bodyWeight';
@@ -12,6 +12,8 @@ export type HealthSnapshot = {
   activeEnergyKcal: number | null;
   /** Last seven provider-measured local-day aggregates; absent on legacy snapshots. */
   dailyMetrics?: HealthDailyMetric[];
+  /** Current-day provider-measured hourly aggregates; absent on legacy snapshots/providers. */
+  hourlyMetrics?: HealthHourlyMetric[];
   workouts: HealthWorkout[];
   weights: HealthWeight[];
 };
