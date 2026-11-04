@@ -239,7 +239,7 @@ export default function StepsScreen() {
   const goalDays = measured.filter((item) => (item.steps ?? 0) >= dailyStepGoal).length;
   const isConnected = healthConnection.authorization === 'authorized' || healthConnection.authorization === 'partial' || healthConnection.authorization === 'requested';
   const providerLabel = healthConnection.provider === 'health-connect' ? 'Health Connect' : healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health';
-  const stylesForScale = useMemo(() => ({ title: 28 * fontScale, heroValue: 22 * fontScale }), [fontScale]);
+  const stylesForScale = useMemo(() => ({ title: 19 * fontScale, heroValue: 24 * fontScale }), [fontScale]);
 
   useFocusEffect(useCallback(() => {
     if (!hydrated) return undefined;
@@ -264,14 +264,14 @@ export default function StepsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.eyebrowRow, { backgroundColor: colors.successTint }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.eyebrow, { color: colors.successForeground }]}>{liveStepTracking.status === 'live' ? 'LIVE TRACKING' : 'DAILY MOVEMENT'}</Text><Text style={[styles.eyebrowDate, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date())}</Text></View>
         <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View pointerEvents="none" style={[styles.heroAccent, { backgroundColor: colors.warning }]} />
+          <View pointerEvents="none" style={[styles.heroAccent, { backgroundColor: '#F97316' }]} />
           <View style={styles.heroCopy}>
             <Text style={[styles.heroKicker, { color: colors.mutedForeground }]}>TODAY'S MOVEMENT</Text>
             <Text style={[styles.heroTitle, { color: colors.foreground, fontSize: stylesForScale.title }]}>Keep your body in motion.</Text>
             <Text style={[styles.heroDescription, { color: colors.mutedForeground }]}>Small walks add up. Your daily goal is a gentle guide, not a judgment.</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={`Edit daily step goal of ${formatWhole(dailyStepGoal)} steps`} onPress={openGoalEditor} style={[styles.goalPill, { backgroundColor: '#F0EAFE' }]}><Feather name="target" size={13} color="#8B5CF6" /><Text style={[styles.goalPillText, { color: '#6D28D9' }]}>Goal {formatWhole(dailyStepGoal)} steps</Text><Feather name="edit-2" size={12} color="#8B5CF6" /></Pressable>
           </View>
-          <View style={styles.heroRingWrap}><StepRing progress={progress} value={todaySteps} goal={dailyStepGoal} colors={colors} size={196} /></View>
+          <View style={styles.heroRingWrap}><StepRing progress={progress} value={todaySteps} goal={dailyStepGoal} colors={colors} size={212} /></View>
           <View style={styles.heroStats}>
             <View><Text style={[styles.heroStatValue, { color: colors.foreground }]}>{average === null ? '—' : formatWhole(average)}</Text><Text style={[styles.heroStatLabel, { color: colors.mutedForeground }]}>7-day average</Text></View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
@@ -344,9 +344,9 @@ const styles = StyleSheet.create({
   liveDot: { width: 7, height: 7, borderRadius: 4 },
   eyebrow: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 1.2 },
   eyebrowDate: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginLeft: 3 },
-  hero: { borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, padding: 20, overflow: 'hidden', position: 'relative' },
+  hero: { borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, padding: 20, overflow: 'hidden', position: 'relative', shadowColor: '#16281f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 18, elevation: 3 },
   heroAccent: { position: 'absolute', top: 0, right: 26, width: 72, height: 5, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, opacity: 0.9 },
-  heroRingWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 2 },
+  heroRingWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 10, marginBottom: 5 },
   heroCopy: { marginBottom: 8 },
   heroKicker: { fontFamily: 'Inter_800ExtraBold', fontSize: 10, letterSpacing: 1.6 },
   heroTitle: { fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.8, marginTop: 6, maxWidth: 290 },

@@ -15,6 +15,12 @@ export const LEARNING_TOPICS = [
   "Food safety",
   "Eating out",
   "Food culture & enjoyment",
+  "Walking foundations",
+  "Walking habits",
+  "Walking outdoors",
+  "Walking access",
+  "Walking strength & balance",
+  "Walking recovery & safety",
 ] as const;
 
 export type LearningTopic = (typeof LEARNING_TOPICS)[number];
@@ -36,6 +42,12 @@ export const LEARNING_COLLECTION_IDS = [
   "food-safety",
   "eating-out",
   "food-culture-enjoyment",
+  "walking-foundations",
+  "walking-habits",
+  "walking-outdoors",
+  "walking-access",
+  "walking-strength-balance",
+  "walking-recovery-safety",
 ] as const;
 
 export type LearningCollectionId = (typeof LEARNING_COLLECTION_IDS)[number];
@@ -257,6 +269,54 @@ export const LEARNING_COLLECTIONS: readonly LearningCollection[] = [
     eyebrow: "KEEP IT HUMAN",
     description: "Make room for connection, tradition, pleasure, and personal meaning.",
     topic: "Food culture & enjoyment",
+    icon: "heart",
+  },
+  {
+    id: "walking-foundations",
+    title: "Walking foundations",
+    eyebrow: "START WITH A WALK",
+    description: "Build a flexible walking vocabulary for everyday movement.",
+    topic: "Walking foundations",
+    icon: "activity",
+  },
+  {
+    id: "walking-habits",
+    title: "Walking habits",
+    eyebrow: "MAKE IT REPEATABLE",
+    description: "Find small walking cues that fit real routines and changing energy.",
+    topic: "Walking habits",
+    icon: "repeat",
+  },
+  {
+    id: "walking-outdoors",
+    title: "Walking outdoors",
+    eyebrow: "STEP OUTSIDE",
+    description: "Use routes, weather, nature, and surroundings as supportive movement prompts.",
+    topic: "Walking outdoors",
+    icon: "sun",
+  },
+  {
+    id: "walking-access",
+    title: "Walking access",
+    eyebrow: "MAKE IT WORK",
+    description: "Explore inclusive walking options for different bodies, spaces, and access needs.",
+    topic: "Walking access",
+    icon: "layers",
+  },
+  {
+    id: "walking-strength-balance",
+    title: "Walking strength and balance",
+    eyebrow: "BUILD SUPPORT",
+    description: "Pair walking with gentle strength and balance ideas that respect your context.",
+    topic: "Walking strength & balance",
+    icon: "check-circle",
+  },
+  {
+    id: "walking-recovery-safety",
+    title: "Walking recovery and safety",
+    eyebrow: "MOVE WITH CARE",
+    description: "Recognize pacing, recovery, and safety signals while building a sustainable walking rhythm.",
+    topic: "Walking recovery & safety",
     icon: "heart",
   },
 ] as const;
@@ -5867,5 +5927,6335 @@ export const LEARNING_LESSONS: readonly LearningLesson[] = [
     cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
     relatedLessonIds: ["food-traditions-belong-here", "pleasure-is-useful-information"],
     review: editorialReview,
+  },
+  {
+    id: "walking-foundations-01",
+    imageAssetKey: "walking-foundations-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-02",
+    imageAssetKey: "walking-foundations-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-03",
+    imageAssetKey: "walking-foundations-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-04",
+    imageAssetKey: "walking-foundations-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-05",
+    imageAssetKey: "walking-foundations-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-06",
+    imageAssetKey: "walking-foundations-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-07",
+    imageAssetKey: "walking-foundations-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-08",
+    imageAssetKey: "walking-foundations-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-09",
+    imageAssetKey: "walking-foundations-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-10",
+    imageAssetKey: "walking-foundations-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-11",
+    imageAssetKey: "walking-foundations-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-foundations-12",
+    imageAssetKey: "walking-foundations-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking foundations",
+    collectionId: "walking-foundations",
+    readingMinutes: 4,
+    icon: "activity",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-01",
+    imageAssetKey: "walking-habits-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-02",
+    imageAssetKey: "walking-habits-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-03",
+    imageAssetKey: "walking-habits-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-04",
+    imageAssetKey: "walking-habits-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-05",
+    imageAssetKey: "walking-habits-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-06",
+    imageAssetKey: "walking-habits-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-07",
+    imageAssetKey: "walking-habits-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-08",
+    imageAssetKey: "walking-habits-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-09",
+    imageAssetKey: "walking-habits-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-10",
+    imageAssetKey: "walking-habits-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-11",
+    imageAssetKey: "walking-habits-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-habits-12",
+    imageAssetKey: "walking-habits-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking habits",
+    collectionId: "walking-habits",
+    readingMinutes: 4,
+    icon: "repeat",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-01",
+    imageAssetKey: "walking-outdoors-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-02",
+    imageAssetKey: "walking-outdoors-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-03",
+    imageAssetKey: "walking-outdoors-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-04",
+    imageAssetKey: "walking-outdoors-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-05",
+    imageAssetKey: "walking-outdoors-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-06",
+    imageAssetKey: "walking-outdoors-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-07",
+    imageAssetKey: "walking-outdoors-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-08",
+    imageAssetKey: "walking-outdoors-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-09",
+    imageAssetKey: "walking-outdoors-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-10",
+    imageAssetKey: "walking-outdoors-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-11",
+    imageAssetKey: "walking-outdoors-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-outdoors-12",
+    imageAssetKey: "walking-outdoors-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking outdoors",
+    collectionId: "walking-outdoors",
+    readingMinutes: 4,
+    icon: "sun",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-01",
+    imageAssetKey: "walking-access-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-02",
+    imageAssetKey: "walking-access-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-03",
+    imageAssetKey: "walking-access-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-04",
+    imageAssetKey: "walking-access-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-05",
+    imageAssetKey: "walking-access-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-06",
+    imageAssetKey: "walking-access-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-07",
+    imageAssetKey: "walking-access-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-08",
+    imageAssetKey: "walking-access-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-09",
+    imageAssetKey: "walking-access-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-10",
+    imageAssetKey: "walking-access-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-11",
+    imageAssetKey: "walking-access-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-access-12",
+    imageAssetKey: "walking-access-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking access",
+    collectionId: "walking-access",
+    readingMinutes: 4,
+    icon: "layers",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-01",
+    imageAssetKey: "walking-strength-balance-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-02",
+    imageAssetKey: "walking-strength-balance-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-03",
+    imageAssetKey: "walking-strength-balance-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-04",
+    imageAssetKey: "walking-strength-balance-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-05",
+    imageAssetKey: "walking-strength-balance-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-06",
+    imageAssetKey: "walking-strength-balance-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-07",
+    imageAssetKey: "walking-strength-balance-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-08",
+    imageAssetKey: "walking-strength-balance-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-09",
+    imageAssetKey: "walking-strength-balance-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-10",
+    imageAssetKey: "walking-strength-balance-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-11",
+    imageAssetKey: "walking-strength-balance-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-strength-balance-12",
+    imageAssetKey: "walking-strength-balance-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking strength & balance",
+    collectionId: "walking-strength-balance",
+    readingMinutes: 4,
+    icon: "check-circle",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-01",
+    imageAssetKey: "walking-recovery-safety-01",
+    title: "Start with a comfortable route",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Start with a comfortable route can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-02",
+    imageAssetKey: "walking-recovery-safety-02",
+    title: "Notice your natural pace",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Notice your natural pace can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-03",
+    imageAssetKey: "walking-recovery-safety-03",
+    title: "Use a short walk as a reset",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use a short walk as a reset can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-04",
+    imageAssetKey: "walking-recovery-safety-04",
+    title: "Choose a cue that fits your day",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Choose a cue that fits your day can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-05",
+    imageAssetKey: "walking-recovery-safety-05",
+    title: "Make the first minute easier",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Make the first minute easier can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-06",
+    imageAssetKey: "walking-recovery-safety-06",
+    title: "Build a flexible walking window",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Build a flexible walking window can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-07",
+    imageAssetKey: "walking-recovery-safety-07",
+    title: "Walk with company or connection",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Walk with company or connection can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-08",
+    imageAssetKey: "walking-recovery-safety-08",
+    title: "Use indoor options when needed",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Use indoor options when needed can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-09",
+    imageAssetKey: "walking-recovery-safety-09",
+    title: "Let the route change with you",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "primary",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Let the route change with you can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-10",
+    imageAssetKey: "walking-recovery-safety-10",
+    title: "Track what helps without grading it",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "warning",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Track what helps without grading it can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-11",
+    imageAssetKey: "walking-recovery-safety-11",
+    title: "Keep walking practical",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "info",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Keep walking practical can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "walking-recovery-safety-12",
+    imageAssetKey: "walking-recovery-safety-12",
+    title: "Return gently after a pause",
+    dek: "A practical walking idea that can adapt to your real routine, energy, access, and surroundings.",
+    topic: "Walking recovery & safety",
+    collectionId: "walking-recovery-safety",
+    readingMinutes: 4,
+    icon: "heart",
+    accent: "success",
+    sections: [
+      {
+        heading: "Start with the useful idea",
+        paragraphs: [
+          "Return gently after a pause can be a flexible way to explore walking without turning movement into a test. A route, pace, or time window is only useful when it fits your body, schedule, environment, preferences, and available support.",
+          "Walking may look different from day to day. A neighborhood loop, a hallway, a shopping trip, a commute, a movement break, or a few minutes of gentle steps can all count as practical ways to notice what helps you feel more supported.",
+        ],
+        bullets: [
+          "Begin with a version that feels comfortable enough to repeat.",
+          "Treat pace, distance, and duration as adjustable options rather than fixed requirements.",
+          "Notice access, weather, footwear, surfaces, energy, and company before choosing the next step.",
+        ],
+      },
+      {
+        heading: "Look for the real-life version",
+        paragraphs: [
+          "A useful walking experiment is small enough to fit an ordinary day. You might walk to a nearby task, pause for a few minutes between activities, explore a calmer route, or use an indoor alternative when outdoor conditions do not work.",
+          "The point is not to copy an ideal routine. The point is to learn which cues, locations, people, and adjustments make walking feel more available and less demanding in your own context.",
+        ],
+        bullets: [
+          "Keep a shorter option available for busy or lower-energy days.",
+          "Use a familiar place, a trusted person, or a simple reminder when that lowers friction.",
+          "Change one detail at a time so you can notice what actually helped.",
+        ],
+      },
+      {
+        heading: "Make room for changing needs",
+        paragraphs: [
+          "Energy, pain, balance, time, safety, and access can change. A sustainable walking practice leaves room to slow down, stop, rest, choose a different surface, or use another form of movement when walking is not the right option.",
+          "A rest day is information rather than a failure. Looking across several days can reveal a supportive rhythm more clearly than judging one walk by a single number or expectation.",
+        ],
+        bullets: [
+          "Choose comfort and safety over completing a planned distance.",
+          "Use mobility aids, accessible routes, breaks, and support when they make movement safer.",
+          "If a new or concerning symptom appears, pause and seek individualized professional guidance.",
+        ],
+      },
+      {
+        heading: "Keep the next step kind and specific",
+        paragraphs: [
+          "Before you finish, name the smallest next action that would make this idea easier to try again. It might be setting out comfortable shoes, identifying an indoor route, inviting company, or deciding what signal means it is time to rest.",
+          "The best walking plan is one that can change without losing its purpose. Keep the parts that support comfort, connection, enjoyment, and everyday function, and leave behind any part that creates unnecessary pressure.",
+        ],
+        bullets: [
+          "Choose a realistic option for this week rather than an idealized future routine.",
+          "Record one observation about comfort, mood, energy, or convenience if that feels useful.",
+          "Adjust the plan with curiosity whenever your context changes.",
+        ],
+      },
+    ],
+    tryThis: "Choose one small walking option that fits a real day this week. Try the easiest comfortable version, notice what made it more or less available, and decide on one gentle adjustment for next time. The goal is useful information and a supportive rhythm, not a perfect score.",
+    cta: { label: "Explore movement ideas", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ['movement-breaks-count', 'movement-snacks', 'accessible-movement-options', 'rest-days-are-data'],
+    review: editorialReview,
+  },
+  {
+    id: "cook-with-flexibility-08", imageAssetKey: "cook-with-flexibility-08", title: "Try a smaller first step",
+    dek: "A flexible recipes idea for real routines, changing energy, and practical support.",
+    topic: "Recipes", collectionId: "cook-with-flexibility", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "cook-with-flexibility-09", imageAssetKey: "cook-with-flexibility-09", title: "Use a familiar anchor",
+    dek: "A flexible recipes idea for real routines, changing energy, and practical support.",
+    topic: "Recipes", collectionId: "cook-with-flexibility", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "cook-with-flexibility-10", imageAssetKey: "cook-with-flexibility-10", title: "Notice what makes it easier",
+    dek: "A flexible recipes idea for real routines, changing energy, and practical support.",
+    topic: "Recipes", collectionId: "cook-with-flexibility", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "cook-with-flexibility-11", imageAssetKey: "cook-with-flexibility-11", title: "Plan for a changing day",
+    dek: "A flexible recipes idea for real routines, changing energy, and practical support.",
+    topic: "Recipes", collectionId: "cook-with-flexibility", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "cook-with-flexibility-12", imageAssetKey: "cook-with-flexibility-12", title: "Keep the next version kind",
+    dek: "A flexible recipes idea for real routines, changing energy, and practical support.",
+    topic: "Recipes", collectionId: "cook-with-flexibility", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "labels-with-context-08", imageAssetKey: "labels-with-context-08", title: "Try a smaller first step",
+    dek: "A flexible labels idea for real routines, changing energy, and practical support.",
+    topic: "Labels", collectionId: "labels-with-context", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "labels-with-context-09", imageAssetKey: "labels-with-context-09", title: "Use a familiar anchor",
+    dek: "A flexible labels idea for real routines, changing energy, and practical support.",
+    topic: "Labels", collectionId: "labels-with-context", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "labels-with-context-10", imageAssetKey: "labels-with-context-10", title: "Notice what makes it easier",
+    dek: "A flexible labels idea for real routines, changing energy, and practical support.",
+    topic: "Labels", collectionId: "labels-with-context", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "labels-with-context-11", imageAssetKey: "labels-with-context-11", title: "Plan for a changing day",
+    dek: "A flexible labels idea for real routines, changing energy, and practical support.",
+    topic: "Labels", collectionId: "labels-with-context", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "labels-with-context-12", imageAssetKey: "labels-with-context-12", title: "Keep the next version kind",
+    dek: "A flexible labels idea for real routines, changing energy, and practical support.",
+    topic: "Labels", collectionId: "labels-with-context", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "fiber-and-digestion-08", imageAssetKey: "fiber-and-digestion-08", title: "Try a smaller first step",
+    dek: "A flexible fiber & digestion idea for real routines, changing energy, and practical support.",
+    topic: "Fiber & digestion", collectionId: "fiber-and-digestion", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "fiber-and-digestion-09", imageAssetKey: "fiber-and-digestion-09", title: "Use a familiar anchor",
+    dek: "A flexible fiber & digestion idea for real routines, changing energy, and practical support.",
+    topic: "Fiber & digestion", collectionId: "fiber-and-digestion", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "fiber-and-digestion-10", imageAssetKey: "fiber-and-digestion-10", title: "Notice what makes it easier",
+    dek: "A flexible fiber & digestion idea for real routines, changing energy, and practical support.",
+    topic: "Fiber & digestion", collectionId: "fiber-and-digestion", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "fiber-and-digestion-11", imageAssetKey: "fiber-and-digestion-11", title: "Plan for a changing day",
+    dek: "A flexible fiber & digestion idea for real routines, changing energy, and practical support.",
+    topic: "Fiber & digestion", collectionId: "fiber-and-digestion", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "fiber-and-digestion-12", imageAssetKey: "fiber-and-digestion-12", title: "Keep the next version kind",
+    dek: "A flexible fiber & digestion idea for real routines, changing energy, and practical support.",
+    topic: "Fiber & digestion", collectionId: "fiber-and-digestion", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "budget-and-access-08", imageAssetKey: "budget-and-access-08", title: "Try a smaller first step",
+    dek: "A flexible budget & access idea for real routines, changing energy, and practical support.",
+    topic: "Budget & access", collectionId: "budget-and-access", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "budget-and-access-09", imageAssetKey: "budget-and-access-09", title: "Use a familiar anchor",
+    dek: "A flexible budget & access idea for real routines, changing energy, and practical support.",
+    topic: "Budget & access", collectionId: "budget-and-access", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "budget-and-access-10", imageAssetKey: "budget-and-access-10", title: "Notice what makes it easier",
+    dek: "A flexible budget & access idea for real routines, changing energy, and practical support.",
+    topic: "Budget & access", collectionId: "budget-and-access", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "budget-and-access-11", imageAssetKey: "budget-and-access-11", title: "Plan for a changing day",
+    dek: "A flexible budget & access idea for real routines, changing energy, and practical support.",
+    topic: "Budget & access", collectionId: "budget-and-access", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "budget-and-access-12", imageAssetKey: "budget-and-access-12", title: "Keep the next version kind",
+    dek: "A flexible budget & access idea for real routines, changing energy, and practical support.",
+    topic: "Budget & access", collectionId: "budget-and-access", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-safety-08", imageAssetKey: "food-safety-08", title: "Try a smaller first step",
+    dek: "A flexible food safety idea for real routines, changing energy, and practical support.",
+    topic: "Food safety", collectionId: "food-safety", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-safety-09", imageAssetKey: "food-safety-09", title: "Use a familiar anchor",
+    dek: "A flexible food safety idea for real routines, changing energy, and practical support.",
+    topic: "Food safety", collectionId: "food-safety", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-safety-10", imageAssetKey: "food-safety-10", title: "Notice what makes it easier",
+    dek: "A flexible food safety idea for real routines, changing energy, and practical support.",
+    topic: "Food safety", collectionId: "food-safety", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-safety-11", imageAssetKey: "food-safety-11", title: "Plan for a changing day",
+    dek: "A flexible food safety idea for real routines, changing energy, and practical support.",
+    topic: "Food safety", collectionId: "food-safety", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-safety-12", imageAssetKey: "food-safety-12", title: "Keep the next version kind",
+    dek: "A flexible food safety idea for real routines, changing energy, and practical support.",
+    topic: "Food safety", collectionId: "food-safety", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "eating-out-08", imageAssetKey: "eating-out-08", title: "Try a smaller first step",
+    dek: "A flexible eating out idea for real routines, changing energy, and practical support.",
+    topic: "Eating out", collectionId: "eating-out", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "eating-out-09", imageAssetKey: "eating-out-09", title: "Use a familiar anchor",
+    dek: "A flexible eating out idea for real routines, changing energy, and practical support.",
+    topic: "Eating out", collectionId: "eating-out", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "eating-out-10", imageAssetKey: "eating-out-10", title: "Notice what makes it easier",
+    dek: "A flexible eating out idea for real routines, changing energy, and practical support.",
+    topic: "Eating out", collectionId: "eating-out", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "eating-out-11", imageAssetKey: "eating-out-11", title: "Plan for a changing day",
+    dek: "A flexible eating out idea for real routines, changing energy, and practical support.",
+    topic: "Eating out", collectionId: "eating-out", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "eating-out-12", imageAssetKey: "eating-out-12", title: "Keep the next version kind",
+    dek: "A flexible eating out idea for real routines, changing energy, and practical support.",
+    topic: "Eating out", collectionId: "eating-out", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-culture-enjoyment-08", imageAssetKey: "food-culture-enjoyment-08", title: "Try a smaller first step",
+    dek: "A flexible food culture & enjoyment idea for real routines, changing energy, and practical support.",
+    topic: "Food culture & enjoyment", collectionId: "food-culture-enjoyment", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-culture-enjoyment-09", imageAssetKey: "food-culture-enjoyment-09", title: "Use a familiar anchor",
+    dek: "A flexible food culture & enjoyment idea for real routines, changing energy, and practical support.",
+    topic: "Food culture & enjoyment", collectionId: "food-culture-enjoyment", readingMinutes: 4, icon: "activity", accent: "primary",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-culture-enjoyment-10", imageAssetKey: "food-culture-enjoyment-10", title: "Notice what makes it easier",
+    dek: "A flexible food culture & enjoyment idea for real routines, changing energy, and practical support.",
+    topic: "Food culture & enjoyment", collectionId: "food-culture-enjoyment", readingMinutes: 4, icon: "activity", accent: "warning",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-culture-enjoyment-11", imageAssetKey: "food-culture-enjoyment-11", title: "Plan for a changing day",
+    dek: "A flexible food culture & enjoyment idea for real routines, changing energy, and practical support.",
+    topic: "Food culture & enjoyment", collectionId: "food-culture-enjoyment", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "food-culture-enjoyment-12", imageAssetKey: "food-culture-enjoyment-12", title: "Keep the next version kind",
+    dek: "A flexible food culture & enjoyment idea for real routines, changing energy, and practical support.",
+    topic: "Food culture & enjoyment", collectionId: "food-culture-enjoyment", readingMinutes: 4, icon: "activity", accent: "success",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "nutrition-foundations-08", imageAssetKey: "nutrition-foundations-08", title: "Try a smaller first step",
+    dek: "A flexible fundamentals idea for real routines, changing energy, and practical support.",
+    topic: "Fundamentals", collectionId: "nutrition-foundations", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "nutrition-foundations-09", imageAssetKey: "nutrition-foundations-09", title: "Use a familiar anchor",
+    dek: "A flexible fundamentals idea for real routines, changing energy, and practical support.",
+    topic: "Fundamentals", collectionId: "nutrition-foundations", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "nutrition-foundations-10", imageAssetKey: "nutrition-foundations-10", title: "Notice what makes it easier",
+    dek: "A flexible fundamentals idea for real routines, changing energy, and practical support.",
+    topic: "Fundamentals", collectionId: "nutrition-foundations", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "nutrition-foundations-11", imageAssetKey: "nutrition-foundations-11", title: "Plan for a changing day",
+    dek: "A flexible fundamentals idea for real routines, changing energy, and practical support.",
+    topic: "Fundamentals", collectionId: "nutrition-foundations", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "nutrition-foundations-12", imageAssetKey: "nutrition-foundations-12", title: "Keep the next version kind",
+    dek: "A flexible fundamentals idea for real routines, changing energy, and practical support.",
+    topic: "Fundamentals", collectionId: "nutrition-foundations", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "plan-with-less-pressure-08", imageAssetKey: "plan-with-less-pressure-08", title: "Try a smaller first step",
+    dek: "A flexible planning idea for real routines, changing energy, and practical support.",
+    topic: "Planning", collectionId: "plan-with-less-pressure", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "plan-with-less-pressure-09", imageAssetKey: "plan-with-less-pressure-09", title: "Use a familiar anchor",
+    dek: "A flexible planning idea for real routines, changing energy, and practical support.",
+    topic: "Planning", collectionId: "plan-with-less-pressure", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "plan-with-less-pressure-10", imageAssetKey: "plan-with-less-pressure-10", title: "Notice what makes it easier",
+    dek: "A flexible planning idea for real routines, changing energy, and practical support.",
+    topic: "Planning", collectionId: "plan-with-less-pressure", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "plan-with-less-pressure-11", imageAssetKey: "plan-with-less-pressure-11", title: "Plan for a changing day",
+    dek: "A flexible planning idea for real routines, changing energy, and practical support.",
+    topic: "Planning", collectionId: "plan-with-less-pressure", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "plan-with-less-pressure-12", imageAssetKey: "plan-with-less-pressure-12", title: "Keep the next version kind",
+    dek: "A flexible planning idea for real routines, changing energy, and practical support.",
+    topic: "Planning", collectionId: "plan-with-less-pressure", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "habits-that-fit-08", imageAssetKey: "habits-that-fit-08", title: "Try a smaller first step",
+    dek: "A flexible habits idea for real routines, changing energy, and practical support.",
+    topic: "Habits", collectionId: "habits-that-fit", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "habits-that-fit-09", imageAssetKey: "habits-that-fit-09", title: "Use a familiar anchor",
+    dek: "A flexible habits idea for real routines, changing energy, and practical support.",
+    topic: "Habits", collectionId: "habits-that-fit", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "habits-that-fit-10", imageAssetKey: "habits-that-fit-10", title: "Notice what makes it easier",
+    dek: "A flexible habits idea for real routines, changing energy, and practical support.",
+    topic: "Habits", collectionId: "habits-that-fit", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "habits-that-fit-11", imageAssetKey: "habits-that-fit-11", title: "Plan for a changing day",
+    dek: "A flexible habits idea for real routines, changing energy, and practical support.",
+    topic: "Habits", collectionId: "habits-that-fit", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "habits-that-fit-12", imageAssetKey: "habits-that-fit-12", title: "Keep the next version kind",
+    dek: "A flexible habits idea for real routines, changing energy, and practical support.",
+    topic: "Habits", collectionId: "habits-that-fit", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "meal-timing-basics-08", imageAssetKey: "meal-timing-basics-08", title: "Try a smaller first step",
+    dek: "A flexible fasting idea for real routines, changing energy, and practical support.",
+    topic: "Fasting", collectionId: "meal-timing-basics", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "meal-timing-basics-09", imageAssetKey: "meal-timing-basics-09", title: "Use a familiar anchor",
+    dek: "A flexible fasting idea for real routines, changing energy, and practical support.",
+    topic: "Fasting", collectionId: "meal-timing-basics", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "meal-timing-basics-10", imageAssetKey: "meal-timing-basics-10", title: "Notice what makes it easier",
+    dek: "A flexible fasting idea for real routines, changing energy, and practical support.",
+    topic: "Fasting", collectionId: "meal-timing-basics", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "meal-timing-basics-11", imageAssetKey: "meal-timing-basics-11", title: "Plan for a changing day",
+    dek: "A flexible fasting idea for real routines, changing energy, and practical support.",
+    topic: "Fasting", collectionId: "meal-timing-basics", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "meal-timing-basics-12", imageAssetKey: "meal-timing-basics-12", title: "Keep the next version kind",
+    dek: "A flexible fasting idea for real routines, changing energy, and practical support.",
+    topic: "Fasting", collectionId: "meal-timing-basics", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "hydration-everyday-08", imageAssetKey: "hydration-everyday-08", title: "Try a smaller first step",
+    dek: "A flexible hydration idea for real routines, changing energy, and practical support.",
+    topic: "Hydration", collectionId: "hydration-everyday", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "hydration-everyday-09", imageAssetKey: "hydration-everyday-09", title: "Use a familiar anchor",
+    dek: "A flexible hydration idea for real routines, changing energy, and practical support.",
+    topic: "Hydration", collectionId: "hydration-everyday", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "hydration-everyday-10", imageAssetKey: "hydration-everyday-10", title: "Notice what makes it easier",
+    dek: "A flexible hydration idea for real routines, changing energy, and practical support.",
+    topic: "Hydration", collectionId: "hydration-everyday", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "hydration-everyday-11", imageAssetKey: "hydration-everyday-11", title: "Plan for a changing day",
+    dek: "A flexible hydration idea for real routines, changing energy, and practical support.",
+    topic: "Hydration", collectionId: "hydration-everyday", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "hydration-everyday-12", imageAssetKey: "hydration-everyday-12", title: "Keep the next version kind",
+    dek: "A flexible hydration idea for real routines, changing energy, and practical support.",
+    topic: "Hydration", collectionId: "hydration-everyday", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "movement-and-recovery-08", imageAssetKey: "movement-and-recovery-08", title: "Try a smaller first step",
+    dek: "A flexible movement idea for real routines, changing energy, and practical support.",
+    topic: "Movement", collectionId: "movement-and-recovery", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "movement-and-recovery-09", imageAssetKey: "movement-and-recovery-09", title: "Use a familiar anchor",
+    dek: "A flexible movement idea for real routines, changing energy, and practical support.",
+    topic: "Movement", collectionId: "movement-and-recovery", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "movement-and-recovery-10", imageAssetKey: "movement-and-recovery-10", title: "Notice what makes it easier",
+    dek: "A flexible movement idea for real routines, changing energy, and practical support.",
+    topic: "Movement", collectionId: "movement-and-recovery", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "movement-and-recovery-11", imageAssetKey: "movement-and-recovery-11", title: "Plan for a changing day",
+    dek: "A flexible movement idea for real routines, changing energy, and practical support.",
+    topic: "Movement", collectionId: "movement-and-recovery", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "movement-and-recovery-12", imageAssetKey: "movement-and-recovery-12", title: "Keep the next version kind",
+    dek: "A flexible movement idea for real routines, changing energy, and practical support.",
+    topic: "Movement", collectionId: "movement-and-recovery", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "sleep-and-rhythm-08", imageAssetKey: "sleep-and-rhythm-08", title: "Try a smaller first step",
+    dek: "A flexible sleep idea for real routines, changing energy, and practical support.",
+    topic: "Sleep", collectionId: "sleep-and-rhythm", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "sleep-and-rhythm-09", imageAssetKey: "sleep-and-rhythm-09", title: "Use a familiar anchor",
+    dek: "A flexible sleep idea for real routines, changing energy, and practical support.",
+    topic: "Sleep", collectionId: "sleep-and-rhythm", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "sleep-and-rhythm-10", imageAssetKey: "sleep-and-rhythm-10", title: "Notice what makes it easier",
+    dek: "A flexible sleep idea for real routines, changing energy, and practical support.",
+    topic: "Sleep", collectionId: "sleep-and-rhythm", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "sleep-and-rhythm-11", imageAssetKey: "sleep-and-rhythm-11", title: "Plan for a changing day",
+    dek: "A flexible sleep idea for real routines, changing energy, and practical support.",
+    topic: "Sleep", collectionId: "sleep-and-rhythm", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "sleep-and-rhythm-12", imageAssetKey: "sleep-and-rhythm-12", title: "Keep the next version kind",
+    dek: "A flexible sleep idea for real routines, changing energy, and practical support.",
+    topic: "Sleep", collectionId: "sleep-and-rhythm", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "mindset-and-routine-08", imageAssetKey: "mindset-and-routine-08", title: "Try a smaller first step",
+    dek: "A flexible mindset idea for real routines, changing energy, and practical support.",
+    topic: "Mindset", collectionId: "mindset-and-routine", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Try a smaller first step can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "mindset-and-routine-09", imageAssetKey: "mindset-and-routine-09", title: "Use a familiar anchor",
+    dek: "A flexible mindset idea for real routines, changing energy, and practical support.",
+    topic: "Mindset", collectionId: "mindset-and-routine", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Use a familiar anchor can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "mindset-and-routine-10", imageAssetKey: "mindset-and-routine-10", title: "Notice what makes it easier",
+    dek: "A flexible mindset idea for real routines, changing energy, and practical support.",
+    topic: "Mindset", collectionId: "mindset-and-routine", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Notice what makes it easier can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "mindset-and-routine-11", imageAssetKey: "mindset-and-routine-11", title: "Plan for a changing day",
+    dek: "A flexible mindset idea for real routines, changing energy, and practical support.",
+    topic: "Mindset", collectionId: "mindset-and-routine", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Plan for a changing day can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
+  },
+  {
+    id: "mindset-and-routine-12", imageAssetKey: "mindset-and-routine-12", title: "Keep the next version kind",
+    dek: "A flexible mindset idea for real routines, changing energy, and practical support.",
+    topic: "Mindset", collectionId: "mindset-and-routine", readingMinutes: 4, icon: "activity", accent: "info",
+    sections: [
+      { heading: "Start with the useful idea", paragraphs: [
+        "Keep the next version kind can make a helpful idea easier to try without turning it into a rule. The best version depends on your preferences, schedule, access, energy, and the people or places around you.",
+        "Use this lesson as a prompt for options. A smaller, familiar version is often more useful than an ideal plan that does not fit an ordinary day.",
+      ], bullets: ["Begin with one familiar example.", "Notice what supports comfort and consistency.", "Leave room to change the plan without treating that as failure."] },
+      { heading: "Look for the real-life version", paragraphs: [
+        "A helpful experiment is usually small enough to fit into a normal day. You might prepare one backup, change one cue, ask one question, or make one part of the environment easier to use.",
+        "What works on a quiet day may need to change during travel, busy work, limited access, social time, or a different energy level. That flexibility is part of the skill.",
+      ], bullets: ["Choose a low-friction version.", "Change one detail at a time.", "Use support when it makes the next step safer or easier."] },
+      { heading: "Keep the next step kind and specific", paragraphs: [
+        "Before you finish, name the smallest next action you could actually try and the signal that would tell you it needs adjusting. A flexible plan can be both intentional and open to change.",
+        "If the idea causes distress, persistent discomfort, or confusion, pause and seek individualized support when appropriate. Your context matters more than completing a fixed script.",
+      ], bullets: ["Choose a realistic option for this week.", "Record one useful observation if that helps.", "Adapt the next attempt using what you learned."] },
+    ],
+    tryThis: "Choose one small version of this idea to try in a real routine. Notice what felt useful or inconvenient, then name one adjustment that would make the next attempt easier without turning the result into a pass-or-fail judgment. The useful measure is whether the idea supports your real life with less pressure and more room for adjustment. Keep the experiment observational and personal: what supports one person or one day may need a different version later.",
+    cta: { label: "Explore more Learning", route: "/(tabs)", feature: "home" },
+    relatedLessonIds: ["movement-snacks", "habit-cue-design"], review: editorialReview,
   },
 ] as const;

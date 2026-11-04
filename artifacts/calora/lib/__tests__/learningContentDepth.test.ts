@@ -21,7 +21,7 @@ describe("Learning editorial content depth", () => {
 
   it("gives every new lesson the same expanded editorial floor", () => {
     const newLessons = LEARNING_LESSONS.filter((lesson) => !(lesson.id in LEARNING_CONTENT_BASELINE));
-    expect(newLessons).toHaveLength(55);
+    expect(newLessons).toHaveLength(202);
     for (const lesson of newLessons) {
       expect(instructionalCharacters(lesson), lesson.id).toBeGreaterThanOrEqual(1800);
     }

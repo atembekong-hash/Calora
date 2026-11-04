@@ -617,7 +617,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
-    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.72 }] }');
+    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.94 }, { translateX: -3 }] }');
     expect(source).toContain("dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: h(8) }");
   });
 
