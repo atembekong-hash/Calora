@@ -714,6 +714,15 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('moodExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
     expect(source).toContain('macroExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
     expect(source).toContain('dashboardFastingMiddle');
+    expect(source).toContain('dashboardFastingExpandedMiddle');
+    expect(source).toContain('Ready to start');
+    expect(source).toContain('dashboardFastingExpandedFooter');
+    expect(source).toContain('stepsExpandedBody');
+    expect(source).toContain('accessibilityLabel="Open Steps"');
+    expect(source).toContain('stepsExpandedSummary');
+    expect(source).toContain('macroBlockExpanded');
+    expect(source).toContain('<AnimatedMacroBar expanded');
+    expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center'");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
     expect(source).toContain("if (widgetId === 'recipes')");
