@@ -886,7 +886,7 @@ function StepsTodayCard({
       <View testID="dashboard-steps-card-expanded" style={[styles.dashboardHydrationFrame, styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
         <View style={styles.stepsExpandedHeader}>
           <View style={[styles.stepsIcon, { backgroundColor: referenceColors.accent }]}><Feather name="activity" size={20} color={referenceColors.accentForeground} /></View>
-          <View style={styles.stepsCardTitleGroup}><Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text><Text testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text></View>
+          <View style={styles.stepsCardTitleGroup}><Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text></View>
           {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: referenceColors.success }]} />}
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>

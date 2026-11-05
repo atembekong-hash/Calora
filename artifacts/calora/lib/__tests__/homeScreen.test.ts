@@ -724,6 +724,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('ringSizeOverride?: number;');
     expect(source).toContain('accessibilityLabel="Open Steps"');
     expect(source).toContain('stepsExpandedSummary');
+    expect(source).toContain('numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status"');
     expect(source).toContain('macroBlockExpanded');
     expect(source).toContain('macroHeaderExpanded');
     expect(source).toContain('macroTrackExpanded');
