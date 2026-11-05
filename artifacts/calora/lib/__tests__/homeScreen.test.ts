@@ -709,7 +709,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0");
     expect(source).toContain('dashboardHydrationFrame: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT) }');
-    expect(source).toContain('dashboardExpandedWidgetRow: { marginHorizontal: 8, paddingHorizontal: 8, marginBottom: 14 }');
+    expect(source).toContain("dashboardExpandedWidgetRow: { width: 'auto', marginHorizontal: 8, marginBottom: 14 }");
     expect(source).toContain('styles.dashboardHydrationFrame, styles.dashboardFastingExpandedCard');
     expect(source).toContain('styles.dashboardHydrationFrame, styles.stepsExpandedCard');
     expect(source).toContain('expanded && styles.dashboardHydrationFrame');
