@@ -708,11 +708,12 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('strokeDasharray={`${segment} ${circumference - segment}`}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain("stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0");
-    expect(source).toContain('dashboardExpandedWidgetRow: { marginHorizontal: 8, marginBottom: 8 }');
-    expect(source).toContain('dashboardFastingExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
-    expect(source).toContain('stepsExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
-    expect(source).toContain('moodExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
-    expect(source).toContain('macroExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT)');
+    expect(source).toContain('dashboardHydrationFrame: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT) }');
+    expect(source).toContain('dashboardExpandedWidgetRow: { marginHorizontal: 8, paddingHorizontal: 8, marginBottom: 14 }');
+    expect(source).toContain('styles.dashboardHydrationFrame, styles.dashboardFastingExpandedCard');
+    expect(source).toContain('styles.dashboardHydrationFrame, styles.stepsExpandedCard');
+    expect(source).toContain('expanded && styles.dashboardHydrationFrame');
+    expect(source).toContain('expanded && styles.dashboardHydrationFrame, expanded ? styles.moodExpandedCard');
     expect(source).toContain('dashboardFastingMiddle');
     expect(source).toContain('dashboardFastingExpandedMiddle');
     expect(source).toContain('Ready to start');

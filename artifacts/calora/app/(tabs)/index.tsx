@@ -881,7 +881,7 @@ function StepsTodayCard({
   const accessibilitySummary = `${accessibilityPrefix}: ${steps === null ? 'unavailable' : formatWhole(steps)} of ${formatWhole(dailyStepGoal)}. ${status}.`;
   if (expanded) {
     return (
-      <View testID="dashboard-steps-card-expanded" style={[styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
+      <View testID="dashboard-steps-card-expanded" style={[styles.dashboardHydrationFrame, styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
         <View style={styles.stepsExpandedHeader}>
           <View style={[styles.stepsIcon, { backgroundColor: referenceColors.accent }]}><Feather name="activity" size={20} color={referenceColors.accentForeground} /></View>
           <View style={styles.stepsCardTitleGroup}><Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text><Text testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text></View>
@@ -965,7 +965,7 @@ function MoodCard({
   const { width: viewportWidth } = useWindowDimensions();
   const narrowCompact = compact && viewportWidth < 400;
   return (
-    <View style={[expanded ? styles.moodExpandedCard : styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
+    <View style={[expanded && styles.dashboardHydrationFrame, expanded ? styles.moodExpandedCard : styles.moodCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }] }>
       <View style={styles.moodHeading}>
         <View style={[styles.wellnessIcon, { backgroundColor: referenceColors.orange }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} /></View>
         <Text numberOfLines={narrowCompact ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.moodHeadingTitle, narrowCompact && { fontSize: 10, lineHeight: 11 }, { color: referenceColors.foreground }]}>How are you feeling?</Text>
@@ -1718,7 +1718,7 @@ function DashboardFastingCard({
   const status = deriveFastingProgress(fasting, now);
   if (expanded) {
     return (
-      <ScalePressable accessibilityRole="button" accessibilityLabel="Open fasting" onPress={() => router.push('/fasting')} style={[styles.dashboardFastingExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
+      <ScalePressable accessibilityRole="button" accessibilityLabel="Open fasting" onPress={() => router.push('/fasting')} style={[styles.dashboardHydrationFrame, styles.dashboardFastingExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
         <View style={styles.dashboardFastingExpandedTopRow}>
           <View style={[styles.dashboardFastingIcon, { backgroundColor: 'rgba(36,164,104,0.12)' }]}><Feather name="clock" size={20} color={referenceColors.green} /></View>
           <Text style={[styles.dashboardFastingTitle, { color: referenceColors.foreground, fontSize: 15 * fontScale }]}>Fasting</Text>
@@ -2161,7 +2161,7 @@ export default function HomeScreen() {
                     const cellStyle = expanded ? styles.dashboardFullWidthCell : styles.dashboardGridCell;
                     if (widgetId === 'fasting') return <View key={widgetId} style={cellStyle}><DashboardFastingCard expanded={expanded} colors={colors} fontScale={fontScale} /></View>;
                     if (widgetId === 'steps') return <View key={widgetId} style={cellStyle}><StepsTodayCard expanded={expanded} colors={colors} tracking={liveStepTracking} dailyStepGoal={dailyStepGoal} healthConnection={healthConnection} onEnableLiveSteps={() => { void startLiveStepTracking(true); }} onRetryLiveSteps={() => { void startLiveStepTracking(); }} milestone={liveStepMilestones[0] ?? null} onDismissMilestone={dismissLiveStepMilestone} onOpenMotionSettings={() => { void openMotionSettings().catch((error) => Alert.alert('Open motion settings', error instanceof Error ? error.message : 'Could not open motion settings. Please try again.')); }} onOpenHealth={() => router.push('/profile?tab=account&open=health')} onOpenSteps={() => router.push({ pathname: '/steps' } as never)} /></View>;
-                    if (widgetId === 'nutrients') return <View key={widgetId} style={cellStyle}><View testID="dashboard-macro-card" style={[styles.sectionCard, expanded ? styles.macroExpandedCard : styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.sectionHeader}><Text style={[styles.dashboardCardTitle, { color: colors.foreground }]}>Macros Balance</Text><ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></ScalePressable></View>{expanded ? <><AnimatedMacroBar expanded label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} /><AnimatedMacroBar expanded label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} /><AnimatedMacroBar expanded label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} /></> : <MacroBalanceDonut colors={supportingWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />}</View></View>;
+                    if (widgetId === 'nutrients') return <View key={widgetId} style={cellStyle}><View testID="dashboard-macro-card" style={[styles.sectionCard, expanded && styles.dashboardHydrationFrame, expanded ? styles.macroExpandedCard : styles.dashboardGridCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.sectionHeader}><Text style={[styles.dashboardCardTitle, { color: colors.foreground }]}>Macros Balance</Text><ScalePressable accessibilityLabel="Edit nutrition goals" accessibilityRole="button" testID="edit-macro-goals" onPress={openMacroGoals} scale={0.9} haptic="none" style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></ScalePressable></View>{expanded ? <><AnimatedMacroBar expanded label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} /><AnimatedMacroBar expanded label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} /><AnimatedMacroBar expanded label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} /></> : <MacroBalanceDonut colors={supportingWidgetColors(colors)} protein={selectedTotals.protein} carbs={selectedTotals.carbs} fat={selectedTotals.fat} targets={macroTargets} />}</View></View>;
                     if (widgetId === 'mood') return <View key={widgetId} testID="dashboard-mood-card" style={cellStyle}><MoodCard expanded={expanded} compact={!expanded} colors={colors} mood={moodLogs[selectedDate]} onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }} /></View>;
                     return null;
                   })}
@@ -2287,16 +2287,17 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardRows: { gap: 10, marginHorizontal: -18, marginBottom: h(18) },
   dashboardWidgetRow: { flexDirection: 'row', gap: 10, width: '100%' },
-  dashboardExpandedWidgetRow: { marginHorizontal: 8, marginBottom: 8 },
+  dashboardExpandedWidgetRow: { marginHorizontal: 8, paddingHorizontal: 8, marginBottom: 14 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5, marginHorizontal: -18, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
+  dashboardHydrationFrame: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT) },
   dashboardFullWidthCell: { width: '100%', minWidth: 0 },
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
-  dashboardFastingExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, paddingVertical: h(13), marginBottom: 0, gap: h(5) },
+  dashboardFastingExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, paddingVertical: h(13), marginBottom: 0, gap: h(5) },
   dashboardFastingExpandedTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dashboardFastingExpandedMiddle: { flex: 1, justifyContent: 'center', minHeight: 0, paddingHorizontal: 2 },
   dashboardFastingExpandedStats: { gap: 1 },
@@ -2349,7 +2350,7 @@ function makeStyles(f: number) {
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
-  stepsExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
   stepsExpandedSummary: { flex: 1, minWidth: 0, gap: 3 },
@@ -2426,9 +2427,9 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: h(8) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
-  moodExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodOptionsExpanded: { flex: 1, justifyContent: 'center', gap: 10 },
-  macroExpandedCard: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT), borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  macroExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   moodCard: { flex: 1, height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(5) },
   moodHeadingTitle: { flex: 1, minWidth: 0, fontFamily: 'Inter_800ExtraBold', fontSize: 11 * f, letterSpacing: -0.25, transform: [{ translateX: 3 }] },
