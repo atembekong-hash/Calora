@@ -104,10 +104,10 @@ const SUPPORTING_WIDGET_BASE_HEIGHT = 162;
 const HYDRATION_WIDGET_HEIGHT = 199;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
-const CALORIE_GAUGE_HEIGHT_SCALE = 1.1;
+const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;
 const CALORIE_RING_SCALE = 1.32;
-const WATER_WIDGET_HEIGHT_SCALE = 1.1;
-const WATER_CUP_SCALE = 1.1;
+const WATER_WIDGET_HEIGHT_SCALE = 1.3;
+const WATER_CUP_SCALE = 1.25;
 const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
 const WATER_CUP_HEIGHT = 44 * WATER_CUP_SCALE;
 // The greeting header and calorie card read as one merged surface on Home.
@@ -700,7 +700,7 @@ function stepStatusCopy(
   return tracking.updatedAt ? 'Updated just now' : 'Preparing steps…';
 }
 
-const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;
+const STEPS_RING_SIZE = 150 * TODAY_WIDGET_HEIGHT_SCALE;
 const STEPS_RING_STROKE = 10;
 const STEPS_RING_RADIUS = (STEPS_RING_SIZE - STEPS_RING_STROKE) / 2;
 const STEPS_RING_LENGTH = 2 * Math.PI * STEPS_RING_RADIUS;
@@ -723,7 +723,7 @@ function StepProgressRing({
   ringSizeOverride?: number;
 }) {
   const { width: viewportWidth } = useWindowDimensions();
-  const ringSize = ringSizeOverride ?? (compact ? (viewportWidth < 400 ? 64 : 72) : STEPS_RING_SIZE);
+  const ringSize = ringSizeOverride ?? (compact ? (viewportWidth < 400 ? 80 : 90) : STEPS_RING_SIZE);
   const ringRadius = (ringSize - STEPS_RING_STROKE) / 2;
   const ringLength = 2 * Math.PI * ringRadius;
   const dashOffset = useSharedValue(ringLength);
@@ -899,7 +899,7 @@ function StepsTodayCard({
           </Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>
-          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={128} />
+          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={160} />
           <View style={styles.stepsExpandedSummary}>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status" style={[styles.stepsExpandedStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text>
           </View>
@@ -2426,7 +2426,7 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(6), marginBottom: h(6) },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(40 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(8), marginBottom: h(8) },
    waterSlot: { flex: 1, height: h(44 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },

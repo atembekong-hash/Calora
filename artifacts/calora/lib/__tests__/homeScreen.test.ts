@@ -107,15 +107,17 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain('const HYDRATION_WIDGET_HEIGHT = 199;');
-    expect(source).toContain('const CALORIE_GAUGE_HEIGHT_SCALE = 1.1;');
+    expect(source).toContain('const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;');
     expect(source).toContain('const CALORIE_RING_SCALE = 1.32;');
-    expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.1;');
-    expect(source).toContain('const WATER_CUP_SCALE = 1.1;');
+    expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.3;');
+    expect(source).toContain('const WATER_CUP_SCALE = 1.25;');
     expect(source).toContain('minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE');
     expect(source).toContain('width={WATER_CUP_WIDTH} height={WATER_CUP_HEIGHT}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain('dashboardSingleColumnGrid');
-    expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
+    expect(source).toContain('const STEPS_RING_SIZE = 150 * TODAY_WIDGET_HEIGHT_SCALE;');
+    expect(source).toContain("viewportWidth < 400 ? 80 : 90");
+    expect(source).toContain('ringSizeOverride={160}');
   });
 
   it('keeps the profile shortcut bound to the shared persisted photo control', async () => {
@@ -181,7 +183,7 @@ describe('Today dashboard visual-source boundary', () => {
     const expandedEnd = source.indexOf('testID="dashboard-steps-action"', expandedStart);
     const expandedSection = source.slice(expandedStart, expandedEnd);
 
-    expect(expandedSection).toContain('ringSizeOverride={128}');
+    expect(expandedSection).toContain('ringSizeOverride={160}');
     expect(expandedSection).toContain('styles.stepsExpandedStatus');
     expect(expandedSection).not.toContain('styles.stepsExpandedValue');
     expect(expandedSection).not.toContain('styles.stepsExpandedGoal');
@@ -758,7 +760,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('stepsExpandedHeaderGroup');
     expect(source).toContain('stepsExpandedHeaderAction');
     expect(source).toContain("stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 }");
-    expect(source).toContain('ringSizeOverride={128}');
+    expect(source).toContain('ringSizeOverride={160}');
     expect(source).toContain("stepsExpandedAction: { alignSelf: 'center', width: '40%', minHeight: h(22)");
     expect(source).toContain('ringSizeOverride?: number;');
     expect(source).toContain('accessibilityLabel="Open Steps"');
@@ -772,7 +774,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
     expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
     expect(source).toContain('expanded && styles.moodOptionExpanded');
-    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(6), marginBottom: h(6) }");
+    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(40 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(8), marginBottom: h(8) }");
     expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
