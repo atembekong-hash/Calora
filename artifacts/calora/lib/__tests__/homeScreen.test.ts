@@ -719,11 +719,16 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('Ready to start');
     expect(source).toContain('dashboardFastingExpandedFooter');
     expect(source).toContain('stepsExpandedBody');
+    expect(source).toContain("stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) }");
     expect(source).toContain('accessibilityLabel="Open Steps"');
     expect(source).toContain('stepsExpandedSummary');
     expect(source).toContain('macroBlockExpanded');
     expect(source).toContain('<AnimatedMacroBar expanded');
-    expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center'");
+    expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
+    expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
+    expect(source).toContain('expanded && styles.moodOptionExpanded');
+    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32), marginTop: h(6), marginBottom: h(6) }");
+    expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
     expect(source).toContain("if (widgetId === 'recipes')");

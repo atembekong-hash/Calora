@@ -975,7 +975,7 @@ function MoodCard({
         {moodOptions.map((item) => {
           const selected = mood === item.value;
           return (
-            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, narrowCompact && { minHeight: 32, gap: 1 }, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
+            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, compact && styles.moodOptionCompact, expanded && styles.moodOptionExpanded, narrowCompact && { minHeight: 32, gap: 1 }, { backgroundColor: selected ? referenceColors.green : referenceColors.surface, borderColor: selected ? referenceColors.green : referenceColors.border }]}>
               <Feather name={item.icon} size={compact ? 17 : expanded ? 18 : 15} color={selected ? referenceColors.primaryForeground : referenceColors.mutedForeground} />
               <Text adjustsFontSizeToFit={!compact} numberOfLines={1} minimumFontScale={0.74} style={[styles.moodOptionText, compact && { fontSize: 7.4, lineHeight: 8.6, letterSpacing: -0.32 }, { color: selected ? referenceColors.primaryForeground : referenceColors.mutedForeground }]}>{item.label}</Text>
             </ScalePressable>
@@ -2351,7 +2351,7 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
   stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) },
   stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
   stepsExpandedSummary: { flex: 1, minWidth: 0, gap: 3 },
   stepsExpandedValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 26 * f, letterSpacing: -0.7 },
@@ -2417,18 +2417,19 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44), marginTop: h(12), marginBottom: h(14) },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32), marginTop: h(6), marginBottom: h(6) },
    waterSlot: { flex: 1, height: h(44), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: h(14), minHeight: h(18) },
   wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  waterAdjustActions: { gap: 8, marginTop: h(8) },
+  waterAdjustActions: { gap: 8, marginTop: h(4) },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: h(10) },
   moodExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(18), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-  moodOptionsExpanded: { flex: 1, justifyContent: 'center', gap: 10 },
+  moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  moodOptionExpanded: { minHeight: 0, height: h(52) },
   macroExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: h(18), paddingHorizontal: 20, marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   moodCard: { flex: 1, height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: h(7), marginBottom: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: h(5) },
