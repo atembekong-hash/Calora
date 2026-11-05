@@ -104,7 +104,12 @@ const SUPPORTING_WIDGET_BASE_HEIGHT = 162;
 const HYDRATION_WIDGET_HEIGHT = 199;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
-const CALORIE_RING_SCALE = 1.2;
+const CALORIE_GAUGE_HEIGHT_SCALE = 1.1;
+const CALORIE_RING_SCALE = 1.32;
+const WATER_WIDGET_HEIGHT_SCALE = 1.1;
+const WATER_CUP_SCALE = 1.1;
+const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
+const WATER_CUP_HEIGHT = 44 * WATER_CUP_SCALE;
 // The greeting header and calorie card read as one merged surface on Home.
 // Keep their content and math unchanged while controlling only the vertical footprint.
 const MERGED_WIDGET_HEIGHT_SCALE = TODAY_WIDGET_HEIGHT_SCALE;
@@ -609,7 +614,7 @@ function WaterCard({
 
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
-      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 199 * TODAY_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
@@ -1094,7 +1099,7 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
   const cupFill = filled ? '#8db8ed' : 'transparent';
   return (
     <Animated.View style={[styles.waterSlot, animStyle]}>
-        <Svg width={38.5} height={44} viewBox="0 0 24 28">
+        <Svg width={WATER_CUP_WIDTH} height={WATER_CUP_HEIGHT} viewBox="0 0 24 28">
         <Path d="M4 5h16l-1.5 18H5.5L4 5Z" fill={cupFill} stroke={cupStroke} strokeWidth={1.5} strokeLinejoin="round" />
         <Path d="M3 4h18" stroke={cupStroke} strokeWidth={2} strokeLinecap="round" />
         <Path d="M7 13h10l-.8 8H7.8L7 13Z" fill={filled ? '#b9d7ff' : 'transparent'} opacity={0.72} />
@@ -1563,7 +1568,7 @@ function CalorieGauge({
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
-  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * TODAY_WIDGET_HEIGHT_SCALE;
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * TODAY_WIDGET_HEIGHT_SCALE * CALORIE_GAUGE_HEIGHT_SCALE;
   const ringW      = gaugeW * CALORIE_RING_SCALE;
   const ringH      = gaugeH * CALORIE_RING_SCALE;
   const ringLeft   = (gaugeW - ringW) / 2;
@@ -2421,8 +2426,8 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32), marginTop: h(6), marginBottom: h(6) },
-   waterSlot: { flex: 1, height: h(44), alignItems: 'center', justifyContent: 'flex-end' },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(6), marginBottom: h(6) },
+   waterSlot: { flex: 1, height: h(44 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: h(14), minHeight: h(18) },

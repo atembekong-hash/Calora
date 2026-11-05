@@ -107,6 +107,12 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const TODAY_WIDGET_HEIGHT_SCALE = 0.8;');
     expect(source).toContain('const h = (value: number) => value * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain('const HYDRATION_WIDGET_HEIGHT = 199;');
+    expect(source).toContain('const CALORIE_GAUGE_HEIGHT_SCALE = 1.1;');
+    expect(source).toContain('const CALORIE_RING_SCALE = 1.32;');
+    expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.1;');
+    expect(source).toContain('const WATER_CUP_SCALE = 1.1;');
+    expect(source).toContain('minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE');
+    expect(source).toContain('width={WATER_CUP_WIDTH} height={WATER_CUP_HEIGHT}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
     expect(source).toContain('dashboardSingleColumnGrid');
     expect(source).toContain('const STEPS_RING_SIZE = 120 * TODAY_WIDGET_HEIGHT_SCALE;');
@@ -489,7 +495,7 @@ describe('Today dashboard — date context and display contracts', () => {
       'utf8',
     );
 
-    expect(source).toContain('const CALORIE_RING_SCALE = 1.2');
+    expect(source).toContain('const CALORIE_RING_SCALE = 1.32');
     expect(source).toContain('style={[gaugeStyles.ringLayer');
     expect(source).toContain('const ringTop    = gaugeH - ringH');
     expect(source).toContain('const ringLeft   = (gaugeW - ringW) / 2');
@@ -766,7 +772,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
     expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
     expect(source).toContain('expanded && styles.moodOptionExpanded');
-    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32), marginTop: h(6), marginBottom: h(6) }");
+    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(32 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(6), marginBottom: h(6) }");
     expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
