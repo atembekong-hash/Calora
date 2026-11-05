@@ -111,7 +111,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const CALORIE_RING_SCALE = 1.32;');
     expect(source).toContain('const CALORIE_RING_VERTICAL_OFFSET = 16;');
     expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.3;');
-    expect(source).toContain('const WATER_CUP_SCALE = 1.25;');
+    expect(source).toContain('const WATER_CUP_SCALE = 1.6;');
     expect(source).toContain('minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE');
     expect(source).toContain('width={WATER_CUP_WIDTH} height={WATER_CUP_HEIGHT}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
@@ -490,6 +490,22 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).not.toContain('livingState.headline');
   });
 
+  it('keeps the top food image visible, rotates it on the hourly clock, and shifts the greeting right', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("import { useClock } from '@/lib/useClock';");
+    expect(source).toContain('const now = useClock();');
+    expect(source).toContain('const headerPhoto = HOME_HEADER_FOOD_PHOTOS[now.getHours() % HOME_HEADER_FOOD_PHOTOS.length];');
+    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] }");
+    expect(source).toContain("homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: 6 }, { translateY: 2 }] }");
+    expect(source).toContain('const WATER_CUP_SCALE = 1.6;');
+  });
+
   it('enlarges only the calorie ring into the space above it', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
@@ -656,7 +672,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
-    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.94 }, { translateX: -3 }] }');
+    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] }');
     expect(source).toContain("dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: h(8) }");
   });
 
@@ -762,7 +778,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('stepsExpandedHeaderAction');
     expect(source).toContain("stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 }");
     expect(source).toContain('ringSizeOverride={160}');
-    expect(source).toContain("stepsExpandedAction: { alignSelf: 'center', width: '40%', minHeight: h(22)");
+    expect(source).toContain("stepsExpandedAction: { alignSelf: 'flex-end', width: '52%', minHeight: h(30)");
     expect(source).toContain('ringSizeOverride?: number;');
     expect(source).toContain('accessibilityLabel="Open Steps"');
     expect(source).toContain('stepsExpandedSummary');
@@ -775,7 +791,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
     expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
     expect(source).toContain('expanded && styles.moodOptionExpanded');
-    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(40 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(8), marginBottom: h(8) }");
+    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44 * WATER_CUP_SCALE), marginTop: h(8), marginBottom: h(8) }");
+    expect(source).toContain("waterSlot: { flex: 1, height: h(50 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' }");
     expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");

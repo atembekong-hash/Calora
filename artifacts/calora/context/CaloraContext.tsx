@@ -204,6 +204,7 @@ export type FoodLog = {
 export type WeightEntry = { id: string; date: string; kg: number; source: 'manual' | 'health' };
 export type Mood = 'energized' | 'good' | 'okay' | 'low' | 'stressed';
 export type WaterLog = Record<string, number>;
+export type HydrationUnit = 'fl oz' | 'ml';
 export type MoodLog = Record<string, Mood>;
 export type DailyActivity = 'rest' | 'light' | 'moderate' | 'high';
 export type ActivityLog = Record<string, DailyActivity>;
@@ -336,6 +337,8 @@ export type CaloraState = {
   logs: FoodLog[];
   weights: WeightEntry[];
   waterLogs: WaterLog;
+  hydrationGoalOunces?: number;
+  hydrationUnit?: HydrationUnit;
   moodLogs: MoodLog;
   activityLogs: ActivityLog;
   activityMinutesLogs?: ActivityMinutesLog;
@@ -464,6 +467,8 @@ type CaloraContextValue = {
   logs: FoodLog[];
   weights: WeightEntry[];
   waterLogs: WaterLog;
+  hydrationGoalOunces: number;
+  hydrationUnit: HydrationUnit;
   moodLogs: MoodLog;
   activityLogs: ActivityLog;
   activityMinutesLogs: ActivityMinutesLog;
@@ -585,6 +590,8 @@ type CaloraContextValue = {
   removeWeight: (id: string) => void;
   updateWeight: (id: string, kg: number) => void;
   addWater: (date: string, ounces?: number) => void;
+  setHydrationGoal: (ounces: number) => void;
+  setHydrationUnit: (unit: HydrationUnit) => void;
   setMood: (date: string, mood: Mood) => void;
   setActivity: (date: string, activity: DailyActivity) => void;
   setActivityMinutes: (date: string, minutes: number) => void;
@@ -755,6 +762,8 @@ export function CaloraProvider({
   const [logs, setLogs] = useState<FoodLog[]>([]);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [waterLogs, setWaterLogs] = useState<WaterLog>({});
+  const [hydrationGoalOunces, setHydrationGoalOunces] = useState(64);
+  const [hydrationUnit, setHydrationUnitState] = useState<HydrationUnit>('fl oz');
   const [moodLogs, setMoodLogs] = useState<MoodLog>({});
   const [activityLogs, setActivityLogs] = useState<ActivityLog>({});
   const [activityMinutesLogs, setActivityMinutesLogs] = useState<ActivityMinutesLog>({});
@@ -1057,6 +1066,10 @@ export function CaloraProvider({
       })));
     if (saved.weights) setWeights(saved.weights);
      if (saved.waterLogs) setWaterLogs(saved.waterLogs);
+     if (typeof saved.hydrationGoalOunces === 'number' && Number.isFinite(saved.hydrationGoalOunces)) {
+       setHydrationGoalOunces(Math.min(512, Math.max(8, Math.round(saved.hydrationGoalOunces / 8) * 8)));
+     }
+     if (saved.hydrationUnit === 'fl oz' || saved.hydrationUnit === 'ml') setHydrationUnitState(saved.hydrationUnit);
      if (saved.moodLogs) setMoodLogs(saved.moodLogs);
       if (saved.activityLogs) setActivityLogs(saved.activityLogs);
       if (saved.activityMinutesLogs) setActivityMinutesLogs(saved.activityMinutesLogs);
@@ -1127,6 +1140,8 @@ export function CaloraProvider({
          logs: saved.logs ? normalizedLogs : base.logs,
          weights: saved.weights ?? base.weights,
          waterLogs: saved.waterLogs ?? base.waterLogs,
+         hydrationGoalOunces: saved.hydrationGoalOunces ?? base.hydrationGoalOunces,
+         hydrationUnit: saved.hydrationUnit ?? base.hydrationUnit,
          moodLogs: saved.moodLogs ?? base.moodLogs,
          activityLogs: saved.activityLogs ?? base.activityLogs,
          activityMinutesLogs: saved.activityMinutesLogs ?? base.activityMinutesLogs,
@@ -1814,6 +1829,8 @@ export function CaloraProvider({
       logs,
       weights,
       waterLogs,
+      hydrationGoalOunces,
+      hydrationUnit,
       moodLogs,
       activityLogs,
       activityMinutesLogs,
@@ -1850,7 +1867,7 @@ export function CaloraProvider({
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      void enqueueAutosave(pm.current, sanitizeRecipeMediaStateForPersistence(state)).catch(() => reportPersistenceError());
-  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, dashboardPreferences, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, learningReaderState, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, dailyStepGoal, dashboardPreferences, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationGoalOunces, hydrationReminders, hydrationUnit, learningReaderState, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, reportPersistenceError, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -1936,6 +1953,8 @@ export function CaloraProvider({
     logs,
     weights,
     waterLogs,
+    hydrationGoalOunces,
+    hydrationUnit,
     moodLogs,
     activityLogs,
     activityMinutesLogs,
@@ -1978,6 +1997,8 @@ export function CaloraProvider({
     logs,
     weights,
     waterLogs,
+    hydrationGoalOunces,
+    hydrationUnit,
     moodLogs,
     activityLogs,
     activityMinutesLogs,
@@ -2455,6 +2476,17 @@ export function CaloraProvider({
       setLivingMemory((current) => upsertWaterObservation(current, date, Math.max(0, (current.waterObservations[date]?.ounces ?? waterLogs[date] ?? 0) + ounces)));
       queueMutation('settings', 'upsert');
     },
+    setHydrationGoal: (ounces) => {
+      const next = Math.min(512, Math.max(8, Math.round(ounces / 8) * 8));
+      patchExportSnapshot({ hydrationGoalOunces: next });
+      setHydrationGoalOunces(next);
+      queueMutation('settings', 'upsert');
+    },
+    setHydrationUnit: (unit) => {
+      patchExportSnapshot({ hydrationUnit: unit });
+      setHydrationUnitState(unit);
+      queueMutation('settings', 'upsert');
+    },
     setMood: (date, mood) => {
       updateExportField('moodLogs', (current) => ({ ...current as MoodLog, [date]: mood }));
       updateExportField('livingMemory', (current) => upsertMoodObservation(current as LivingMemory, date, mood));
@@ -2856,9 +2888,11 @@ export function CaloraProvider({
            acceptedFoodDraftIdsRef.current.clear();
           shoppingItemsRef.current = [];
 	          setThemePreference('system');
-	          setFontSizeScaleState('default');
-	          setProfilePhotoUriState(null);
-	          healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
+          setFontSizeScaleState('default');
+          setProfilePhotoUriState(null);
+          setHydrationGoalOunces(64);
+          setHydrationUnitState('fl oz');
+          healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
 	          setDailyStepGoalState(DEFAULT_DAILY_STEP_GOAL);
 	          setLiveStepMilestones([]);
 	          const clearedLiveSteps = createLiveStepTrackingState(localStepDay());
@@ -3045,7 +3079,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, commitSnapshot, consentAccepted, dailyStepGoal, dashboardPreferences, diarySyncState, dismissLiveStepMilestone, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, learningReaderState, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, persistenceError, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryPersistence, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, clearLiveStepReconciliationRetries, coachConsentAccepted, coachMessages, commitSnapshot, consentAccepted, dailyStepGoal, dashboardPreferences, diarySyncState, dismissLiveStepMilestone, fasting, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationGoalOunces, hydrationUnit, learningReaderState, liveStepTracking, liveStepMilestones, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, openMotionSettings, outbox, pendingPlannerAck, pendingUndoSwap, persistenceError, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, persistProfileEdit, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryPersistence, retryProfileSync, savedMeals, savedRecipeIds, setLiveStepsDashboardFocused, shoppingItems, startLiveStepTracking, stopLiveStepTracking, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

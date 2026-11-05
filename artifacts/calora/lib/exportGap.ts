@@ -79,6 +79,8 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     logs:                 [],
     weights:              [],
     waterLogs:            {},
+    hydrationGoalOunces:  64,
+    hydrationUnit:        'fl oz',
     moodLogs:             {},
     activityLogs:         {},
     activityMinutesLogs:  {},

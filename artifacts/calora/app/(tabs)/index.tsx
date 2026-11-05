@@ -68,6 +68,7 @@ import { isLiveSessionOnly, type LiveStepTrackingState } from '@/lib/steps/stepT
 import { deriveFastingProgress, fastingPlanLabel, formatFastingDuration } from '@/lib/fasting';
 import { normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 import { buildDashboardRows, RESPONSIVE_DASHBOARD_WIDGET_IDS } from '@/lib/dashboardPreferences';
+import { useClock } from '@/lib/useClock';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -108,7 +109,7 @@ const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;
 const CALORIE_RING_SCALE = 1.32;
 const CALORIE_RING_VERTICAL_OFFSET = 16;
 const WATER_WIDGET_HEIGHT_SCALE = 1.3;
-const WATER_CUP_SCALE = 1.25;
+const WATER_CUP_SCALE = 1.6;
 const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
 const WATER_CUP_HEIGHT = 44 * WATER_CUP_SCALE;
 // The greeting header and calorie card read as one merged surface on Home.
@@ -600,6 +601,7 @@ function WaterCard({
   waterConfirmedAmount,
   onAddWater,
   onSubtractWater,
+  onOpenHydration,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   waterOunces: number;
@@ -607,6 +609,7 @@ function WaterCard({
   waterConfirmedAmount: number | null;
   onAddWater: (ounces: number) => void;
   onSubtractWater: () => void;
+  onOpenHydration: () => void;
 }) {
   const waterGoal = 64;
   const normalizedWater = Math.max(0, waterOunces);
@@ -616,14 +619,15 @@ function WaterCard({
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
       <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.wellnessCardHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Hydration" onPress={onOpenHydration} style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
-          <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
-        </View>
-        <View style={styles.waterSummary}>
+          <Text style={[styles.wellnessCardTitle, { color: colors.foreground, flex: 1 }]}>Water</Text>
+          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Hydration details" onPress={onOpenHydration} style={styles.waterSummary}>
           <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{normalizedWater} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
           <Text style={[styles.waterCupsLogged, { color: colors.mutedForeground }]}>{cupsLogged} cups logged</Text>
-        </View>
+        </Pressable>
         <View style={styles.waterSlots}>
           {Array.from({ length: 8 }, (_, index) => (
             <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
@@ -1839,7 +1843,7 @@ export default function HomeScreen() {
     fat: sum.fat + log.fat,
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
-  const now = new Date();
+  const now = useClock();
   const todayKey = dateKey(now);
   const isViewingToday = selectedDate === todayKey;
   useEffect(() => {
@@ -2180,7 +2184,7 @@ export default function HomeScreen() {
             {postGridWidgetOrder.map((widgetId) => {
               if (!dashboardPreferences.visible.includes(widgetId)) return null;
               if (widgetId === 'water') {
-                return <View key={widgetId} style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>;
+                return <View key={widgetId} style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onOpenHydration={() => router.push('/hydration' as never)} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>;
               }
               if (widgetId === 'recipes') {
                 return <View key={widgetId} style={styles.recipeSection}><RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} onViewAll={() => router.navigate('/(tabs)/recipes')} /></View>;
@@ -2278,7 +2282,7 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.94 }, { translateX: -3 }] },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] },
     homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2291,7 +2295,7 @@ function makeStyles(f: number) {
   homeHeaderCoachIcon: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 0.1 },
    homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.5, textAlign: 'right', maxWidth: 146, textTransform: 'uppercase', transform: [{ translateY: -12 }] },
-  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: -9 }, { translateY: 2 }] },
+  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: 6 }, { translateY: 2 }] },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateX: -9 }, { translateY: 11 }] },
   scrollContent: { paddingHorizontal: 20 },
   dashboardRows: { gap: 10, marginHorizontal: -18, marginBottom: h(18) },
@@ -2385,7 +2389,7 @@ function makeStyles(f: number) {
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
   stepsBodyArrow: { position: 'absolute', right: 2, top: 2, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   stepsAction: { minHeight: h(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(4), paddingHorizontal: 8 },
-  stepsExpandedAction: { alignSelf: 'center', width: '40%', minHeight: h(22), marginTop: h(2), paddingHorizontal: 4, borderRadius: 8, gap: 2 },
+  stepsExpandedAction: { alignSelf: 'flex-end', width: '52%', minHeight: h(30), marginTop: h(4), marginRight: 0, paddingHorizontal: 8, borderRadius: 10, gap: 4 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
@@ -2427,8 +2431,8 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(40 * WATER_WIDGET_HEIGHT_SCALE), marginTop: h(8), marginBottom: h(8) },
-   waterSlot: { flex: 1, height: h(44 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44 * WATER_CUP_SCALE), marginTop: h(8), marginBottom: h(8) },
+   waterSlot: { flex: 1, height: h(50 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: h(14), minHeight: h(18) },
