@@ -720,10 +720,13 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('dashboardFastingExpandedFooter');
     expect(source).toContain('stepsExpandedBody');
     expect(source).toContain("stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) }");
+    expect(source).toContain('stepsExpandedHeaderAction');
+    expect(source).toContain("stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 }");
     expect(source).toContain('ringSizeOverride={64}');
     expect(source).toContain('ringSizeOverride?: number;');
     expect(source).toContain('accessibilityLabel="Open Steps"');
     expect(source).toContain('stepsExpandedSummary');
+    expect(source).toContain('stepsExpandedStatus');
     expect(source).toContain('numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status"');
     expect(source).toContain('macroBlockExpanded');
     expect(source).toContain('macroHeaderExpanded');

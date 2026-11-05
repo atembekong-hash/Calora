@@ -886,17 +886,18 @@ function StepsTodayCard({
       <View testID="dashboard-steps-card-expanded" style={[styles.dashboardHydrationFrame, styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
         <View style={styles.stepsExpandedHeader}>
           <View style={[styles.stepsIcon, { backgroundColor: referenceColors.accent }]}><Feather name="activity" size={20} color={referenceColors.accentForeground} /></View>
-          <View style={styles.stepsCardTitleGroup}><Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status" style={[styles.stepsCardStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text></View>
-          {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: referenceColors.success }]} />}
+          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedHeaderAction}>
+            <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
+          </Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>
           <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={64} />
           <View style={styles.stepsExpandedSummary}>
             <Text style={[styles.stepsExpandedValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)}</Text>
             <Text style={[styles.stepsExpandedGoal, { color: referenceColors.mutedForeground }]}>of {formatWhole(dailyStepGoal)} steps</Text>
-            <Text style={[styles.stepsExpandedHint, { color: referenceColors.mutedForeground }]}>Open detailed progress</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status" style={[styles.stepsExpandedStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text>
           </View>
-          <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
         </Pressable>
         {milestone !== null && <StepMilestoneCelebration milestone={milestone} colors={referenceColors} onDismiss={() => onDismissMilestone(milestone)} />}
         {actionLabel && onPress && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} testID="dashboard-steps-action" onPress={onPress} style={[styles.stepsAction, { backgroundColor: referenceColors.muted, borderColor: referenceColors.border }]}><Text style={[styles.stepsActionText, { color: referenceColors.primary }]}>{actionLabel}</Text><Feather name="chevron-right" size={15} color={referenceColors.primary} /></Pressable>}
@@ -2354,11 +2355,12 @@ function makeStyles(f: number) {
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
   stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) },
-  stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  stepsExpandedHeaderAction: { width: 32, height: 32, marginLeft: 'auto', alignItems: 'center', justifyContent: 'center' },
+  stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 },
   stepsExpandedSummary: { flex: 1, minWidth: 0, gap: 3 },
   stepsExpandedValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 26 * f, letterSpacing: -0.7 },
   stepsExpandedGoal: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  stepsExpandedHint: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 5 },
+  stepsExpandedStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 5 },
   stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(7), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
