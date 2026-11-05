@@ -892,7 +892,7 @@ function StepsTodayCard({
           </Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>
-          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={64} />
+          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={128} />
           <View style={styles.stepsExpandedSummary}>
             <Text style={[styles.stepsExpandedValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)}</Text>
             <Text style={[styles.stepsExpandedGoal, { color: referenceColors.mutedForeground }]}>of {formatWhole(dailyStepGoal)} steps</Text>
@@ -900,7 +900,7 @@ function StepsTodayCard({
           </View>
         </Pressable>
         {milestone !== null && <StepMilestoneCelebration milestone={milestone} colors={referenceColors} onDismiss={() => onDismissMilestone(milestone)} />}
-        {actionLabel && onPress && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} testID="dashboard-steps-action" onPress={onPress} style={[styles.stepsAction, { backgroundColor: referenceColors.muted, borderColor: referenceColors.border }]}><Text style={[styles.stepsActionText, { color: referenceColors.primary }]}>{actionLabel}</Text><Feather name="chevron-right" size={15} color={referenceColors.primary} /></Pressable>}
+        {actionLabel && onPress && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} testID="dashboard-steps-action" onPress={onPress} style={[styles.stepsAction, styles.stepsExpandedAction, { backgroundColor: referenceColors.muted, borderColor: referenceColors.border }]}><Text style={[styles.stepsActionText, { color: referenceColors.primary }]}>{actionLabel}</Text><Feather name="chevron-right" size={11} color={referenceColors.primary} /></Pressable>}
       </View>
     );
   }
@@ -2354,8 +2354,8 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
   stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) },
-  stepsExpandedHeaderAction: { width: 32, height: 32, marginLeft: 'auto', alignItems: 'center', justifyContent: 'center' },
+  stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: h(3) },
+  stepsExpandedHeaderAction: { width: 32, height: 32, marginLeft: 0, alignItems: 'center', justifyContent: 'center' },
   stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 },
   stepsExpandedSummary: { flex: 1, minWidth: 0, gap: 3 },
   stepsExpandedValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 26 * f, letterSpacing: -0.7 },
@@ -2380,6 +2380,7 @@ function makeStyles(f: number) {
   stepsRingGoal: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 1 },
   stepsBodyArrow: { position: 'absolute', right: 2, top: 2, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   stepsAction: { minHeight: h(36), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginTop: h(4), paddingHorizontal: 8 },
+  stepsExpandedAction: { alignSelf: 'center', width: '40%', minHeight: h(22), marginTop: h(2), paddingHorizontal: 4, borderRadius: 8, gap: 2 },
   stepsActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
     quickLogSection: { marginBottom: h(28) },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
