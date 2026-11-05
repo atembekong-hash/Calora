@@ -2287,7 +2287,7 @@ function makeStyles(f: number) {
   scrollContent: { paddingHorizontal: 20 },
   dashboardRows: { gap: 10, marginHorizontal: -18, marginBottom: h(18) },
   dashboardWidgetRow: { flexDirection: 'row', gap: 10, width: '100%' },
-  dashboardExpandedWidgetRow: { marginHorizontal: 8, paddingHorizontal: 8, marginBottom: 14 },
+  dashboardExpandedWidgetRow: { width: 'auto', marginHorizontal: 8, marginBottom: 14 },
   dashboardTwoColumnGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5, marginHorizontal: -18, marginBottom: h(18) },
   dashboardSingleColumnGrid: { flexDirection: 'column', gap: 10, marginHorizontal: -10, marginBottom: h(18) },
   dashboardHydrationFrame: { height: h(HYDRATION_WIDGET_HEIGHT), minHeight: h(HYDRATION_WIDGET_HEIGHT) },
