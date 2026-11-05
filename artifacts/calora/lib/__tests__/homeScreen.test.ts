@@ -720,9 +720,13 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('dashboardFastingExpandedFooter');
     expect(source).toContain('stepsExpandedBody');
     expect(source).toContain("stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(3) }");
+    expect(source).toContain('ringSizeOverride={64}');
+    expect(source).toContain('ringSizeOverride?: number;');
     expect(source).toContain('accessibilityLabel="Open Steps"');
     expect(source).toContain('stepsExpandedSummary');
     expect(source).toContain('macroBlockExpanded');
+    expect(source).toContain('macroHeaderExpanded');
+    expect(source).toContain('macroTrackExpanded');
     expect(source).toContain('<AnimatedMacroBar expanded');
     expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
     expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
