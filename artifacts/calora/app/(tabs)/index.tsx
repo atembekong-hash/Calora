@@ -707,6 +707,7 @@ function StepProgressRing({
   colors,
   accessibilitySummary,
   compact = false,
+  ringSizeOverride,
 }: {
   steps: number | null;
   dailyStepGoal: number;
@@ -714,9 +715,10 @@ function StepProgressRing({
   colors: ReturnType<typeof useCalora>['colors'];
   accessibilitySummary: string;
   compact?: boolean;
+  ringSizeOverride?: number;
 }) {
   const { width: viewportWidth } = useWindowDimensions();
-  const ringSize = compact ? (viewportWidth < 400 ? 64 : 72) : STEPS_RING_SIZE;
+  const ringSize = ringSizeOverride ?? (compact ? (viewportWidth < 400 ? 64 : 72) : STEPS_RING_SIZE);
   const ringRadius = (ringSize - STEPS_RING_STROKE) / 2;
   const ringLength = 2 * Math.PI * ringRadius;
   const dashOffset = useSharedValue(ringLength);
@@ -778,7 +780,7 @@ function StepProgressRing({
           transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
         />
       </Svg>
-      <View pointerEvents="none" accessible={false} style={styles.stepsRingCopy}>
+      <View pointerEvents="none" accessible={false} style={[styles.stepsRingCopy, ringSizeOverride !== undefined && { left: 8, right: 8 }]}>
         {compact ? (
               <CaloraFeatureIcon name="steps" size={compact && viewportWidth < 400 ? 25 : 31} primaryColor={colors.primary} accentColor={colors.success} foregroundColor={colors.foreground} highlightColor={colors.primaryForeground} />
         ) : (
@@ -888,7 +890,7 @@ function StepsTodayCard({
           {tracking.status === 'live' && <View style={[styles.stepsLiveDot, { backgroundColor: referenceColors.success }]} />}
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>
-          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} />
+          <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={64} />
           <View style={styles.stepsExpandedSummary}>
             <Text style={[styles.stepsExpandedValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)}</Text>
             <Text style={[styles.stepsExpandedGoal, { color: referenceColors.mutedForeground }]}>of {formatWhole(dailyStepGoal)} steps</Text>
@@ -1063,11 +1065,11 @@ function AnimatedMacroBar({ label, value, target, color, colors, expanded = fals
       accessibilityLabel={`${label}: ${formatQuantity(value)} grams consumed of ${formatQuantity(target)} gram target.`}
       style={expanded ? styles.macroBlockExpanded : styles.macroBlock}
     >
-      <View style={styles.macroHeader}>
+      <View style={[styles.macroHeader, expanded && styles.macroHeaderExpanded]}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
         <Text testID={`macro-target-${label.toLowerCase()}`} style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target)}g</Text></Text>
       </View>
-      <View style={[styles.macroTrack, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+      <View style={[styles.macroTrack, expanded && styles.macroTrackExpanded, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
         <Animated.View style={[styles.macroFill, { backgroundColor: color }, animStyle]} />
       </View>
     </View>
@@ -2481,11 +2483,13 @@ function makeStyles(f: number) {
   macroLegendValue: { fontFamily: 'Inter_600SemiBold', fontSize: 8.1 * f, flexShrink: 1, letterSpacing: -0.35 },
   sectionCaption: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
   macroBlock: { marginTop: 13 },
-  macroBlockExpanded: { marginTop: h(9), gap: h(4) },
+  macroBlockExpanded: { marginTop: h(4), gap: h(2) },
   macroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
+  macroHeaderExpanded: { marginBottom: 3 },
   macroLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   macroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   macroTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  macroTrackExpanded: { height: 6 },
   macroFill: { height: 7, borderRadius: 4 },
    macroGoalScrollContent: {},
   macroGoalIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, padding: 14, marginBottom: 18 },
