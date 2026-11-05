@@ -126,11 +126,9 @@ describe("public recipe routes — rate limiting", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
-  it("uses a verified account bucket when a shared edge-IP bucket is exhausted", async () => {
+  it("uses the verified account bucket before the shared edge-IP bucket", async () => {
     mockVerifyBearerToken.mockResolvedValue({ id: "account-1", email: "test@example.com" });
-    mockCheckRateLimit
-      .mockResolvedValueOnce({ allowed: false, retryAfterSecs: 120 })
-      .mockResolvedValueOnce({ allowed: true, retryAfterSecs: 0 });
+    mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ meals: [{
@@ -149,9 +147,37 @@ describe("public recipe routes — rate limiting", () => {
 
     expect(response.status).toBe(200);
     expect(mockVerifyBearerToken).toHaveBeenCalledTimes(1);
-    expect(mockCheckRateLimit.mock.calls[0]?.[0]).toBe("recipes:list:ip:127.0.0.1");
-    expect(mockCheckRateLimit.mock.calls[1]?.[0]).toBe("recipes:list:user:account-1");
+    expect(mockCheckRateLimit).toHaveBeenCalledTimes(1);
+    expect(mockCheckRateLimit.mock.calls[0]?.[0]).toBe("recipes:list:user:account-1");
     expect(response.body.recipes).toHaveLength(1);
+  });
+
+  it("keeps invalid-token requests on the anonymous IP bucket", async () => {
+    mockVerifyBearerToken.mockResolvedValue(null);
+    mockCheckRateLimit.mockResolvedValue({ allowed: false, retryAfterSecs: 120 });
+
+    const response = await request(app)
+      .get("/v1/recipes?limit=3")
+      .set("Authorization", "Bearer invalid-token");
+
+    expect(response.status).toBe(429);
+    expect(mockCheckRateLimit).toHaveBeenCalledTimes(1);
+    expect(mockCheckRateLimit.mock.calls[0]?.[0]).toBe("recipes:list:ip:127.0.0.1");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to the shared IP bucket after an authenticated account quota is exhausted", async () => {
+    mockVerifyBearerToken.mockResolvedValue({ id: "account-1", email: "test@example.com" });
+    mockCheckRateLimit.mockResolvedValue({ allowed: false, retryAfterSecs: 120 });
+
+    const response = await request(app)
+      .get("/v1/recipes?limit=3")
+      .set("Authorization", "Bearer verified-token");
+
+    expect(response.status).toBe(429);
+    expect(mockCheckRateLimit).toHaveBeenCalledTimes(1);
+    expect(mockCheckRateLimit.mock.calls[0]?.[0]).toBe("recipes:list:user:account-1");
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("keeps a burst of authenticated recipe requests isolated from the shared IP bucket", async () => {
