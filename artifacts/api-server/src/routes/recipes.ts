@@ -149,36 +149,56 @@ async function enforceRecipeIpLimit(
 ): Promise<boolean> {
   // Keep browsing and explicit nutrition-estimate buckets separate so opening
   // a recipe cannot consume the smaller provider-cost budget for AI details.
-  const key = `recipes:${scope}:ip:${canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress)}`;
-  // failClosed: this route is anonymous, so a DB outage must deny rather than
-  // let unmetered public traffic trigger paid provider calls.
   const limit = scope === "nutrition-estimate"
     ? RECIPE_NUTRITION_ESTIMATE_RATE_LIMIT
     : RECIPES_RATE_LIMIT;
-  let rate = await checkRateLimit(key, limit, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
 
   // Managed edges can place many legitimate signed-in sessions behind one
-  // public address. If that shared bucket is exhausted, use the verified
-  // account identity as a narrower fallback bucket. Keep the IP guard first
-  // and never use an unverified token as a limiter key; anonymous callers
-  // remain IP-limited exactly as before.
-  if (!rate.allowed && !rate.degraded && req.headers.authorization) {
+  // public address. Verify an explicitly supplied bearer token first and use
+  // the account bucket as the primary quota for authenticated traffic. This
+  // prevents unrelated users from exhausting one another's shared IP bucket.
+  // Anonymous callers, invalid tokens, and failed verification remain strictly
+  // IP-limited and fail closed; an unverified token is never a limiter key.
+  if (req.headers.authorization) {
     try {
       const user = await verifyBearerToken(req);
       if (user) {
-        rate = await checkRateLimit(
+        const rate = await checkRateLimit(
           `recipes:${scope}:user:${user.id}`,
           limit,
           RECIPES_RATE_WINDOW_SECS,
           { failClosed: true },
         );
         if (rate.allowed) return true;
+        if (rate.degraded) {
+          res.setHeader("Retry-After", String(rate.retryAfterSecs));
+          res.status(503).json({
+            message: scope === "nutrition-estimate"
+              ? "Nutrition estimates are temporarily unavailable. Please try again shortly."
+              : "Recipes are temporarily unavailable. Please try again shortly.",
+            retryAfterSecs: rate.retryAfterSecs,
+          });
+          return false;
+        }
+        res.setHeader("Retry-After", String(rate.retryAfterSecs));
+        res.status(429).json({
+          message: scope === "nutrition-estimate"
+            ? "Too many nutrition estimate requests. Please wait before trying again."
+            : "Too many recipe requests. Please wait before trying again.",
+          retryAfterSecs: rate.retryAfterSecs,
+        });
+        return false;
       }
     } catch {
-      // Preserve the original fail-closed response if optional identity
-      // verification is unavailable; do not turn the fallback into a bypass.
+      // Preserve the anonymous fail-closed response if optional identity
+      // verification is unavailable; do not turn the auth path into a bypass.
     }
   }
+
+  const key = `recipes:${scope}:ip:${canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress)}`;
+  // failClosed: this route is anonymous, so a DB outage must deny rather than
+  // let unmetered public traffic trigger paid provider calls.
+  const rate = await checkRateLimit(key, limit, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
   if (!rate.allowed) {
     const nutritionEstimate = scope === "nutrition-estimate";
     if (rate.degraded) {
