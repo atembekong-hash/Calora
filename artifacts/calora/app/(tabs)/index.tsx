@@ -106,6 +106,7 @@ const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;
 const CALORIE_RING_SCALE = 1.32;
+const CALORIE_RING_VERTICAL_OFFSET = 16;
 const WATER_WIDGET_HEIGHT_SCALE = 1.3;
 const WATER_CUP_SCALE = 1.25;
 const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
@@ -1594,13 +1595,13 @@ function CalorieGauge({
   // Arc inner bottom in VB ≈ 175.  Eye height ≈ 140.5 VB.
   // Text block ≈ 90 screen-px → half-height anchored to eye centre (VB ≈ 105).
   // A gap of 32 VB units from the inner top lands the stack at eye centre.
-  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH * CALORIE_RING_SCALE + ringTop;
+  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH * CALORIE_RING_SCALE + ringTop + CALORIE_RING_VERTICAL_OFFSET;
 
   return (
     <View style={gaugeStyles.container}>
       {/* ── Full-width SVG arc + centred text ── */}
       <View style={[gaugeStyles.arcWrap, { width: gaugeW, height: gaugeH }]}>
-        <View pointerEvents="none" style={[gaugeStyles.ringLayer, { width: ringW, height: ringH, left: ringLeft, top: ringTop }]}>
+        <View pointerEvents="none" style={[gaugeStyles.ringLayer, { width: ringW, height: ringH, left: ringLeft, top: ringTop, transform: [{ translateY: CALORIE_RING_VERTICAL_OFFSET }] }]}>
           <Svg width={ringW} height={ringH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
             {/* Track — full 270° muted arc */}
             <Path
