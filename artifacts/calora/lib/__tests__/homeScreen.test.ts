@@ -750,6 +750,26 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(widget).not.toContain('REFERENCE_WIDGET_PALETTE');
   });
 
+  it('keeps the light-mode recipe footer readable without changing the dark-mode surface', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const widget = source.slice(
+      source.indexOf('function RecipeSwipeWidget'),
+      source.indexOf('const moodOptions'),
+    );
+
+    expect(widget).toContain("const recipeCardSurface = recipeCardIsDark ? '#0b2b21' : '#f7f8f3';");
+    expect(widget).toContain("const recipeCardTitleColor = recipeCardIsDark ? referenceColors.foreground : '#26312b';");
+    expect(widget).toContain("const recipeCardMetaColor = recipeCardIsDark ? referenceColors.mutedForeground : '#52605a';");
+    expect(widget).toContain("const recipeCardArrowColor = recipeCardIsDark ? referenceColors.orange : '#41554a';");
+    expect(widget).toContain('numberOfLines={2} ellipsizeMode="tail"');
+    expect(widget).not.toContain("recipeCardSurface = colors.background === '#101916' ? '#0b2b21' : '#376b52'");
+  });
+
   it('keeps the approved supporting-widget order and protects the calorie component boundary', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
