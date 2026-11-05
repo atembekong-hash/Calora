@@ -430,7 +430,11 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { width } = useWindowDimensions();
   const referenceColors = supportingWidgetColors(colors);
-  const recipeCardSurface = colors.background === '#101916' ? '#0b2b21' : '#376b52';
+  const recipeCardIsDark = colors.background === '#101916';
+  const recipeCardSurface = recipeCardIsDark ? '#0b2b21' : '#f7f8f3';
+  const recipeCardTitleColor = recipeCardIsDark ? referenceColors.foreground : '#26312b';
+  const recipeCardMetaColor = recipeCardIsDark ? referenceColors.mutedForeground : '#52605a';
+  const recipeCardArrowColor = recipeCardIsDark ? referenceColors.orange : '#41554a';
   const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
@@ -568,11 +572,11 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
                 </ScalePressable>
               </View>
               <View style={styles.recipeWidgetCopy}>
-                <Text numberOfLines={1} style={[styles.recipeWidgetTitle, { color: referenceColors.foreground }]}>{recipe.name}</Text>
+                <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.recipeWidgetTitle, { color: recipeCardTitleColor }]}>{recipe.name}</Text>
                 <View style={styles.recipeWidgetFooter}>
-                  <Text style={[styles.recipeWidgetMeta, { color: referenceColors.mutedForeground }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
+                  <Text style={[styles.recipeWidgetMeta, { color: recipeCardMetaColor }]}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}</Text>
                   <ScalePressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} scale={0.98} haptic="none" style={styles.recipeWidgetAction}>
-                    <Feather name="chevron-right" size={14} color={referenceColors.orange} />
+                    <Feather name="chevron-right" size={14} color={recipeCardArrowColor} />
                   </ScalePressable>
                 </View>
               </View>
