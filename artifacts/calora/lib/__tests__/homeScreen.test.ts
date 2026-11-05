@@ -109,9 +109,9 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const HYDRATION_WIDGET_HEIGHT = 199;');
     expect(source).toContain('const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;');
     expect(source).toContain('const CALORIE_RING_SCALE = 1.32;');
-    expect(source).toContain('const CALORIE_RING_VERTICAL_OFFSET = 16;');
-    expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.3;');
-    expect(source).toContain('const WATER_CUP_SCALE = 1.6;');
+    expect(source).toContain('const CALORIE_RING_VERTICAL_OFFSET = 24;');
+    expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.235;');
+    expect(source).toContain('const WATER_CUP_SCALE = 1.48;');
     expect(source).toContain('minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE');
     expect(source).toContain('width={WATER_CUP_WIDTH} height={WATER_CUP_HEIGHT}');
     expect(source).toContain('height: h(SUPPORTING_WIDGET_BASE_HEIGHT)');
@@ -119,6 +119,8 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const STEPS_RING_SIZE = 150 * TODAY_WIDGET_HEIGHT_SCALE;');
     expect(source).toContain("viewportWidth < 400 ? 80 : 90");
     expect(source).toContain('ringSizeOverride={160}');
+    expect(source).toContain('statLabel:');
+    expect(source).toContain('marginTop: 7, letterSpacing: 0.5');
   });
 
   it('keeps the profile shortcut bound to the shared persisted photo control', async () => {
@@ -501,9 +503,24 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("import { useClock } from '@/lib/useClock';");
     expect(source).toContain('const now = useClock();');
     expect(source).toContain('const headerPhoto = HOME_HEADER_FOOD_PHOTOS[now.getHours() % HOME_HEADER_FOOD_PHOTOS.length];');
-    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] }");
+    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 0.88 }] }");
+    expect(source).toContain("homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.44)' }");
     expect(source).toContain("homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: 6 }, { translateY: 2 }] }");
-    expect(source).toContain('const WATER_CUP_SCALE = 1.6;');
+    expect(source).toContain('const WATER_CUP_SCALE = 1.48;');
+  });
+
+  it('removes the Mood header arrow while preserving all five mood choices', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(resolve(__dirname, '../../app/(tabs)/index.tsx'), 'utf8');
+    const moodStart = source.indexOf('function MoodCard');
+    const moodEnd = source.indexOf('function MacroBalanceDonut', moodStart);
+    const moodSection = source.slice(moodStart, moodEnd);
+    expect(moodSection).toContain('How are you feeling?');
+    expect(moodSection).not.toContain('chevron-right');
+    const optionsStart = source.indexOf('const moodOptions');
+    const optionsSection = source.slice(optionsStart, moodStart);
+    expect((optionsSection.match(/value: '/g) ?? []).length).toBe(5);
   });
 
   it('enlarges only the calorie ring into the space above it', async () => {
@@ -672,7 +689,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
-    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] }');
+    expect(source).toContain('homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 0.88 }] }');
     expect(source).toContain("dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: h(8) }");
   });
 

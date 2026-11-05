@@ -108,9 +108,9 @@ const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;
 const CALORIE_RING_SCALE = 1.32;
-const CALORIE_RING_VERTICAL_OFFSET = 16;
-const WATER_WIDGET_HEIGHT_SCALE = 1.3;
-const WATER_CUP_SCALE = 1.6;
+const CALORIE_RING_VERTICAL_OFFSET = 24;
+const WATER_WIDGET_HEIGHT_SCALE = 1.235;
+const WATER_CUP_SCALE = 1.48;
 const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
 const WATER_CUP_HEIGHT = 44 * WATER_CUP_SCALE;
 // The greeting header and calorie card read as one merged surface on Home.
@@ -994,7 +994,6 @@ function MoodCard({
       <View style={styles.moodHeading}>
         <View style={[styles.wellnessIcon, { backgroundColor: referenceColors.orange }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={referenceColors.orange} accentColor={referenceColors.orange} foregroundColor={referenceColors.foreground} highlightColor={referenceColors.foreground} /></View>
         <Text numberOfLines={narrowCompact ? 2 : 1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.moodHeadingTitle, narrowCompact && { fontSize: 10, lineHeight: 11 }, { color: referenceColors.foreground }]}>How are you feeling?</Text>
-        <Feather name="chevron-right" size={17} color={referenceColors.foreground} />
       </View>
       <View style={[styles.moodOptions, compact && styles.moodOptionsCompact, expanded && styles.moodOptionsExpanded]}>
         {moodOptions.map((item) => {
@@ -1714,11 +1713,11 @@ function makeGaugeStyles(f: number) {
   },
   kcalLeft: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
   goalText:  { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 6, opacity: 0.72 },
-  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 6 * MERGED_WIDGET_HEIGHT_SCALE },
+  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE },
   statItem:  { alignItems: 'center' as const },
   statDivider: { width: 1, height: 28 },
   statNumber: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.6 },
-  statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 7, letterSpacing: 0.5, textTransform: 'uppercase' as const },
   burnedAction: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 4, maxWidth: 140, textAlign: 'center' as const },
   });
 }
@@ -2294,8 +2293,8 @@ function makeStyles(f: number) {
    hydrationRecoveryButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
    hydrationRecoveryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     homeHeader: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 1.08 }] },
-    homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.62)' },
+    homeHeaderImage: { ...StyleSheet.absoluteFillObject, transform: [{ scale: 0.88 }] },
+    homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.44)' },
   homeHeaderContent: { minHeight: 125 * MERGED_WIDGET_HEIGHT_SCALE, padding: 18, paddingLeft: 48, paddingBottom: 26 * MERGED_WIDGET_HEIGHT_SCALE, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 8, left: 8, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
