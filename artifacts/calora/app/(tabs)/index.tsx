@@ -885,8 +885,10 @@ function StepsTodayCard({
     return (
       <View testID="dashboard-steps-card-expanded" style={[styles.dashboardHydrationFrame, styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
         <View style={styles.stepsExpandedHeader}>
-          <View style={[styles.stepsIcon, { backgroundColor: referenceColors.accent }]}><Feather name="activity" size={20} color={referenceColors.accentForeground} /></View>
-          <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text>
+          <View style={styles.stepsExpandedHeaderGroup}>
+            <View style={[styles.stepsIcon, { backgroundColor: referenceColors.accent }]}><Feather name="activity" size={20} color={referenceColors.accentForeground} /></View>
+            <Text accessibilityRole="header" style={[styles.stepsCardTitle, { color: referenceColors.foreground }]}>Steps today</Text>
+          </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedHeaderAction}>
             <Feather name="chevron-right" size={18} color={referenceColors.foreground} />
           </Pressable>
@@ -894,8 +896,6 @@ function StepsTodayCard({
         <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} style={styles.stepsExpandedBody}>
           <StepProgressRing steps={steps} dailyStepGoal={dailyStepGoal} progress={progress} colors={referenceColors} accessibilitySummary={accessibilitySummary} ringSizeOverride={128} />
           <View style={styles.stepsExpandedSummary}>
-            <Text style={[styles.stepsExpandedValue, { color: referenceColors.foreground }]}>{steps === null ? '—' : formatWhole(steps)}</Text>
-            <Text style={[styles.stepsExpandedGoal, { color: referenceColors.mutedForeground }]}>of {formatWhole(dailyStepGoal)} steps</Text>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} testID="dashboard-steps-status" style={[styles.stepsExpandedStatus, { color: tracking.status === 'live' ? referenceColors.success : referenceColors.mutedForeground }]}>{status}</Text>
           </View>
         </Pressable>
@@ -2354,13 +2354,12 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 7, borderRadius: 4 },
   livingRhythmAddMealAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: h(10), marginTop: h(16) },
   stepsExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(17), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: h(3) },
-  stepsExpandedHeaderAction: { width: 32, height: 32, marginLeft: 0, alignItems: 'center', justifyContent: 'center' },
+  stepsExpandedHeader: { position: 'relative', minHeight: 36, alignItems: 'center', justifyContent: 'center', marginBottom: h(3) },
+  stepsExpandedHeaderGroup: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  stepsExpandedHeaderAction: { position: 'absolute', right: 0, top: 2, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 },
-  stepsExpandedSummary: { flex: 1, minWidth: 0, gap: 3 },
-  stepsExpandedValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 26 * f, letterSpacing: -0.7 },
-  stepsExpandedGoal: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  stepsExpandedStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 5 },
+  stepsExpandedSummary: { flex: 1, minWidth: 0, alignItems: 'flex-start', justifyContent: 'center' },
+  stepsExpandedStatus: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 14 * f },
   stepsCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: 0, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(7), marginBottom: 0, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   stepsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minHeight: h(8) },
   stepsIcon: { width: 36, height: h(36), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

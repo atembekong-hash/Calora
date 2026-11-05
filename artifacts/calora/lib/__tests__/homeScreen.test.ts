@@ -151,6 +151,35 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('<FoodLogThumbnail log={log} size={44} borderRadius={14} />');
     expect(source).toContain('styles.emptyDiaryGlyph');
   });
+
+  it('centers the Expanded Steps header while keeping the arrow independently right-aligned', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('styles.stepsExpandedHeaderGroup');
+    expect(source).toContain('position: \'absolute\', right: 0');
+  });
+
+  it('keeps Expanded Steps count and goal details inside the ring without repeating them in the side summary', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const expandedStart = source.indexOf('testID="dashboard-steps-card-expanded"');
+    const expandedEnd = source.indexOf('testID="dashboard-steps-action"', expandedStart);
+    const expandedSection = source.slice(expandedStart, expandedEnd);
+
+    expect(expandedSection).toContain('ringSizeOverride={128}');
+    expect(expandedSection).toContain('styles.stepsExpandedStatus');
+    expect(expandedSection).not.toContain('styles.stepsExpandedValue');
+    expect(expandedSection).not.toContain('styles.stepsExpandedGoal');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -719,7 +748,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('Ready to start');
     expect(source).toContain('dashboardFastingExpandedFooter');
     expect(source).toContain('stepsExpandedBody');
-    expect(source).toContain("stepsExpandedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: h(3) }");
+    expect(source).toContain("stepsExpandedHeader: { position: 'relative', minHeight: 36, alignItems: 'center', justifyContent: 'center', marginBottom: h(3) }");
+    expect(source).toContain('stepsExpandedHeaderGroup');
     expect(source).toContain('stepsExpandedHeaderAction');
     expect(source).toContain("stepsExpandedBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 18 }");
     expect(source).toContain('ringSizeOverride={128}');
