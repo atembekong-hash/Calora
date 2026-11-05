@@ -1487,6 +1487,8 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     ],
     weights:              [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
     waterLogs:            { '2026-08-07': 48 },
+    hydrationGoalOunces:  64,
+    hydrationUnit:        'fl oz',
     moodLogs:             { '2026-08-07': 'energized' },
     activityLogs:         { '2026-08-07': 'moderate' },
     activityMinutesLogs:  { '2026-08-07': 30 },

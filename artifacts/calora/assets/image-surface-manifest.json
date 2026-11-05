@@ -6640,6 +6640,15 @@
       "role": "local editorial thumbnail in a related Learning lesson widget; the related lesson label remains the accessible content",
       "owner": "Calora product team",
       "reviewStatus": "reviewed decorative primitive"
+    },
+    {
+      "id": "hydration-learning-card",
+      "path": "artifacts/calora/app/hydration.tsx",
+      "anchor": "source={getLearningEditorialImage(lesson)}",
+      "classification": "content",
+      "role": "hydration Learning article artwork from the approved local editorial image registry",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed renderer registration"
     }
   ]
 }

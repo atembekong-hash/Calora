@@ -28,6 +28,8 @@ export interface CaloraExportState {
   logs: unknown[];
   weights: unknown[];
   waterLogs: Record<string, unknown>;
+  hydrationGoalOunces?: number;
+  hydrationUnit?: 'fl oz' | 'ml';
   moodLogs: Record<string, unknown>;
   activityLogs: Record<string, unknown>;
   activityMinutesLogs: Record<string, unknown>;
