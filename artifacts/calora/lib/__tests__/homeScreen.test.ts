@@ -109,6 +109,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('const HYDRATION_WIDGET_HEIGHT = 199;');
     expect(source).toContain('const CALORIE_GAUGE_HEIGHT_SCALE = 1.155;');
     expect(source).toContain('const CALORIE_RING_SCALE = 1.32;');
+    expect(source).toContain('const CALORIE_RING_VERTICAL_OFFSET = 16;');
     expect(source).toContain('const WATER_WIDGET_HEIGHT_SCALE = 1.3;');
     expect(source).toContain('const WATER_CUP_SCALE = 1.25;');
     expect(source).toContain('minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE');
