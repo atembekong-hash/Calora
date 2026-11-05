@@ -24,6 +24,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { StepMilestoneCelebration } from '@/components/StepMilestoneCelebration';
+import { AndroidStepsCard } from '@/components/AndroidStepsCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -895,6 +896,13 @@ function StepsTodayCard({
       : 'Session steps since Calora opened'
     : 'Steps today';
   const accessibilitySummary = `${accessibilityPrefix}: ${steps === null ? 'unavailable' : formatWhole(steps)} of ${formatWhole(dailyStepGoal)}. ${status}.`;
+  if (Platform.OS === 'android') {
+    return (
+      <AndroidStepsCard expanded={expanded} colors={referenceColors} steps={steps} goal={dailyStepGoal} progress={progress} status={status} live={tracking.status === 'live'} sessionOnly={sessionOnly} accessibilitySummary={accessibilitySummary} actionLabel={actionLabel} onAction={onPress} onOpenSteps={onOpenSteps}>
+        {milestone !== null ? <StepMilestoneCelebration milestone={milestone} colors={referenceColors} onDismiss={() => onDismissMilestone(milestone)} /> : null}
+      </AndroidStepsCard>
+    );
+  }
   if (expanded) {
     return (
       <View testID="dashboard-steps-card-expanded" style={[styles.dashboardHydrationFrame, styles.stepsExpandedCard, { backgroundColor: referenceColors.card, borderColor: referenceColors.border }]}>
