@@ -36,7 +36,7 @@ function AndroidStepRing({ diameter, steps, goal, progress, colors, summary }: {
         <Circle cx={diameter / 2} cy={diameter / 2} r={radius} stroke={colors.muted} strokeWidth={stroke} fill="none" />
         <AnimatedCircle animatedProps={animatedProps} cx={diameter / 2} cy={diameter / 2} r={radius} stroke={colors.primary} strokeWidth={stroke} strokeLinecap="round" fill="none" strokeDasharray={length} transform={`rotate(-90 ${diameter / 2} ${diameter / 2})`} />
       </Svg>
-      <View pointerEvents="none" accessible={false} style={styles.ringCopy}>
+      <View pointerEvents="none" accessible={false} style={[styles.ringCopy, { marginHorizontal: Math.max(12, diameter * 0.16) }]}>
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={[styles.count, { color: colors.foreground, fontSize: Math.min(25.2, diameter * 0.25) }]}>{steps === null ? '—' : formatWhole(steps)}</Text>
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.goal, { color: colors.mutedForeground, fontSize: diameter < 80 ? 7 : 9 }]}>{`of ${formatWhole(goal)}`}</Text>
       </View>
@@ -81,7 +81,7 @@ export function AndroidStepsCard({ expanded, colors, steps, goal, progress, stat
             <Pressable accessibilityRole="button" accessibilityLabel="Open Steps" onPress={onOpenSteps} hitSlop={7} style={styles.arrow}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable>
           </View>
           <Text accessibilityRole="header" numberOfLines={expanded ? 1 : 2} style={[styles.title, { color: colors.foreground, fontSize: expanded ? 12.6 : 11 }]}>{expanded ? 'Steps today' : 'Steps'}</Text>
-          <Text testID="dashboard-steps-status" accessibilityLabel={status} numberOfLines={expanded ? 3 : 2} ellipsizeMode="tail" style={[styles.status, { color: live ? colors.success : colors.mutedForeground, fontSize: expanded ? 9 : 8 }]}>{displayedStatus}</Text>
+          <Text testID="dashboard-steps-status" accessibilityLabel={status} numberOfLines={expanded ? 3 : 2} ellipsizeMode="tail" style={[styles.status, { color: live ? expanded ? colors.success : colors.primary : colors.mutedForeground, fontSize: expanded ? 9 : 8 }]}>{displayedStatus}</Text>
           {actionLabel && onAction && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} testID="dashboard-steps-action" onPress={onAction} style={[styles.action, { backgroundColor: expanded ? colors.muted : colors.accent, borderColor: colors.border }]}><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.actionText, { color: expanded ? colors.primary : colors.foreground }]}>{actionLabel}</Text></Pressable>}
         </View>
       </View>
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
   ringLink: { alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', flexShrink: 0, padding: 2 },
   ring: { flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  ringCopy: { ...StyleSheet.absoluteFillObject, marginHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  ringCopy: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   count: { alignSelf: 'stretch', fontFamily: 'Inter_800ExtraBold', textAlign: 'center', letterSpacing: -0.5 },
   goal: { alignSelf: 'stretch', fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 1 },
   right: { flex: 1, minWidth: 0, justifyContent: 'center' },
