@@ -96,6 +96,23 @@ describe('living-state-action button — static render guarantee', () => {
 });
 
 describe('Today dashboard visual-source boundary', () => {
+  it('keeps the native Android Water and calorie spacing overrides isolated from web values', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("const ANDROID_WATER_CUP_SCALE = 1.38;");
+    expect(source).toContain("const WATER_SLOTS_GAP = Platform.OS === 'android' ? 8 : 4;");
+    expect(source).toContain("Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE");
+    expect(source).toContain("marginTop: (Platform.OS === 'android' ? 20 : 14) * MERGED_WIDGET_HEIGHT_SCALE");
+    expect(source).toContain("marginTop: (Platform.OS === 'android' ? 10 : 7)");
+    expect(source).toContain('export function WaterCard(');
+    expect(source).toContain('export function CalorieGauge(');
+  });
+
   it('applies one shared 20 percent vertical compression to Today widgets', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
@@ -120,7 +137,7 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain("viewportWidth < 400 ? 80 : 90");
     expect(source).toContain('ringSizeOverride={160}');
     expect(source).toContain('statLabel:');
-    expect(source).toContain('marginTop: 7, letterSpacing: 0.5');
+    expect(source).toContain("marginTop: (Platform.OS === 'android' ? 10 : 7), letterSpacing: 0.5");
   });
 
   it('keeps the profile shortcut bound to the shared persisted photo control', async () => {
@@ -828,8 +845,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("moodOptionsExpanded: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }");
     expect(source).toContain("moodOptionExpanded: { minHeight: 0, height: h(52) }");
     expect(source).toContain('expanded && styles.moodOptionExpanded');
-    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44 * WATER_CUP_SCALE), marginTop: h(8), marginBottom: h(8) }");
-    expect(source).toContain("waterSlot: { flex: 1, height: h(50 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' }");
+    expect(source).toContain("waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: WATER_SLOTS_GAP, height: h(44 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE)), marginTop: h(8), marginBottom: h(8) }");
+    expect(source).toContain("waterSlot: { flex: 1, height: h(50 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE)), alignItems: 'center', justifyContent: 'flex-end' }");
     expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
     expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
