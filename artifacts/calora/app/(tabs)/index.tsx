@@ -111,8 +111,10 @@ const CALORIE_RING_SCALE = 1.32;
 const CALORIE_RING_VERTICAL_OFFSET = 24;
 const WATER_WIDGET_HEIGHT_SCALE = 1.235;
 const WATER_CUP_SCALE = 1.48;
-const WATER_CUP_WIDTH = 38.5 * WATER_CUP_SCALE;
-const WATER_CUP_HEIGHT = 44 * WATER_CUP_SCALE;
+const ANDROID_WATER_CUP_SCALE = 1.38;
+const WATER_CUP_WIDTH = 38.5 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE);
+const WATER_CUP_HEIGHT = 44 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE);
+const WATER_SLOTS_GAP = Platform.OS === 'android' ? 8 : 4;
 // The greeting header and calorie card read as one merged surface on Home.
 // Keep their content and math unchanged while controlling only the vertical footprint.
 const MERGED_WIDGET_HEIGHT_SCALE = TODAY_WIDGET_HEIGHT_SCALE;
@@ -599,7 +601,7 @@ const moodOptions: Array<{ value: Mood; label: string; icon: keyof typeof Feathe
 
 const waterQuickAmounts = [8] as const;
 
-function WaterCard({
+export function WaterCard({
   colors,
   waterOunces,
   waterConfirmed,
@@ -1557,7 +1559,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   );
 }
 
-function CalorieGauge({
+export function CalorieGauge({
   consumed,
   burned,
   burnedActionLabel,
@@ -1713,11 +1715,11 @@ function makeGaugeStyles(f: number) {
   },
   kcalLeft: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
   goalText:  { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 6, opacity: 0.72 },
-  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE },
+  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: (Platform.OS === 'android' ? 20 : 14) * MERGED_WIDGET_HEIGHT_SCALE },
   statItem:  { alignItems: 'center' as const },
   statDivider: { width: 1, height: 28 },
   statNumber: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.6 },
-  statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 7, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: (Platform.OS === 'android' ? 10 : 7), letterSpacing: 0.5, textTransform: 'uppercase' as const },
   burnedAction: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 4, maxWidth: 140, textAlign: 'center' as const },
   });
 }
@@ -2442,8 +2444,8 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: h(44 * WATER_CUP_SCALE), marginTop: h(8), marginBottom: h(8) },
-   waterSlot: { flex: 1, height: h(50 * WATER_CUP_SCALE), alignItems: 'center', justifyContent: 'flex-end' },
+   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: WATER_SLOTS_GAP, height: h(44 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE)), marginTop: h(8), marginBottom: h(8) },
+   waterSlot: { flex: 1, height: h(50 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE)), alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: h(14), minHeight: h(18) },
