@@ -7,6 +7,7 @@ export const DASHBOARD_WIDGET_IDS = [
   "nutrients",
   "fasting",
   "mood",
+  "progressSnapshot",
   "recipes",
   "quickLog",
   "log",
@@ -24,7 +25,7 @@ export type DashboardPreferences = {
   placement: Record<DashboardWidgetId, DashboardPlacement>;
 };
 
-const DASHBOARD_PREFERENCES_VERSION = 5;
+const DASHBOARD_PREFERENCES_VERSION = 6;
 const LEGACY_DEFAULT_DASHBOARD_ORDER: readonly DashboardWidgetId[] = [
   "calories",
   "fasting",
@@ -38,6 +39,7 @@ const LEGACY_DEFAULT_DASHBOARD_ORDER: readonly DashboardWidgetId[] = [
 ];
 const NEW_TODAY_WIDGET_IDS: readonly DashboardWidgetId[] = [
   "mood",
+  "progressSnapshot",
   "recipes",
   "quickLog",
   "log",
@@ -52,6 +54,7 @@ export const CONFIGURABLE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = [
   "recipes",
   "quickLog",
   "log",
+  "progressSnapshot",
 ];
 
 /** The four cards that support independent Compact/Expanded rendering and placement. */
@@ -78,6 +81,7 @@ const DEFAULT_DENSITY: Record<DashboardWidgetId, DashboardDensity> = {
   recipes: "expanded",
   quickLog: "compact",
   log: "expanded",
+  progressSnapshot: "compact",
 };
 
 const DEFAULT_PLACEMENT: Record<DashboardWidgetId, DashboardPlacement> = {
@@ -92,12 +96,13 @@ const DEFAULT_PLACEMENT: Record<DashboardWidgetId, DashboardPlacement> = {
   recipes: "left",
   quickLog: "left",
   log: "left",
+  progressSnapshot: "left",
 };
 
 export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
   version: DASHBOARD_PREFERENCES_VERSION,
-  visible: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
-  order: ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "recipes"],
+  visible: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log", "progressSnapshot"],
+  order: ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "progressSnapshot", "recipes"],
   density: { ...DEFAULT_DENSITY },
   placement: { ...DEFAULT_PLACEMENT },
 };
@@ -135,9 +140,9 @@ export function normalizeDashboardPreferences(raw: unknown): DashboardPreference
   const normalizedOrder: DashboardWidgetId[] = candidate.version !== DASHBOARD_PREFERENCES_VERSION
     && suppliedOrder.length === LEGACY_DEFAULT_DASHBOARD_ORDER.length
     && suppliedOrder.every((id, index) => id === LEGACY_DEFAULT_DASHBOARD_ORDER[index])
-    ? ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "recipes"]
+    ? ["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "log", "progressSnapshot", "recipes"]
     : candidate.version !== DASHBOARD_PREFERENCES_VERSION && suppliedOrder.includes("recipes")
-      ? [...suppliedOrder.filter((id) => id !== "recipes"), "recipes"]
+      ? [...suppliedOrder.filter((id) => id !== "recipes" && id !== "progressSnapshot"), "progressSnapshot", "recipes"]
       : suppliedOrder;
   const order = [...normalizedOrder, ...ACTIVE_DASHBOARD_WIDGET_IDS.filter((id) => !normalizedOrder.includes(id))];
   const candidateDensity = candidate.density && typeof candidate.density === "object" ? candidate.density : {};

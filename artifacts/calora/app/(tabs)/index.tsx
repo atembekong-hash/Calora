@@ -70,6 +70,7 @@ import { deriveFastingProgress, fastingPlanLabel, formatFastingDuration } from '
 import { normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 import { buildDashboardRows, RESPONSIVE_DASHBOARD_WIDGET_IDS } from '@/lib/dashboardPreferences';
 import { useClock } from '@/lib/useClock';
+import { calculateProgressSnapshot } from '@/lib/progressSnapshot';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -1725,6 +1726,115 @@ function makeGaugeStyles(f: number) {
 }
 const gaugeStyles = makeGaugeStyles(1.0);
 
+function ProgressSnapshotCard({
+  colors,
+  fontScale,
+  logs,
+  healthConnection,
+  weights,
+  todayKey,
+  dailyStepGoal,
+  expanded,
+  onOpenProgress,
+}: {
+  colors: CaloraColors;
+  fontScale: number;
+  logs: FoodLog[];
+  healthConnection: ReturnType<typeof useCalora>['healthConnection'];
+  weights: ReturnType<typeof useCalora>['weights'];
+  todayKey: string;
+  dailyStepGoal: number;
+  expanded: boolean;
+  onOpenProgress: () => void;
+}) {
+  const styles = makeStyles(fontScale);
+  const snapshot = calculateProgressSnapshot(logs, healthConnection.snapshot?.dailyMetrics, weights, todayKey, dailyStepGoal);
+  const ringSize = expanded ? 110 : 98;
+  const ringStroke = 9;
+  const radius = (ringSize - ringStroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const ringProgress = snapshot.nutritionDays / 7;
+  const metricColors = [colors.success, colors.carbs, colors.warning];
+  const metrics = [
+    { label: 'Nutrition', ...snapshot.nutrition },
+    { label: 'Steps', ...snapshot.steps },
+    { label: 'Weight', ...snapshot.weight },
+  ];
+  return (
+    <ScalePressable
+      testID="progress-snapshot-widget"
+      accessibilityRole="button"
+      accessibilityLabel={`Open Progress. ${snapshot.nutritionDays} of 7 nutrition days logged this week.`}
+      onPress={onOpenProgress}
+      scale={0.985}
+      haptic="light"
+      style={[styles.progressSnapshotCard, expanded && styles.progressSnapshotCardExpanded, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={styles.progressSnapshotHeader}>
+        <View style={styles.progressSnapshotTitleRow}>
+          <View style={[styles.progressSnapshotIcon, { backgroundColor: colors.success + '18' }]}>
+            <Feather name="bar-chart-2" size={19} color={colors.success} />
+          </View>
+          <View style={styles.progressSnapshotTitleCopy}>
+            <Text style={[styles.progressSnapshotTitle, { color: colors.foreground, fontSize: 15 * fontScale }]}>Progress this week</Text>
+            <Text style={[styles.progressSnapshotSubtitle, { color: colors.mutedForeground, fontSize: 10 * fontScale }]}>Your weekly snapshot</Text>
+          </View>
+        </View>
+        <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+      </View>
+      <View style={styles.progressSnapshotHero}>
+        <View style={[styles.progressSnapshotRing, { width: ringSize, height: ringSize }]}>
+          <Svg width={ringSize} height={ringSize}>
+            <Circle cx={ringSize / 2} cy={ringSize / 2} r={radius} stroke={colors.muted} strokeWidth={ringStroke} fill="none" />
+            <Circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={radius}
+              stroke={colors.success}
+              strokeWidth={ringStroke}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={circumference * (1 - ringProgress)}
+              rotation="-90"
+              origin={`${ringSize / 2}, ${ringSize / 2}`}
+            />
+          </Svg>
+          <View style={styles.progressSnapshotRingCopy}>
+            <Text style={[styles.progressSnapshotRingValue, { color: colors.foreground, fontSize: 17 * fontScale }]}>{snapshot.nutritionDays}/7</Text>
+            <Text style={[styles.progressSnapshotRingLabel, { color: colors.mutedForeground, fontSize: 8 * fontScale }]}>days logged</Text>
+          </View>
+        </View>
+        <View style={styles.progressSnapshotSummary}>
+          <Text style={[styles.progressSnapshotSummaryValue, { color: colors.foreground, fontSize: 18 * fontScale }]}>{snapshot.nutritionDays} active day{snapshot.nutritionDays === 1 ? '' : 's'}</Text>
+          <Text style={[styles.progressSnapshotSummaryCopy, { color: colors.mutedForeground, fontSize: 10 * fontScale }]}>You&apos;ve logged nutrition on {snapshot.nutritionDays} day{snapshot.nutritionDays === 1 ? '' : 's'} this week.</Text>
+          <View style={[styles.progressSnapshotConsistency, { backgroundColor: colors.success + '18' }]}>
+            <Feather name="calendar" size={14} color={colors.success} />
+            <Text style={[styles.progressSnapshotConsistencyText, { color: colors.success, fontSize: 10 * fontScale }]}>Weekly consistency</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.progressSnapshotMetrics}>
+        {metrics.map((metric, index) => (
+          <View key={metric.label} style={[styles.progressSnapshotMetric, { backgroundColor: `${metricColors[index]}18` }]}>
+            <View style={styles.progressSnapshotMetricHeader}>
+              <View style={[styles.progressSnapshotMetricDot, { backgroundColor: metricColors[index] }]} />
+              <Text style={[styles.progressSnapshotMetricLabel, { color: colors.mutedForeground, fontSize: 9 * fontScale }]}>{metric.label}</Text>
+            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} style={[styles.progressSnapshotMetricValue, { color: colors.foreground, fontSize: 13 * fontScale }]}>{metric.value}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.progressSnapshotMetricDetail, { color: colors.mutedForeground, fontSize: 8.5 * fontScale }]}>{metric.detail}</Text>
+            {metric.progress !== null && <View style={[styles.progressSnapshotMetricTrack, { backgroundColor: colors.muted }]}><View style={[styles.progressSnapshotMetricFill, { width: `${Math.round(metric.progress * 100)}%`, backgroundColor: metricColors[index] }]} /></View>}
+          </View>
+        ))}
+      </View>
+      <View style={[styles.progressSnapshotAction, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.progressSnapshotActionText, { color: colors.primaryForeground, fontSize: 11 * fontScale }]}>View full progress</Text>
+        <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+      </View>
+    </ScalePressable>
+  );
+}
+
 function DashboardFastingCard({
   expanded = false,
   colors,
@@ -1916,7 +2026,7 @@ export default function HomeScreen() {
     .replace('today’s logged calories', 'logged calories')
     .replace('while more than half of daily calories are logged.', 'after half your calories are logged.');
   const postGridWidgetOrder = useMemo(
-    () => dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log'),
+    () => dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log' || id === 'progressSnapshot'),
     [dashboardPreferences.order],
   );
   const supportingRows = useMemo(
@@ -2196,6 +2306,9 @@ export default function HomeScreen() {
             </View>
             {postGridWidgetOrder.map((widgetId) => {
               if (!dashboardPreferences.visible.includes(widgetId)) return null;
+              if (widgetId === 'progressSnapshot') {
+                return <ProgressSnapshotCard key={widgetId} colors={colors} fontScale={fontScale} logs={logs} healthConnection={healthConnection} weights={weights} todayKey={todayKey} dailyStepGoal={dailyStepGoal} expanded={dashboardPreferences.density[widgetId] === 'expanded'} onOpenProgress={() => router.navigate('/(tabs)/insights')} />;
+              }
               if (widgetId === 'water') {
                 return <View key={widgetId} style={styles.dashboardWideSection}><WaterCard colors={colors} waterOunces={selectedWater} waterConfirmed={waterConfirmed} waterConfirmedAmount={waterConfirmedAmount} onOpenHydration={() => router.push('/hydration' as never)} onAddWater={(ounces) => { if (isWaterConfirmed()) { setWaterConfirmed(true); return; } addWater(selectedDate, ounces); setSaveNotice(`${ounces} fl oz added for this day.`); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); recordWaterConfirmation(); setWaterConfirmed(true); setWaterConfirmedAmount(ounces); }} onSubtractWater={() => { if (selectedWater <= 0) return; addWater(selectedDate, -8); setSaveNotice('8 fl oz removed from this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} /></View>;
               }
@@ -2321,6 +2434,35 @@ function makeStyles(f: number) {
   dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' },
   dashboardSingleColumnCell: { width: '100%', maxWidth: '100%', minWidth: 0 },
   dashboardWideSection: { width: 'auto', marginHorizontal: -10 },
+  progressSnapshotCard: { width: 'auto', marginHorizontal: -10, marginTop: h(12), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(13.5), marginBottom: h(24), shadowColor: '#17231f', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  progressSnapshotCardExpanded: { paddingVertical: h(17), borderRadius: 24 },
+  progressSnapshotHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  progressSnapshotTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1, minWidth: 0 },
+  progressSnapshotIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  progressSnapshotTitleCopy: { flex: 1, minWidth: 0 },
+  progressSnapshotTitle: { fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.25 },
+  progressSnapshotSubtitle: { fontFamily: 'Inter_500Medium', marginTop: 2 },
+  progressSnapshotHero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: h(10), marginBottom: h(8) },
+  progressSnapshotRing: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  progressSnapshotRingCopy: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  progressSnapshotRingValue: { fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.5 },
+  progressSnapshotRingLabel: { fontFamily: 'Inter_600SemiBold', marginTop: 1 },
+  progressSnapshotSummary: { flex: 1, minWidth: 0 },
+  progressSnapshotSummaryValue: { fontFamily: 'Inter_800ExtraBold', letterSpacing: -0.35 },
+  progressSnapshotSummaryCopy: { fontFamily: 'Inter_500Medium', lineHeight: 14 * f, marginTop: 4 },
+  progressSnapshotConsistency: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginTop: 10 },
+  progressSnapshotConsistencyText: { fontFamily: 'Inter_700Bold' },
+  progressSnapshotMetrics: { flexDirection: 'row', gap: 8 },
+  progressSnapshotMetric: { flex: 1, minWidth: 0, paddingTop: 8, paddingHorizontal: 7, paddingBottom: 7, borderRadius: 13 },
+  progressSnapshotMetricHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  progressSnapshotMetricDot: { width: 6, height: 6, borderRadius: 3 },
+  progressSnapshotMetricLabel: { fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.35 },
+  progressSnapshotMetricValue: { fontFamily: 'Inter_800ExtraBold', marginTop: 5, letterSpacing: -0.3 },
+  progressSnapshotMetricDetail: { fontFamily: 'Inter_500Medium', marginTop: 2, minHeight: 11 },
+  progressSnapshotMetricTrack: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 6 },
+  progressSnapshotMetricFill: { height: 4, borderRadius: 2 },
+  progressSnapshotAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, marginTop: h(10), paddingVertical: h(8.5) },
+  progressSnapshotActionText: { fontFamily: 'Inter_700Bold' },
   dashboardGridCard: { flex: 1, alignSelf: 'stretch', height: h(SUPPORTING_WIDGET_BASE_HEIGHT), minHeight: h(SUPPORTING_WIDGET_BASE_HEIGHT), overflow: 'hidden', marginBottom: 0, paddingVertical: h(6), paddingHorizontal: 10, borderRadius: 18 },
   dashboardCardTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f, letterSpacing: -0.25 },
   dashboardFastingExpandedCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 15, paddingVertical: h(13), marginBottom: 0, gap: h(5) },

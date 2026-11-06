@@ -849,7 +849,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("waterSlot: { flex: 1, height: h(50 * (Platform.OS === 'android' ? ANDROID_WATER_CUP_SCALE : WATER_CUP_SCALE)), alignItems: 'center', justifyContent: 'flex-end' }");
     expect(source).toContain("waterAdjustActions: { gap: 8, marginTop: h(4) }");
     expect(source).toContain("moodOptionsCompact: { flexWrap: 'wrap'");
-    expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log')");
+    expect(source).toContain("dashboardPreferences.order.filter((id) => id === 'water' || id === 'recipes' || id === 'quickLog' || id === 'log' || id === 'progressSnapshot')");
+    expect(source).toContain('testID="progress-snapshot-widget"');
     expect(source).toContain("if (widgetId === 'recipes')");
     const calorieStart = source.indexOf('function CalorieGauge');
     const fastingStart = source.indexOf('function DashboardFastingCard');
