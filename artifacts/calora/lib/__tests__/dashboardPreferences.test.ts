@@ -14,7 +14,7 @@ describe("dashboard preferences", () => {
       order: ["fasting", "unknown", "water"],
       density: { water: "expanded", fasting: "not-valid" },
     });
-    expect(result.visible).toEqual(["calories", "water", "mood", "recipes", "quickLog", "log"]);
+    expect(result.visible).toEqual(["calories", "water", "mood", "progressSnapshot", "recipes", "quickLog", "log"]);
     expect(result.order.slice(0, 2)).toEqual(["fasting", "water"]);
     expect(result.order).toHaveLength(
       DEFAULT_DASHBOARD_PREFERENCES.order.length,
@@ -72,8 +72,8 @@ describe("dashboard preferences", () => {
       order: ["calories", "fasting", "steps", "nutrients", "mood", "recipes", "quickLog", "water", "log"],
       density: {},
     });
-    expect(migrated.version).toBe(5);
-    expect(migrated.order.slice(5, 9)).toEqual(["water", "quickLog", "log", "recipes"]);
+    expect(migrated.version).toBe(6);
+    expect(migrated.order.slice(5, 10)).toEqual(["water", "quickLog", "log", "progressSnapshot", "recipes"]);
     expect(migrated.placement.fasting).toBe("left");
     expect(migrated.placement.steps).toBe("right");
   });
@@ -87,7 +87,7 @@ describe("dashboard preferences", () => {
   });
 
   it("preserves size and placement independently when normalizing persisted settings", () => {
-    const result = normalizeDashboardPreferences({ version: 5, visible: DEFAULT_DASHBOARD_PREFERENCES.visible, order: DEFAULT_DASHBOARD_PREFERENCES.order, density: { ...DEFAULT_DASHBOARD_PREFERENCES.density, mood: "expanded" }, placement: { ...DEFAULT_DASHBOARD_PREFERENCES.placement, fasting: "right", steps: "left" } });
+    const result = normalizeDashboardPreferences({ version: 6, visible: DEFAULT_DASHBOARD_PREFERENCES.visible, order: DEFAULT_DASHBOARD_PREFERENCES.order, density: { ...DEFAULT_DASHBOARD_PREFERENCES.density, mood: "expanded" }, placement: { ...DEFAULT_DASHBOARD_PREFERENCES.placement, fasting: "right", steps: "left" } });
     expect(result.density.mood).toBe("expanded");
     expect(result.placement.fasting).toBe("right");
     expect(result.placement.steps).toBe("left");

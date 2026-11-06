@@ -69,6 +69,11 @@ const widgetCopy: Partial<Record<
     description: "Review and edit meals logged today.",
     icon: "list",
   },
+  progressSnapshot: {
+    title: "Progress this week",
+    description: "Weekly nutrition, activity, and weigh-in snapshot.",
+    icon: "bar-chart-2",
+  },
 };
 
 export default function DashboardLayoutScreen() {
