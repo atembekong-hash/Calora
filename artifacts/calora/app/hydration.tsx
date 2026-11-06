@@ -34,7 +34,7 @@ function shiftAnchor(period: Period, anchor: string, direction: number): string 
   return addDays(anchor, direction * 180);
 }
 
-function HydrationRing({ progress, colors, size }: { progress: number; colors: any; size: number }) {
+function HydrationRing({ progress, status, colors, size }: { progress: number; status: string; colors: any; size: number }) {
   const radius = (size - 22) / 2;
   const circumference = 2 * Math.PI * radius;
   return (
@@ -47,6 +47,7 @@ function HydrationRing({ progress, colors, size }: { progress: number; colors: a
         <Feather name="droplet" size={20} color={colors.protein} />
         <Text style={[styles.ringPercent, { color: colors.foreground }]}>{Math.round(progress * 100)}%</Text>
         <Text style={[styles.ringCaption, { color: colors.mutedForeground }]}>of goal</Text>
+        <Text style={[styles.ringStatus, { color: colors.protein }]}>{status}</Text>
       </View>
     </View>
   );
@@ -73,6 +74,15 @@ export default function HydrationScreen() {
   const goal = Math.max(8, hydrationGoalOunces || 64);
   const progress = todayOunces / goal;
   const remaining = Math.max(0, goal - todayOunces);
+  const elapsedDay = Math.max(1 / 24, Math.min(1, (new Date().getHours() + new Date().getMinutes() / 60) / 24));
+  const paceRatio = progress / elapsedDay;
+  const pacingLabel = progress >= 1 ? 'ON TRACK' : paceRatio >= 0.85 ? 'ON PACE' : paceRatio >= 0.55 ? 'CATCHING UP' : 'START GENTLY';
+  const pacingColor = progress >= 1 || paceRatio >= 0.85 ? colors.protein : paceRatio >= 0.55 ? colors.warning : colors.primary;
+  const consistency = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(today, index - 6);
+    return { date, ratio: Math.min(1, Math.max(0, (waterLogs[date] ?? 0) / goal)) };
+  }), [goal, today, waterLogs]);
+  const consistencyDays = consistency.filter((item) => item.ratio >= 1).length;
   const stylesForScale = useMemo(() => ({ ...styles, page: { ...styles.page, paddingHorizontal: width < 360 ? 14 : 18 } }), [width]);
   const range = periodRange(period, anchor);
   const points = useMemo(() => deriveWaterTrend(waterLogs, range), [waterLogs, range.start, range.end]);
@@ -101,7 +111,7 @@ export default function HydrationScreen() {
       <View style={[stylesForScale.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[stylesForScale.eyebrow, { color: colors.protein }]}>TODAY'S HYDRATION</Text>
         <View style={stylesForScale.overviewRow}>
-          <HydrationRing progress={progress} colors={colors} size={width < 360 ? 148 : 166} />
+          <HydrationRing progress={progress} status={pacingLabel} colors={colors} size={width < 360 ? 168 : 188} />
           <View style={stylesForScale.overviewCopy}>
             <Text style={[stylesForScale.consumed, { color: colors.foreground }]}>{displayAmount(todayOunces, hydrationUnit)} <Text style={[stylesForScale.unit, { color: colors.mutedForeground }]}>{unitLabel(hydrationUnit)}</Text></Text>
             <Text style={[stylesForScale.goalLine, { color: colors.mutedForeground }]}>of {displayAmount(goal, hydrationUnit)} {unitLabel(hydrationUnit)} daily goal</Text>
@@ -113,6 +123,27 @@ export default function HydrationScreen() {
           </View>
         </View>
       </View>
+
+      <View style={[stylesForScale.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={stylesForScale.rhythmHeader}>
+          <View style={[stylesForScale.rhythmIcon, { backgroundColor: colors.accent }]}><Feather name="activity" size={17} color={colors.accentForeground} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}><Text style={[stylesForScale.sectionTitle, { color: colors.foreground }]}>Hydration rhythm</Text><Text style={[stylesForScale.sectionSub, { color: colors.mutedForeground }]}>A gentle view of pace, not a prescription.</Text></View>
+          <Text style={[stylesForScale.rhythmStatus, { color: pacingColor }]}>{pacingLabel}</Text>
+        </View>
+          <View style={stylesForScale.rhythmMetrics}>
+          <View><Text style={[stylesForScale.rhythmMetricValue, { color: colors.foreground }]}>{displayAmount(todayOunces, hydrationUnit)}</Text><Text style={[stylesForScale.metricLabel, { color: colors.mutedForeground }]}>logged today</Text></View>
+          <View style={stylesForScale.rhythmMetricDivider} />
+          <View><Text style={[stylesForScale.rhythmMetricValue, { color: colors.foreground }]}>{history.length}</Text><Text style={[stylesForScale.metricLabel, { color: colors.mutedForeground }]}>days recorded</Text></View>
+          <View style={stylesForScale.rhythmMetricDivider} />
+            <View><Text style={[stylesForScale.rhythmMetricValue, { color: colors.foreground }]}>{displayAmount(remaining, hydrationUnit)}</Text><Text style={[stylesForScale.metricLabel, { color: colors.mutedForeground }]}>to goal</Text></View>
+          </View>
+          <View style={stylesForScale.consistencyRow}>
+            <View style={stylesForScale.consistencyCopy}><Text style={[stylesForScale.consistencyTitle, { color: colors.foreground }]}>{consistencyDays}/7 days at goal</Text><Text style={[stylesForScale.metricLabel, { color: colors.mutedForeground }]}>Seven-day consistency</Text></View>
+            <View style={stylesForScale.consistencyDots} accessibilityLabel={`${consistencyDays} of 7 recent days met the hydration goal`}>
+              {consistency.map((item) => <View key={item.date} style={[stylesForScale.consistencyDot, { backgroundColor: item.ratio >= 1 ? colors.protein : item.ratio > 0 ? colors.warning : colors.muted }]} />)}
+            </View>
+          </View>
+        </View>
 
       <View style={[stylesForScale.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={stylesForScale.sectionHeader}><View><Text style={[stylesForScale.sectionTitle, { color: colors.foreground }]}>Quick water logging</Text><Text style={[stylesForScale.sectionSub, { color: colors.mutedForeground }]}>Keep your existing Calora cups in sync.</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Switch hydration units, currently ${unitLabel(hydrationUnit)}`} onPress={() => changeUnit(hydrationUnit === 'ml' ? 'fl oz' : 'ml')} style={[stylesForScale.unitToggle, { backgroundColor: colors.accent }]}><Text style={{ color: colors.accentForeground, fontWeight: '800' }}>{unitLabel(hydrationUnit)}</Text></Pressable></View>
@@ -143,8 +174,21 @@ export default function HydrationScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { paddingBottom: 40, gap: 14 },
-  heroCard: { borderWidth: 1, borderRadius: 24, padding: 18 }, eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 }, overviewRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }, overviewCopy: { flex: 1, minWidth: 0 }, consumed: { fontSize: 28, fontWeight: '900' }, unit: { fontSize: 15, fontWeight: '700' }, goalLine: { fontSize: 13, marginTop: 2 }, metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 17 }, metricValue: { fontSize: 17, fontWeight: '900' }, metricLabel: { fontSize: 11, marginTop: 2 }, ringCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' }, ringPercent: { fontSize: 26, fontWeight: '900', marginTop: 2 }, ringCaption: { fontSize: 11 },
-  card: { borderWidth: 1, borderRadius: 22, padding: 16 }, sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontSize: 18, fontWeight: '900' }, sectionSub: { fontSize: 12, lineHeight: 17, marginTop: 3 }, unitToggle: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: 12 }, cupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginVertical: 20, gap: 5 }, cup: { width: 24, height: 42, borderWidth: 2, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: 'hidden', justifyContent: 'flex-end' }, cupWater: { height: '72%', width: '100%' }, actionRow: { flexDirection: 'row', gap: 10 }, logButton: { flex: 1, minHeight: 45, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 }, goalRow: { borderTopWidth: 1, borderTopColor: '#00000018', marginTop: 16, paddingTop: 14, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, goalTitle: { fontWeight: '900' }, goalEditor: { flexDirection: 'row', alignItems: 'center', gap: 9 }, goalInput: { width: 82, height: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, textAlign: 'center', fontWeight: '800' },
+  heroCard: { borderWidth: 1, borderRadius: 24, padding: 18 }, eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 }, overviewRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }, overviewCopy: { flex: 1, minWidth: 0 }, consumed: { fontSize: 28, fontWeight: '900' }, unit: { fontSize: 15, fontWeight: '700' }, goalLine: { fontSize: 13, marginTop: 2 }, metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 17 }, metricValue: { fontSize: 17, fontWeight: '900' }, metricLabel: { fontSize: 11, marginTop: 2 }, ringCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' }, ringPercent: { fontSize: 26, fontWeight: '900', marginTop: 2 }, ringCaption: { fontSize: 11 }, ringStatus: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, marginTop: 4 },
+  card: { borderWidth: 1, borderRadius: 22, padding: 16 },
+  rhythmCard: { borderWidth: 1, borderRadius: 22, padding: 16, gap: 15 },
+  rhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rhythmIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  rhythmStatus: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  rhythmMetrics: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  rhythmMetricValue: { fontSize: 18, fontWeight: '900' },
+  rhythmMetricDivider: { width: 1, height: 28, backgroundColor: '#00000018' },
+  consistencyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 2 },
+  consistencyCopy: { flex: 1, minWidth: 0 },
+  consistencyTitle: { fontSize: 13, fontWeight: '900' },
+  consistencyDots: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  consistencyDot: { width: 9, height: 9, borderRadius: 5 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }, sectionTitle: { fontSize: 18, fontWeight: '900' }, sectionSub: { fontSize: 12, lineHeight: 17, marginTop: 3 }, unitToggle: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: 12 }, cupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginVertical: 20, gap: 5 }, cup: { width: 24, height: 42, borderWidth: 2, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: 'hidden', justifyContent: 'flex-end' }, cupWater: { height: '72%', width: '100%' }, actionRow: { flexDirection: 'row', gap: 10 }, logButton: { flex: 1, minHeight: 45, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 }, goalRow: { borderTopWidth: 1, borderTopColor: '#00000018', marginTop: 16, paddingTop: 14, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, goalTitle: { fontWeight: '900' }, goalEditor: { flexDirection: 'row', alignItems: 'center', gap: 9 }, goalInput: { width: 82, height: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, textAlign: 'center', fontWeight: '800' },
   periodNav: { flexDirection: 'row', gap: 14 }, segmented: { flexDirection: 'row', gap: 6, marginTop: 14, padding: 4, borderRadius: 14, backgroundColor: '#00000010' }, segment: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 10 }, chart: { height: 184, marginTop: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', position: 'relative', paddingBottom: 25 }, barColumn: { height: 160, alignItems: 'center', justifyContent: 'flex-end', gap: 6 }, bar: { borderRadius: 8, minHeight: 4 }, barLabel: { fontSize: 10, maxWidth: 42, textAlign: 'center' }, goalLineMark: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderStyle: 'dashed' }, chartLegend: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }, legendDot: { width: 8, height: 8, borderRadius: 4 }, legendDash: { width: 18, borderTopWidth: 1, borderStyle: 'dashed', marginLeft: 9 }, tooltip: { marginTop: 10, padding: 10, borderRadius: 12 },
   historyRow: { borderTopWidth: 1, marginTop: 12, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, historyDate: { fontWeight: '900' }, historyValue: { flexDirection: 'row', alignItems: 'center', gap: 12 }, historyAmount: { fontWeight: '900' }, empty: { alignItems: 'center', gap: 8, paddingVertical: 22 }, learnHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, marginTop: 6 }, lessonRow: { gap: 12, paddingVertical: 10 }, lessonCard: { width: 214, borderWidth: 1, borderRadius: 18, overflow: 'hidden' }, lessonImage: { width: '100%', height: 104 }, lessonCopy: { padding: 12 }, lessonTitle: { fontSize: 15, fontWeight: '900', lineHeight: 19 }, disclaimer: { fontSize: 11, lineHeight: 16, paddingHorizontal: 2, paddingTop: 4 },
 });

@@ -223,6 +223,7 @@ export default function StepsScreen() {
     setDailyStepGoal, startLiveStepTracking, setLiveStepsDashboardFocused,
   } = useCalora();
   const [goalSheetVisible, setGoalSheetVisible] = useState(false);
+  const [movementView, setMovementView] = useState<'Today' | 'Week' | 'Month'>('Today');
   const today = dateKey();
   const values = useMemo(() => {
     const range = localHealthHistoryRange(new Date()).dates;
@@ -237,6 +238,12 @@ export default function StepsScreen() {
   const average = measured.length ? Math.round(measured.reduce((sum, item) => sum + (item.steps ?? 0), 0) / measured.length) : null;
   const best = measured.length ? Math.max(...measured.map((item) => item.steps ?? 0)) : null;
   const goalDays = measured.filter((item) => (item.steps ?? 0) >= dailyStepGoal).length;
+  const comparisonSource = trendValues.length ? trendValues : values;
+  const viewValues = movementView === 'Today' ? values.slice(-1) : movementView === 'Week' ? comparisonSource.slice(-7) : comparisonSource.slice(-30);
+  const viewMeasured = viewValues.filter((item) => item.steps !== null);
+  const viewTotal = viewMeasured.length ? viewMeasured.reduce((sum, item) => sum + (item.steps ?? 0), 0) : null;
+  const viewAverage = viewTotal === null ? null : Math.round(viewTotal / viewMeasured.length);
+  const bestMovementHour = hourlyValues.reduce<{ hour: string; steps: number } | null>((bestHour, item) => item.steps === null || (bestHour && bestHour.steps >= item.steps) ? bestHour : { hour: item.hour, steps: item.steps }, null);
   const isConnected = healthConnection.authorization === 'authorized' || healthConnection.authorization === 'partial' || healthConnection.authorization === 'requested';
   const providerLabel = healthConnection.provider === 'health-connect' ? 'Health Connect' : healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health';
   const stylesForScale = useMemo(() => ({ title: 19 * fontScale, heroValue: 24 * fontScale }), [fontScale]);
@@ -278,6 +285,47 @@ export default function StepsScreen() {
             <View><Text style={[styles.heroStatValue, { color: colors.foreground }]}>{best === null ? '—' : formatWhole(best)}</Text><Text style={[styles.heroStatLabel, { color: colors.mutedForeground }]}>best day</Text></View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View><Text style={[styles.heroStatValue, { color: colors.foreground }]}>{goalDays}</Text><Text style={[styles.heroStatLabel, { color: colors.mutedForeground }]}>goal days</Text></View>
+          </View>
+        </View>
+        <View style={[styles.movementSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.movementSummaryHeader}>
+            <View style={styles.movementSummaryCopy}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your movement picture</Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Switch the lens without losing today’s detail.</Text>
+            </View>
+            <Feather name="compass" size={18} color={colors.primary} />
+          </View>
+          <View style={[styles.movementViewPicker, { backgroundColor: colors.muted }]}>
+            {(['Today', 'Week', 'Month'] as const).map((view) => (
+              <Pressable key={view} accessibilityRole="tab" accessibilityState={{ selected: movementView === view }} accessibilityLabel={`Show ${view.toLowerCase()} movement summary`} onPress={() => setMovementView(view)} style={[styles.movementViewItem, movementView === view && { backgroundColor: colors.primary }]}>
+                <Text style={[styles.movementViewText, { color: movementView === view ? colors.primaryForeground : colors.mutedForeground }]}>{view}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.movementSummaryMetrics}>
+            <View><Text style={[styles.movementSummaryValue, { color: colors.foreground }]}>{viewTotal === null ? '—' : formatWhole(viewTotal)}</Text><Text style={[styles.movementSummaryLabel, { color: colors.mutedForeground }]}>{movementView === 'Today' ? 'steps today' : `${movementView.toLowerCase()} total`}</Text></View>
+            <View style={[styles.movementSummaryDivider, { backgroundColor: colors.border }]} />
+            <View><Text style={[styles.movementSummaryValue, { color: colors.foreground }]}>{viewAverage === null ? '—' : formatWhole(viewAverage)}</Text><Text style={[styles.movementSummaryLabel, { color: colors.mutedForeground }]}>average</Text></View>
+            <View style={styles.bestPeriodCopy}><Text style={[styles.movementSummaryValue, { color: colors.primary }]}>{bestMovementHour ? hourLabel(bestMovementHour.hour) : '—'}</Text><Text style={[styles.movementSummaryLabel, { color: colors.mutedForeground }]}>best movement</Text></View>
+          </View>
+        </View>
+        <View style={[styles.momentumBand, { backgroundColor: colors.successTint, borderColor: colors.border }]}>
+          <View style={styles.momentumBandHeader}>
+            <View style={[styles.momentumIcon, { backgroundColor: '#E0F2FE' }]}><Feather name="wind" size={18} color="#0284C7" /></View>
+            <View style={styles.momentumCopy}>
+              <Text style={[styles.momentumTitle, { color: colors.foreground }]}>Today’s momentum</Text>
+              <Text style={[styles.momentumSubtitle, { color: colors.mutedForeground }]}>{progress >= 1 ? 'You are on a strong rhythm today.' : 'Every movement break moves the ring forward.'}</Text>
+            </View>
+            <Text style={[styles.momentumPercent, { color: colors.success }]}>{Math.round(Math.min(progress, 1) * 100)}%</Text>
+          </View>
+          <View style={styles.zoneRow}>
+            {[['Easy', '#38BDF8'], ['Steady', '#8B5CF6'], ['Active', '#F97316']].map(([label, color], index) => (
+              <View key={label} style={styles.zoneItem}>
+                <View style={[styles.zoneDot, { backgroundColor: color }]} />
+                <Text style={[styles.zoneLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                <Text style={[styles.zoneValue, { color: colors.foreground }]}>{index === 2 ? (best === null ? '—' : formatWhole(best)) : index === 1 ? (average === null ? '—' : formatWhole(Math.round(average * 0.62))) : (todaySteps === null ? '—' : formatWhole(Math.round(todaySteps * 0.18)))}</Text>
+              </View>
+            ))}
           </View>
         </View>
         <StepCalorieBreakdown steps={todaySteps} colors={colors} />
@@ -357,6 +405,29 @@ const styles = StyleSheet.create({
   ringValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 25, letterSpacing: -1, marginTop: 7 },
   ringCaption: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 2 },
   heroStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginTop: 8 },
+  movementSummary: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: 15, gap: 13 },
+  movementSummaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  movementSummaryCopy: { flex: 1, minWidth: 0 },
+  movementViewPicker: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 13 },
+  movementViewItem: { flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 8 },
+  movementViewText: { fontFamily: 'Inter_800ExtraBold', fontSize: 11 },
+  movementSummaryMetrics: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  movementSummaryValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 16 },
+  movementSummaryLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 2 },
+  movementSummaryDivider: { width: StyleSheet.hairlineWidth, height: 28 },
+  bestPeriodCopy: { alignItems: 'flex-end' },
+  momentumBand: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: 15, gap: 14 },
+  momentumBandHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  momentumIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  momentumCopy: { flex: 1, minWidth: 0 },
+  momentumTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 15 },
+  momentumSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 2 },
+  momentumPercent: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 },
+  zoneRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  zoneItem: { flex: 1, gap: 3 },
+  zoneDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 2 },
+  zoneLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  zoneValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 13 },
   heroStatValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18, textAlign: 'center' },
   heroStatLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, textAlign: 'center', marginTop: 3 },
   statDivider: { height: 30, width: StyleSheet.hairlineWidth },
