@@ -1406,8 +1406,46 @@ function MacroTrendGraph({ colors, points }: { colors: ReturnType<typeof useCalo
   );
 }
 
+function CompactHealthMetric({
+  colors,
+  title,
+  icon,
+  iconColor,
+  points,
+  value,
+  unit,
+  emptyMessage,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  title: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  iconColor: string;
+  points: { label: string; value: number | null }[];
+  value: string;
+  unit?: string;
+  emptyMessage: string;
+}) {
+  const valid = points.filter((point) => point.value != null).map((point) => point.value!);
+  const max = Math.max(...valid, 1);
+  const width = 150;
+  const height = 34;
+  const path = points.reduce((result, point, index) => {
+    if (point.value == null) return result;
+    const x = points.length > 1 ? (index / (points.length - 1)) * (width - 8) + 4 : width / 2;
+    const y = height - 5 - (point.value / max) * (height - 10);
+    return `${result}${result ? ' L ' : 'M '}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }, '');
+  return (
+    <View accessibilityRole="summary" accessibilityLabel={`${title}: ${value} ${unit ?? ''}`} style={[styles.compactMetricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.compactMetricHeader}><Feather name={icon} size={22} color={iconColor} /><Text style={[styles.compactMetricTitle, { color: colors.foreground }]}>{title}</Text></View>
+      <Text style={[styles.compactMetricValue, { color: colors.foreground }]}>{value} <Text style={[styles.compactMetricUnit, { color: colors.mutedForeground }]}>{unit ?? ''}</Text></Text>
+      {valid.length ? <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><Path d={path} stroke={iconColor} strokeWidth={2.5} fill="none" strokeLinecap="round" /></Svg> : <Text style={[styles.compactMetricEmpty, { color: colors.mutedForeground }]}>{emptyMessage}</Text>}
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, hydrationUnit, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected, dailyStepGoal } = useCalora();
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('steps')
@@ -1851,9 +1889,9 @@ export default function InsightsScreen() {
                 accessibilityState={{ selected }}
                 accessibilityLabel={`${tab.label} progress tab`}
                 onPress={() => setProgressView(tab.key)}
-                style={[styles.progressTab, selected && { backgroundColor: colors.card }]}
+                style={[styles.progressTab, selected && { backgroundColor: colors.primary }]}
               >
-                <Text style={[styles.progressTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+                <Text style={[styles.progressTabText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{tab.label}</Text>
               </Pressable>
             );
           })}
@@ -1878,90 +1916,73 @@ export default function InsightsScreen() {
         </Text>
 
         <View style={view === 'overview' ? undefined : styles.hiddenSection}>
-        <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
+        <MotivationalQuote colors={colors} style={{ marginBottom: 14 }} />
 
-        {localInsight ? (
-          <AnimatedReveal delay={100}>
-            <View
-              accessibilityLabel={`Local insight: ${formatCoachPlainText(localInsight.title)}. ${formatCoachPlainText(localInsight.message)}`}
-              accessibilityRole="summary"
-              style={[styles.localInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              testID="local-contextual-insight"
-            >
-              <View style={[styles.localInsightIcon, { backgroundColor: colors.accent }]}>
-                <Feather name="shield" size={16} color={colors.accentForeground} />
-              </View>
-              <View style={styles.localInsightCopy}>
-                <Text style={[styles.localInsightEyebrow, { color: colors.mutedForeground }]}>LOCAL INSIGHT</Text>
-                <Text style={[styles.localInsightTitle, { color: colors.foreground }]}>{formatCoachPlainText(localInsight.title)}</Text>
-                <Text style={[styles.localInsightMessage, { color: colors.mutedForeground }]}>{formatCoachPlainText(localInsight.message)}</Text>
-              </View>
+        <View style={styles.overviewHeadingRow}>
+          <Text style={[styles.overviewHeading, { color: colors.foreground }]}>Today’s summary</Text>
+          <View style={[styles.syncBadge, { backgroundColor: colors.accent }]}>
+            <Feather name="check-circle" size={12} color={colors.success} />
+            <Text style={[styles.syncBadgeText, { color: colors.success }]}>Syncing</Text>
+          </View>
+        </View>
+        <View style={styles.summaryGrid}>
+          {[
+            { label: 'kcal', value: formatWhole(loggedToday.reduce((sum, log) => sum + log.calories, 0)), icon: 'zap' as const, color: colors.warning },
+            { label: 'steps', value: healthStepsAvailable ? formatWhole(healthConnection.snapshot?.steps ?? 0) : '—', icon: 'activity' as const, color: colors.primary },
+            { label: hydrationUnit === 'ml' ? 'water' : 'fl oz', value: hydrationUnit === 'ml' ? formatWhole(waterToday * 29.5735) : formatWhole(waterToday), icon: 'droplet' as const, color: '#2d9de9' },
+            { label: 'meals', value: String(loggedToday.length), icon: 'coffee' as const, color: '#8b42d8' },
+          ].map((item) => (
+            <View key={item.label} style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name={item.icon} size={22} color={item.color} />
+              <Text style={[styles.summaryValue, { color: colors.foreground }]}>{item.value}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
             </View>
-          </AnimatedReveal>
-        ) : null}
+          ))}
+        </View>
 
-        <AnimatedReveal delay={150} style={styles.statRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <AnimatedCountUp to={weeklySignals.foodDays} style={[styles.statValue, { color: colors.foreground }]} />
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>days logged</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center' }]}>
-            {dataTrust !== null
-              ? <CircularProgress percentage={dataTrust} color={colors.primary} trackColor={colors.muted} size={52} strokeWidth={5} />
-              : <Text style={[styles.statValue, { color: colors.foreground }]}>—</Text>}
-            <Text style={[styles.statLabel, { color: colors.mutedForeground, marginTop: 5 }]}>data trust</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {weightDelta !== null ? (
-              <AnimatedCountUp
-                to={Math.abs(displayWeight(weightDelta, weightUnit))}
-                prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '−' : ''}
-                suffix={` ${weightUnits}`}
-                style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]}
-              />
-            ) : (
-              <Text style={[styles.statValue, { color: colors.mutedForeground }]}>—</Text>
-            )}
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-              {weightDelta !== null ? 'recorded trend' : weightSummary.display.kind === 'baseline' ? 'baseline only' : 'no weigh-ins'}
-            </Text>
-          </View>
-        </AnimatedReveal>
-
-        <AnimatedReveal delay={220}>
-          <View style={[styles.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderCopy}>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your week at a glance.</Text>
-              </View>
-              <View style={[styles.rhythmBadge, { backgroundColor: colors.accent }]}>
-                <Feather name="calendar" size={12} color={colors.accentForeground} />
-                <Text style={[styles.rhythmBadgeText, { color: colors.accentForeground }]}>{Math.min(signalDays, 7)} / 7 days</Text>
-              </View>
+        <View style={[styles.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderCopy}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
             </View>
-            <View style={styles.rhythmGrid}>
-              {weekDays.map((item, index) => (
-                <View key={item.date} style={styles.rhythmDay}>
-                  <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
-                    {item.hasData && <AnimatedRhythmBar value={Math.max(item.meals ? item.meals * 25 : 14, 14)} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 50} />}
-                  </View>
-                  <Text style={[styles.rhythmDayLabel, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+            <View style={[styles.rhythmBadge, { backgroundColor: colors.accent }]}>
+              <Feather name="calendar" size={12} color={colors.success} />
+              <Text style={[styles.rhythmBadgeText, { color: colors.success }]}>{Math.min(signalDays, 7)} / 7 days</Text>
+            </View>
+          </View>
+          <View style={styles.rhythmGrid}>
+            {weekDays.map((item, index) => (
+              <View key={item.date} style={styles.rhythmDay}>
+                <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
+                  {item.hasData && <AnimatedRhythmBar value={Math.max(item.meals ? item.meals * 25 : 14, 14)} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 50} />}
                 </View>
-              ))}
-            </View>
+                <Text style={[styles.rhythmDayLabel, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+              </View>
+            ))}
           </View>
-        </AnimatedReveal>
-        <AnimatedReveal delay={300}>
-          <ProgressLineGraph
-            colors={colors}
-            title="Meal rhythm"
-            subtitle="Meals logged across the last seven days."
-            points={weekDays.map((day) => ({ label: day.day, value: day.hasFood ? day.meals : null }))}
-            color={colors.primary}
-            valueFormatter={(value) => `${value} ${value === 1 ? 'meal' : 'meals'}`}
-          />
-        </AnimatedReveal>
+        </View>
+
+        <ProgressLineGraph
+          colors={colors}
+          title="Meal rhythm"
+          subtitle="Meals logged across the last seven days."
+          points={weekDays.map((day) => ({ label: day.day, value: day.hasFood ? day.meals : null }))}
+          color="#ef4035"
+          valueFormatter={(value) => `${value} ${value === 1 ? 'meal' : 'meals'}`}
+        />
+
+        <View style={[styles.checkinCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderCopy}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Daily check-ins</Text></View>
+            <Feather name="clipboard" size={22} color={colors.success} />
+          </View>
+          <View style={styles.checkinSummaryRow}>
+            <View style={styles.checkinSummaryItem}><Feather name="zap" size={22} color={colors.warning} /><Text style={[styles.checkinSummaryValue, { color: colors.foreground }]}>{remembered.activityLogs[todayKey] ? remembered.activityLogs[todayKey]!.charAt(0).toUpperCase()+remembered.activityLogs[todayKey]!.slice(1) : '—'}</Text><Text style={[styles.checkinSummaryLabel, { color: colors.mutedForeground }]}>Movement</Text></View>
+            <View style={styles.checkinSummaryItem}><Feather name="smile" size={22} color="#8b42d8" /><Text style={[styles.checkinSummaryValue, { color: colors.foreground }]}>{moodLabel}</Text><Text style={[styles.checkinSummaryLabel, { color: colors.mutedForeground }]}>Mood</Text></View>
+            <View style={styles.checkinSummaryItem}><Feather name="clock" size={22} color={colors.success} /><Text style={[styles.checkinSummaryValue, { color: colors.foreground }]}>{activityMinutesLogs[todayKey] ?? '—'}</Text><Text style={[styles.checkinSummaryLabel, { color: colors.mutedForeground }]}>Active time</Text></View>
+          </View>
+          <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}><Feather name={healthConnected ? 'check-circle' : 'link-2'} size={12} color={healthConnected ? colors.success : colors.mutedForeground} /><Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>{healthConnected ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.` : 'Health sync unavailable · connect a health integration to import workouts automatically.'}</Text></View>
+        </View>
         </View>
 
         <View style={view === 'trends' ? undefined : styles.hiddenSection}>
@@ -1996,40 +2017,12 @@ export default function InsightsScreen() {
         </View>
 
         <AnimatedReveal delay={365}>
-          <ProgressLineGraph
-            colors={colors}
-            title="Steps trend"
-            subtitle={healthConnection.provider === 'health-connect' ? 'Daily totals from Health Connect.' : healthConnection.provider === 'healthkit' ? 'Daily totals from Apple Health.' : 'Connect Health to show measured steps.'}
-            points={healthStepWeekPoints.map((day) => ({ label: day.label, value: day.value }))}
-            color={colors.primary}
-            valueFormatter={(value) => `${formatWhole(value)} steps`}
-            target={{ value: dailyStepGoal, label: 'Goal' }}
-            emptyMessage="Sync Health to show measured steps."
-          />
-        </AnimatedReveal>
-
-        <AnimatedReveal delay={380}>
-          <ProgressLineGraph
-            colors={colors}
-            title="Calories burned"
-            subtitle={healthConnection.provider === 'health-connect' ? 'Active calories from Health Connect.' : healthConnection.provider === 'healthkit' ? 'Active calories from Apple Health.' : 'Connect Health to show active calories.'}
-            points={healthEnergyWeekPoints.map((day) => ({ label: day.label, value: day.value }))}
-            color={colors.warning}
-            valueFormatter={(value) => `${formatWhole(value)} kcal`}
-            emptyMessage="Sync Health to show active calories."
-          />
-        </AnimatedReveal>
-
-        <AnimatedReveal delay={395}>
-          <ProgressLineGraph
-            colors={colors}
-            title="Water intake"
-            subtitle="Water you logged in Calora each day."
-            points={waterWeekPoints}
-            color="#5d8edb"
-            valueFormatter={(value) => `${formatWhole(value)} fl oz`}
-            emptyMessage="Log water to start your hydration graph."
-          />
+          <View style={styles.compactMetricGrid}>
+            <CompactHealthMetric colors={colors} title="Steps" icon="activity" iconColor={colors.success} points={healthStepWeekPoints.map((day) => ({ label: day.label, value: day.value }))} value={healthStepsAvailable ? formatWhole(healthStepWeekPoints.at(-1)?.value ?? 0) : '—'} unit={healthStepsAvailable ? 'avg' : ''} emptyMessage="Connect Health" />
+            <CompactHealthMetric colors={colors} title="Burned" icon="zap" iconColor={colors.warning} points={healthEnergyWeekPoints.map((day) => ({ label: day.label, value: day.value }))} value={healthActiveEnergyAvailable ? formatWhole(healthEnergyWeekPoints.at(-1)?.value ?? 0) : '—'} unit={healthActiveEnergyAvailable ? 'kcal avg' : ''} emptyMessage="Connect Health" />
+            <CompactHealthMetric colors={colors} title="Water" icon="droplet" iconColor="#2699e6" points={waterWeekPoints} value={formatWhole(waterWeekPoints.at(-1)?.value ?? 0)} unit="fl oz avg" emptyMessage="Log water" />
+            <CompactHealthMetric colors={colors} title="Active time" icon="clock" iconColor={colors.success} points={healthEnergyWeekPoints.map((day) => ({ label: day.label, value: day.value == null ? null : Math.round(day.value / 8) }))} value={healthActiveEnergyAvailable ? formatWhole(Math.round((healthEnergyWeekPoints.at(-1)?.value ?? 0) / 8)) : '—'} unit={healthActiveEnergyAvailable ? 'min avg' : ''} emptyMessage="Connect Health" />
+          </View>
         </AnimatedReveal>
 
         <AnimatedReveal delay={405}>
@@ -2241,6 +2234,20 @@ export default function InsightsScreen() {
               <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${formatWhole(targetWeightDisplay)} ${weightUnits}` : 'Set goal'}</Text>
             </ScalePressable>
             <ScalePressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} scale={0.96} haptic="light" style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></ScalePressable>
+          </View>
+        </View>
+        <View style={[styles.weightHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.weightHeroRing}>
+            <CircularProgress percentage={showGoalProgress ? goalProgressPct : 0} color={colors.success} trackColor={colors.muted} size={124} strokeWidth={10} />
+            <View style={styles.weightHeroRingCopy}>
+              <Text style={[styles.weightHeroPercent, { color: colors.success }]}>{showGoalProgress ? `${Math.round(goalProgressPct)}%` : '—'}</Text>
+              <Text style={[styles.weightHeroCaption, { color: colors.mutedForeground }]}>{showGoalProgress ? 'goal progress' : 'log 3 weigh-ins'}</Text>
+            </View>
+          </View>
+          <View style={styles.weightHeroStats}>
+            <View style={styles.weightHeroStat}><Feather name="briefcase" size={18} color="#8b42d8" /><Text style={[styles.weightHeroLabel, { color: colors.mutedForeground }]}>Start weight</Text><Text style={[styles.weightHeroValue, { color: colors.foreground }]}>{startingWeight !== null ? formatWeight(startingWeight, weightUnit) : '—'}</Text></View>
+            <View style={styles.weightHeroStat}><Feather name="target" size={18} color="#2d9de9" /><Text style={[styles.weightHeroLabel, { color: colors.mutedForeground }]}>Current weight</Text><Text style={[styles.weightHeroValue, { color: colors.foreground }]}>{latestWeight !== null ? formatWeight(latestWeight, weightUnit) : '—'}</Text></View>
+            <View style={styles.weightHeroStat}><Feather name="flag" size={18} color={colors.success} /><Text style={[styles.weightHeroLabel, { color: colors.mutedForeground }]}>Goal weight</Text><Text style={[styles.weightHeroValue, { color: colors.foreground }]}>{targetWeight > 0 ? formatWeight(targetWeight, weightUnit) : '—'}</Text></View>
           </View>
         </View>
         <AnimatedReveal delay={540}>
@@ -2642,6 +2649,18 @@ function makeStyles(f: number) {
   miniTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
   miniFill: { height: 6, borderRadius: 3 },
   statRow: { flexDirection: 'row', gap: 9, marginBottom: 25 },
+  overviewHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 },
+  overviewHeading: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.4 },
+  syncBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7 },
+  syncBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  summaryGrid: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  summaryCard: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 4 },
+  summaryValue: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, marginTop: 7 },
+  summaryLabel: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 2 },
+  checkinSummaryRow: { flexDirection: 'row', gap: 8 },
+  checkinSummaryItem: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(120,120,120,0.14)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 4 },
+  checkinSummaryValue: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, marginTop: 7, textAlign: 'center' },
+  checkinSummaryLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3, textAlign: 'center' },
   statCard: { flex: 1, borderWidth: 1, borderRadius: 17, padding: 13 },
   statValue: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },
   statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 5 },
@@ -2676,6 +2695,13 @@ function makeStyles(f: number) {
   lineGraphLegend: { borderTopWidth: 1, marginTop: 12, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
   lineGraphTargetDot: { width: 7, height: 2, borderRadius: 1 },
   healthTrendHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 9, marginTop: 2, marginBottom: 11 },
+  compactMetricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  compactMetricCard: { width: '48%', minHeight: 132, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
+  compactMetricHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  compactMetricTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, flexShrink: 1 },
+  compactMetricValue: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, marginTop: 7 },
+  compactMetricUnit: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  compactMetricEmpty: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 8 },
   nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
   nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
   nutrientDot: { width: 8, height: 8, borderRadius: 4 },
@@ -2724,6 +2750,15 @@ function makeStyles(f: number) {
   weightHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 11 },
   weightTitleGroup: { flex: 1, marginRight: 8 },
   weightHeaderButtons: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  weightHero: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderRadius: 21, padding: 14, marginBottom: 14 },
+  weightHeroRing: { width: 124, height: 124, alignItems: 'center', justifyContent: 'center' },
+  weightHeroRingCopy: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  weightHeroPercent: { fontFamily: 'Inter_700Bold', fontSize: 25 * f },
+  weightHeroCaption: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2, textAlign: 'center' },
+  weightHeroStats: { flex: 1, minWidth: 0, gap: 8 },
+  weightHeroStat: { flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 },
+  weightHeroLabel: { flex: 1, minWidth: 0, fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  weightHeroValue: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   goalHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
   goalHeaderBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   weightButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },

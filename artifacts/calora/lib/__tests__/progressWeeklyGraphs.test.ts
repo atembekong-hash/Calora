@@ -5,21 +5,21 @@ import { resolve } from 'node:path';
 describe('Progress weekly health graphs', () => {
   const source = readFileSync(resolve(__dirname, '../../app/(tabs)/insights.tsx'), 'utf8');
 
-  it('renders the requested seven-day steps, burned-calorie, and water charts in Trends', () => {
-    expect(source).toContain('title="Steps trend"');
-    expect(source).toContain('title="Calories burned"');
-    expect(source).toContain('title="Water intake"');
-    expect(source).toContain('MacroTrendGraph');
-    expect(source).toContain('Movement & hydration');
-    expect(source).toContain('GraphDateRangePicker');
+	it('renders the requested seven-day steps, burned-calorie, and water metrics in Trends', () => {
+		expect(source).toContain('title="Steps"');
+		expect(source).toContain('title="Burned"');
+		expect(source).toContain('title="Water"');
+		expect(source).toContain('title="Active time"');
+		expect(source).toContain('MacroTrendGraph');
+		expect(source).toContain('Movement & hydration');
+		expect(source).toContain('GraphDateRangePicker');
   });
 
   it('derives graphs from provider history and account-scoped water logs instead of default data', () => {
     expect(source).toContain('deriveHealthTrend(healthHistoryAvailable ? healthConnection.snapshot?.dailyMetrics : undefined');
     expect(source).toContain('deriveWaterTrend(remembered.waterLogs, graphRange)');
-    expect(source).toContain('emptyMessage="Sync Health to show measured steps."');
-    expect(source).toContain('emptyMessage="Sync Health to show active calories."');
-    expect(source).toContain('emptyMessage="Log water to start your hydration graph."');
+		expect(source).toContain('emptyMessage="Connect Health"');
+		expect(source).toContain('emptyMessage="Log water"');
   });
 
   it('keeps every graph accessible through the shared chart summary', () => {
