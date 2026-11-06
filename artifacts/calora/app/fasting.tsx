@@ -105,6 +105,11 @@ export default function FastingScreen() {
     notificationPreferences.categories.meal?.enabled,
   );
   const targetComplete = progress.active && progress.remainingMs === 0;
+  const rhythmInsight = progress.active
+    ? targetComplete
+      ? "Your selected window is complete. Save it whenever you are ready."
+      : `${formatFastingDuration(progress.remainingMs)} until your selected target.`
+    : "A gentle rhythm is here when it fits your day.";
   const styles = makeStyles(colors, fontScale);
 
   const choosePlan = (planId: FastingPlanId) => {
@@ -302,6 +307,29 @@ export default function FastingScreen() {
               color={colors.onHero}
             />
           </ScalePressable>
+          <View style={styles.rhythmSnapshot}>
+            <View style={styles.rhythmSnapshotHeader}>
+              <View>
+                <Text style={styles.rhythmKicker}>YOUR RHYTHM</Text>
+                <Text style={styles.rhythmTitle}>{fastingPlanLabel(fasting)}</Text>
+              </View>
+              <View style={styles.rhythmBadge}>
+                <Feather name="sunrise" size={13} color={colors.warning} />
+                <Text style={styles.rhythmBadgeText}>{progress.active ? "IN PROGRESS" : "READY"}</Text>
+              </View>
+            </View>
+            <View style={styles.rhythmTrack}>
+              <View style={[styles.rhythmTrackFill, { width: `${Math.max(4, Math.min(progress.progress * 100, 100))}%` }]} />
+            </View>
+            <View style={styles.rhythmLabels}>
+              <Text style={styles.rhythmLabel}>{progress.active ? "Started" : "Start when ready"}</Text>
+              <Text style={styles.rhythmLabel}>{progress.active ? `${formatFastingDuration(progress.remainingMs)} left` : `${formatFastingHours(selectedHours)} target`}</Text>
+            </View>
+            <View style={styles.rhythmInsightRow}>
+              <Feather name="compass" size={13} color={colors.success} />
+              <Text style={styles.rhythmInsight}>{rhythmInsight}</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -730,6 +758,26 @@ const makeStyles = (
       fontWeight: "800",
       fontSize: 15 * scale,
     },
+    rhythmSnapshot: {
+      width: "100%",
+      borderRadius: 17,
+      padding: 13,
+      gap: 9,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    rhythmSnapshotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
+    rhythmKicker: { color: colors.mutedForeground, fontSize: 9 * scale, fontWeight: "900", letterSpacing: 1.2 },
+    rhythmTitle: { color: colors.text, fontSize: 15 * scale, fontWeight: "800", marginTop: 3 },
+    rhythmBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.warningTint, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 },
+    rhythmBadgeText: { color: colors.text, fontSize: 9 * scale, fontWeight: "900", letterSpacing: 0.7 },
+    rhythmTrack: { height: 7, borderRadius: 4, backgroundColor: colors.border, overflow: "hidden" },
+    rhythmTrackFill: { height: "100%", borderRadius: 4, backgroundColor: colors.warning },
+    rhythmLabels: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+    rhythmLabel: { color: colors.mutedForeground, fontSize: 10 * scale, fontWeight: "700" },
+    rhythmInsightRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 2 },
+    rhythmInsight: { flex: 1, color: colors.mutedForeground, fontSize: 10 * scale, lineHeight: 15 * scale },
     section: { gap: 10 },
     sectionHeading: {
       flexDirection: "row",
