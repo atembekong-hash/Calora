@@ -74,8 +74,18 @@ describe('Progress dashboard layout contracts', () => {
     expect(source).not.toContain('const weightDelta = latestWeight - firstLoggedWeight');
   });
 
-  it('retains one shared date control for the Trends period', () => {
-    expect((source.match(/GraphDateRangePicker range=\{graphRange\}/g) ?? [])).toHaveLength(1);
-    expect(source).toContain('Uses the same selected period as nutrition above.');
-  });
+	it('retains one shared date control for the Trends period', () => {
+		expect((source.match(/GraphDateRangePicker range=\{graphRange\}/g) ?? [])).toHaveLength(1);
+		expect(source).toContain('Uses the same selected period as nutrition above.');
+	});
+
+	it('renders the approved compact movement and hydration grid without dropping existing trend features', () => {
+		expect(source).toContain('compactMetricGrid');
+		expect(source).toContain('title="Steps"');
+		expect(source).toContain('title="Burned"');
+		expect(source).toContain('title="Water"');
+		expect(source).toContain('title="Active time"');
+		expect(source).toContain('title="Workout sessions"');
+		expect(source).toContain('Nutrient balance');
+	});
 });
