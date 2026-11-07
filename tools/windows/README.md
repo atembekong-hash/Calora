@@ -27,7 +27,7 @@ The discovery parser is covered by a Windows PowerShell 5.1-compatible regressio
 
 The test uses deterministic ADB output fixtures, confirms authorized/offline/unauthorized parsing, verifies that device facts carry the inventory `state` field, and checks that strict-mode filtering cannot read a missing property. It does not contact a device or modify application state.
 
-The safety assertion uses the Windows PowerShell AST rather than a broad text regex. The previous regex incorrectly treated the harmless error text `ADB_NOT_FOUND: install Android Platform Tools` as an executable `adb install` command. The AST check inspects only actual PowerShell command nodes whose command name is `adb` or `adb.exe`; comments and quoted strings are tested explicitly as non-destructive references. A fixture containing an executable `adb shell pm clear ...` command must still be rejected.
+The safety assertion uses the Windows PowerShell AST rather than a broad text regex. The previous regex incorrectly treated the harmless error text `ADB_NOT_FOUND: install Android Platform Tools` as an executable `adb install` command. The AST check inspects only actual PowerShell command nodes whose command name is `adb` or `adb.exe`, then evaluates literal ADB argument tokens in that node. Comments, quoted strings, and unrelated diagnostic text are tested explicitly as non-destructive references. A fixture containing an executable `adb shell pm clear ...` command must still be rejected, and any future match reports its source line, column, rule, and command extent before failing.
 
 From PowerShell, run:
 

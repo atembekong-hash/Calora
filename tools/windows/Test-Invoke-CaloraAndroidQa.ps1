@@ -40,10 +40,43 @@ function Get-ExecutableDestructiveAdbCommands {
         $commandName = $elements[0].Extent.Text.Trim()
         if ($commandName -notmatch '^(?i:adb)(?:\.exe)?$') { continue }
 
-        $commandText = $command.Extent.Text
-        if ($commandText -match '(?i)(?:^|\s)(?:install|uninstall|wipe|factory-reset)(?:\s|$)' -or
-            $commandText -match '(?i)\b(?:pm\s+clear|shell\s+rm|shell\s+reboot)\b') {
-            $matches += $commandText
+        $literalArguments = @()
+        foreach ($element in @($elements | Select-Object -Skip 1)) {
+            if ($element -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
+                $literalArguments += [string]$element.Value
+            } else {
+                $literalArguments += @(
+                    $element.FindAll(
+                        { param($node) $node -is [System.Management.Automation.Language.StringConstantExpressionAst] },
+                        $true
+                    ) | ForEach-Object { [string]$_.Value }
+                )
+            }
+        }
+
+        $rule = $null
+        for ($index = 0; $index -lt $literalArguments.Count; $index++) {
+            $token = $literalArguments[$index]
+            if ($token -match '^(?i:install|uninstall|wipe|factory-reset)$') {
+                $rule = $token
+                break
+            }
+            if ($index -lt ($literalArguments.Count - 1)) {
+                $pair = "{0} {1}" -f $token, $literalArguments[$index + 1]
+                if ($pair -match '^(?i:pm clear|shell rm|shell reboot)$') {
+                    $rule = $pair
+                    break
+                }
+            }
+        }
+
+        if ($null -ne $rule) {
+            $matches += [pscustomobject]@{
+                command = $command.Extent.Text
+                line = $command.Extent.StartLineNumber
+                column = $command.Extent.StartColumnNumber
+                rule = $rule
+            }
         }
     }
     return $matches
@@ -107,7 +140,10 @@ Assert-Equal 1 $authorizedCount 'Strict-mode inventory filtering must not access
 $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
 $destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
-Assert-Equal 0 $destructiveCommands.Count 'Toolkit must not contain executable destructive ADB operations'
+if ($destructiveCommands.Count -ne 0) {
+    $details = $destructiveCommands | ForEach-Object { "line $($_.line), column $($_.column), rule [$($_.rule)], command [$($_.command)]" }
+    throw "ASSERTION_FAILED: Toolkit must not contain executable destructive ADB operations. Found: $($details -join '; ')"
+}
 
 $harmlessFixture = Join-Path $env:TEMP 'calora-qa-harmless-safety-fixture.ps1'
 $destructiveFixture = Join-Path $env:TEMP 'calora-qa-destructive-safety-fixture.ps1'
@@ -122,7 +158,10 @@ Write-Output 'ADB_NOT_FOUND: install Android Platform Tools'
 "@ | Set-Content -LiteralPath $destructiveFixture -Encoding UTF8
 
     Assert-Equal 0 @(Get-ExecutableDestructiveAdbCommands -Path $harmlessFixture).Count 'Comments and quoted strings must not be classified as executable destructive ADB commands'
-    Assert-Equal 1 @(Get-ExecutableDestructiveAdbCommands -Path $destructiveFixture).Count 'An executable destructive ADB command must be detected'
+    $fixtureMatches = @(Get-ExecutableDestructiveAdbCommands -Path $destructiveFixture)
+    Assert-Equal 1 $fixtureMatches.Count 'An executable destructive ADB command must be detected'
+    Assert-Equal 'pm clear' $fixtureMatches[0].rule 'The precise destructive ADB rule must be reported'
+    Assert-Equal 1 $fixtureMatches[0].line 'The precise destructive ADB source line must be reported'
 }
 finally {
     Remove-Item -LiteralPath $harmlessFixture, $destructiveFixture -Force -ErrorAction SilentlyContinue
