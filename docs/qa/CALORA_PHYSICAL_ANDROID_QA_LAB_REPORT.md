@@ -23,9 +23,10 @@ These are environment limitations, not physical-device failures. No physical-dev
 - Host: Owner's Windows PC with Windows PowerShell 5.1
 - Device: Samsung Galaxy S20, model `SM-G981U`
 - Device state: Authorized and recognized by ADB
-- Evidence directory: `C:\CaloraEvidence\20261107T135244Z`
+- Earlier evidence directory: `C:\CaloraEvidence\20261107T135244Z`
+- Latest evidence directory: `C:\CaloraEvidence\20261107T144127Z`
 - Collection result: **PASS — all six non-smoke collection checks passed**
-- Application smoke launch: **Intentionally not run**
+- Application smoke launch: **PASS in latest owner evidence** — Calora appeared in the focused Android activity report.
 
 ## 2. Repository baseline
 
@@ -94,7 +95,7 @@ The toolkit defaults to non-destructive behavior. It does not install, uninstall
 | Redacted logcat capture | **PASS** | NOT EXECUTABLE — ADB unavailable |
 | Crash/ANR marker scan | **PASS** | NOT EXECUTABLE — ADB unavailable |
 | Performance snapshot | **PASS** | NOT EXECUTABLE — ADB unavailable |
-| Application smoke launch | **INTENTIONALLY NOT RUN** | NOT EXECUTABLE — ADB unavailable |
+| Application smoke launch | **PASS** in latest owner evidence | NOT EXECUTABLE — ADB unavailable |
 
 ## 5. Owner-side execution
 
@@ -123,9 +124,9 @@ Do not place serial numbers in committed reports. Do not use a personal producti
 
 ## 6. Acceptance status
 
-**PASS for the requested Windows physical-device collection scope.**
+**PASS for the requested Windows physical-device collection and smoke scope.**
 
-The reusable toolkit and workflow documentation are present. PR #387's discovery, safety, scalar-array, and strict-mode contracts are covered by deterministic Windows PowerShell 5.1-compatible tests. The owner then verified the actual collection path on a Samsung Galaxy S20 (`SM-G981U`): all six non-smoke collection checks passed and evidence was written to `C:\CaloraEvidence\20261107T135244Z`. The smoke launch remains intentionally unrun and is not represented as a pass. The sandbox cannot independently reproduce the Windows or physical-device run.
+The reusable toolkit and workflow documentation are present. PR #387's discovery, safety, scalar-array, and strict-mode contracts are covered by deterministic Windows PowerShell 5.1-compatible tests. The owner verified the actual collection path on a Samsung Galaxy S20 (`SM-G981U`), then supplied later evidence from `C:\CaloraEvidence\20261107T144127Z` confirming that the application smoke launch also completed and Calora appeared in the focused Android activity report. The sandbox cannot independently reproduce the Windows or physical-device run.
 
 ## 7. Recommended next actions
 
