@@ -176,13 +176,16 @@ $crashFixture = @(
     '11-07 14:01:01.001 1000 1000 E AndroidRuntime: Process: com.etiendem.caloraapp, PID: 5678'
     'Process: com.etiendem.caloraapp, PID: 5678'
     'java.lang.RuntimeException: Calora fixture'
-    '11-07 14:01:02.000 1000 1000 E ActivityManager: ANR in com.example.unknown'
+    '11-07 14:01:02.000 1000 1000 E libc: SIGSEGV fault address unavailable'
 )
 $crashMarkers = @(Get-CaloraCrashMarkers -Lines $crashFixture -TargetPackage 'com.etiendem.caloraapp')
 Assert-Equal 3 $crashMarkers.Count 'Crash scanner should retain every marker for attribution'
 Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'calora' }).Count 'Crash scanner should identify Calora markers'
 Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'other' }).Count 'Crash scanner should identify unrelated process markers'
 Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'unknown' }).Count 'Crash scanner should preserve ambiguous markers without attribution'
+$anrMarkers = @(Get-CaloraCrashMarkers -Lines @('11-07 14:01:03.000 1000 1000 E ActivityManager: ANR in com.example.anr') -TargetPackage 'com.etiendem.caloraapp')
+Assert-Equal 1 $anrMarkers.Count 'Crash scanner should retain an ANR marker'
+Assert-Equal 'other' $anrMarkers[0].attribution 'An ANR with an explicit non-Calora package must be classified as other'
 $destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
 if ($destructiveCommands.Count -ne 0) {
     $details = $destructiveCommands | ForEach-Object {
