@@ -78,7 +78,7 @@ PR #394 is currently:
 
 - State: `OPEN`
 - Mergeability: `MERGEABLE`
-- Head commit: `a9d7e99e2a26f0f690fc1391c26508f4fdb005a5`
+- Head commit: `1636788d4a1c2bb00a624eb1977abd9764559a91`
 - Required checks: still updating after the latest documentation push; no merge was attempted
 
 The PR must remain unmerged until all production services are independently confirmed to source the controlled release branch and the backup/recovery precondition is satisfied.
