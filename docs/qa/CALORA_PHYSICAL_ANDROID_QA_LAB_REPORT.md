@@ -77,6 +77,8 @@ The owner’s subsequent evidence directory was `C:\CaloraEvidence\20261107T1401
 
 The collection also stopped at the optional smoke step because the `shell monkey -p <package> 1` argument sequence was passed positionally through the PowerShell wrapper. The smoke invocation now constructs a typed string array and uses explicit `-TargetSerial` and `-Arguments` binding; the Windows regression harness captures and verifies every token. The smoke test remains unverified until the owner reruns it on the physical Galaxy S20 with `-AllowLaunch`.
 
+The subsequent Windows regression failure was a fixture-contract error: `ANR in com.example.unknown` contains an explicit non-Calora process name, so the scanner correctly classified it as a second `other` event. The fixture now uses an unattributed `SIGSEGV` line for the `unknown` case and separately asserts that a package-bearing ANR is classified as `other`. No crash-detection rule was weakened.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results
