@@ -19,6 +19,14 @@ Enable Developer options and USB debugging on each Samsung device. When prompted
 
 ## Device discovery
 
+The discovery parser is covered by a Windows PowerShell 5.1-compatible regression harness. Run it from the toolkit directory before using a new copy of the script:
+
+```powershell
+.\Test-Invoke-CaloraAndroidQa.ps1
+```
+
+The test uses deterministic ADB output fixtures, confirms authorized/offline/unauthorized parsing, verifies that device facts carry the inventory `state` field, and checks that strict-mode filtering cannot read a missing property. It does not contact a device or modify application state.
+
 From PowerShell, run:
 
 ```powershell

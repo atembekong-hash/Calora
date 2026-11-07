@@ -7,7 +7,8 @@ param(
     [string]$DeviceRole = 'UNASSIGNED',
     [string]$PackageName = 'com.etiendem.caloraapp',
     [string]$OutputRoot = '.\calora-android-evidence',
-    [switch]$AllowLaunch
+    [switch]$AllowLaunch,
+    [switch]$SkipExecution
 )
 
 Set-StrictMode -Version Latest
@@ -55,12 +56,12 @@ function Get-RedactedId {
     }
 }
 
-function Get-ConnectedDevices {
-    $lines = & adb devices -l 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'ADB_DEVICE_LIST_FAILED' }
+function ConvertFrom-AdbDevicesOutput {
+    param([string[]]$Lines)
     $devices = @()
     foreach ($line in $lines) {
-        if ($line -match '^([^\s]+)\s+(device|offline|unauthorized)(?:\s+(.*))?$') {
+        $text = [string]$line
+        if ($text -match '^([^\s]+)\s+(device|offline|unauthorized)(?:\s+(.*))?$') {
             $serial = $Matches[1]
             $state = $Matches[2]
             $details = if ($Matches[3]) { $Matches[3] } else { '' }
@@ -76,6 +77,12 @@ function Get-ConnectedDevices {
         }
     }
     return $devices
+}
+
+function Get-ConnectedDevices {
+    $lines = & adb devices -l 2>&1
+    if ($LASTEXITCODE -ne 0) { throw 'ADB_DEVICE_LIST_FAILED' }
+    return @(ConvertFrom-AdbDevicesOutput -Lines $lines)
 }
 
 function Resolve-TargetDevice {
@@ -104,6 +111,7 @@ function Get-DeviceFacts {
     $storage = (Invoke-AdbSafe $Device.Serial @('shell', 'df', '-h', '/data')) -join [Environment]::NewLine
     return [pscustomobject]@{
         role = $DeviceRole
+        state = $Device.State
         serialHash = $Device.RedactedSerial
         manufacturer = $prop['ro.product.manufacturer']
         model = $prop['ro.product.model']
@@ -229,29 +237,31 @@ function Invoke-TargetAction {
     }
 }
 
-Ensure-OutputDirectory
-$script:Results = @()
-$script:Target = $null
-try {
-    Require-Adb
-    if ($Action -eq 'discover') { Invoke-Discovery }
-    elseif ($Action -eq 'collect') {
-        Invoke-TargetAction 'health'
-        Invoke-TargetAction 'app'
-        Invoke-TargetAction 'screenshot'
-        Invoke-TargetAction 'logs'
-        Invoke-TargetAction 'crashes'
-        Invoke-TargetAction 'performance'
-        Invoke-TargetAction 'smoke'
-    } else { Invoke-TargetAction $Action }
-} catch {
-    Write-Result $Action 'BLOCKED' $_.Exception.Message
-    exit 2
-} finally {
-    Save-Results
-    Write-Host "Evidence directory: $script:OutputDir"
-}
+if (-not $SkipExecution) {
+    Ensure-OutputDirectory
+    $script:Results = @()
+    $script:Target = $null
+    try {
+        Require-Adb
+        if ($Action -eq 'discover') { Invoke-Discovery }
+        elseif ($Action -eq 'collect') {
+            Invoke-TargetAction 'health'
+            Invoke-TargetAction 'app'
+            Invoke-TargetAction 'screenshot'
+            Invoke-TargetAction 'logs'
+            Invoke-TargetAction 'crashes'
+            Invoke-TargetAction 'performance'
+            Invoke-TargetAction 'smoke'
+        } else { Invoke-TargetAction $Action }
+    } catch {
+        Write-Result $Action 'BLOCKED' $_.Exception.Message
+        exit 2
+    } finally {
+        Save-Results
+        Write-Host "Evidence directory: $script:OutputDir"
+    }
 
-if (@($script:Results | Where-Object { $_.status -eq 'FAIL' }).Count -gt 0) { exit 1 }
-if (@($script:Results | Where-Object { $_.status -eq 'BLOCKED' }).Count -gt 0) { exit 2 }
-exit 0
+    if (@($script:Results | Where-Object { $_.status -eq 'FAIL' }).Count -gt 0) { exit 1 }
+    if (@($script:Results | Where-Object { $_.status -eq 'BLOCKED' }).Count -gt 0) { exit 2 }
+    exit 0
+}

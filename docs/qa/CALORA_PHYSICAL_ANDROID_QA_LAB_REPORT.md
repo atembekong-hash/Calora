@@ -46,6 +46,12 @@ It supports read-only discovery and targeted collection for:
 - Optional launch smoke check, gated behind `-AllowLaunch`
 - Timestamped evidence directories and sanitized result statuses
 
+### PR #387 discovery fix
+
+The reported discovery failure was caused by an incomplete inventory object contract. `Get-ConnectedDevices` produced device objects with `State`, while `Get-DeviceFacts` produced inventory objects without any `state` property. `Invoke-Discovery` then evaluated the inventory state under `Set-StrictMode -Version Latest`, causing PowerShell to stop with a missing-property error after a valid Samsung device had already been parsed.
+
+The fix extracts ADB parsing into `ConvertFrom-AdbDevicesOutput`, adds `state = $Device.State` to every device-facts inventory record, and keeps inventory filtering consistently on the serialized `state` field. It also adds `-SkipExecution` for safe dot-sourced testing and `tools/windows/Test-Invoke-CaloraAndroidQa.ps1`, a Windows PowerShell 5.1-compatible regression harness covering authorized/offline/unauthorized parsing, state propagation, strict-mode filtering, and the no-destructive-command safety contract.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results
@@ -90,7 +96,7 @@ Do not place serial numbers in committed reports. Do not use a personal producti
 
 **READY FOR LOCAL EXECUTION — NOT PASS.**
 
-The reusable toolkit and workflow documentation are present, but the final mission acceptance criteria requiring two certified physical devices and one authorized successful smoke test cannot be satisfied from the cloud sandbox. Those checks require the owner's Windows PC, connected Samsung devices, an approved installed build, and an owner-authorized controlled test session.
+The reusable toolkit and workflow documentation are present, and the PR #387 discovery fix is covered by deterministic Windows PowerShell 5.1-compatible tests. The final mission acceptance criteria requiring two certified physical devices and one authorized successful smoke test cannot be satisfied from the cloud sandbox. The corrected script has not yet succeeded on the owner's PC in this session; those checks require the owner's Windows PC, connected Samsung devices, an approved installed build, and an owner-authorized controlled test session.
 
 ## 7. Recommended next actions
 
