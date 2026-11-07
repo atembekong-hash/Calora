@@ -106,7 +106,7 @@ export function parseRecipePhotoInput(value: unknown): RecipePhotoInput | null {
 
 /** Stable JSON-compatible recipe version. Array order is meaningful for ingredients and method. */
 export function canonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
-  const normalize = (value: string | undefined) => value?.trim().replace(/\s+/g, " ") || undefined;
+  const normalize = (value: string | undefined) => value?.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US") || undefined;
   return {
     clientRecipeId: normalize(input.clientRecipeId)!,
     title: normalize(input.title)!,

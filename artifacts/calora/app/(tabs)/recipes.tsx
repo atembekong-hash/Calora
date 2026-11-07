@@ -3484,7 +3484,7 @@ export default function RecipesScreen() {
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : recipesQuery.data?.browsePoolSize != null ? `${recipesQuery.data.browsePoolSize.toLocaleString()} recipes available to explore` : `${visibleRemote.length + visibleLocal.length} recipes loaded`}</Text>
             </View>
             <Feather name="book-open" size={18} color={colors.mutedForeground} />
           </View>

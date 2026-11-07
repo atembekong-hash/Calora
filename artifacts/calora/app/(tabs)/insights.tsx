@@ -1566,6 +1566,7 @@ export default function InsightsScreen() {
   // so that mood, activity, water check-ins, and the local insight all use the current day.
   const [todayKey, setTodayKey] = useState(() => dateKey());
   const [progressView, setProgressView] = useState<ProgressView>('overview');
+  const [trustTopic, setTrustTopic] = useState<'database' | 'logging' | null>(null);
   useEffect(() => {
     const id = setInterval(() => {
       const current = dateKey();
@@ -1854,14 +1855,6 @@ export default function InsightsScreen() {
         onBack={() => router.replace('/(tabs)/more')}
         action={
           <View style={styles.headerActions}>
-            <Pressable
-              accessibilityLabel={`Open what ${BRAND.name} remembers`}
-              testID="living-memory-header-button"
-              onPress={() => router.push('/memory')}
-              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
-            >
-              <Feather name="compass" size={18} color={colors.foreground} />
-            </Pressable>
             <Pressable
               accessibilityLabel="Open Insights"
               testID="progress-insights-header-button"
@@ -2417,22 +2410,16 @@ export default function InsightsScreen() {
 
         <View style={view === 'trends' ? undefined : styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
-        <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Learn about the verified core database" testID="progress-trust-database" onPress={() => setTrustTopic('database')} style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.trustTitle, { color: colors.foreground }]}>Verified core database</Text>
-            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>USDA and labeled foods are separate from estimates and manual entries.</Text>
-          </View>
+          <View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: colors.foreground }]}>Verified core database</Text><Text style={[styles.trustBody, { color: colors.mutedForeground }]}>USDA and labeled foods are separate from estimates and manual entries.</Text></View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
-        </View>
-        <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Learn about low-friction logging" testID="progress-trust-logging" onPress={() => setTrustTopic('logging')} style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.trustIcon, { backgroundColor: '#fff0df' }]}><Feather name="zap" size={18} color={colors.warning} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.trustTitle, { color: colors.foreground }]}>Low-friction logging</Text>
-            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Start with one tap; you control the estimate.</Text>
-          </View>
+          <View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: colors.foreground }]}>Low-friction logging</Text><Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Start with one tap; you control the estimate.</Text></View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
-        </View>
+        </Pressable>
         </View>
             </Animated.ScrollView>
           )}
@@ -2445,6 +2432,11 @@ export default function InsightsScreen() {
         />
         </SwipeMenuHighlightProvider>
       </View>
+      <BottomSheet visible={trustTopic !== null} transparent animationType="slide" onRequestClose={() => setTrustTopic(null)} sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}><View style={{ flex: 1 }}><Text style={[styles.modalTitle, { color: colors.foreground }]}>{trustTopic === 'database' ? 'Verified core database' : 'Low-friction logging'}</Text><Text style={[styles.modalBody, { color: colors.mutedForeground }]}>How Calora keeps this part of your progress understandable.</Text></View><Pressable accessibilityLabel="Close trust details" onPress={() => setTrustTopic(null)} style={[styles.chartModalCloseBtn, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
+        <View style={[styles.trustDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name={trustTopic === 'database' ? 'shield' : 'edit-3'} size={20} color={colors.primary} /><Text style={[styles.modalBody, { color: colors.foreground }]}>{trustTopic === 'database' ? 'Food records stay distinct by source: verified entries, labeled foods, estimates, and manual entries are not silently blended.' : 'Logging stays quick without hiding uncertainty. You can accept an estimate, edit it, or add your own values before saving.'}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close trust details" onPress={() => setTrustTopic(null)} style={[styles.modalAction, { backgroundColor: colors.primary }]}><Text style={[styles.modalActionText, { color: colors.primaryForeground }]}>Got it</Text></Pressable>
+      </BottomSheet>
       <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
@@ -2785,6 +2777,9 @@ function makeStyles(f: number) {
   weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
   modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },
+  trustDetailCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 18 },
+  modalAction: { alignItems: 'center', borderRadius: 14, paddingVertical: 13, marginTop: 14 },
+  modalActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
   weightInput: { borderWidth: 1, borderRadius: 14, height: 48, paddingHorizontal: 13, fontFamily: 'Inter_500Medium', fontSize: 16 * f, marginTop: 17 },
   saveWeight: { borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
   saveWeightText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
