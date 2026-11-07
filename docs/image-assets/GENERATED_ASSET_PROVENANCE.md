@@ -317,3 +317,7 @@ All assets were decoded, hash-checked, and registered against their named runtim
 | `artifacts/calora/assets/images/learning/articles/food-culture-enjoyment-10.jpg` | 320×240 | `8c0fbec92d6ea082d7283e3206f2de7b2ba192a76ed7d94bb27b3575d761e767` | Learning editorial lesson image |
 | `artifacts/calora/assets/images/learning/articles/food-culture-enjoyment-11.jpg` | 320×240 | `6869453db9bf365c93e9cfa6e766064b1ea4a04c12c4cba72463dfc0e692ea15` | Learning editorial lesson image |
 | `artifacts/calora/assets/images/learning/articles/food-culture-enjoyment-12.jpg` | 320×240 | `40875593d28786847f7720318bdcfb6757b4a972fd1bfddaf9813ebc6ba37302` | Learning editorial lesson image |
+
+| `artifacts/calora/assets/images/more/calora-pro-crown.png` | 720×540 | `ff665c8ab9d312e8c86a5bb6a2d8d17918f6487eed6b2e423fc2fef1f86ba30f` | small premium subscription decoration |
+| `artifacts/calora/assets/images/more/fasting-avocado-citrus.png` | 720×540 | `5766d22863df8db507efafca235b24073659655e7404d31bd32c7b24401f7a2c` | decorative wellness card food illustration |
+| `artifacts/calora/assets/images/more/learning-books-leaves.png` | 720×540 | `04e276f26dde557a86dc1d48b7bcc8fa903eb065afda3c075c84acaeb05123a2` | decorative learning card illustration |
