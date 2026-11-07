@@ -49,6 +49,47 @@ function Invoke-AdbSafe {
     return @($output)
 }
 
+function ConvertTo-WindowsProcessArguments {
+    param([string[]]$Arguments)
+    return (($Arguments | ForEach-Object {
+        $value = [string]$_
+        '"' + ($value -replace '"', '\"') + '"'
+    }) -join ' ')
+}
+
+function Invoke-AdbSmokeSafe {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSerial,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = 'adb.exe'
+    $startInfo.Arguments = (ConvertTo-WindowsProcessArguments -Arguments (@('-s', $TargetSerial) + @($Arguments)))
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    try {
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            $detail = ((@($stdout, $stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join [Environment]::NewLine).Trim()
+            throw "ADB_COMMAND_FAILED: adb $($Arguments -join ' ')`n$detail"
+        }
+        return @($stdout -split "`r?`n" | Where-Object { $_ -ne '' })
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Get-RedactedId {
     param([string]$Value)
     if ([string]::IsNullOrWhiteSpace($Value)) { return 'unknown' }
@@ -293,7 +334,7 @@ function Invoke-TargetAction {
                 return
             }
             $smokeArguments = [string[]]@('shell', 'monkey', '-p', $PackageName, '1')
-            Invoke-AdbSafe -TargetSerial $script:Target.Serial -Arguments $smokeArguments | Out-Null
+            Invoke-AdbSmokeSafe -TargetSerial $script:Target.Serial -Arguments $smokeArguments | Out-Null
             Start-Sleep -Seconds 3
             $focused = (Invoke-AdbSafe $script:Target.Serial @('shell', 'dumpsys', 'activity', 'activities')) -join [Environment]::NewLine
             Set-Content (Join-Path $script:OutputDir 'smoke-launch.txt') $focused -Encoding UTF8

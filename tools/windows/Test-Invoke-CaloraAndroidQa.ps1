@@ -159,6 +159,7 @@ $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
 Assert-True ($source -match '\$package\s*=\s*@\(\s*Invoke-AdbSafe') 'Package inspection must preserve array shape before reading Count'
 Assert-True ($source -match '\$smokeArguments\s*=\s*\[string\[\]\]@\(''shell'', ''monkey'', ''-p'', \$PackageName, ''1''\)') 'Smoke launch must construct a typed complete monkey argument array'
+Assert-True ($source -match 'Invoke-AdbSmokeSafe\s+-TargetSerial\s+\$script:Target\.Serial\s+-Arguments\s+\$smokeArguments') 'Smoke launch must use the dedicated ProcessStartInfo launcher'
 $singlePackagePath = 'package:/data/app/com.etiendem.caloraapp/base.apk'
 $packagePaths = @($singlePackagePath)
 Assert-Equal 1 $packagePaths.Count 'A single pm path response must remain a one-item array'
@@ -166,6 +167,8 @@ Assert-Equal 1 $packagePaths.Count 'A single pm path response must remain a one-
 $script:CapturedSmokeArguments = $null
 Invoke-AdbSafe -TargetSerial 'fixture-serial' -Arguments ([string[]]@('shell', 'monkey', '-p', 'com.etiendem.caloraapp', '1')) | Out-Null
 Assert-Equal 'shell|monkey|-p|com.etiendem.caloraapp|1' (($script:CapturedSmokeArguments -join '|')) 'PowerShell 5.1 must preserve every smoke-launch argument token'
+$serializedSmokeArguments = ConvertTo-WindowsProcessArguments -Arguments ([string[]]@('-s', 'R58M123456A', 'shell', 'monkey', '-p', 'com.etiendem.caloraapp', '1'))
+Assert-Equal '"-s" "R58M123456A" "shell" "monkey" "-p" "com.etiendem.caloraapp" "1"' $serializedSmokeArguments 'Smoke launcher must serialize every ADB token without PowerShell native binding'
 
 $crashFixture = @(
     '11-07 14:01:00.000 1000 1000 E AndroidRuntime: FATAL EXCEPTION: main'

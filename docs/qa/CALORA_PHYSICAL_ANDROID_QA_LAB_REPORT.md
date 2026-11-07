@@ -79,6 +79,8 @@ The collection also stopped at the optional smoke step because the `shell monkey
 
 The subsequent Windows regression failure was a fixture-contract error: `ANR in com.example.unknown` contains an explicit non-Calora process name, so the scanner correctly classified it as a second `other` event. The fixture now uses an unattributed `SIGSEGV` line for the `unknown` case and separately asserts that a package-bearing ANR is classified as `other`. No crash-detection rule was weakened.
 
+The latest S20 run showed that explicit PowerShell parameter binding alone did not prevent the Windows PowerShell 5.1 native binder from mishandling the `-p` tail when launching `adb.exe`. The smoke path now uses `System.Diagnostics.ProcessStartInfo` with a quoted, typed argument string, and the regression harness verifies the exact serialized `-s`, `shell`, `monkey`, `-p`, package, and `1` tokens. Physical smoke success remains unverified until the owner reruns collection with `-AllowLaunch`.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results
