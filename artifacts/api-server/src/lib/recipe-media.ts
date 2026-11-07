@@ -106,7 +106,7 @@ export function parseRecipePhotoInput(value: unknown): RecipePhotoInput | null {
 
 /** Stable JSON-compatible recipe version. Array order is meaningful for ingredients and method. */
 export function canonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
-  const normalize = (value: string | undefined) => value?.trim().replace(/\s+/g, " ") || undefined;
+  const normalize = (value: string | undefined) => value?.normalize("NFKC").trim().replace(/\s+/g, " ") || undefined;
   return {
     clientRecipeId: normalize(input.clientRecipeId)!,
     title: normalize(input.title)!,
@@ -120,9 +120,25 @@ export function canonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhot
   };
 }
 
+function hashCanonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
+  const canonical = canonicalRecipePhotoContent(input);
+  const normalize = (value: string | undefined) => value?.toLocaleLowerCase("en-US") || undefined;
+  return {
+    clientRecipeId: normalize(canonical.clientRecipeId)!,
+    title: normalize(canonical.title)!,
+    description: normalize(canonical.description) ?? "",
+    ingredients: canonical.ingredients.map((item) => normalize(item)!).filter(Boolean),
+    instructions: canonical.instructions.map((item) => normalize(item)!).filter(Boolean),
+    cuisine: normalize(canonical.cuisine),
+    category: normalize(canonical.category),
+    mealType: normalize(canonical.mealType),
+    dietaryContext: canonical.dietaryContext.map((item) => normalize(item)!).filter(Boolean),
+  };
+}
+
 export function recipePhotoContentHash(input: RecipePhotoInput): string {
   return createHash("sha256")
-    .update(JSON.stringify({ promptVersion: RECIPE_MEDIA_PROMPT_VERSION, recipe: canonicalRecipePhotoContent(input) }))
+    .update(JSON.stringify({ promptVersion: RECIPE_MEDIA_PROMPT_VERSION, recipe: hashCanonicalRecipePhotoContent(input) }))
     .digest("hex");
 }
 
