@@ -52,6 +52,10 @@ The reported discovery failure was caused by an incomplete inventory object cont
 
 The fix extracts ADB parsing into `ConvertFrom-AdbDevicesOutput`, adds `state = $Device.State` to every device-facts inventory record, and keeps inventory filtering consistently on the serialized `state` field. It also adds `-SkipExecution` for safe dot-sourced testing and `tools/windows/Test-Invoke-CaloraAndroidQa.ps1`, a Windows PowerShell 5.1-compatible regression harness covering authorized/offline/unauthorized parsing, state propagation, strict-mode filtering, and the no-destructive-command safety contract.
 
+### PR #387 safety-test false positive
+
+The first regression harness used a line-based expression beginning with `adb`. It falsely matched the harmless missing-tool message `ADB_NOT_FOUND: install Android Platform Tools`; that text is not an executable ADB operation and the toolkit contains no install command. The harness now parses the toolkit with the Windows PowerShell AST, examines only executable command nodes named `adb` or `adb.exe`, ignores comments and quoted strings, and includes a fixture proving that an actual `adb shell pm clear ...` command is rejected.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results

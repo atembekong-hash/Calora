@@ -18,6 +18,37 @@ function Assert-Equal {
     }
 }
 
+function Get-ExecutableDestructiveAdbCommands {
+    param([string]$Path)
+
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        $Path,
+        [ref]$tokens,
+        [ref]$parseErrors
+    )
+    if ($parseErrors.Count -gt 0) {
+        throw "SAFETY_PARSE_FAILED: $Path contains PowerShell parse errors."
+    }
+
+    $matches = @()
+    $commands = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true)
+    foreach ($command in $commands) {
+        $elements = @($command.CommandElements)
+        if ($elements.Count -eq 0) { continue }
+        $commandName = $elements[0].Extent.Text.Trim()
+        if ($commandName -notmatch '^(?i:adb)(?:\.exe)?$') { continue }
+
+        $commandText = $command.Extent.Text
+        if ($commandText -match '(?i)(?:^|\s)(?:install|uninstall|wipe|factory-reset)(?:\s|$)' -or
+            $commandText -match '(?i)\b(?:pm\s+clear|shell\s+rm|shell\s+reboot)\b') {
+            $matches += $commandText
+        }
+    }
+    return $matches
+}
+
 if (-not (Test-Path -LiteralPath $ToolkitPath)) {
     throw "TOOLKIT_NOT_FOUND: $ToolkitPath"
 }
@@ -75,7 +106,27 @@ Assert-Equal 1 $authorizedCount 'Strict-mode inventory filtering must not access
 
 $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
-Assert-True ($source -notmatch 'adb[^\r\n]*(install|uninstall|pm\s+clear|wipe|factory)') 'Toolkit must not contain destructive ADB operations'
+$destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
+Assert-Equal 0 $destructiveCommands.Count 'Toolkit must not contain executable destructive ADB operations'
+
+$harmlessFixture = Join-Path $env:TEMP 'calora-qa-harmless-safety-fixture.ps1'
+$destructiveFixture = Join-Path $env:TEMP 'calora-qa-destructive-safety-fixture.ps1'
+try {
+    @"
+# adb shell pm clear com.example.app
+Write-Output 'ADB_NOT_FOUND: install Android Platform Tools'
+`$message = 'adb uninstall com.example.app'
+"@ | Set-Content -LiteralPath $harmlessFixture -Encoding UTF8
+    @"
+& adb shell pm clear com.example.app
+"@ | Set-Content -LiteralPath $destructiveFixture -Encoding UTF8
+
+    Assert-Equal 0 @(Get-ExecutableDestructiveAdbCommands -Path $harmlessFixture).Count 'Comments and quoted strings must not be classified as executable destructive ADB commands'
+    Assert-Equal 1 @(Get-ExecutableDestructiveAdbCommands -Path $destructiveFixture).Count 'An executable destructive ADB command must be detected'
+}
+finally {
+    Remove-Item -LiteralPath $harmlessFixture, $destructiveFixture -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host 'PASS: ADB parsing, state propagation, strict-mode discovery filtering, and safety contracts.'
 exit 0
