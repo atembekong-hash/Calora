@@ -33,6 +33,8 @@ The findings collection deliberately uses the name `$findings`, not `$matches`: 
 
 The collection action also wraps the `pm path` result in `@(...)`. A single installed APK path is otherwise unwrapped by PowerShell 5.1 into a scalar string, making `$package.Count` fail under strict mode. The regression harness includes a one-item package-path contract for this case.
 
+Crash scanning is package-aware. Each marker is retained in `crash-scan.txt` with `calora`, `other`, or `unknown` attribution based on nearby `Process:`, `Cmdline:`, or `ANR in` evidence. Unrelated process markers do not fail Calora's scan; ambiguous markers produce `NOT RUN` rather than being falsely attributed. The smoke launch now binds the complete `shell monkey -p <package> 1` argument array explicitly, avoiding Windows PowerShell 5.1 native-argument binding ambiguity.
+
 From PowerShell, run:
 
 ```powershell

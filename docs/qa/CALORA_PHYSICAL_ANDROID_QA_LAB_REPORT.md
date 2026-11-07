@@ -71,6 +71,12 @@ The subsequent Windows PowerShell 5.1 failure exposed a second harness defect: t
 
 The Samsung Galaxy S20 collection then reached the health pass and failed during app inspection because a successful `pm path` response usually contains exactly one line. PowerShell unwrapped that result to a scalar before `$package.Count` was read under strict mode. The collection path now assigns `@(Invoke-AdbSafe ...)`, and the regression harness verifies the one-item package-path shape.
 
+### Follow-up: crash attribution and smoke argument handling
+
+The owner’s subsequent evidence directory was `C:\CaloraEvidence\20261107T140156Z`. The reported crash scan marker cannot be attributed from the sandbox because that Windows evidence directory is not accessible here; the previous scanner also treated all global logcat markers as Calora failures. The scanner now preserves each marker with nearby process evidence and classifies it as `calora`, `other`, or `unknown`. An unrelated process no longer fails Calora’s scan, while an ambiguous marker remains `NOT RUN` instead of being falsely classified.
+
+The collection also stopped at the optional smoke step because the `shell monkey -p <package> 1` argument sequence was passed positionally through the PowerShell wrapper. The smoke invocation now uses explicit `-TargetSerial` and `-Arguments` binding, and the Windows regression harness covers the exact token sequence. The smoke test remains unverified until the owner reruns it on the physical Galaxy S20 with `-AllowLaunch`.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results
