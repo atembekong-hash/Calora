@@ -31,6 +31,8 @@ The safety assertion uses the Windows PowerShell AST rather than a broad text re
 
 The findings collection deliberately uses the name `$findings`, not `$matches`: PowerShell exposes an automatic, case-insensitive `$Matches` variable for `-match`, which can overwrite a user-defined `$matches` collection under strict mode. The regression harness also checks empty finding collections and safely formats objects with missing diagnostic properties.
 
+The collection action also wraps the `pm path` result in `@(...)`. A single installed APK path is otherwise unwrapped by PowerShell 5.1 into a scalar string, making `$package.Count` fail under strict mode. The regression harness includes a one-item package-path contract for this case.
+
 From PowerShell, run:
 
 ```powershell

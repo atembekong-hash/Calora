@@ -58,6 +58,8 @@ The first regression harness used a line-based expression beginning with `adb`. 
 
 The subsequent Windows PowerShell 5.1 failure exposed a second harness defect: the AST collector stored findings in `$matches`, which collides case-insensitively with PowerShell's automatic `$Matches` regex hashtable. A later `-match` operation replaced the collection, so failure formatting enumerated objects without `.line`. The collector now uses `$findings`, and the harness tests empty collections plus safe handling of missing finding properties.
 
+The Samsung Galaxy S20 collection then reached the health pass and failed during app inspection because a successful `pm path` response usually contains exactly one line. PowerShell unwrapped that result to a scalar before `$package.Count` was read under strict mode. The collection path now assigns `@(Invoke-AdbSafe ...)`, and the regression harness verifies the one-item package-path shape.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results

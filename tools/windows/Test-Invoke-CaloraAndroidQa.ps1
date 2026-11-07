@@ -40,7 +40,7 @@ function Get-ExecutableDestructiveAdbCommands {
         [ref]$tokens,
         [ref]$parseErrors
     )
-    if ($parseErrors.Count -gt 0) {
+    if (@($parseErrors).Count -gt 0) {
         throw "SAFETY_PARSE_FAILED: $Path contains PowerShell parse errors."
     }
 
@@ -153,6 +153,10 @@ Assert-Equal 1 $authorizedCount 'Strict-mode inventory filtering must not access
 
 $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
+Assert-True ($source -match '\$package\s*=\s*@\(\s*Invoke-AdbSafe') 'Package inspection must preserve array shape before reading Count'
+$singlePackagePath = 'package:/data/app/com.etiendem.caloraapp/base.apk'
+$packagePaths = @($singlePackagePath)
+Assert-Equal 1 $packagePaths.Count 'A single pm path response must remain a one-item array'
 $destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
 if ($destructiveCommands.Count -ne 0) {
     $details = $destructiveCommands | ForEach-Object {

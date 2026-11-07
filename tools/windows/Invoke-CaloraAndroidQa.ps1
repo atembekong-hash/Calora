@@ -191,7 +191,9 @@ function Invoke-TargetAction {
             Write-Result 'Device health' 'PASS' 'Battery and display facts captured.'
         }
         'app' {
-            $package = Invoke-AdbSafe $script:Target.Serial @('shell', 'pm', 'path', $PackageName)
+            # PowerShell unwraps a one-line native command result to a scalar.
+            # Keep package paths array-shaped because the next contract uses Count.
+            $package = @(Invoke-AdbSafe $script:Target.Serial @('shell', 'pm', 'path', $PackageName))
             $details = Invoke-AdbSafe $script:Target.Serial @('shell', 'dumpsys', 'package', $PackageName)
             Set-Content (Join-Path $script:OutputDir 'application.txt') (($package + $details) -join [Environment]::NewLine) -Encoding UTF8
             if ($package.Count -gt 0 -and ($package -join '') -match $PackageName) { Write-Result 'Calora installation inspection' 'PASS' "Package $PackageName is installed." }
