@@ -387,6 +387,7 @@ function RootLayoutNav() {
           <Stack.Screen name="dashboard-layout" options={{ headerShown: false }} />
           <Stack.Screen name="coach" options={{ headerShown: false }} />
           <Stack.Screen name="memory" options={{ headerShown: false }} />
+          <Stack.Screen name="progress-insights" options={{ headerShown: false }} />
           <Stack.Screen name="restaurants" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />

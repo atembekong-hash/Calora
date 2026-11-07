@@ -1862,6 +1862,14 @@ export default function InsightsScreen() {
             >
               <Feather name="compass" size={18} color={colors.foreground} />
             </Pressable>
+            <Pressable
+              accessibilityLabel="Open Insights"
+              testID="progress-insights-header-button"
+              onPress={() => router.push('/progress-insights' as never)}
+              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="star" size={18} color={colors.foreground} />
+            </Pressable>
           </View>
         }
       />
