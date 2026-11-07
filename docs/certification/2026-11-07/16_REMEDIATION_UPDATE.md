@@ -20,7 +20,7 @@ No native build, device modification, deployment, or production-data change was 
 
 The new source contract is covered in `artifacts/calora/lib/__tests__/scanScreen.test.ts`.
 
-This is a source-level remediation. Physical Android re-verification on a fresh binary remains required before changing the commercial certification status from FAIL.
+This is a source-level remediation. Physical Android re-verification on a fresh binary remains required before changing the commercial certification status from BLOCKED.
 
 ### Calorie recommendation boundary
 
@@ -32,7 +32,7 @@ This is a source-level remediation. Physical Android re-verification on a fresh 
 
 The six fixture failures were contract drift, not evidence of a signing bypass. The implementation now emits a sanitized monitor-input diagnostic line in each preflight result, and the synthetic Apple-rejection fixture is intercepted by the production iOS build-number safety gate with the documented normalized exit code and `LOCAL_CONFIGURATION` class. The fixture expectations now represent those actual sanitized contracts.
 
-Validation: `node --test scripts/ios-signing-evidence.test.js scripts/ios-signing-preflight.test.js` — 30 passed, 0 failed.
+Validation: `node --test scripts/ios-signing-evidence.test.js scripts/ios-signing-preflight.test.js` — 30 passed, 0 failed at the initial remediation run; the current combined iOS preflight set is 37 passed, 0 failed.
 
 This does not certify Apple credentials, a signed IPA, App Store Connect processing, or an iOS device. Those remain externally blocked until an authorized macOS/EAS/Apple verification is performed.
 
@@ -43,6 +43,10 @@ This does not certify Apple credentials, a signed IPA, App Store Connect process
 - API TypeScript check: PASS.
 - iOS signing evidence and preflight tests: PASS (30 tests).
 - API recipe-media semantic test: BLOCKED in the sandbox because `DATABASE_URL` is not set; no database was provisioned and no production credentials were used.
+- Focused client certification continuation: PASS — 9 files, 44 tests.
+- Focused API certification continuation: 5 files, 90 tests passed; privacy-rights integration remains BLOCKED at import because the sandbox has no `DATABASE_URL`.
+- Release/security/API verification continuation: PASS — 26 tests.
+- Railway production read-only verification: PASS for current service health; three services are connected to `atembekong-hash/Calora@main`, with no staged changes. Merge-to-deploy decoupling is documented in `17_RAILWAY_DEPLOYMENT_DECOUPLING_EVIDENCE.md` and was not applied.
 - Physical Android verification: NOT RUN in this sandbox. Existing owner-supplied S20 evidence is not silently reclassified by this source-only remediation.
 
 ## Certification interpretation
