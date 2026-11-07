@@ -16,6 +16,14 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("() => controller.abort()");
   });
 
+  it("recovers a stalled native camera preview without changing capture safety", () => {
+    expect(source).toContain("const [cameraInstanceKey, setCameraInstanceKey] = useState(0);");
+    expect(source).toContain("key={cameraInstanceKey}");
+    expect(source).toContain("The camera preview is taking too long to start.");
+    expect(source).toContain("const retryCameraPreview = () => {");
+    expect(source).toContain('accessibilityLabel="Retry camera preview"');
+  });
+
   it("does not invalidate an Android native library selection while its picker Activity is active", () => {
     expect(source).toContain("shouldInterruptCaptureForAppState(nextState, nativePickerActiveRef.current)");
     expect(source).toContain("nativePickerActiveRef.current = true");

@@ -176,6 +176,7 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraIssue, setCameraIssue] = useState<string | null>(null);
+  const [cameraInstanceKey, setCameraInstanceKey] = useState(0);
   const [mode, setMode] = useState<ScanMode>(params.capture === 'barcode' ? 'barcode' : 'auto');
   const [hasScanned, setHasScanned] = useState(false);
   const barcodeLaunchRequested = useRef(false);
@@ -317,10 +318,28 @@ export default function ScanScreen() {
       // that owned handoff as background. Genuine background transitions still
       // cancel in-flight work, but the active picker must be allowed to return.
       if (shouldInterruptCaptureForAppState(nextState, nativePickerActiveRef.current)) interruptCaptureOperation();
-      if (nextState === 'active') setCameraReady(false);
+      if (nextState === 'active') {
+        setCameraReady(false);
+        setCameraIssue(null);
+        setCameraInstanceKey((current) => current + 1);
+      }
     });
     return () => subscription.remove();
   }, [captureFlow.stage]);
+
+  useEffect(() => {
+    if (!permission?.granted || cameraReady || cameraIssue) return;
+    const timeout = setTimeout(() => {
+      setCameraIssue('The camera preview is taking too long to start. Retry the preview or open Settings.');
+    }, CAPTURE_CAMERA_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [cameraIssue, cameraReady, cameraInstanceKey, permission?.granted]);
+
+  const retryCameraPreview = () => {
+    setCameraReady(false);
+    setCameraIssue(null);
+    setCameraInstanceKey((current) => current + 1);
+  };
 
   useEffect(() => {
     const draftId = routeDraftId;
@@ -852,6 +871,7 @@ export default function ScanScreen() {
               {photoAnalysisPending ? <ProcessingPhoto colors={colors} uri={capturedPhotoUri!} /> : (
                 <>
                   <CameraView
+                    key={cameraInstanceKey}
                     ref={cameraRef}
                     style={StyleSheet.absoluteFill}
                     facing="back"
@@ -874,7 +894,7 @@ export default function ScanScreen() {
               )}
             </View>
             {!cameraReady && !cameraIssue ? <Text accessibilityLiveRegion="polite" style={[styles.cameraStatus, { color: colors.mutedForeground }]}>Starting camera preview…</Text> : null}
-            {cameraIssue ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="camera-off" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{cameraIssue}</Text><Pressable accessibilityLabel="Open device settings for camera access" onPress={openCameraSettings}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Settings</Text></Pressable></View> : null}
+            {cameraIssue ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="camera-off" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{cameraIssue}</Text><Pressable accessibilityLabel="Retry camera preview" onPress={retryCameraPreview}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable><Pressable accessibilityLabel="Open device settings for camera access" onPress={openCameraSettings}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Settings</Text></Pressable></View> : null}
             {captureFlow.stage === 'error' && captureFlow.failure ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{captureFlow.failure.message}</Text>{captureFlow.failure.kind === 'authentication' ? <Pressable accessibilityLabel="Sign in again for Scan" onPress={() => router.push('/auth/sign-in')}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Sign in</Text></Pressable> : captureFlow.failure.kind === 'endpoint' ? null : retryInputRef.current ? <Pressable accessibilityLabel="Retry capture analysis" onPress={retryCapture} disabled={captureBusy}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable> : null}</View> : null}
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
               {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} disabled={captureBusy} onPress={() => { resetCaptureOperation(); setMode(item); setReceiptCapture(false); resetBarcodeCapture(); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
