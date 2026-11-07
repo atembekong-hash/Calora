@@ -39,6 +39,8 @@ vi.mock("react-native", () => {
 });
 vi.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 vi.mock("expo-router", () => ({ router: harness.router }));
+vi.mock("expo-image", () => ({ Image: () => null }));
+vi.mock("expo-linear-gradient", () => ({ LinearGradient: ({ children }: { children?: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("@/context/CaloraContext", () => ({ useCalora: () => harness.calora }));
 vi.mock("@/components/ScalePressable", () => ({ ScalePressable: ({ children, onPress, accessibilityLabel, accessibilityRole }: any) => <button aria-label={accessibilityLabel} onClick={onPress} role={accessibilityRole}>{children}</button> }));
