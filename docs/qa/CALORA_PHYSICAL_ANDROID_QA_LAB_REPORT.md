@@ -4,9 +4,11 @@
 
 **Date:** 2026-11-07
 
-## 1. Execution environment
+## 1. Execution environments
 
-The investigation was performed in the Manus cloud sandbox, not on the owner's Windows PC.
+The repository investigation and deterministic checks were performed in the Manus cloud sandbox. Physical-device collection was performed by the owner on the authorized Windows PC.
+
+### Sandbox boundary
 
 - Operating system: Linux sandbox
 - Windows PowerShell access: **Unavailable**
@@ -14,7 +16,16 @@ The investigation was performed in the Manus cloud sandbox, not on the owner's W
 - USB device access: **Unavailable**
 - Owner's connected Samsung devices: **Not accessible from this environment**
 
-No physical-device result is fabricated from these checks.
+These are environment limitations, not physical-device failures. No physical-device result was fabricated from sandbox checks.
+
+### Owner Windows verification
+
+- Host: Owner's Windows PC with Windows PowerShell 5.1
+- Device: Samsung Galaxy S20, model `SM-G981U`
+- Device state: Authorized and recognized by ADB
+- Evidence directory: `C:\CaloraEvidence\20261107T135244Z`
+- Collection result: **PASS — all six non-smoke collection checks passed**
+- Application smoke launch: **Intentionally not run**
 
 ## 2. Repository baseline
 
@@ -64,16 +75,16 @@ The toolkit defaults to non-destructive behavior. It does not install, uninstall
 
 ## 4. Physical-device results
 
-| Check | Primary Samsung | Secondary Samsung |
+| Check | Owner Windows — Galaxy S20 (`SM-G981U`) | Sandbox |
 |---|---:|---:|
-| ADB discovery | BLOCKED — Windows/USB unavailable here | BLOCKED — Windows/USB unavailable here |
-| Device certification | NOT RUN | NOT RUN |
-| Calora installation inspection | NOT RUN | NOT RUN |
-| Launch smoke test | NOT RUN | NOT RUN |
-| Screenshot evidence | NOT RUN | NOT RUN |
-| Logcat/crash evidence | NOT RUN | NOT RUN |
-| Performance snapshot | NOT RUN | NOT RUN |
-| Full feature regression | NOT RUN | NOT RUN |
+| ADB discovery | **PASS** — device recognized | NOT EXECUTABLE — ADB unavailable |
+| Device health and display facts | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Calora installation inspection | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Screenshot capture | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Redacted logcat capture | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Crash/ANR marker scan | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Performance snapshot | **PASS** | NOT EXECUTABLE — ADB unavailable |
+| Application smoke launch | **INTENTIONALLY NOT RUN** | NOT EXECUTABLE — ADB unavailable |
 
 ## 5. Owner-side execution
 
@@ -102,9 +113,9 @@ Do not place serial numbers in committed reports. Do not use a personal producti
 
 ## 6. Acceptance status
 
-**READY FOR LOCAL EXECUTION — NOT PASS.**
+**PASS for the requested Windows physical-device collection scope.**
 
-The reusable toolkit and workflow documentation are present, and the PR #387 discovery fix is covered by deterministic Windows PowerShell 5.1-compatible tests. The final mission acceptance criteria requiring two certified physical devices and one authorized successful smoke test cannot be satisfied from the cloud sandbox. The corrected script has not yet succeeded on the owner's PC in this session; those checks require the owner's Windows PC, connected Samsung devices, an approved installed build, and an owner-authorized controlled test session.
+The reusable toolkit and workflow documentation are present. PR #387's discovery, safety, scalar-array, and strict-mode contracts are covered by deterministic Windows PowerShell 5.1-compatible tests. The owner then verified the actual collection path on a Samsung Galaxy S20 (`SM-G981U`): all six non-smoke collection checks passed and evidence was written to `C:\CaloraEvidence\20261107T135244Z`. The smoke launch remains intentionally unrun and is not represented as a pass. The sandbox cannot independently reproduce the Windows or physical-device run.
 
 ## 7. Recommended next actions
 
