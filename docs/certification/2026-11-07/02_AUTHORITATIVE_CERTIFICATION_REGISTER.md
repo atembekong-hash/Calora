@@ -1,7 +1,7 @@
 # Calora Authoritative Certification Register
 
 **Assessment date:** 2026-11-07  
-**Tested commit:** `a129ee316d6b4ddd4b8f52098f0af8fb05aee8df` (PR #394; source-level remediation branch)
+**Tested commit:** `1fb1627eedb704b368b91a03500ef81132886f51` (PR #394; source-level remediation branch)
 **Platform:** Android, iOS, backend/database, mobile/web product, AI, nutrition, recipes/media, commercial operations  
 **Verdict:** **NOT CERTIFIED — BLOCKED**
 
@@ -25,7 +25,7 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | CAL-14 | Backend / critical | Application auth/rate-limit/readiness source review | `areas/04-backend.md`; API tests and workflows | Backend | PASS | Strong application-level controls are evidenced at source level. |
 | CAL-15 | Backend / critical | Customer-data isolation review | `CALORA_INTELLIGENCE_SUPABASE_SECURITY_REPORT.md`; migrations | Backend/DB Security | FAIL | Customer data is managed PostgreSQL; no independently verified DB RLS/equivalent boundary. Supabase inspected project has no Calora tables. |
 | CAL-16 | Backend / critical | Live deployment/roles/observability review | `areas/04-backend.md`; historical Railway reports | Platform/DBA | BLOCKED | Current Railway identity, env, grants, migrations, storage, alerts not inspected; historical evidence stale. |
-| CAL-17 | Backend / critical | Rollback/restore drill | `areas/04-backend.md` | SRE/DBA | NOT RUN | No current production rollback, DB restore, storage restore, or recovery drill. |
+| CAL-17 | Backend / critical | Rollback/restore drill | `23_MISSION_398_RECOVERY_CERTIFICATION_VERDICT.md`; `22_MISSION_398_EXTERNAL_RECOVERY_SOURCES.md` | SRE/DBA | BLOCKED | Railway rollback/redeploy controls and isolated migration reconstruction are evidenced, but Free-tier Supabase has no verified off-site database dump, PITR window, object-storage restore evidence, provider-state recovery evidence, or end-to-end production restore drill. |
 | CAL-18 | Calculations / high | Focused deterministic suite | `areas/05-calculations.md`; 12 files / 165 tests passed | Nutrition Engineering | PASS | Core macro, serving, dates, fasting, health-day, progress, sync contracts pass. |
 | CAL-19 | Calculations / high | Recommendation input-boundary review | `calorieRecommendation.ts`; `profileTargets.test.ts` | Nutrition Engineering | PASS | PR #394 rejects non-finite and out-of-range weights (25–350 kg), and fails closed for non-finite/non-positive results; valid calculation vector remains covered. |
 | CAL-20 | Calculations / high | Provider/device/production sync acceptance | `areas/05-calculations.md` | Nutrition + QA | BLOCKED | Live barcode serving metadata, authenticated sync, native health, timezone/DST and offline flows unavailable. |
@@ -46,8 +46,8 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 |---|---:|
 | PASS | 68 |
 | FAIL | 7 |
-| BLOCKED | 13 |
-| NOT RUN | 13 |
+| BLOCKED | 14 |
+| NOT RUN | 12 |
 | NOT APPLICABLE | 0 |
 
 Counts above are item-level counts from the eight supplied domain reports; this register preserves the 30 stable control IDs for repeatable re-certification and maps each material gate explicitly.
