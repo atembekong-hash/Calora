@@ -1855,12 +1855,12 @@ export default function InsightsScreen() {
         action={
           <View style={styles.headerActions}>
             <Pressable
-              accessibilityLabel={`Open what ${BRAND.name} remembers`}
-              testID="living-memory-header-button"
-              onPress={() => router.push('/memory')}
+              accessibilityLabel="Open Insights"
+              testID="progress-insights-header-button"
+              onPress={() => router.push('/progress-insights' as never)}
               style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
             >
-              <Feather name="compass" size={18} color={colors.foreground} />
+              <Feather name="star" size={18} color={colors.foreground} />
             </Pressable>
           </View>
         }
