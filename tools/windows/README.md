@@ -29,6 +29,8 @@ The test uses deterministic ADB output fixtures, confirms authorized/offline/una
 
 The safety assertion uses the Windows PowerShell AST rather than a broad text regex. The previous regex incorrectly treated the harmless error text `ADB_NOT_FOUND: install Android Platform Tools` as an executable `adb install` command. The AST check inspects only actual PowerShell command nodes whose command name is `adb` or `adb.exe`, then evaluates literal ADB argument tokens in that node. Comments, quoted strings, and unrelated diagnostic text are tested explicitly as non-destructive references. A fixture containing an executable `adb shell pm clear ...` command must still be rejected, and any future match reports its source line, column, rule, and command extent before failing.
 
+The findings collection deliberately uses the name `$findings`, not `$matches`: PowerShell exposes an automatic, case-insensitive `$Matches` variable for `-match`, which can overwrite a user-defined `$matches` collection under strict mode. The regression harness also checks empty finding collections and safely formats objects with missing diagnostic properties.
+
 From PowerShell, run:
 
 ```powershell

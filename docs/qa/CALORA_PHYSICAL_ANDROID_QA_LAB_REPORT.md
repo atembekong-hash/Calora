@@ -56,6 +56,8 @@ The fix extracts ADB parsing into `ConvertFrom-AdbDevicesOutput`, adds `state = 
 
 The first regression harness used a line-based expression beginning with `adb`. It falsely matched the harmless missing-tool message `ADB_NOT_FOUND: install Android Platform Tools`; that text is not an executable ADB operation and the toolkit contains no install command. The harness now parses the toolkit with the Windows PowerShell AST, examines only executable command nodes named `adb` or `adb.exe`, ignores comments and quoted strings, and includes a fixture proving that an actual `adb shell pm clear ...` command is rejected.
 
+The subsequent Windows PowerShell 5.1 failure exposed a second harness defect: the AST collector stored findings in `$matches`, which collides case-insensitively with PowerShell's automatic `$Matches` regex hashtable. A later `-match` operation replaced the collection, so failure formatting enumerated objects without `.line`. The collector now uses `$findings`, and the harness tests empty collections plus safe handling of missing finding properties.
+
 The toolkit defaults to non-destructive behavior. It does not install, uninstall, update, clear, reset, or submit data.
 
 ## 4. Physical-device results

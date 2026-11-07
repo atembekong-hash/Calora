@@ -18,6 +18,18 @@ function Assert-Equal {
     }
 }
 
+function Get-PropertyValueOrDefault {
+    param(
+        [object]$InputObject,
+        [string]$PropertyName,
+        [object]$Default = '<missing>'
+    )
+    if ($null -eq $InputObject) { return $Default }
+    $property = $InputObject.PSObject.Properties[$PropertyName]
+    if ($null -eq $property) { return $Default }
+    return $property.Value
+}
+
 function Get-ExecutableDestructiveAdbCommands {
     param([string]$Path)
 
@@ -32,7 +44,9 @@ function Get-ExecutableDestructiveAdbCommands {
         throw "SAFETY_PARSE_FAILED: $Path contains PowerShell parse errors."
     }
 
-    $matches = @()
+    # Do not call this collection $matches: PowerShell's automatic $Matches
+    # variable is case-insensitive and is overwritten by every -match operation.
+    $findings = @()
     $commands = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true)
     foreach ($command in $commands) {
         $elements = @($command.CommandElements)
@@ -71,7 +85,7 @@ function Get-ExecutableDestructiveAdbCommands {
         }
 
         if ($null -ne $rule) {
-            $matches += [pscustomobject]@{
+            $findings += [pscustomobject]@{
                 command = $command.Extent.Text
                 line = $command.Extent.StartLineNumber
                 column = $command.Extent.StartColumnNumber
@@ -79,7 +93,7 @@ function Get-ExecutableDestructiveAdbCommands {
             }
         }
     }
-    return $matches
+    return $findings
 }
 
 if (-not (Test-Path -LiteralPath $ToolkitPath)) {
@@ -141,9 +155,20 @@ $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
 $destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
 if ($destructiveCommands.Count -ne 0) {
-    $details = $destructiveCommands | ForEach-Object { "line $($_.line), column $($_.column), rule [$($_.rule)], command [$($_.command)]" }
+    $details = $destructiveCommands | ForEach-Object {
+        $line = Get-PropertyValueOrDefault $_ 'line'
+        $column = Get-PropertyValueOrDefault $_ 'column'
+        $rule = Get-PropertyValueOrDefault $_ 'rule'
+        $command = Get-PropertyValueOrDefault $_ 'command'
+        "line $line, column $column, rule [$rule], command [$command]"
+    }
     throw "ASSERTION_FAILED: Toolkit must not contain executable destructive ADB operations. Found: $($details -join '; ')"
 }
+
+$emptyFindings = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath | Where-Object { $false })
+Assert-Equal 0 $emptyFindings.Count 'Empty AST finding collections must remain safely enumerable'
+$missingLineFinding = [pscustomobject]@{ command = 'adb'; rule = 'fixture' }
+Assert-Equal '<missing>' (Get-PropertyValueOrDefault $missingLineFinding 'line') 'Missing finding properties must use a safe diagnostic default'
 
 $harmlessFixture = Join-Path $env:TEMP 'calora-qa-harmless-safety-fixture.ps1'
 $destructiveFixture = Join-Path $env:TEMP 'calora-qa-destructive-safety-fixture.ps1'
@@ -160,8 +185,8 @@ Write-Output 'ADB_NOT_FOUND: install Android Platform Tools'
     Assert-Equal 0 @(Get-ExecutableDestructiveAdbCommands -Path $harmlessFixture).Count 'Comments and quoted strings must not be classified as executable destructive ADB commands'
     $fixtureMatches = @(Get-ExecutableDestructiveAdbCommands -Path $destructiveFixture)
     Assert-Equal 1 $fixtureMatches.Count 'An executable destructive ADB command must be detected'
-    Assert-Equal 'pm clear' $fixtureMatches[0].rule 'The precise destructive ADB rule must be reported'
-    Assert-Equal 1 $fixtureMatches[0].line 'The precise destructive ADB source line must be reported'
+    Assert-Equal 'pm clear' (Get-PropertyValueOrDefault $fixtureMatches[0] 'rule') 'The precise destructive ADB rule must be reported'
+    Assert-Equal 1 (Get-PropertyValueOrDefault $fixtureMatches[0] 'line') 'The precise destructive ADB source line must be reported'
 }
 finally {
     Remove-Item -LiteralPath $harmlessFixture, $destructiveFixture -Force -ErrorAction SilentlyContinue
