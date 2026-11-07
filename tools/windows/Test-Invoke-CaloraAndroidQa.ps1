@@ -154,9 +154,25 @@ Assert-Equal 1 $authorizedCount 'Strict-mode inventory filtering must not access
 $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
 Assert-True ($source -match '\$package\s*=\s*@\(\s*Invoke-AdbSafe') 'Package inspection must preserve array shape before reading Count'
+Assert-True ($source -match 'Invoke-AdbSafe\s+-TargetSerial\s+\$script:Target\.Serial\s+-Arguments\s+@\(''shell'', ''monkey'', ''-p'', \$PackageName, ''1''\)') 'Smoke launch must bind the complete monkey argument array explicitly'
 $singlePackagePath = 'package:/data/app/com.etiendem.caloraapp/base.apk'
 $packagePaths = @($singlePackagePath)
 Assert-Equal 1 $packagePaths.Count 'A single pm path response must remain a one-item array'
+
+$crashFixture = @(
+    '11-07 14:01:00.000 1000 1000 E AndroidRuntime: FATAL EXCEPTION: main'
+    'Process: com.example.other, PID: 1234'
+    'java.lang.RuntimeException: unrelated fixture'
+    '11-07 14:01:01.000 1000 1000 E AndroidRuntime: FATAL EXCEPTION: main'
+    'Process: com.etiendem.caloraapp, PID: 5678'
+    'java.lang.RuntimeException: Calora fixture'
+    '11-07 14:01:02.000 1000 1000 E ActivityManager: ANR in com.example.unknown'
+)
+$crashMarkers = @(Get-CaloraCrashMarkers -Lines $crashFixture -TargetPackage 'com.etiendem.caloraapp')
+Assert-Equal 3 $crashMarkers.Count 'Crash scanner should retain every marker for attribution'
+Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'calora' }).Count 'Crash scanner should identify Calora markers'
+Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'other' }).Count 'Crash scanner should identify unrelated process markers'
+Assert-Equal 1 @($crashMarkers | Where-Object { $_.attribution -eq 'unknown' }).Count 'Crash scanner should preserve ambiguous markers without attribution'
 $destructiveCommands = @(Get-ExecutableDestructiveAdbCommands -Path $ToolkitPath)
 if ($destructiveCommands.Count -ne 0) {
     $details = $destructiveCommands | ForEach-Object {

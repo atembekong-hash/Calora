@@ -126,6 +126,53 @@ function Get-DeviceFacts {
     }
 }
 
+function Get-CaloraCrashMarkers {
+    param(
+        [string[]]$Lines,
+        [string]$TargetPackage
+    )
+
+    $markers = @()
+    $packagePattern = [regex]::Escape($TargetPackage)
+    for ($index = 0; $index -lt @($Lines).Count; $index++) {
+        $markerLine = [string]$Lines[$index]
+        if ($markerLine -notmatch '(?i)FATAL EXCEPTION|AndroidRuntime|SIGSEGV|ANR in ') { continue }
+
+        $context = @($markerLine)
+        $lastContextIndex = [Math]::Min($index + 30, @($Lines).Count - 1)
+        for ($contextIndex = $index + 1; $contextIndex -le $lastContextIndex; $contextIndex++) {
+            $context += [string]$Lines[$contextIndex]
+        }
+        $contextText = $context -join [Environment]::NewLine
+        $processName = $null
+        if ($contextText -match '(?im)^Process:\s*([^,\s]+)') {
+            $processName = $Matches[1]
+        } elseif ($contextText -match '(?im)^Cmdline:\s*([^\s]+)') {
+            $processName = $Matches[1]
+        } elseif ($markerLine -match ('(?i)ANR in\s+([^\s\[]+)')) {
+            $processName = $Matches[1]
+        }
+
+        $attribution = 'unknown'
+        # Attribute from the marker line or its explicit process identity only.
+        # Do not search the whole context window: a later unrelated marker can
+        # otherwise make an earlier process appear to belong to Calora.
+        if ($processName -eq $TargetPackage -or $markerLine -match ('(?i)' + $packagePattern)) {
+            $attribution = 'calora'
+        } elseif (-not [string]::IsNullOrWhiteSpace($processName)) {
+            $attribution = 'other'
+        }
+
+        $markers += [pscustomobject]@{
+            marker = $markerLine
+            process = if ($processName) { $processName } else { 'unknown' }
+            attribution = $attribution
+            evidence = (($context | Select-Object -First 8) -join [Environment]::NewLine)
+        }
+    }
+    return $markers
+}
+
 function Write-Json {
     param([object]$Value, [string]$Path)
     $Value | ConvertTo-Json -Depth 8 | Set-Content -Path $Path -Encoding UTF8
@@ -213,10 +260,19 @@ function Invoke-TargetAction {
         }
         'crashes' {
             $logs = Invoke-AdbSafe $script:Target.Serial @('logcat', '-d', '-v', 'brief', '-t', '3000')
-            $fatal = @($logs | Select-String -Pattern 'FATAL EXCEPTION|AndroidRuntime|SIGSEGV|ANR in ')
-            Set-Content (Join-Path $script:OutputDir 'crash-scan.txt') (($fatal | ForEach-Object { $_.Line }) -join [Environment]::NewLine) -Encoding UTF8
-            if ($fatal.Count -eq 0) { Write-Result 'Crash scan' 'PASS' 'No matching fatal crash or ANR markers in the captured window.' }
-            else { Write-Result 'Crash scan' 'FAIL' "$($fatal.Count) crash/ANR marker(s) found; inspect crash-scan.txt." }
+            $markers = @(Get-CaloraCrashMarkers -Lines $logs -TargetPackage $PackageName)
+            $caloraMarkers = @($markers | Where-Object { $_.attribution -eq 'calora' })
+            $otherMarkers = @($markers | Where-Object { $_.attribution -eq 'other' })
+            $unknownMarkers = @($markers | Where-Object { $_.attribution -eq 'unknown' })
+            $reportLines = @($markers | ForEach-Object { "[$($_.attribution)] process=$($_.process) marker=$($_.marker)`n$($_.evidence)" })
+            Set-Content (Join-Path $script:OutputDir 'crash-scan.txt') ($reportLines -join ([Environment]::NewLine + [Environment]::NewLine)) -Encoding UTF8
+            if ($caloraMarkers.Count -eq 0 -and $unknownMarkers.Count -eq 0) {
+                Write-Result 'Crash scan' 'PASS' "No Calora crash/ANR markers found; $($otherMarkers.Count) unrelated process marker(s) recorded."
+            } elseif ($caloraMarkers.Count -eq 0) {
+                Write-Result 'Crash scan' 'NOT RUN' "No Calora-attributed crash found, but $($unknownMarkers.Count) marker(s) lacked process attribution; inspect crash-scan.txt."
+            } else {
+                Write-Result 'Crash scan' 'FAIL' "$($caloraMarkers.Count) Calora crash/ANR marker(s) found; inspect crash-scan.txt."
+            }
         }
         'performance' {
             $mem = Invoke-AdbSafe $script:Target.Serial @('shell', 'dumpsys', 'meminfo', $PackageName)
@@ -229,7 +285,7 @@ function Invoke-TargetAction {
                 Write-Result 'Application smoke launch' 'NOT RUN' 'Pass -AllowLaunch only after selecting an approved disposable device and test account.'
                 return
             }
-            Invoke-AdbSafe $script:Target.Serial @('shell', 'monkey', '-p', $PackageName, '1') | Out-Null
+            Invoke-AdbSafe -TargetSerial $script:Target.Serial -Arguments @('shell', 'monkey', '-p', $PackageName, '1') | Out-Null
             Start-Sleep -Seconds 3
             $focused = (Invoke-AdbSafe $script:Target.Serial @('shell', 'dumpsys', 'activity', 'activities')) -join [Environment]::NewLine
             Set-Content (Join-Path $script:OutputDir 'smoke-launch.txt') $focused -Encoding UTF8
