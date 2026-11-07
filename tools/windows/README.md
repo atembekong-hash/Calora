@@ -99,6 +99,48 @@ The existing flows may clear app state. Use only a disposable target and never a
 
 Run the release-specific gates only after the signed release candidate, exact device serial, controlled test account, and owner approval are available. The repository already provides release-gate commands and protected CI contracts. Physical devices remain complementary evidence; they are not a mandatory GitHub CI dependency.
 
+## Unified three-level entry point
+
+`Invoke-CaloraQa.ps1` is the repeatable owner-facing entry point. It creates a timestamped run directory, writes a checklist, and records `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN` in `qa-level-results.json`.
+
+### Level 1 — Quick Smoke
+
+```powershell
+.\Invoke-CaloraQa.ps1 -Level QuickSmoke `
+  -Serial '<exact adb serial>' `
+  -DeviceRole CALORA_PRIMARY_ANDROID `
+  -AllowLaunch `
+  -OutputRoot C:\CaloraEvidence
+```
+
+Without `-AllowLaunch`, the smoke launch remains `NOT RUN`; the other collection checks still run.
+
+### Level 2 — Feature Regression
+
+```powershell
+.\Invoke-CaloraQa.ps1 -Level FeatureRegression `
+  -Feature meal-images `
+  -Serial '<exact adb serial>' `
+  -DeviceRole CALORA_PRIMARY_ANDROID `
+  -RunMaestro `
+  -OutputRoot C:\CaloraEvidence
+```
+
+Supported feature values are `nutrition-goals`, `meal-images`, `plus-recipes`, and `encrypted-recovery`. `-RunMaestro` is explicit because these flows may alter disposable test state. Use only an approved resettable target and controlled account.
+
+Without `-RunMaestro`, the wrapper creates a checklist and returns `NOT RUN`; it does not pretend that a prepared procedure is a passed feature test.
+
+### Level 3 — Full Certification
+
+```powershell
+.\Invoke-CaloraQa.ps1 -Level FullCertification `
+  -Serial '<exact adb serial>' `
+  -DeviceRole CALORA_PRIMARY_ANDROID `
+  -OutputRoot C:\CaloraEvidence
+```
+
+Full certification is not implied by a successful baseline collection. The owner must execute and review each checklist row on the approved device/build. The S21 must be discovered and explicitly targeted before it can be considered certified.
+
 ## Evidence and privacy
 
 Each run creates:
@@ -111,6 +153,7 @@ Each run creates:
 - `logcat.txt` with common token patterns redacted
 - `crash-scan.txt`
 - `performance.txt`
+- A level-specific checklist and `qa-level-results.json` when using `Invoke-CaloraQa.ps1`
 
 Review raw screenshots and logs locally. Do not commit raw device serials, personal notifications, customer data, authentication tokens, or unredacted logs.
 
@@ -123,8 +166,16 @@ Review raw screenshots and logs locally. Do not commit raw device serials, perso
 
 A captured screenshot alone is not a visual PASS. The reviewer must inspect clipping, safe areas, contrast, touch targets, loading states, and the requested reference behavior.
 
+## Safety boundaries
+
+The unified wrapper contains no install, uninstall, update, reset, clear-data, reboot, EAS build, Expo build, or deployment action. It always requires an exact serial for device execution and never selects an arbitrary device when multiple devices are connected. Run the companion regression harness after updating the toolkit:
+
+```powershell
+.\Test-Invoke-CaloraQa.ps1
+```
+
 ## Current mission verdict
 
-**READY FOR LOCAL EXECUTION — BLOCKED HERE BY ENVIRONMENT ACCESS.**
+**QA INFRASTRUCTURE READY — PHYSICAL CERTIFICATION PARTIAL.**
 
-The cloud sandbox verified that it has no PowerShell, `adb`, USB devices, or direct access to the owner's Windows PC. Execute the toolkit on that PC, retain the timestamped evidence directory, and provide the sanitized `qa-results.json` plus selected screenshots for review.
+The S20 baseline and smoke launch are verified by owner evidence, but the sandbox cannot access Windows, PowerShell, ADB, or physical devices. The S21, complete feature certification, camera flows, lifecycle/recovery checks, and signed release-candidate certification remain owner-side work.
