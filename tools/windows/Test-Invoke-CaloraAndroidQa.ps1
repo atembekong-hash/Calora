@@ -121,6 +121,10 @@ Assert-Equal 'unauthorized' $devices[2].State 'Parser should retain unauthorized
 function Invoke-AdbSafe {
     param([string]$TargetSerial, [string[]]$Arguments)
     $joined = $Arguments -join ' '
+    if ($joined -eq 'shell monkey -p com.etiendem.caloraapp 1') {
+        $script:CapturedSmokeArguments = @($Arguments)
+        return @('Monkey completed')
+    }
     if ($joined -eq 'shell getprop') {
         return @(
             '[ro.product.manufacturer]: [samsung]'
@@ -154,16 +158,22 @@ Assert-Equal 1 $authorizedCount 'Strict-mode inventory filtering must not access
 $source = Get-Content -LiteralPath $ToolkitPath -Raw
 Assert-True ($source -match '\$SkipExecution') 'Toolkit must expose a non-executing test mode for Windows regression tests'
 Assert-True ($source -match '\$package\s*=\s*@\(\s*Invoke-AdbSafe') 'Package inspection must preserve array shape before reading Count'
-Assert-True ($source -match 'Invoke-AdbSafe\s+-TargetSerial\s+\$script:Target\.Serial\s+-Arguments\s+@\(''shell'', ''monkey'', ''-p'', \$PackageName, ''1''\)') 'Smoke launch must bind the complete monkey argument array explicitly'
+Assert-True ($source -match '\$smokeArguments\s*=\s*\[string\[\]\]@\(''shell'', ''monkey'', ''-p'', \$PackageName, ''1''\)') 'Smoke launch must construct a typed complete monkey argument array'
 $singlePackagePath = 'package:/data/app/com.etiendem.caloraapp/base.apk'
 $packagePaths = @($singlePackagePath)
 Assert-Equal 1 $packagePaths.Count 'A single pm path response must remain a one-item array'
 
+$script:CapturedSmokeArguments = $null
+Invoke-AdbSafe -TargetSerial 'fixture-serial' -Arguments ([string[]]@('shell', 'monkey', '-p', 'com.etiendem.caloraapp', '1')) | Out-Null
+Assert-Equal 'shell|monkey|-p|com.etiendem.caloraapp|1' (($script:CapturedSmokeArguments -join '|')) 'PowerShell 5.1 must preserve every smoke-launch argument token'
+
 $crashFixture = @(
     '11-07 14:01:00.000 1000 1000 E AndroidRuntime: FATAL EXCEPTION: main'
+    '11-07 14:01:00.001 1000 1000 E AndroidRuntime: Process: com.example.other, PID: 1234'
     'Process: com.example.other, PID: 1234'
     'java.lang.RuntimeException: unrelated fixture'
     '11-07 14:01:01.000 1000 1000 E AndroidRuntime: FATAL EXCEPTION: main'
+    '11-07 14:01:01.001 1000 1000 E AndroidRuntime: Process: com.etiendem.caloraapp, PID: 5678'
     'Process: com.etiendem.caloraapp, PID: 5678'
     'java.lang.RuntimeException: Calora fixture'
     '11-07 14:01:02.000 1000 1000 E ActivityManager: ANR in com.example.unknown'

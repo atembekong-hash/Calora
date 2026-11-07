@@ -36,7 +36,12 @@ function Require-Adb {
 }
 
 function Invoke-AdbSafe {
-    param([string]$TargetSerial, [string[]]$Arguments)
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSerial,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
     $output = & adb -s $TargetSerial @Arguments 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "ADB_COMMAND_FAILED: adb -s $TargetSerial $($Arguments -join ' ')`n$($output -join [Environment]::NewLine)"
@@ -136,7 +141,9 @@ function Get-CaloraCrashMarkers {
     $packagePattern = [regex]::Escape($TargetPackage)
     for ($index = 0; $index -lt @($Lines).Count; $index++) {
         $markerLine = [string]$Lines[$index]
-        if ($markerLine -notmatch '(?i)FATAL EXCEPTION|AndroidRuntime|SIGSEGV|ANR in ') { continue }
+        # AndroidRuntime commonly emits a companion line for the same fatal
+        # event. Use primary event markers only so one crash is counted once.
+        if ($markerLine -notmatch '(?i)FATAL EXCEPTION|SIGSEGV|ANR in ') { continue }
 
         $context = @($markerLine)
         $lastContextIndex = [Math]::Min($index + 30, @($Lines).Count - 1)
@@ -285,7 +292,8 @@ function Invoke-TargetAction {
                 Write-Result 'Application smoke launch' 'NOT RUN' 'Pass -AllowLaunch only after selecting an approved disposable device and test account.'
                 return
             }
-            Invoke-AdbSafe -TargetSerial $script:Target.Serial -Arguments @('shell', 'monkey', '-p', $PackageName, '1') | Out-Null
+            $smokeArguments = [string[]]@('shell', 'monkey', '-p', $PackageName, '1')
+            Invoke-AdbSafe -TargetSerial $script:Target.Serial -Arguments $smokeArguments | Out-Null
             Start-Sleep -Seconds 3
             $focused = (Invoke-AdbSafe $script:Target.Serial @('shell', 'dumpsys', 'activity', 'activities')) -join [Environment]::NewLine
             Set-Content (Join-Path $script:OutputDir 'smoke-launch.txt') $focused -Encoding UTF8
