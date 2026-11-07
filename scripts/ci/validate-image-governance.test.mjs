@@ -53,9 +53,9 @@ function mutateJson(root, mutate) {
 test("accepts the reviewed Calora runtime image inventory", () => {
   const result = validateImageGovernance({ root: repositoryRoot, manifestPath });
   assert.equal(result.ok, true, result.failures.join("\n"));
-  assert.equal(result.summary.bundledAssetCount, 310);
+  assert.equal(result.summary.bundledAssetCount, 313);
   assert.equal(result.summary.staticExternalImageUrlCount, 0);
-  assert.equal(result.summary.directImageRendererCount, 15);
+  assert.equal(result.summary.directImageRendererCount, 18);
 });
 
 test("requires the native splash and earliest JavaScript bootstrap to use the reviewed launch background", () => {

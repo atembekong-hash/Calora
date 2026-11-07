@@ -6511,6 +6511,69 @@
       "width": 320,
       "height": 240,
       "format": "JPEG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/more/calora-pro-crown.png",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "small premium subscription decoration",
+      "renderConsumers": [
+        "artifacts/calora/app/(tabs)/more.tsx",
+        "artifacts/calora/app/(tabs)/more.tsx: Calora Pro banner"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-11-07",
+      "creator": "Manus generate_image (gpt-image-2.5), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-11-07",
+      "sha256": "ff665c8ab9d312e8c86a5bb6a2d8d17918f6487eed6b2e423fc2fef1f86ba30f",
+      "width": 720,
+      "height": 540,
+      "format": "PNG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/more/fasting-avocado-citrus.png",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "decorative wellness card food illustration",
+      "renderConsumers": [
+        "artifacts/calora/app/(tabs)/more.tsx",
+        "artifacts/calora/app/(tabs)/more.tsx: Fasting card"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-11-07",
+      "creator": "Manus generate_image (gpt-image-2.5), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-11-07",
+      "sha256": "5766d22863df8db507efafca235b24073659655e7404d31bd32c7b24401f7a2c",
+      "width": 720,
+      "height": 540,
+      "format": "PNG"
+    },
+    {
+      "path": "artifacts/calora/assets/images/more/learning-books-leaves.png",
+      "owner": "Calora product team (product steward; no copyright-ownership claim)",
+      "provenanceLicenseStatus": "approved \u2014 original generated asset; cleared for Calora product use; no external stock or provider asset used",
+      "reviewStatus": "approved",
+      "role": "decorative learning card illustration",
+      "renderConsumers": [
+        "artifacts/calora/app/(tabs)/more.tsx",
+        "artifacts/calora/app/(tabs)/more.tsx: Learning card"
+      ],
+      "source": "Original Calora asset generated through Manus generate_image on 2026-11-07",
+      "creator": "Manus generate_image (gpt-image-2.5), commissioned for Calora",
+      "permittedUse": "Calora mobile app, website previews, QA evidence, and Calora release materials",
+      "attribution": "No user-facing attribution required; internal provenance retained in this manifest and docs/image-assets/GENERATED_ASSET_PROVENANCE.md",
+      "reviewer": "Manus visual and semantic review for Calora",
+      "reviewDate": "2026-11-07",
+      "sha256": "04e276f26dde557a86dc1d48b7bcc8fa903eb065afda3c075c84acaeb05123a2",
+      "width": 720,
+      "height": 540,
+      "format": "PNG"
     }
   ],
   "staticExternalImageUrls": [],
@@ -6649,6 +6712,33 @@
       "role": "hydration Learning article artwork from the approved local editorial image registry",
       "owner": "Calora product team",
       "reviewStatus": "reviewed renderer registration"
+    },
+    {
+      "id": "more-calora-pro-crown",
+      "path": "artifacts/calora/app/(tabs)/more.tsx",
+      "anchor": "source={PRO_ART}",
+      "classification": "decorative",
+      "role": "Calora Pro subscription banner crown illustration",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative renderer"
+    },
+    {
+      "id": "more-fasting-avocado-citrus",
+      "path": "artifacts/calora/app/(tabs)/more.tsx",
+      "anchor": "source={FASTING_ART}",
+      "classification": "decorative",
+      "role": "Fasting card food and botanical illustration",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative renderer"
+    },
+    {
+      "id": "more-learning-books-leaves",
+      "path": "artifacts/calora/app/(tabs)/more.tsx",
+      "anchor": "source={LEARNING_ART}",
+      "classification": "decorative",
+      "role": "Learning card books and botanical illustration",
+      "owner": "Calora product team",
+      "reviewStatus": "reviewed decorative renderer"
     }
   ]
 }
