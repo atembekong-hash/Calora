@@ -166,7 +166,12 @@ describe("profile persistence routes", () => {
       heightCm: 170,
       calorieTarget: 1800,
     });
-    expect(ensureUserRow).toHaveBeenCalledWith("auth-user", "alex@example.com");
+    expect(ensureUserRow).toHaveBeenCalledWith(
+      "auth-user",
+      "alex@example.com",
+      expect.anything(),
+      false,
+    );
   });
 
   it("returns legacy unset preferences as unknown rather than inferred defaults", async () => {

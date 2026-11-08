@@ -13,6 +13,10 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool(buildDatabasePoolConfig(process.env.DATABASE_URL));
 export const db = drizzle(pool, { schema });
+export type CaloraDatabase = typeof db;
+export function createDatabaseFromClient(client: pg.PoolClient): CaloraDatabase {
+  return drizzle(client, { schema }) as unknown as CaloraDatabase;
+}
 
 export * from "./schema";
 export {

@@ -5,7 +5,7 @@
  */
 
 import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, type CaloraDatabase } from "@workspace/db";
 import { assertAccountWritable } from "./account-deletion-state.js";
 
 /**
@@ -13,8 +13,11 @@ import { assertAccountWritable } from "./account-deletion-state.js";
  * linkage. Read-only authorization and consent-status paths must use this
  * helper so merely checking Coach sharing never persists personal data.
  */
-export async function findUserRow(externalId: string): Promise<string | null> {
-  const existing = await db
+export async function findUserRow(
+  externalId: string,
+  database: CaloraDatabase = db,
+): Promise<string | null> {
+  const existing = await database
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.externalId, externalId))
@@ -22,12 +25,17 @@ export async function findUserRow(externalId: string): Promise<string | null> {
   return existing[0]?.id ?? null;
 }
 
-export async function ensureUserRow(externalId: string, email: string | null): Promise<string> {
-  await assertAccountWritable(externalId);
-  const existing = await findUserRow(externalId);
+export async function ensureUserRow(
+  externalId: string,
+  email: string | null,
+  database: CaloraDatabase = db,
+  inTransaction = false,
+): Promise<string> {
+  await assertAccountWritable(externalId, database, inTransaction);
+  const existing = await findUserRow(externalId, database);
   if (existing) return existing;
 
-  const inserted = await db
+  const inserted = await database
     .insert(usersTable)
     .values({ externalId, email })
     .onConflictDoNothing({ target: usersTable.externalId })
@@ -35,7 +43,7 @@ export async function ensureUserRow(externalId: string, email: string | null): P
   if (inserted.length > 0) return inserted[0].id;
 
   // Concurrent insert won the unique index — reuse it.
-  const again = await findUserRow(externalId);
+  const again = await findUserRow(externalId, database);
   if (!again) throw new Error("Failed to resolve user row");
   return again;
 }

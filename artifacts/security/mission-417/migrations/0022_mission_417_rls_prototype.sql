@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS public.calora_identity_assertion_secrets (
 );
 ALTER TABLE public.calora_identity_assertion_secrets ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.calora_identity_assertion_secrets FROM PUBLIC, calora_api_runtime_rls;
+GRANT USAGE ON SCHEMA extensions TO calora_api_runtime_rls;
+GRANT EXECUTE ON FUNCTION extensions.digest(text, text) TO calora_api_runtime_rls;
 
 CREATE OR REPLACE FUNCTION public.calora_current_external_user_id()
 RETURNS text
@@ -75,7 +77,7 @@ DO $$
 DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
-    'calora_users','calora_profiles','calora_diary_entries','calora_weight_entries',
+    'calora_users','calora_account_deletion_states','calora_profiles','calora_diary_entries','calora_weight_entries',
     'calora_saved_meals','calora_recipes','calora_subscriptions','calora_sync_mutations',
     'calora_consent_events','calora_privacy_rights_requests','calora_coach_v2_settings',
     'calora_coach_v2_conversations','calora_coach_v2_turns'
@@ -85,7 +87,12 @@ BEGIN
       EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.%I TO calora_api_runtime_rls', table_name);
       EXECUTE format('DROP POLICY IF EXISTS mission417_owner_all ON public.%I', table_name);
       IF table_name = 'calora_users' THEN
-        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (id = public.calora_current_user_id()) WITH CHECK (id = public.calora_current_user_id() AND external_id = public.calora_current_external_user_id())', table_name);
+        -- Provisioning has no current internal UUID yet. Bind this bridge
+        -- table to the verified external identity; downstream tables use
+        -- calora_current_user_id() after the bridge row exists.
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (external_id = public.calora_current_external_user_id()) WITH CHECK (external_id = public.calora_current_external_user_id())', table_name);
+      ELSIF table_name = 'calora_account_deletion_states' THEN
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (identity_fingerprint = encode(extensions.digest(public.calora_current_external_user_id(), ''sha256''), ''hex'')) WITH CHECK (identity_fingerprint = encode(extensions.digest(public.calora_current_external_user_id(), ''sha256''), ''hex''))', table_name);
       ELSIF table_name = 'calora_coach_v2_turns' THEN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (EXISTS (SELECT 1 FROM public.calora_coach_v2_conversations c WHERE c.id = conversation_id AND c.user_id = public.calora_current_user_id())) WITH CHECK (EXISTS (SELECT 1 FROM public.calora_coach_v2_conversations c WHERE c.id = conversation_id AND c.user_id = public.calora_current_user_id()))', table_name);
       ELSE
