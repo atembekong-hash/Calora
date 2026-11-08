@@ -1,15 +1,31 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
+import {
+  currentDatabaseContext,
+  type DatabaseQueryExecutor,
+} from "./database-identity.js";
 
 export const RECIPE_MEDIA_MODEL = "gpt-image-2.5-flare";
 export const RECIPE_MEDIA_MODEL_VERSION = `${RECIPE_MEDIA_MODEL}:low:1024:v1`;
-export const RECIPE_MEDIA_PROMPT_VERSION = "recipe-photo-semantic-v4-ingredient-fidelity";
+export const RECIPE_MEDIA_PROMPT_VERSION =
+  "recipe-photo-semantic-v4-ingredient-fidelity";
 export const RECIPE_MEDIA_URL_TTL_SECS = 60 * 60 * 24 * 6;
 /** Review capabilities are deliberately much shorter than accepted-image locators. */
 export const RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS = 15 * 60;
 export const RECIPE_MEDIA_STALE_GENERATION_SECS = 2 * 60;
 
-export type RecipeMediaStatus = "generating" | "stored" | "url_ready" | "retryable_error" | "superseded";
+function queryExecutor(
+  explicit?: DatabaseQueryExecutor,
+): DatabaseQueryExecutor {
+  return (
+    explicit ??
+    currentDatabaseContext()?.queryExecutor ??
+    (pool as unknown as DatabaseQueryExecutor)
+  );
+}
+
+export type RecipeMediaStatus =
+  "generating" | "stored" | "url_ready" | "retryable_error" | "superseded";
 export type RecipeMediaReviewState = "needs_review" | "accepted" | "rejected";
 
 export type RecipePhotoInput = {
@@ -64,10 +80,16 @@ export type RecipeMediaResource = {
 };
 
 function boundedText(value: unknown, max: number): string {
-  return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, max) : "";
+  return typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ").slice(0, max)
+    : "";
 }
 
-function boundedList(value: unknown, maxItems: number, maxLength: number): string[] {
+function boundedList(
+  value: unknown,
+  maxItems: number,
+  maxLength: number,
+): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is string => typeof item === "string")
@@ -77,7 +99,10 @@ function boundedList(value: unknown, maxItems: number, maxLength: number): strin
 }
 
 export function parseRecipePhotoInput(value: unknown): RecipePhotoInput | null {
-  const raw = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const raw =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   const title = boundedText(raw.title, 120);
   const description = boundedText(raw.description, 600);
   if (!title) return null;
@@ -87,7 +112,11 @@ export function parseRecipePhotoInput(value: unknown): RecipePhotoInput | null {
   // A title or free-text description cannot safely stand in for an ingredient
   // manifest. Reject incomplete and legacy-shaped requests rather than asking
   // the model to infer edible components from a dish name.
-  if (!suppliedClientRecipeId || suppliedIngredients.length < 1 || suppliedInstructions.length < 1) {
+  if (
+    !suppliedClientRecipeId ||
+    suppliedIngredients.length < 1 ||
+    suppliedInstructions.length < 1
+  ) {
     return null;
   }
   const input: RecipePhotoInput = {
@@ -105,51 +134,79 @@ export function parseRecipePhotoInput(value: unknown): RecipePhotoInput | null {
 }
 
 /** Stable JSON-compatible recipe version. Array order is meaningful for ingredients and method. */
-export function canonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
-  const normalize = (value: string | undefined) => value?.normalize("NFKC").trim().replace(/\s+/g, " ") || undefined;
+export function canonicalRecipePhotoContent(
+  input: RecipePhotoInput,
+): RecipePhotoInput {
+  const normalize = (value: string | undefined) =>
+    value?.normalize("NFKC").trim().replace(/\s+/g, " ") || undefined;
   return {
     clientRecipeId: normalize(input.clientRecipeId)!,
     title: normalize(input.title)!,
     description: normalize(input.description) ?? "",
-    ingredients: input.ingredients.map((item) => normalize(item)!).filter(Boolean),
-    instructions: input.instructions.map((item) => normalize(item)!).filter(Boolean),
+    ingredients: input.ingredients
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
+    instructions: input.instructions
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
     cuisine: normalize(input.cuisine),
     category: normalize(input.category),
     mealType: normalize(input.mealType),
-    dietaryContext: input.dietaryContext.map((item) => normalize(item)!).filter(Boolean),
+    dietaryContext: input.dietaryContext
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
   };
 }
 
-function hashCanonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
+function hashCanonicalRecipePhotoContent(
+  input: RecipePhotoInput,
+): RecipePhotoInput {
   const canonical = canonicalRecipePhotoContent(input);
-  const normalize = (value: string | undefined) => value?.toLocaleLowerCase("en-US") || undefined;
+  const normalize = (value: string | undefined) =>
+    value?.toLocaleLowerCase("en-US") || undefined;
   return {
     clientRecipeId: normalize(canonical.clientRecipeId)!,
     title: normalize(canonical.title)!,
     description: normalize(canonical.description) ?? "",
-    ingredients: canonical.ingredients.map((item) => normalize(item)!).filter(Boolean),
-    instructions: canonical.instructions.map((item) => normalize(item)!).filter(Boolean),
+    ingredients: canonical.ingredients
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
+    instructions: canonical.instructions
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
     cuisine: normalize(canonical.cuisine),
     category: normalize(canonical.category),
     mealType: normalize(canonical.mealType),
-    dietaryContext: canonical.dietaryContext.map((item) => normalize(item)!).filter(Boolean),
+    dietaryContext: canonical.dietaryContext
+      .map((item) => normalize(item)!)
+      .filter(Boolean),
   };
 }
 
 export function recipePhotoContentHash(input: RecipePhotoInput): string {
   return createHash("sha256")
-    .update(JSON.stringify({ promptVersion: RECIPE_MEDIA_PROMPT_VERSION, recipe: hashCanonicalRecipePhotoContent(input) }))
+    .update(
+      JSON.stringify({
+        promptVersion: RECIPE_MEDIA_PROMPT_VERSION,
+        recipe: hashCanonicalRecipePhotoContent(input),
+      }),
+    )
     .digest("hex");
 }
 
-export function recipePhotoCompositionGuidance(input: RecipePhotoInput): string {
+export function recipePhotoCompositionGuidance(
+  input: RecipePhotoInput,
+): string {
   const primaryContext = [input.title, input.category, input.mealType]
     .filter(Boolean)
     .join(" ")
     .toLocaleLowerCase("en-US");
-  const context = /\b(bowl|soup|stew|chili|curry|ramen|salad|sandwich|burger|wrap|taco|burrito|smoothie|drink|beverage|cocktail|coffee|tea|juice)\b/.test(primaryContext)
-    ? primaryContext
-    : `${primaryContext} ${input.description}`.toLocaleLowerCase("en-US");
+  const context =
+    /\b(bowl|soup|stew|chili|curry|ramen|salad|sandwich|burger|wrap|taco|burrito|smoothie|drink|beverage|cocktail|coffee|tea|juice)\b/.test(
+      primaryContext,
+    )
+      ? primaryContext
+      : `${primaryContext} ${input.description}`.toLocaleLowerCase("en-US");
   if (/\b(bowl|grain bowl|poke bowl|rice bowl)\b/.test(context)) {
     return "BOWL COMPOSITION: Show one serving inside a clearly visible bowl. A bowl is only a serving vessel: it never implies a grain base, vegetables, sauce, toppings, garnish, or side dish. Arrange only foods supported by the ingredient manifest; the protein must not appear as an isolated breast or cutlet outside the bowl.";
   }
@@ -173,7 +230,9 @@ export function recipePhotoCompositionGuidance(input: RecipePhotoInput): string 
  * Title, category, meal type, cuisine, and description can guide presentation
  * and cooking method, but never authorize an additional edible component.
  */
-export function recipePhotoIngredientManifest(input: RecipePhotoInput): string[] {
+export function recipePhotoIngredientManifest(
+  input: RecipePhotoInput,
+): string[] {
   return canonicalRecipePhotoContent(input).ingredients;
 }
 
@@ -200,12 +259,19 @@ export function buildRecipePhotoPrompt(input: RecipePhotoInput): string {
   ].join("\n");
 }
 
-export function recipeMediaObjectKey(ownerExternalId: string, imageId: string): string {
+export function recipeMediaObjectKey(
+  ownerExternalId: string,
+  imageId: string,
+): string {
   return `private/recipe-photos/${ownerExternalId}/${imageId}.png`;
 }
 
-export function toRecipeMediaResource(row: RecipeMediaRow, locator?: { imageUrl: string; imageUrlExpiresAt: string }): RecipeMediaResource {
-  const iso = (value: Date | string) => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+export function toRecipeMediaResource(
+  row: RecipeMediaRow,
+  locator?: { imageUrl: string; imageUrlExpiresAt: string },
+): RecipeMediaResource {
+  const iso = (value: Date | string) =>
+    value instanceof Date ? value.toISOString() : new Date(value).toISOString();
   return {
     mediaId: row.id,
     clientRecipeId: row.client_recipe_id,
@@ -224,21 +290,34 @@ export function toRecipeMediaResource(row: RecipeMediaRow, locator?: { imageUrl:
   };
 }
 
-export async function claimRecipeMedia(ownerExternalId: string, input: RecipePhotoInput): Promise<{ row: RecipeMediaRow; claimed: boolean }> {
+export async function claimRecipeMedia(
+  ownerExternalId: string,
+  input: RecipePhotoInput,
+  executor?: DatabaseQueryExecutor,
+): Promise<{ row: RecipeMediaRow; claimed: boolean }> {
+  const query = queryExecutor(executor);
   const contentHash = recipePhotoContentHash(input);
   const imageId = randomUUID();
-  const inserted = await pool.query<RecipeMediaRow>(
+  const inserted = await query.query<RecipeMediaRow>(
     `INSERT INTO calora_recipe_media
        (owner_external_id, client_recipe_id, content_hash, recipe_payload, image_id, object_key,
         model_version, prompt_version, status, semantic_review_state, attempts, last_attempt_at)
      VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, 'generating', 'needs_review', 1, NOW())
      ON CONFLICT (owner_external_id, client_recipe_id, content_hash) DO NOTHING
      RETURNING *`,
-    [ownerExternalId, input.clientRecipeId, contentHash, JSON.stringify(canonicalRecipePhotoContent(input)), imageId,
-      recipeMediaObjectKey(ownerExternalId, imageId), RECIPE_MEDIA_MODEL_VERSION, RECIPE_MEDIA_PROMPT_VERSION],
+    [
+      ownerExternalId,
+      input.clientRecipeId,
+      contentHash,
+      JSON.stringify(canonicalRecipePhotoContent(input)),
+      imageId,
+      recipeMediaObjectKey(ownerExternalId, imageId),
+      RECIPE_MEDIA_MODEL_VERSION,
+      RECIPE_MEDIA_PROMPT_VERSION,
+    ],
   );
   if (inserted.rows[0]) return { row: inserted.rows[0], claimed: true };
-  const reclaimed = await pool.query<RecipeMediaRow>(
+  const reclaimed = await query.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media
         SET attempts = attempts + 1, last_attempt_at = NOW(), last_error_code = NULL,
             semantic_review_state = 'needs_review', updated_at = NOW()
@@ -246,10 +325,15 @@ export async function claimRecipeMedia(ownerExternalId: string, input: RecipePho
         AND status = 'generating'
         AND last_attempt_at < NOW() - ($4 * INTERVAL '1 second')
       RETURNING *`,
-    [ownerExternalId, input.clientRecipeId, contentHash, RECIPE_MEDIA_STALE_GENERATION_SECS],
+    [
+      ownerExternalId,
+      input.clientRecipeId,
+      contentHash,
+      RECIPE_MEDIA_STALE_GENERATION_SECS,
+    ],
   );
   if (reclaimed.rows[0]) return { row: reclaimed.rows[0], claimed: true };
-  const existing = await pool.query<RecipeMediaRow>(
+  const existing = await query.query<RecipeMediaRow>(
     `SELECT * FROM calora_recipe_media
       WHERE owner_external_id = $1 AND client_recipe_id = $2 AND content_hash = $3
       LIMIT 1`,
@@ -259,25 +343,37 @@ export async function claimRecipeMedia(ownerExternalId: string, input: RecipePho
   return { row: existing.rows[0], claimed: false };
 }
 
-export async function updateRecipeMediaStored(ownerExternalId: string, mediaId: string, claimedAttempt?: number): Promise<RecipeMediaRow> {
-  const result = await pool.query<RecipeMediaRow>(
+export async function updateRecipeMediaStored(
+  ownerExternalId: string,
+  mediaId: string,
+  claimedAttempt?: number,
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow> {
+  const result = await queryExecutor(executor).query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'stored', last_error_code = NULL, updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2 AND status = 'generating'
-        AND ($3::integer IS NULL OR attempts = $3) RETURNING *`, [mediaId, ownerExternalId, claimedAttempt ?? null],
+        AND ($3::integer IS NULL OR attempts = $3) RETURNING *`,
+    [mediaId, ownerExternalId, claimedAttempt ?? null],
   );
   if (!result.rows[0]) throw new Error("recipe_media_not_found");
   return result.rows[0];
 }
 
-export async function issueRecipeMediaUrlState(ownerExternalId: string, mediaId: string): Promise<RecipeMediaRow> {
-  const result = await pool.query<RecipeMediaRow>(
+export async function issueRecipeMediaUrlState(
+  ownerExternalId: string,
+  mediaId: string,
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow> {
+  const query = queryExecutor(executor);
+  const result = await query.query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'url_ready', url_last_issued_at = NOW(), updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2 AND image_id IS NOT NULL
         AND semantic_review_state = 'accepted'
-        AND status IN ('stored', 'url_ready') RETURNING *`, [mediaId, ownerExternalId],
+        AND status IN ('stored', 'url_ready') RETURNING *`,
+    [mediaId, ownerExternalId],
   );
   if (!result.rows[0]) throw new Error("recipe_media_not_found");
-  await pool.query(
+  await query.query(
     `UPDATE calora_recipe_media SET status = 'superseded', updated_at = NOW()
       WHERE owner_external_id = $1 AND client_recipe_id = $2 AND id <> $3
         AND status IN ('stored', 'url_ready')`,
@@ -286,67 +382,115 @@ export async function issueRecipeMediaUrlState(ownerExternalId: string, mediaId:
   return result.rows[0];
 }
 
-export async function markRecipeMediaError(ownerExternalId: string, mediaId: string, code: string, claimedAttempt?: number): Promise<boolean> {
-  const result = await pool.query(
+export async function markRecipeMediaError(
+  ownerExternalId: string,
+  mediaId: string,
+  code: string,
+  claimedAttempt?: number,
+  executor?: DatabaseQueryExecutor,
+): Promise<boolean> {
+  const result = await queryExecutor(executor).query(
     `UPDATE calora_recipe_media SET status = 'retryable_error', last_error_code = $3, updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2
-        AND ($4::integer IS NULL OR attempts = $4)`, [mediaId, ownerExternalId, code.slice(0, 80), claimedAttempt ?? null],
+        AND ($4::integer IS NULL OR attempts = $4)`,
+    [mediaId, ownerExternalId, code.slice(0, 80), claimedAttempt ?? null],
   );
   return (result.rowCount ?? 0) > 0;
 }
 
-export async function findOwnerRecipeMedia(ownerExternalId: string, options: { mediaId?: string; imageId?: string; clientRecipeId?: string } = {}): Promise<RecipeMediaRow | null> {
+export async function findOwnerRecipeMedia(
+  ownerExternalId: string,
+  options: { mediaId?: string; imageId?: string; clientRecipeId?: string } = {},
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow | null> {
   const clauses = ["owner_external_id = $1"];
   const values: unknown[] = [ownerExternalId];
-  for (const [column, value] of [["id", options.mediaId], ["image_id", options.imageId], ["client_recipe_id", options.clientRecipeId]] as const) {
-    if (value) { values.push(value); clauses.push(`${column} = $${values.length}`); }
+  for (const [column, value] of [
+    ["id", options.mediaId],
+    ["image_id", options.imageId],
+    ["client_recipe_id", options.clientRecipeId],
+  ] as const) {
+    if (value) {
+      values.push(value);
+      clauses.push(`${column} = $${values.length}`);
+    }
   }
-  const result = await pool.query<RecipeMediaRow>(
-    `SELECT * FROM calora_recipe_media WHERE ${clauses.join(" AND ")} ORDER BY updated_at DESC LIMIT 1`, values,
+  const result = await queryExecutor(executor).query<RecipeMediaRow>(
+    `SELECT * FROM calora_recipe_media WHERE ${clauses.join(" AND ")} ORDER BY updated_at DESC LIMIT 1`,
+    values,
   );
   return result.rows[0] ?? null;
 }
 
-export async function listOwnerRecipeMedia(ownerExternalId: string): Promise<RecipeMediaRow[]> {
-  const result = await pool.query<RecipeMediaRow>(
+export async function listOwnerRecipeMedia(
+  ownerExternalId: string,
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow[]> {
+  const result = await queryExecutor(executor).query<RecipeMediaRow>(
     `SELECT DISTINCT ON (client_recipe_id) * FROM calora_recipe_media
       WHERE owner_external_id = $1 AND status <> 'superseded'
-      ORDER BY client_recipe_id, updated_at DESC LIMIT 200`, [ownerExternalId],
+      ORDER BY client_recipe_id, updated_at DESC LIMIT 200`,
+    [ownerExternalId],
   );
   return result.rows;
 }
 
-export async function retryOwnerRecipeMedia(ownerExternalId: string, mediaId: string): Promise<RecipeMediaRow | null> {
+export async function retryOwnerRecipeMedia(
+  ownerExternalId: string,
+  mediaId: string,
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow | null> {
   const imageId = randomUUID();
-  const result = await pool.query<RecipeMediaRow>(
+  const result = await queryExecutor(executor).query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET status = 'generating', attempts = attempts + 1,
        image_id = $3, object_key = $4, last_attempt_at = NOW(), last_error_code = NULL,
        semantic_review_state = 'needs_review', url_last_issued_at = NULL, updated_at = NOW()
      WHERE id = $1 AND owner_external_id = $2
        AND (status = 'retryable_error' OR (status IN ('stored', 'url_ready') AND semantic_review_state = 'rejected')) RETURNING *`,
-    [mediaId, ownerExternalId, imageId, recipeMediaObjectKey(ownerExternalId, imageId)],
+    [
+      mediaId,
+      ownerExternalId,
+      imageId,
+      recipeMediaObjectKey(ownerExternalId, imageId),
+    ],
   );
   return result.rows[0] ?? null;
 }
 
-export async function setOwnerRecipeMediaReview(ownerExternalId: string, mediaId: string, reviewState: RecipeMediaReviewState): Promise<RecipeMediaRow | null> {
-  const result = await pool.query<RecipeMediaRow>(
+export async function setOwnerRecipeMediaReview(
+  ownerExternalId: string,
+  mediaId: string,
+  reviewState: RecipeMediaReviewState,
+  executor?: DatabaseQueryExecutor,
+): Promise<RecipeMediaRow | null> {
+  const result = await queryExecutor(executor).query<RecipeMediaRow>(
     `UPDATE calora_recipe_media SET semantic_review_state = $3, updated_at = NOW()
       WHERE id = $1 AND owner_external_id = $2
         AND status = 'stored' AND semantic_review_state = 'needs_review'
-        AND $3 IN ('accepted', 'rejected') RETURNING *`, [mediaId, ownerExternalId, reviewState],
+        AND $3 IN ('accepted', 'rejected') RETURNING *`,
+    [mediaId, ownerExternalId, reviewState],
   );
   return result.rows[0] ?? null;
 }
 
-export async function acknowledgeOwnerRecipeMediaRendered(ownerExternalId: string, mediaId: string): Promise<boolean> {
-  const result = await pool.query(
+export async function acknowledgeOwnerRecipeMediaRendered(
+  ownerExternalId: string,
+  mediaId: string,
+  executor?: DatabaseQueryExecutor,
+): Promise<boolean> {
+  const result = await queryExecutor(executor).query(
     `UPDATE calora_recipe_media SET last_rendered_at = NOW(), updated_at = NOW()
-      WHERE id = $1 AND owner_external_id = $2 AND status = 'url_ready'`, [mediaId, ownerExternalId],
+      WHERE id = $1 AND owner_external_id = $2 AND status = 'url_ready'`,
+    [mediaId, ownerExternalId],
   );
   return (result.rowCount ?? 0) > 0;
 }
 
 export function isRecipeMediaUuid(value: unknown): value is string {
-  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
 }
