@@ -14,6 +14,13 @@ describe('profile target migration helpers', () => {
     expect(recommendCalories(inputs)).toBe(2050);
   });
 
+  it('fails closed for invalid calorie recommendation weights', () => {
+    const inputs = { activity: 'moderate' as const, goal: 'maintain' as const };
+    expect(() => recommendCalories({ ...inputs, weightKg: Number.NaN })).toThrow(RangeError);
+    expect(() => recommendCalories({ ...inputs, weightKg: 24.99 })).toThrow(RangeError);
+    expect(() => recommendCalories({ ...inputs, weightKg: 350.01 })).toThrow(RangeError);
+  });
+
   it('does not allow automatic calorie targets for minors', () => {
     expect(canUseAutomaticTargets({ age: 17 })).toBe(false);
     expect(canUseAutomaticTargets({ age: 18 })).toBe(true);

@@ -1,7 +1,7 @@
 # Calora Authoritative Certification Register
 
 **Assessment date:** 2026-11-07  
-**Tested commit:** `9e7790cffb0cbf8062d1fa1986be6e71b76ff5161`  
+**Tested commit:** `1fb1627eedb704b368b91a03500ef81132886f51` (PR #394; source-level remediation branch)
 **Platform:** Android, iOS, backend/database, mobile/web product, AI, nutrition, recipes/media, commercial operations  
 **Verdict:** **NOT CERTIFIED — BLOCKED**
 
@@ -14,20 +14,20 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | CAL-03 | Product / high | Authenticated runtime flow | `areas/01-product.md` | Mobile + QA | BLOCKED | Signed-in Coach persistence, per-chat deletion, and copy require authorized account/runtime. |
 | CAL-04 | Product / high | Physical/native interaction matrix | `areas/01-product.md` | QA | NOT RUN | Camera/barcode/voice/library, permissions, notifications, swipe physics, large fonts, screen reader, reduced motion unavailable. |
 | CAL-05 | Android / critical | Source/config/preflight review | `areas/02-android.md`; `app.json`, `eas.json`, health tests | Android Release | PASS | Static configuration and QA infrastructure are prepared. |
-| CAL-06 | Android / critical | Physical Auto Scan route/resume observation | `docs/qa/CALORA_PHYSICAL_ANDROID_QA_LAB_REPORT_V2.md` | Android + QA | FAIL | Auto Scan can remain at “Starting camera…”; restart recovery is not acceptable certification. |
+| CAL-06 | Android / critical | Physical Auto Scan route/resume observation | `docs/qa/CALORA_PHYSICAL_ANDROID_QA_LAB_REPORT_V2.md`; `16_REMEDIATION_UPDATE.md` | Android + QA | BLOCKED | PR #394 adds bounded camera remount, timeout, and retry recovery at source level; physical verification on a fresh authorized binary remains required. |
 | CAL-07 | Android / critical | Current signed RC install/build | `areas/02-android.md` | Android Release | BLOCKED | No protected-main signed Android release candidate built/installed; older APK evidence stale. |
 | CAL-08 | Android / critical | Health Connect provider/device matrix | `areas/02-android.md` | Android + Health | NOT RUN | Authorization/data and real-time steps evidence absent. |
 | CAL-09 | Android / high | Native accessibility/device matrix | `areas/02-android.md` | QA | NOT RUN | TalkBack, large-font/keyboard, lifecycle, recovery, secondary device absent. |
 | CAL-10 | iOS / critical | Static iOS source/config review | `areas/03-ios.md`; `app.json`, `eas.json`, health/notification/RevenueCat code | iOS Release | PASS | Source-level controls are materially present. |
-| CAL-11 | iOS / critical | Native preflight test | `areas/03-ios.md`; 31 pass / 6 fail | iOS Release | FAIL | `ios-signing-evidence.test.js` fixture contract fails; Apple-rejection fixture gated by build number. |
+| CAL-11 | iOS / critical | Native preflight test | `areas/03-ios.md`; PR #394 remediation; 37 pass / 0 fail | iOS Release | PASS | Repository preflight and sanitized signing-evidence fixture contracts pass; this does not certify Apple credentials or a signed IPA. |
 | CAL-12 | iOS / critical | Signing, ASC, signed artifact provenance | Historical 230/26 reports; current `areas/03-ios.md` | iOS Release | BLOCKED | No current IPA, signing record, ASC processing/tester proof; historical claims stale. |
 | CAL-13 | iOS / high | Physical device/simulator acceptance | `areas/03-ios.md` | QA | NOT RUN | HealthKit, prompts, StoreKit, lifecycle, VoiceOver, Dynamic Type absent. |
 | CAL-14 | Backend / critical | Application auth/rate-limit/readiness source review | `areas/04-backend.md`; API tests and workflows | Backend | PASS | Strong application-level controls are evidenced at source level. |
 | CAL-15 | Backend / critical | Customer-data isolation review | `CALORA_INTELLIGENCE_SUPABASE_SECURITY_REPORT.md`; migrations | Backend/DB Security | FAIL | Customer data is managed PostgreSQL; no independently verified DB RLS/equivalent boundary. Supabase inspected project has no Calora tables. |
 | CAL-16 | Backend / critical | Live deployment/roles/observability review | `areas/04-backend.md`; historical Railway reports | Platform/DBA | BLOCKED | Current Railway identity, env, grants, migrations, storage, alerts not inspected; historical evidence stale. |
-| CAL-17 | Backend / critical | Rollback/restore drill | `areas/04-backend.md` | SRE/DBA | NOT RUN | No current production rollback, DB restore, storage restore, or recovery drill. |
+| CAL-17 | Backend / critical | Rollback/restore drill | `28_MISSION_403_FINAL_RECOVERY_DEPENDENCY_VERIFICATION.md`; `27_MISSION_402_RECOVERY_RETIREMENT_CLOSURE.md`; `26_MISSION_401_RECOVERY_RETIREMENT_READINESS.md`; `25_MISSION_400_DATABASE_RECOVERY_VERIFICATION.md`; `23_MISSION_398_RECOVERY_CERTIFICATION_VERDICT.md`; `22_MISSION_398_EXTERNAL_RECOVERY_SOURCES.md` | SRE/DBA | BLOCKED | The remaining FatSecret gateway has no identified Supabase/database/storage dependency, but protected API storage endpoint/bucket values and any hidden runtime webhook/provider endpoints remain unverified. Owner comparison is required; CAL-17 remains blocked. |
 | CAL-18 | Calculations / high | Focused deterministic suite | `areas/05-calculations.md`; 12 files / 165 tests passed | Nutrition Engineering | PASS | Core macro, serving, dates, fasting, health-day, progress, sync contracts pass. |
-| CAL-19 | Calculations / high | Recommendation input-boundary review | `calorieRecommendation.ts` | Nutrition Engineering | FAIL | No direct test; weight/result bounds and positivity validation incomplete. |
+| CAL-19 | Calculations / high | Recommendation input-boundary review | `calorieRecommendation.ts`; `profileTargets.test.ts` | Nutrition Engineering | PASS | PR #394 rejects non-finite and out-of-range weights (25–350 kg), and fails closed for non-finite/non-positive results; valid calculation vector remains covered. |
 | CAL-20 | Calculations / high | Provider/device/production sync acceptance | `areas/05-calculations.md` | Nutrition + QA | BLOCKED | Live barcode serving metadata, authenticated sync, native health, timezone/DST and offline flows unavailable. |
 | CAL-21 | Coach / critical | API/client focused suites | `areas/06-ai.md`; API 60/60, client 146/146 | AI + Mobile | PASS | Current bounded Coach v2 safety and separation contracts pass. |
 | CAL-22 | Coach / critical | Active-route provenance review | `coach.tsx`, `coachV2.ts`, Fact Context routes | AI + Product | BLOCKED | Active path is `/v1/coach/v2/chat`; dormant Fact Context route is not production activation evidence. |
@@ -46,8 +46,8 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 |---|---:|
 | PASS | 68 |
 | FAIL | 7 |
-| BLOCKED | 13 |
-| NOT RUN | 13 |
+| BLOCKED | 14 |
+| NOT RUN | 12 |
 | NOT APPLICABLE | 0 |
 
 Counts above are item-level counts from the eight supplied domain reports; this register preserves the 30 stable control IDs for repeatable re-certification and maps each material gate explicitly.
