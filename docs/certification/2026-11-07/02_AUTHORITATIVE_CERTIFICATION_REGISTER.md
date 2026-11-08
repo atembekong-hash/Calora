@@ -52,6 +52,12 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 
 Counts above are item-level counts from the eight supplied domain reports; this register preserves the 30 stable control IDs for repeatable re-certification and maps each material gate explicitly.
 
+## Mission 428 evidence addendum — 2026-11-08
+
+Mission 428 continued from protected-main `a933bb58fc27a949696b6f1f3c853510c643d618` on branch `mission/428-autonomous-launch`. Coach V2 persistence, Coach Fact Context consent/nonce operations, and related route database phases were integrated with the request-local verified identity context while preserving short database phases and keeping provider calls outside database transactions. The authenticated Coach snapshot now carries bounded server-owned signals for profile, nutrition, weight, saved meals, personal recipes, recent capture activity, and subscription availability. The prompt explicitly prohibits claims about raw timelines, health-provider data, or local-only hydration, steps, and fasting values absent from the snapshot.
+
+Coach V2, Coach Fact Context, Coach consent, and Coach data suites passed **57/57**; API/database TypeScript validation passed; Mission 417 security contracts passed **3/3**. This is source/unit and bounded security evidence only. CAL-15 remains **BLOCKED** because recipes/media, saved content, planner/wellness server persistence, worker/service identities, account-deletion service paths, production role/migration state, and complete non-BYPASSRLS real-handler coverage remain unproven. CAL-17, native signed-candidate gates, live entitlement lifecycle, and store/legal gates remain blocked or owner-gated. The consolidated evidence is in `docs/certification/2026-11-08/54_MISSION_428_CALORA_FINAL_AUTONOMOUS_LAUNCH_COMPLETION.md`.
+
 ## Mission 421 evidence addendum — 2026-11-08
 
 Mission 421 was implemented from protected-main commit `a7d2478eb5c45af360a80423c64a8846188dfccc` on branch `mission/421-sync-referral`. Synchronization now uses one verified outer transaction per request, with no nested pooled mutation transactions. Referral summary, redemption, qualification, and reward-claim database operations use the transaction-scoped identity adapter; RevenueCat calls are made only after claim commits and claim-release writes use a new scoped transaction. The detailed evidence is in `docs/certification/2026-11-08/47_MISSION_421_SYNC_REFERRAL_TRANSACTION_SECURITY.md`.
