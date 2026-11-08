@@ -34,6 +34,11 @@ import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
 import { REFERRAL_REWARD_DAYS } from "../lib/referral-config.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
+import {
+  claimReferralReward,
+  completeReferralReward,
+  failReferralReward,
+} from "../lib/referral-reward-state.js";
 
 const router: IRouter = Router();
 const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
@@ -42,6 +47,12 @@ const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 8;
 const DELETED_ACCOUNT_REFERENCE_PREFIX = "deleted:";
+
+function referralDurabilityMode(): "legacy" | "staged" {
+  return process.env.CALORA_REFERRAL_DURABILITY_MODE === "staged"
+    ? "staged"
+    : "legacy";
+}
 
 type ReferralExecutor =
   CaloraDatabase | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
@@ -343,11 +354,48 @@ router.post("/v1/referral/activate", async (req, res) => {
     }
 
     // ── Referred user's reward — claim-first idempotency ─────────────────
-    // The atomic UPDATE ... WHERE referred_rewarded_at IS NULL is the claim:
-    // only one concurrent caller wins it and proceeds to the provider grant.
-    // On grant failure the claim is released so a later session retries.
     let referredRewarded = redemption.referredRewardedAt !== null;
-    if (!referredRewarded) {
+    if (!referredRewarded && referralDurabilityMode() === "staged") {
+      const claim = await withReferralIdentity(user.id, (database) =>
+        claimReferralReward(database, redemption.id, "referred"),
+      );
+      if (claim.kind === "granted") {
+        referredRewarded = true;
+      } else if (claim.kind === "claimed") {
+        try {
+          await grantPromoDays(user.id, REFERRAL_REWARD_DAYS, claim.attemptKey);
+          await withReferralIdentity(user.id, (database) =>
+            completeReferralReward(
+              database,
+              redemption.id,
+              "referred",
+              claim.attemptKey,
+            ),
+          );
+          await withReferralIdentity(user.id, (database) =>
+            database
+              .update(referralRedemptionsTable)
+              .set({ referredRewardedAt: sql`now()`, status: "rewarded" })
+              .where(eq(referralRedemptionsTable.id, redemption.id)),
+          );
+          referredRewarded = true;
+        } catch (err) {
+          logger.error(
+            safeErrorDetails(err),
+            "Referred-user staged promotional grant failed",
+          );
+          await withReferralIdentity(user.id, (database) =>
+            failReferralReward(
+              database,
+              redemption.id,
+              "referred",
+              claim.attemptKey,
+              "provider_failure",
+            ),
+          );
+        }
+      }
+    } else if (!referredRewarded) {
       const claim = await withReferralIdentity(user.id, async (database) =>
         database
           .update(referralRedemptionsTable)
@@ -360,7 +408,6 @@ router.post("/v1/referral/activate", async (req, res) => {
           )
           .returning(),
       );
-
       if (claim.length > 0) {
         try {
           await grantPromoDays(user.id, REFERRAL_REWARD_DAYS);
@@ -387,7 +434,6 @@ router.post("/v1/referral/activate", async (req, res) => {
           return;
         }
       } else {
-        // A concurrent call won the claim; treat as rewarded.
         referredRewarded = true;
       }
     }
@@ -398,44 +444,92 @@ router.post("/v1/referral/activate", async (req, res) => {
       redemption.referrerUserId,
     );
     if (!referrerRewarded && !referrerWasDeleted) {
-      let claimedReferrerReward = false;
-      try {
-        const rowsClaimed = await withReferralIdentity(
-          user.id,
-          async (database) =>
-            database
-              .update(referralRedemptionsTable)
-              .set({ referrerRewardedAt: sql`now()` })
-              .where(
-                and(
-                  eq(referralRedemptionsTable.id, redemption.id),
-                  sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
-                ),
-              )
-              .returning(),
+      if (referralDurabilityMode() === "staged") {
+        const claim = await withReferralIdentity(user.id, (database) =>
+          claimReferralReward(database, redemption.id, "referrer"),
         );
-        claimedReferrerReward = rowsClaimed.length > 0;
-      } catch (err) {
-        if (classifyAccountDeletionError(err)) throw err;
-        logger.error(safeErrorDetails(err), "Referrer reward claim failed");
-      }
-
-      if (claimedReferrerReward) {
-        try {
-          await grantPromoDays(redemption.referrerUserId, REFERRAL_REWARD_DAYS);
+        if (claim.kind === "granted") {
           referrerRewarded = true;
+        } else if (claim.kind === "claimed") {
+          try {
+            await grantPromoDays(
+              redemption.referrerUserId,
+              REFERRAL_REWARD_DAYS,
+              claim.attemptKey,
+            );
+            await withReferralIdentity(user.id, (database) =>
+              completeReferralReward(
+                database,
+                redemption.id,
+                "referrer",
+                claim.attemptKey,
+              ),
+            );
+            await withReferralIdentity(user.id, (database) =>
+              database
+                .update(referralRedemptionsTable)
+                .set({ referrerRewardedAt: sql`now()` })
+                .where(eq(referralRedemptionsTable.id, redemption.id)),
+            );
+            referrerRewarded = true;
+          } catch (err) {
+            logger.error(
+              safeErrorDetails(err),
+              "Referrer staged promotional grant failed",
+            );
+            await withReferralIdentity(user.id, (database) =>
+              failReferralReward(
+                database,
+                redemption.id,
+                "referrer",
+                claim.attemptKey,
+                "provider_failure",
+              ),
+            );
+          }
+        }
+      } else {
+        let claimedReferrerReward = false;
+        try {
+          const rowsClaimed = await withReferralIdentity(
+            user.id,
+            async (database) =>
+              database
+                .update(referralRedemptionsTable)
+                .set({ referrerRewardedAt: sql`now()` })
+                .where(
+                  and(
+                    eq(referralRedemptionsTable.id, redemption.id),
+                    sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
+                  ),
+                )
+                .returning(),
+          );
+          claimedReferrerReward = rowsClaimed.length > 0;
         } catch (err) {
-          // Release the claim so a later activation can retry the grant.
-          logger.error(
-            safeErrorDetails(err),
-            "Referrer promotional grant failed",
-          );
-          await withReferralIdentity(user.id, (database) =>
-            database
-              .update(referralRedemptionsTable)
-              .set({ referrerRewardedAt: null })
-              .where(eq(referralRedemptionsTable.id, redemption.id)),
-          );
+          if (classifyAccountDeletionError(err)) throw err;
+          logger.error(safeErrorDetails(err), "Referrer reward claim failed");
+        }
+
+        if (claimedReferrerReward) {
+          try {
+            await grantPromoDays(
+              redemption.referrerUserId,
+              REFERRAL_REWARD_DAYS,
+            );
+            referrerRewarded = true;
+          } catch (err) {
+            logger.error(
+              safeErrorDetails(err),
+              "Referrer promotional grant failed",
+            );
+            await withReferralIdentity(user.id, (database) =>
+              database
+                .update(referralRedemptionsTable)
+                .set({ referrerRewardedAt: null })
+                .where(eq(referralRedemptionsTable.id, redemption.id)),
+            );
+          }
         }
       }
     } else if (referrerWasDeleted) {
@@ -446,12 +540,19 @@ router.post("/v1/referral/activate", async (req, res) => {
       referrerRewarded = false;
     }
 
+    const activationStatus =
+      referredRewarded && (referrerRewarded || referrerWasDeleted)
+        ? "rewarded"
+        : "pending";
     res.json({
-      status: "rewarded",
+      status: activationStatus,
       referredRewarded,
       referrerRewarded,
       referrerRewardSkipped: referrerWasDeleted,
-      message: `You've unlocked ${REFERRAL_REWARD_DAYS} days of Calora Pro. Enjoy!`,
+      message:
+        activationStatus === "rewarded"
+          ? `You've unlocked ${REFERRAL_REWARD_DAYS} days of Calora Pro. Enjoy!`
+          : "Your reward is being finalized — we'll retry automatically.",
     });
   } catch (err) {
     if (classifyAccountDeletionError(err)) {

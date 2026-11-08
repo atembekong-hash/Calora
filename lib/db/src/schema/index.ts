@@ -351,6 +351,27 @@ export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
   referredIndex: uniqueIndex("calora_referral_redemptions_referred_idx").on(table.referredUserId),
 }));
 
+/**
+ * Staged-only provider grant state. The table is intentionally created by the
+ * Mission 422 artifact, not by the normal auto-applied migration directory.
+ */
+export const referralRewardAttemptsTable = pgTable("calora_referral_reward_attempts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  redemptionId: uuid("redemption_id").notNull().references(() => referralRedemptionsTable.id, { onDelete: "cascade" }),
+  side: text("side").notNull(), // referred | referrer
+  attemptKey: uuid("attempt_key").defaultRandom().notNull(),
+  state: text("state").notNull().default("processing"), // processing | retry | granted
+  leaseUntil: timestamp("lease_until", { withTimezone: true }).notNull(),
+  providerGrantedAt: timestamp("provider_granted_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  reconciliationRequired: boolean("reconciliation_required").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  redemptionSideIndex: uniqueIndex("calora_referral_reward_attempts_redemption_side_idx").on(table.redemptionId, table.side),
+  attemptKeyIndex: uniqueIndex("calora_referral_reward_attempts_attempt_key_idx").on(table.attemptKey),
+}));
+
 export const syncMutationsTable = pgTable("calora_sync_mutations", {
   mutationId: uuid("mutation_id").primaryKey(),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
