@@ -81,7 +81,7 @@ BEGIN
     'calora_saved_meals','calora_recipes','calora_subscriptions','calora_sync_mutations',
     'calora_consent_events','calora_privacy_rights_requests','calora_coach_v2_settings',
     'calora_coach_v2_conversations','calora_coach_v2_turns','calora_referral_codes',
-    'calora_referral_redemptions','calora_ai_capture_sessions','calora_ai_capture_candidates',
+    'calora_referral_redemptions','calora_ai_capture_sessions','calora_ai_capture_candidates','calora_recipe_media',
     'calora_referral_qualifications'
   ] LOOP
     IF to_regclass('public.' || table_name) IS NOT NULL THEN
@@ -110,6 +110,8 @@ BEGIN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (referred_user_id = public.calora_current_external_user_id() OR referrer_user_id = public.calora_current_external_user_id()) WITH CHECK (referred_user_id = public.calora_current_external_user_id() OR referrer_user_id = public.calora_current_external_user_id())', table_name);
       ELSIF table_name = 'calora_ai_capture_candidates' THEN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (EXISTS (SELECT 1 FROM public.calora_ai_capture_sessions s WHERE s.id = session_id AND s.user_id = public.calora_current_user_id())) WITH CHECK (EXISTS (SELECT 1 FROM public.calora_ai_capture_sessions s WHERE s.id = session_id AND s.user_id = public.calora_current_user_id()))', table_name);
+      ELSIF table_name = 'calora_recipe_media' THEN
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (owner_external_id = public.calora_current_external_user_id()) WITH CHECK (owner_external_id = public.calora_current_external_user_id())', table_name);
       ELSIF table_name = 'calora_referral_qualifications' THEN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (external_user_id = public.calora_current_external_user_id()) WITH CHECK (external_user_id = public.calora_current_external_user_id())', table_name);
       ELSE
