@@ -57,10 +57,12 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)("tenant isolation (real schema)", () 
     pool = (await import("@workspace/db")).pool;
     const express = (await import("express")).default;
     const diaryRouter = (await import("../routes/diary.js")).default;
+    const profileRouter = (await import("../routes/profile.js")).default;
     const syncRouter = (await import("../routes/sync.js")).default;
     app = express();
     app.use(express.json());
     app.use(diaryRouter);
+    app.use(profileRouter);
     app.use(syncRouter);
   });
 
@@ -102,6 +104,45 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)("tenant isolation (real schema)", () 
       [entryId],
     );
     expect(rowAfterOwnerDelete.rowCount).toBe(0);
+  });
+
+  it("keeps durable profile writes and reads bound to the verified account", async () => {
+    const profileA = {
+      name: "Tenant A",
+      goal: "maintain",
+      activity: "moderate",
+      diet: "Everything",
+      age: 34,
+      heightCm: 178,
+      weightKg: 82,
+      targetWeightKg: 82,
+      calorieTarget: 2400,
+      targetMode: "automatic",
+      proteinTargetGrams: 150,
+      carbsTargetGrams: 260,
+      fatTargetGrams: 80,
+      units: "metric",
+      consentVersion: "calora-onboarding-v1",
+    };
+
+    actAs(userA);
+    const savedAsA = await request(app).put("/v1/profile").send(profileA);
+    expect(savedAsA.status).toBe(200);
+    expect(savedAsA.body).toMatchObject({ name: "Tenant A", calorieTarget: 2400 });
+
+    actAs(userB);
+    const readAsB = await request(app).get("/v1/profile");
+    expect(readAsB.status).toBe(404);
+
+    const savedAsB = await request(app)
+      .put("/v1/profile")
+      .send({ ...profileA, name: "Tenant B", calorieTarget: 1900 });
+    expect(savedAsB.status).toBe(200);
+
+    actAs(userA);
+    const readAsA = await request(app).get("/v1/profile");
+    expect(readAsA.status).toBe(200);
+    expect(readAsA.body).toMatchObject({ name: "Tenant A", calorieTarget: 2400 });
   });
 
   it("binds sync upserts and deletes to the verified user instead of client-controlled identifiers", async () => {
