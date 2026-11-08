@@ -10,7 +10,14 @@ import {
 import request from "supertest";
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
+import {
+  claimReferralReward,
+  completeReferralReward,
+  readReferralRewardAttempts,
+} from "../lib/referral-reward-state.js";
 
 const RUN =
   isDatabaseIntegrationTestEnabled() &&
@@ -214,5 +221,90 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
     const foreignDiary = await request(app).get("/v1/diary?date=2026-11-08");
     expect(foreignDiary.status).toBe(200);
     expect(foreignDiary.body.entries).toEqual([]);
+  });
+
+  it("handles crash-after-claim, lease expiry, lost responses, and concurrent claims", async () => {
+    await admin.query(
+      `DELETE FROM calora_referral_redemptions WHERE referred_user_id = $1`,
+      [userC],
+    );
+    const pending = await admin.query<{ id: string }>(
+      `INSERT INTO calora_referral_redemptions
+         (code, referrer_user_id, referred_user_id, status)
+       VALUES ($1, $2, $3, 'pending')
+       RETURNING id`,
+      [`CRASH${run}`, userA, userC],
+    );
+    const redemptionId = pending.rows[0].id;
+
+    const first = await withVerifiedDatabaseIdentity(userC, (database) =>
+      claimReferralReward(database, redemptionId, "referred"),
+    );
+    expect(first.kind).toBe("claimed");
+    if (first.kind !== "claimed") throw new Error("expected first claim");
+
+    const concurrent = await Promise.all([
+      withVerifiedDatabaseIdentity(userC, (database) =>
+        claimReferralReward(database, redemptionId, "referred"),
+      ),
+      withVerifiedDatabaseIdentity(userC, (database) =>
+        claimReferralReward(database, redemptionId, "referred"),
+      ),
+    ]);
+    expect(concurrent.every((claim) => claim.kind === "in_flight")).toBe(true);
+
+    // Simulate a provider success whose response was lost after the claim.
+    await withVerifiedDatabaseIdentity(userC, (database) =>
+      database.execute(sql`
+        UPDATE calora_referral_reward_attempts
+           SET lease_until = now() - interval '1 second'
+         WHERE redemption_id = ${redemptionId}::uuid
+           AND side = 'referred'
+      `),
+    );
+    const recovered = await withVerifiedDatabaseIdentity(userC, (database) =>
+      claimReferralReward(database, redemptionId, "referred"),
+    );
+    expect(recovered.kind).toBe("claimed");
+    if (recovered.kind !== "claimed")
+      throw new Error("expected reclaimed claim");
+    expect(recovered.attemptKey).not.toBe(first.attemptKey);
+    const reclaimedEvidence = await withVerifiedDatabaseIdentity(
+      userC,
+      (database) => readReferralRewardAttempts(database, redemptionId),
+    );
+    expect(reclaimedEvidence).toEqual([
+      expect.objectContaining({
+        side: "referred",
+        state: "processing",
+        reconciliation_required: true,
+      }),
+    ]);
+
+    const completed = await withVerifiedDatabaseIdentity(userC, (database) =>
+      completeReferralReward(
+        database,
+        redemptionId,
+        "referred",
+        recovered.attemptKey,
+      ),
+    );
+    expect(completed).toBe(true);
+
+    const replay = await withVerifiedDatabaseIdentity(userC, (database) =>
+      claimReferralReward(database, redemptionId, "referred"),
+    );
+    expect(replay).toEqual({ kind: "granted" });
+
+    const evidence = await withVerifiedDatabaseIdentity(userC, (database) =>
+      readReferralRewardAttempts(database, redemptionId),
+    );
+    expect(evidence).toEqual([
+      expect.objectContaining({
+        side: "referred",
+        state: "granted",
+        reconciliation_required: false,
+      }),
+    ]);
   });
 });
