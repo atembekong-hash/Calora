@@ -1,7 +1,7 @@
 # Calora Authoritative Certification Register
 
 **Assessment date:** 2026-11-07  
-**Tested commit:** `1fb1627eedb704b368b91a03500ef81132886f51` (PR #394; source-level remediation branch)
+**Tested commit:** `mission/406-security-revenue` (source-level security and commercial remediation; based on protected main `7a671df1b9bffa8a30e5e15bdff21a496736fe28`)
 **Platform:** Android, iOS, backend/database, mobile/web product, AI, nutrition, recipes/media, commercial operations  
 **Verdict:** **NOT CERTIFIED — BLOCKED**
 
@@ -23,7 +23,7 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | CAL-12 | iOS / critical | Signing, ASC, signed artifact provenance | Historical 230/26 reports; current `areas/03-ios.md` | iOS Release | BLOCKED | No current IPA, signing record, ASC processing/tester proof; historical claims stale. |
 | CAL-13 | iOS / high | Physical device/simulator acceptance | `areas/03-ios.md` | QA | NOT RUN | HealthKit, prompts, StoreKit, lifecycle, VoiceOver, Dynamic Type absent. |
 | CAL-14 | Backend / critical | Application auth/rate-limit/readiness source review | `areas/04-backend.md`; API tests and workflows | Backend | PASS | Strong application-level controls are evidenced at source level. |
-| CAL-15 | Backend / critical | Customer-data isolation review | `CALORA_INTELLIGENCE_SUPABASE_SECURITY_REPORT.md`; migrations | Backend/DB Security | FAIL | Customer data is managed PostgreSQL; no independently verified DB RLS/equivalent boundary. Supabase inspected project has no Calora tables. |
+| CAL-15 | Backend / critical | Customer-data isolation review | `32_MISSION_406_SECURITY_REVENUE_CERTIFICATION.md`; tenant-isolation integration suite; Supabase metadata | Backend/DB Security | BLOCKED | Two-user diary/sync/capture isolation passes on a freshly bootstrapped disposable schema. Production Supabase metadata shows Calora tables with RLS enabled but no policies; Railway metadata does not expose enough to prove the production DB identity or an equivalent non-bypassable boundary. |
 | CAL-16 | Backend / critical | Live deployment/roles/observability review | `areas/04-backend.md`; historical Railway reports | Platform/DBA | BLOCKED | Current Railway identity, env, grants, migrations, storage, alerts not inspected; historical evidence stale. |
 | CAL-17 | Backend / critical | Rollback/restore drill | `31_MISSION_405_CAL17_COMPLETION_REPORT.md`; `30_MISSION_404_COMPLETION_EVIDENCE.md`; `28_MISSION_403_FINAL_RECOVERY_DEPENDENCY_VERIFICATION.md`; `27_MISSION_402_RECOVERY_RETIREMENT_CLOSURE.md`; `26_MISSION_401_RECOVERY_RETIREMENT_READINESS.md`; `25_MISSION_400_DATABASE_RECOVERY_VERIFICATION.md`; `23_MISSION_398_RECOVERY_CERTIFICATION_VERDICT.md`; `22_MISSION_398_EXTERNAL_RECOVERY_SOURCES.md` | SRE/DBA | BLOCKED | Synthetic local dump/restore, schema-integrity, and recovery-failure tests pass, but production backup artifact/retention evidence, private recipe-photo restore, Auth/provider-state recovery, and measured production RPO/RTO remain unverified. Current authorized Supabase inventory no longer exposes the prior temporary recovery project; owner lifecycle/evidence confirmation is required. |
 | CAL-18 | Calculations / high | Focused deterministic suite | `areas/05-calculations.md`; 12 files / 165 tests passed | Nutrition Engineering | PASS | Core macro, serving, dates, fasting, health-day, progress, sync contracts pass. |
@@ -35,7 +35,7 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | CAL-24 | Recipes / high | Mobile reliability suite | `areas/07-recipes.md`; 15 files / 143 tests passed | Recipes + Mobile | PASS | Pagination, cache, image identity, lifecycle and saved restoration controls pass. |
 | CAL-25 | Recipes / high | API/database media suite | `areas/07-recipes.md`; 99 pass, 24 DB-gated | Backend + Recipes | BLOCKED | Missing `DATABASE_URL`; persistence, authenticated Plus/provider and live generation not certified. |
 | CAL-26 | Recipes / high | Physical/live generation acceptance | `areas/07-recipes.md` | QA + Recipes | NOT RUN | No live generate-review-accept-regenerate or device flow evidenced. |
-| CAL-27 | Commercial / critical | Billing source and historical certification review | `calora-payment-billing-entitlements-certification.md`; `areas/08-commercial.md` | Revenue/Payments | FAIL | Committed certification says NOT CERTIFIED FOR LAUNCH and records paid-benefit enforcement gaps. |
+| CAL-27 | Commercial / critical | Billing source and historical certification review | `32_MISSION_406_SECURITY_REVENUE_CERTIFICATION.md`; `premiumRecipes.test.ts`; RevenueCat suites | Revenue/Payments | BLOCKED | The confirmed premium-recipe entitlement bypass is repaired: inactive users receive 403 and RevenueCat uncertainty fails closed with 503. Current purchase/restore/renewal/expiration/revocation/cross-device evidence remains unavailable. |
 | CAL-28 | Commercial / critical | Store purchase lifecycle and restore | `areas/08-commercial.md` | Revenue/QA | BLOCKED | No current purchase, restore, renewal, expiration, retry, cancellation, refund, revocation, cross-device proof. |
 | CAL-29 | Commercial / critical | Store/legal/reviewer/support operations | Store metadata/checklists; `areas/08-commercial.md` | Compliance + Support | BLOCKED | Console finalization, signed build, Data Safety, mailbox delivery/SLA and reviewer access unverified. |
 | CAL-30 | Commercial / high | Native accessibility and deletion acceptance | `areas/08-commercial.md` | QA + Privacy | NOT RUN | VoiceOver/TalkBack, purchase-sheet accessibility, cancellation settings and deletion on signed builds absent. |
@@ -45,8 +45,8 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | Status | Count |
 |---|---:|
 | PASS | 68 |
-| FAIL | 7 |
-| BLOCKED | 14 |
+| FAIL | 5 |
+| BLOCKED | 16 |
 | NOT RUN | 12 |
 | NOT APPLICABLE | 0 |
 
