@@ -2,6 +2,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  bigint,
   check,
   date,
   doublePrecision,
@@ -310,9 +311,26 @@ export const subscriptionsTable = pgTable("calora_subscriptions", {
   entitlement: text("entitlement").notNull(),
   status: text("status").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+  lastEventTimestampMs: bigint("last_event_timestamp_ms", { mode: "number" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   userProductIndex: uniqueIndex("calora_subscription_user_product_idx").on(table.userId, table.productId),
+}));
+
+export const revenueCatWebhookEventsTable = pgTable("calora_revenuecat_webhook_events", {
+  eventId: text("event_id").primaryKey(),
+  appUserId: text("app_user_id"),
+  eventType: text("event_type").notNull(),
+  eventTimestampMs: bigint("event_timestamp_ms", { mode: "number" }),
+  environment: text("environment"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  status: text("status").notNull(),
+  error: text("error"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (table) => ({
+  userReceivedIndex: index("calora_revenuecat_webhook_events_user_received_idx").on(table.appUserId, table.receivedAt),
+  statusReceivedIndex: index("calora_revenuecat_webhook_events_status_received_idx").on(table.status, table.receivedAt),
 }));
 
 /**
@@ -709,6 +727,7 @@ export type RecipeItem = typeof recipeItemsTable.$inferSelect;
 export type AiCaptureSession = typeof aiCaptureSessionsTable.$inferSelect;
 export type AiCaptureCandidate = typeof aiCaptureCandidatesTable.$inferSelect;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
+export type RevenueCatWebhookEvent = typeof revenueCatWebhookEventsTable.$inferSelect;
 export type SyncMutation = typeof syncMutationsTable.$inferSelect;
 export type ConsentEvent = typeof consentEventsTable.$inferSelect;
 export type PrivacyRightsRequest = typeof privacyRightsRequestsTable.$inferSelect;
