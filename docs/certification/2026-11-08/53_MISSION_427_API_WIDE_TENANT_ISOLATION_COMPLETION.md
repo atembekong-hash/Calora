@@ -3,6 +3,9 @@
 **Assessment date:** 2026-11-08
 **Mission branch:** `mission/427-api-wide-tenant-isolation`
 **Protected-main baseline:** `597421cff52859b90717f7d51eb9cc68f834a676`
+**Implementation commit:** `c40e39cd8eea4c85369e5071cc6cd6d3ea8caa3c`
+**Protected pull request:** [#414](https://github.com/atembekong-hash/Calora/pull/414)
+**Protected-main merge commit:** `82e4dd4e69ee79b0d04aa22ea2b4807d999f71be`
 **Scope:** bounded correction of the authenticated Diary first-log/capture-provenance path; no production database, deployment, provider, native build, store, or customer-data operation.
 
 ## Verdict
