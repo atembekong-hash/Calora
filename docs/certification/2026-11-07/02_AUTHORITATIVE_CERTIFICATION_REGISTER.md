@@ -1,8 +1,8 @@
 # Calora Authoritative Certification Register
 
-**Assessment date:** 2026-11-07  
+**Assessment date:** 2026-11-07
 **Tested commit:** `dede7ad4c0403fd37c2fc423bfabbb388b9a89ce` (Mission 419 diary/privacy transaction-identity integration; protected-main baseline after PR #403)
-**Platform:** Android, iOS, backend/database, mobile/web product, AI, nutrition, recipes/media, commercial operations  
+**Platform:** Android, iOS, backend/database, mobile/web product, AI, nutrition, recipes/media, commercial operations
 **Verdict:** **NOT CERTIFIED — BLOCKED**
 
 Status meanings: **PASS** = evidence supports the bounded control at the tested commit; **FAIL** = adverse defect or failed test; **BLOCKED** = mandatory evidence could not be independently obtained; **NOT RUN** = the activity was not executed; **NOT APPLICABLE** = deliberately excluded with rationale (none used for mandatory gates). Historical evidence is labeled stale when tied to older commits or artifacts.
@@ -89,3 +89,9 @@ The implementation commit was `22e4baae57ca892b143379a1e2409f7dc3257283` in prot
 The new target-isolation suite passed **7/7**; the expanded recovery contract suite passed **7/7**; combined recovery-control tests passed **14/14**. Node syntax and workflow policy checks passed. Mission 426 also records a read-only Supabase matrix: project `caloraapp` is `ACTIVE_HEALTHY` on PostgreSQL 17 with current table/RLS and migration metadata visible, but backup history, PITR enablement, retention window, recoverable timestamps, database size, and compute configuration remain **UNVERIFIED** through authorized interfaces. The owner-assisted dashboard checklist and the Option B recovery architecture/cost decision package are in `docs/certification/2026-11-08/52_MISSION_426_RECOVERY_CONTROL_AND_DECISION_PACKAGE.md`.
 
 CAL-17 remains **BLOCKED**. No production backup, export, restore, PITR activation, paid service, schedule, Railway configuration, release-branch change, native build, store action, RevenueCat mutation, or customer-data access was performed. Engineering correction may be merged through protected main after required CI checks; any provider configuration or production recovery activation requires separate explicit owner authorization.
+
+## Mission 427 evidence addendum — 2026-11-08
+
+Mission 427 completed a bounded Diary first-log identity-hardening correction. The authenticated `/v1/diary/first-log` route now resolves the user, checks the account-deletion fence, validates capture-session ownership/replay/age and server-analyzed nutrition, claims the single-use session, normalizes image evidence, and inserts the Diary row through one `withVerifiedDatabaseIdentity` callback. The former nested database transaction was removed. No production database, migration, deployment, provider state, native build, store action, or customer data was touched. Detailed evidence is in `docs/certification/2026-11-08/53_MISSION_427_DIARY_FIRST_LOG_IDENTITY_HARDENING.md`.
+
+The Diary route suite passed **32/32**, the complete API offline suite passed **561/561 across 46 files**, Mission 417 security contracts passed **3/3**, and API TypeScript validation passed. The disposable staged-RLS real-handler rehearsal passed **4/4**, including a real first-log success for one synthetic user and rejection of a foreign synthetic capture session. This upgrades only the Diary first-log family to bounded staged-RLS evidence; Coach persistence, recipes/media, weight/activity, remaining capture branches, service/admin/worker identities, production role/migration evidence, and live commercial lifecycle evidence remain uncertified. CAL-15 remains **BLOCKED**.
