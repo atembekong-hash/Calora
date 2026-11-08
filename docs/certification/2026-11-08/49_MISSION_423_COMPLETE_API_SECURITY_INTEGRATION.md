@@ -15,8 +15,10 @@ Mission 423 confirmed that the remaining route families are not all integrated w
 
 - Protected-main baseline verified: `66791199def3d71dd476e47b786f8aeda09a8fdd`.
 - Mission 422’s source commit was present in the baseline.
-- Mission 423 implementation is on `mission/423-complete-api-rls`.
-- PR and final merge SHA are recorded after the protected delivery workflow completes.
+- Mission 423 implementation commit: `d154708058e61248b281089b48a2665307368b9d` on `mission/423-complete-api-rls`.
+- Protected pull request: [#408](https://github.com/atembekong-hash/Calora/pull/408).
+- Protected-main merge commit: `eb46dcf1eed3c58d0cc921a318740eecf44ed071`.
+- The report-finalization documentation commit is intentionally separate from the application change.
 
 ## Completed work package — Referral durability finalization
 
