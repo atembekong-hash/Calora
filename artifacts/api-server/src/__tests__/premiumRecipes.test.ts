@@ -226,33 +226,40 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   }, 15_000);
 
-  it("allows every signed-in account to browse Plus recipes without a RevenueCat entitlement check", async () => {
+  it("rejects a signed-in account without an active RevenueCat entitlement", async () => {
     hasActivePremiumEntitlementMock.mockResolvedValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        recipes: [
-          {
-            id: "42",
-            name: "Registered user bowl",
-            sourceUrl: "https://provider.example/42",
-          },
-        ],
-        nextOffset: null,
-      }),
-    });
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
 
     const res = await request(app).get("/v1/premium-recipes");
 
-    expect(res.status).toBe(200);
-    expect(res.body.recipes).toEqual([
-      expect.objectContaining({ name: "Registered user bowl" }),
-    ]);
-    expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      message: "An active Calora Pro subscription is required for Plus recipes.",
+    });
+    expect(hasActivePremiumEntitlementMock).toHaveBeenCalledWith("premium-user");
     expect(checkRateLimitMock).toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when RevenueCat entitlement verification is unavailable", async () => {
+    hasActivePremiumEntitlementMock.mockRejectedValue(
+      new Error("provider diagnostics must not reach the response"),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message:
+        "Premium recipes are temporarily unavailable. Please try again shortly.",
+    });
+    expect(JSON.stringify(res.body)).not.toContain("provider diagnostics");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("marks account-scoped Plus responses private and non-storable", async () => {
