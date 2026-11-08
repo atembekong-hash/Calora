@@ -7,6 +7,9 @@ import { spawn } from "node:child_process";
 
 const VERSION = "calora.encrypted-backup.v1";
 function arg(name) { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; }
+async function sha256(file) {
+  return crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex");
+}
 const input = arg("--input")?.trim();
 const validateOnly = process.argv.includes("--validate-only");
 if (!input) throw new Error("--input is required");
@@ -49,8 +52,14 @@ try {
   });
   const manifest = JSON.parse(await fs.readFile(path.join(temp, "manifest.json"), "utf8"));
   if (manifest.schemaVersion !== VERSION) throw new Error("Unsupported manifest");
-  const digest = crypto.createHash("sha256").update(await fs.readFile(path.join(temp, "manifest.json"))).digest("hex");
+  const digest = await sha256(path.join(temp, "manifest.json"));
   if (digest !== envelope.manifestSha256) throw new Error("Manifest checksum mismatch");
+  if (manifest.database?.format !== "pg_dump-custom" || !/^[a-f0-9]{64}$/.test(manifest.database?.sha256 ?? "")) {
+    throw new Error("Missing database archive checksum");
+  }
+  if (await sha256(dumpPath) !== manifest.database.sha256) {
+    throw new Error("Database archive checksum mismatch");
+  }
   if (validateOnly) {
     console.log(JSON.stringify({ status: "validated", backupId: manifest.backupId, environment: manifest.environment, databaseSha256: manifest.database.sha256 }));
     process.exit(0);

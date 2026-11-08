@@ -73,6 +73,8 @@ const key = keyFromEnvironment();
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), "calora-backup-"));
 const dumpPath = path.join(temp, "database.dump");
 const tarPath = path.join(temp, "bundle.tar.gz");
+const resolvedOutput = path.resolve(output);
+const temporaryOutput = `${resolvedOutput}.tmp-${process.pid}`;
 try {
   await run("pg_dump", [
     "--format=custom", "--no-owner", "--no-privileges", "--file", dumpPath,
@@ -107,9 +109,11 @@ try {
     ciphertext: ciphertext.toString("base64url"),
     manifestSha256: await sha256(path.join(temp, "manifest.json")),
   };
-  await fs.mkdir(path.dirname(path.resolve(output)), { recursive: true, mode: 0o700 });
-  await fs.writeFile(output, `${JSON.stringify(envelope)}\n`, { mode: 0o600 });
-  console.log(JSON.stringify({ schemaVersion: VERSION, output: path.resolve(output), backupId: manifest.backupId, createdAt: manifest.createdAt }));
+  await fs.mkdir(path.dirname(resolvedOutput), { recursive: true, mode: 0o700 });
+  await fs.writeFile(temporaryOutput, `${JSON.stringify(envelope)}\n`, { mode: 0o600 });
+  await fs.rename(temporaryOutput, resolvedOutput);
+  console.log(JSON.stringify({ schemaVersion: VERSION, output: resolvedOutput, backupId: manifest.backupId, createdAt: manifest.createdAt, databaseSha256: manifest.database.sha256 }));
 } finally {
+  await fs.rm(temporaryOutput, { force: true });
   await fs.rm(temp, { recursive: true, force: true });
 }
