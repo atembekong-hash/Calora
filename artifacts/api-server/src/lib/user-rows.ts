@@ -8,6 +8,9 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, type CaloraDatabase } from "@workspace/db";
 import { assertAccountWritable } from "./account-deletion-state.js";
 
+type UserRowExecutor =
+  CaloraDatabase | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+
 /**
  * Resolves an existing internal user row without creating an account/email
  * linkage. Read-only authorization and consent-status paths must use this
@@ -15,7 +18,7 @@ import { assertAccountWritable } from "./account-deletion-state.js";
  */
 export async function findUserRow(
   externalId: string,
-  database: CaloraDatabase = db,
+  database: UserRowExecutor = db,
 ): Promise<string | null> {
   const existing = await database
     .select({ id: usersTable.id })
@@ -28,7 +31,7 @@ export async function findUserRow(
 export async function ensureUserRow(
   externalId: string,
   email: string | null,
-  database: CaloraDatabase = db,
+  database: UserRowExecutor = db,
   inTransaction = false,
 ): Promise<string> {
   await assertAccountWritable(externalId, database, inTransaction);

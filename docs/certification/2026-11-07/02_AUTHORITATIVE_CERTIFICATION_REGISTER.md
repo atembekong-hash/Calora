@@ -51,3 +51,9 @@ Status meanings: **PASS** = evidence supports the bounded control at the tested 
 | NOT APPLICABLE | 0 |
 
 Counts above are item-level counts from the eight supplied domain reports; this register preserves the 30 stable control IDs for repeatable re-certification and maps each material gate explicitly.
+
+## Mission 421 evidence addendum — 2026-11-08
+
+Mission 421 was implemented from protected-main commit `a7d2478eb5c45af360a80423c64a8846188dfccc` on branch `mission/421-sync-referral`. Synchronization now uses one verified outer transaction per request, with no nested pooled mutation transactions. Referral summary, redemption, qualification, and reward-claim database operations use the transaction-scoped identity adapter; RevenueCat calls are made only after claim commits and claim-release writes use a new scoped transaction. The detailed evidence is in `docs/certification/2026-11-08/47_MISSION_421_SYNC_REFERRAL_TRANSACTION_SECURITY.md`.
+
+Source-level and offline evidence passed: focused sync/referral tests **37/37**, full API offline suite **561/561**, API TypeScript validation, and Mission 417 security contracts **3/3**. The required disposable PostgreSQL staged-RLS real-handler rehearsal was **BLOCKED** because this sandbox had no PostgreSQL runtime or reachable database. The existing referral schema also lacks a separate provider-attempt/lease state, so crash recovery after a committed claim and before RevenueCat completion remains unverified and requires a separately authorized schema design. CAL-15 therefore remains **BLOCKED**; no production RLS certification, role migration, Railway operation, live RevenueCat grant, native build, or store action is claimed.

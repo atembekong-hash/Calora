@@ -21,7 +21,11 @@ import {
   db,
   diaryEntriesTable,
   usersTable,
+  type CaloraDatabase,
 } from "@workspace/db";
+
+type ReferralExecutor =
+  CaloraDatabase | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
 
 /** Capture modes backed by an image or exact barcode lookup. */
 export const QUALIFYING_CAPTURE_MODES = [
@@ -34,11 +38,14 @@ export const QUALIFYING_CAPTURE_MODES = [
  * Returns true when the authenticated user has completed a server-observed
  * capture-backed meal save.
  */
-export async function hasSavedDiaryEntry(supabaseUserId: string): Promise<boolean> {
+export async function hasSavedDiaryEntry(
+  supabaseUserId: string,
+  database: ReferralExecutor = db,
+): Promise<boolean> {
   // first-log: reviewed_at is only stamped by the server-side capture claim
   // after the entry has passed owner, freshness, single-use, and nutrition
   // consistency checks.
-  const firstLogSessions = await db
+  const firstLogSessions = await database
     .select({ id: aiCaptureSessionsTable.id })
     .from(aiCaptureSessionsTable)
     .innerJoin(usersTable, eq(aiCaptureSessionsTable.userId, usersTable.id))
@@ -55,7 +62,7 @@ export async function hasSavedDiaryEntry(supabaseUserId: string): Promise<boolea
   // outbox sync: the row must retain a non-null server-verified session
   // belonging to the same authenticated account. Client-only rows are not
   // eligible even if their nutrition payload is syntactically valid.
-  const syncedEntries = await db
+  const syncedEntries = await database
     .select({ id: diaryEntriesTable.id })
     .from(diaryEntriesTable)
     .innerJoin(usersTable, eq(diaryEntriesTable.userId, usersTable.id))
