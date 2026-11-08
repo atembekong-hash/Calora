@@ -1,8 +1,10 @@
 # Mission 428 — Calora Final Autonomous Launch Completion
 
-**Assessment date:** 2026-11-08  
-**Protected-main baseline:** `a933bb58fc27a949696b6f1f3c853510c643d618`  
-**Working branch:** `mission/428-autonomous-launch`  
+**Assessment date:** 2026-11-08
+**Protected-main baseline:** `a933bb58fc27a949696b6f1f3c853510c643d618`
+**Working branch:** `mission/428-autonomous-launch`
+**Protected PR:** [#416](https://github.com/atembekong-hash/Calora/pull/416)
+**Protected-main merge:** `60bc031e6bf5cfd2aaa40b8b497c6d897e52ee76`
 **Scope:** authorized engineering corrections and evidence reconciliation only; no production mutation, deployment, native build, OTA publication, store submission, live entitlement change, or customer-data access.
 
 ## Executive verdict
