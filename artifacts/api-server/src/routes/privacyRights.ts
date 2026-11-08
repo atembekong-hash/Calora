@@ -8,6 +8,7 @@ import {
   assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 
 const router: IRouter = Router();
 
@@ -42,14 +43,17 @@ router.get("/v1/privacy/requests", async (req, res): Promise<void> => {
       .json({ message: "Please sign in to view privacy requests." });
     return;
   }
-  const userId = await ensureUserRow(auth.id, auth.email);
-  const rows = await db
-    .select()
-    .from(privacyRightsRequestsTable)
-    .where(eq(privacyRightsRequestsTable.userId, userId))
-    .orderBy(desc(privacyRightsRequestsTable.createdAt))
-    .limit(50);
-  res.json({ requests: rows.map(serializeRequest) });
+  const result = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+    const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+    const rows = await database
+      .select()
+      .from(privacyRightsRequestsTable)
+      .where(eq(privacyRightsRequestsTable.userId, userId))
+      .orderBy(desc(privacyRightsRequestsTable.createdAt))
+      .limit(50);
+    return rows.map(serializeRequest);
+  });
+  res.json({ requests: result });
 });
 
 router.post("/v1/privacy/requests", async (req, res): Promise<void> => {
@@ -67,8 +71,21 @@ router.post("/v1/privacy/requests", async (req, res): Promise<void> => {
     });
     return;
   }
+  let created: typeof privacyRightsRequestsTable.$inferSelect | undefined;
   try {
-    await assertAccountWritable(auth.id);
+    created = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+      await assertAccountWritable(auth.id, database, inTransaction);
+      const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+      const [row] = await database
+        .insert(privacyRightsRequestsTable)
+        .values({
+          userId,
+          requestType: parsed.data.requestType,
+          requesterNote: parsed.data.note || null,
+        })
+        .returning();
+      return row;
+    });
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
       res.status(409).json({
@@ -79,15 +96,6 @@ router.post("/v1/privacy/requests", async (req, res): Promise<void> => {
     }
     throw error;
   }
-  const userId = await ensureUserRow(auth.id, auth.email);
-  const [created] = await db
-    .insert(privacyRightsRequestsTable)
-    .values({
-      userId,
-      requestType: parsed.data.requestType,
-      requesterNote: parsed.data.note || null,
-    })
-    .returning();
   if (!created) {
     res.status(500).json({ message: "Privacy request could not be recorded." });
     return;
