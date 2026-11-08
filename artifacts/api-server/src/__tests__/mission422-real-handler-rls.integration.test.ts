@@ -25,11 +25,21 @@ const RUN =
   typeof process.env.CALORA_TEST_ADMIN_DATABASE_URL === "string";
 const verifyBearerToken = vi.fn();
 const grantPromoDays = vi.fn();
+const openAiCreate = vi.fn();
 vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
 }));
 vi.mock("../lib/revenuecat.js", () => ({
   grantPromoDays: (...args: unknown[]) => grantPromoDays(...args),
+}));
+vi.mock("@workspace/integrations-openai-ai-server", () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: (...args: unknown[]) => openAiCreate(...args),
+      },
+    },
+  },
 }));
 
 describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
@@ -62,11 +72,17 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
     const syncRouter = (await import("../routes/sync.js")).default;
     const referralRouter = (await import("../routes/referral.js")).default;
     const diaryRouter = (await import("../routes/diary.js")).default;
+    const coachRouter = (await import("../routes/coachV2.js")).default;
+    const coachFactConsentRouter = (
+      await import("../routes/coachFactConsent.js")
+    ).default;
     app = express();
     app.use(express.json());
     app.use(diaryRouter);
     app.use(syncRouter);
     app.use(referralRouter);
+    app.use(coachRouter);
+    app.use(coachFactConsentRouter);
     await admin.query(
       `INSERT INTO calora_users (external_id, email)
        VALUES ($1, $2), ($3, $4), ($5, $6)
@@ -121,6 +137,9 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     grantPromoDays.mockResolvedValue(new Date());
+    openAiCreate.mockResolvedValue({
+      choices: [{ message: { content: "A synthetic Coach response." } }],
+    });
   });
 
   afterAll(async () => {
@@ -163,42 +182,38 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
 
   it("runs capture-verified first-log through one staged identity transaction", async () => {
     actAs(userB);
-    const firstLog = await request(app)
-      .post("/v1/diary/first-log")
-      .send({
-        captureSessionId: firstLogSessionId,
-        entryDate: "2026-11-08",
-        meal: "Breakfast",
-        name: "Synthetic first-log meal",
-        serving: "1 bowl",
-        calories: 320,
-        proteinG: 20,
-        carbsG: 35,
-        fatG: 10,
-        provenance: "Photo estimate",
-        confidence: 90,
-        clientUpdatedAt: "2026-11-08T12:00:00.000Z",
-      });
+    const firstLog = await request(app).post("/v1/diary/first-log").send({
+      captureSessionId: firstLogSessionId,
+      entryDate: "2026-11-08",
+      meal: "Breakfast",
+      name: "Synthetic first-log meal",
+      serving: "1 bowl",
+      calories: 320,
+      proteinG: 20,
+      carbsG: 35,
+      fatG: 10,
+      provenance: "Photo estimate",
+      confidence: 90,
+      clientUpdatedAt: "2026-11-08T12:00:00.000Z",
+    });
     expect(firstLog.status).toBe(200);
     expect(firstLog.body).toEqual({ synced: true, alreadyExisted: false });
 
     actAs(userA);
-    const foreign = await request(app)
-      .post("/v1/diary/first-log")
-      .send({
-        captureSessionId: firstLogSessionId,
-        entryDate: "2026-11-08",
-        meal: "Breakfast",
-        name: "Synthetic first-log meal",
-        serving: "1 bowl",
-        calories: 320,
-        proteinG: 20,
-        carbsG: 35,
-        fatG: 10,
-        provenance: "Photo estimate",
-        confidence: 90,
-        clientUpdatedAt: "2026-11-08T12:00:00.000Z",
-      });
+    const foreign = await request(app).post("/v1/diary/first-log").send({
+      captureSessionId: firstLogSessionId,
+      entryDate: "2026-11-08",
+      meal: "Breakfast",
+      name: "Synthetic first-log meal",
+      serving: "1 bowl",
+      calories: 320,
+      proteinG: 20,
+      carbsG: 35,
+      fatG: 10,
+      provenance: "Photo estimate",
+      confidence: 90,
+      clientUpdatedAt: "2026-11-08T12:00:00.000Z",
+    });
     expect(foreign.status).toBe(422);
   });
 
@@ -363,5 +378,62 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
         reconciliation_required: false,
       }),
     ]);
+  });
+
+  it("keeps Coach conversations and fact-context consent tenant-scoped", async () => {
+    actAs(userA);
+    const consentA = await request(app)
+      .post("/v1/coach/fact-context/consent/accept")
+      .send({
+        purpose: "coach_fact_context_v1",
+        documentVersion: "2026-08-21",
+      });
+    expect(consentA.status).toBe(200);
+    expect(consentA.body.state).toBe("consented_current");
+
+    const a = await admin.query<{ id: string }>(
+      `SELECT id FROM calora_users WHERE external_id = $1`,
+      [userA],
+    );
+    const seeded = await admin.query<{ id: string }>(
+      `INSERT INTO calora_coach_v2_conversations (user_id, archived_at)
+       VALUES ($1::uuid, now())
+       RETURNING id`,
+      [a.rows[0].id],
+    );
+    await admin.query(
+      `INSERT INTO calora_coach_v2_turns
+         (conversation_id, ordinal, user_message, assistant_message, completed_at)
+       VALUES ($1::uuid, 1, 'How is my synthetic day?', 'A synthetic Coach response.', now())`,
+      [seeded.rows[0].id],
+    );
+
+    const aConversations = await request(app).get("/v1/coach/v2/conversations");
+    expect(aConversations.status).toBe(200);
+    expect(aConversations.body.conversations).toHaveLength(1);
+    const conversationId = aConversations.body.conversations[0].id as string;
+
+    actAs(userB);
+    const bConversations = await request(app).get("/v1/coach/v2/conversations");
+    expect(bConversations.status).toBe(200);
+    expect(bConversations.body.conversations).toEqual([]);
+    const foreignDelete = await request(app).delete(
+      `/v1/coach/v2/conversation/${conversationId}`,
+    );
+    expect(foreignDelete.status).toBe(404);
+    const consentB = await request(app).get("/v1/coach/fact-context/consent");
+    expect(consentB.status).toBe(200);
+    expect(consentB.body.state).toBe("not_consented");
+
+    actAs(userA);
+    const aConsent = await request(app).get("/v1/coach/fact-context/consent");
+    expect(aConsent.status).toBe(200);
+    expect(aConsent.body.state).toBe("consented_current");
+    const deleted = await request(app).delete(
+      `/v1/coach/v2/conversation/${conversationId}`,
+    );
+    expect(deleted.status).toBe(204);
+    const afterDelete = await request(app).get("/v1/coach/v2/conversations");
+    expect(afterDelete.body.conversations).toEqual([]);
   });
 });
