@@ -5,12 +5,31 @@ import test from "node:test";
 const creator = fs.readFileSync("scripts/recovery/create-encrypted-backup.mjs", "utf8");
 const restorer = fs.readFileSync("scripts/recovery/restore-encrypted-backup.mjs", "utf8");
 const workflow = fs.readFileSync(".github/workflows/calora-database-recovery.yml", "utf8");
+const targetValidator = fs.readFileSync("scripts/recovery/validate-recovery-target.mjs", "utf8");
 
 test("recovery workflow is manual-only and read-scoped", () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^\s+schedule:/m);
   assert.match(workflow, /permissions:\s*\n\s+contents: read/);
   assert.match(workflow, /retention-days: 30/);
+  assert.match(workflow, /type: choice/);
+  assert.doesNotMatch(workflow, /inputs\.environment/);
+  assert.match(workflow, /refs\/heads\/main/);
+});
+
+test("recovery workflow binds approved targets to protected environments and non-secret metadata", () => {
+  assert.match(targetValidator, /APPROVED_TARGETS/);
+  assert.match(targetValidator, /calora-recovery-staging/);
+  assert.match(targetValidator, /calora-recovery-disposable/);
+  assert.match(targetValidator, /target attestation does not match/);
+  assert.match(targetValidator, /database endpoint host does not match/);
+  assert.match(targetValidator, /database name does not match/);
+  assert.match(workflow, /environment: \$\{\{ needs\.attest-target\.outputs\.github_environment \}\}/);
+  assert.match(workflow, /CALORA_RECOVERY_TARGET_ID: \$\{\{ vars\.CALORA_RECOVERY_TARGET_ID \}\}/);
+  assert.match(workflow, /CALORA_RECOVERY_ENDPOINT_HOST: \$\{\{ vars\.CALORA_RECOVERY_ENDPOINT_HOST \}\}/);
+  assert.match(workflow, /CALORA_RECOVERY_DATABASE_NAME: \$\{\{ vars\.CALORA_RECOVERY_DATABASE_NAME \}\}/);
+  assert.match(workflow, /needs: attest-target/);
+  assert.ok(workflow.indexOf("Revalidate target binding before database commands") < workflow.lastIndexOf("- name: Create encrypted recovery bundle"));
 });
 
 test("backup creator requires a 32-byte managed key and encrypted authenticated envelope", () => {
