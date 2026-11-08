@@ -41,18 +41,21 @@ try {
   await query(client, "INSERT INTO public.calora_identity_assertion_secrets(secret_key, secret_value) VALUES ('active', $1)", [secret]);
   const users = await query(client, `
     INSERT INTO public.calora_users(external_id, email, display_name)
-    VALUES ('mission408-user-a', 'a@example.test', 'A'), ('mission408-user-b', 'b@example.test', 'B')
+    VALUES ('mission408-user-a', 'a@example.test', 'A'), ('mission408-user-b', 'b@example.test', 'B'), ('mission408-user-c', 'c@example.test', 'C')
     RETURNING external_id, id
   `);
   const userA = users.rows.find((row) => row.external_id === "mission408-user-a").id;
   const userB = users.rows.find((row) => row.external_id === "mission408-user-b").id;
+  const userC = users.rows.find((row) => row.external_id === "mission408-user-c").id;
   await query(client, "INSERT INTO public.calora_diary_entries(user_id, entry_date, meal, name, serving, calories, protein_g, carbs_g, fat_g, provenance, confidence, client_updated_at) VALUES ($1, CURRENT_DATE, 'lunch', 'A meal', '1 serving', 100, 10, 10, 2, 'mission408', 100, now())", [userA]);
   await query(client, "INSERT INTO public.calora_diary_entries(user_id, entry_date, meal, name, serving, calories, protein_g, carbs_g, fat_g, provenance, confidence, client_updated_at) VALUES ($1, CURRENT_DATE, 'lunch', 'B meal', '1 serving', 200, 20, 20, 4, 'mission408', 100, now())", [userB]);
+  await query(client, "INSERT INTO public.calora_diary_entries(user_id, entry_date, meal, name, serving, calories, protein_g, carbs_g, fat_g, provenance, confidence, client_updated_at) VALUES ($1, CURRENT_DATE, 'lunch', 'C meal', '1 serving', 300, 30, 30, 6, 'mission408', 100, now())", [userC]);
 
-  const tokenA = assertion("mission408-user-a", now + 60, "a");
-  const tokenB = assertion("mission408-user-b", now + 60, "b");
-  const expired = assertion("mission408-user-a", now - 1, "expired");
-  const forged = "mission408-user-b." + (now + 60) + ".forged." + "0".repeat(64);
+  const tokenA = assertion("mission408-user-a", now + 60, "nonce-a-12345678");
+  const tokenB = assertion("mission408-user-b", now + 60, "nonce-b-12345678");
+  const tokenC = assertion("mission408-user-c", now + 60, "nonce-c-12345678");
+  const expired = assertion("mission408-user-a", now - 1, "nonce-expired-123");
+  const forged = "mission408-user-b." + (now + 60) + ".nonce-forged-123." + "0".repeat(64);
 
   const ownerRead = await asRole(client, tokenA, () => query(client, "SELECT name FROM public.calora_diary_entries ORDER BY name"));
   assert.deepEqual(ownerRead.rows.map((row) => row.name), ["A meal"]);
@@ -108,6 +111,12 @@ try {
   const bRead = await asRole(client, tokenB, () => query(client, "SELECT name FROM public.calora_diary_entries ORDER BY name"));
   assert.deepEqual(bRead.rows.map((row) => row.name), ["B meal"]);
 
+  const cRead = await asRole(client, tokenC, () => query(client, "SELECT name FROM public.calora_diary_entries ORDER BY name"));
+  assert.deepEqual(cRead.rows.map((row) => row.name), ["C meal"]);
+
+  const aCannotTouchC = await asRole(client, tokenA, () => query(client, "DELETE FROM public.calora_diary_entries WHERE user_id = $1", [userC]));
+  assert(!aCannotTouchC.error && aCannotTouchC.rowCount === 0, "user A must not delete user C data");
+
   const concurrentA = new Client({ connectionString: databaseUrl });
   const concurrentB = new Client({ connectionString: databaseUrl });
   await Promise.all([concurrentA.connect(), concurrentB.connect()]);
@@ -137,7 +146,7 @@ try {
     runtime_no_bypass: "PASS",
     runtime_not_owner: "PASS",
     concurrent_contexts: "PASS",
-    tests: 18,
+    tests: 20,
   }));
 } finally {
   await client.end();

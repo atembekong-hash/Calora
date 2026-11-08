@@ -64,7 +64,7 @@ DECLARE
   expected text;
   expires_at bigint;
 BEGIN
-  IF token IS NULL OR token !~ '^[^.]+\.[0-9]+\.[^.]+\.[0-9a-f]{64}$' THEN
+  IF token IS NULL OR token !~ '^[A-Za-z0-9_-]{1,128}\.[0-9]+\.[A-Za-z0-9_-]{16,64}\.[0-9a-f]{64}$' THEN
     RETURN NULL;
   END IF;
   user_part := split_part(token, '.', 1);
@@ -72,7 +72,7 @@ BEGIN
   nonce_part := split_part(token, '.', 3);
   signature_part := split_part(token, '.', 4);
   expires_at := expires_part::bigint;
-  IF expires_at < floor(extract(epoch FROM clock_timestamp()))::bigint THEN
+  IF expires_at <= floor(extract(epoch FROM clock_timestamp()))::bigint THEN
     RETURN NULL;
   END IF;
   SELECT secret_value INTO secret

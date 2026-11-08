@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { PoolClient } from "pg";
 
 /**
@@ -12,9 +12,14 @@ export function createIdentityAssertion(
   nowSeconds = Math.floor(Date.now() / 1000),
   ttlSeconds = 60,
 ): string {
-  if (!externalUserId || !secret) throw new Error("identity assertion inputs required");
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(externalUserId) || !secret) {
+    throw new Error("identity assertion inputs invalid");
+  }
+  if (!Number.isSafeInteger(nowSeconds) || !Number.isSafeInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > 300) {
+    throw new Error("identity assertion lifetime invalid");
+  }
   const expiresAt = nowSeconds + ttlSeconds;
-  const nonce = `${nowSeconds}-${Math.random().toString(36).slice(2)}`;
+  const nonce = randomBytes(16).toString("base64url");
   const payload = `${externalUserId}.${expiresAt}.${nonce}`;
   const signature = createHmac("sha256", secret).update(payload).digest("hex");
   return `${payload}.${signature}`;
@@ -28,9 +33,9 @@ export function verifyIdentityAssertion(
   const parts = assertion.split(".");
   if (parts.length !== 4) return null;
   const [externalUserId, expiresAtText, nonce, signature] = parts;
-  if (!externalUserId || !expiresAtText || !nonce || !/^[0-9a-f]{64}$/.test(signature)) return null;
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(externalUserId) || !/^[A-Za-z0-9_-]{16,64}$/.test(nonce) || !/^[0-9a-f]{64}$/.test(signature)) return null;
   const expiresAt = Number(expiresAtText);
-  if (!Number.isSafeInteger(expiresAt) || expiresAt < nowSeconds) return null;
+  if (!Number.isSafeInteger(expiresAt) || !Number.isSafeInteger(nowSeconds) || expiresAt <= nowSeconds) return null;
   const expected = createHmac("sha256", secret)
     .update(`${externalUserId}.${expiresAtText}.${nonce}`)
     .digest("hex");
@@ -56,6 +61,34 @@ export async function withSignedDatabaseIdentity<T>(
     return result;
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
+ * Runs a nested operation on a transaction already owned by the caller.
+ * PostgreSQL has no nested BEGIN; a savepoint preserves the outer transaction
+ * and restores the previous transaction-local identity on both paths.
+ */
+export async function withSignedDatabaseIdentityOnExistingTransaction<T>(
+  client: PoolClient,
+  assertion: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = await client.query<{ value: string }>(
+    "SELECT current_setting($1, true) AS value",
+    ["calora.identity_token"],
+  );
+  await client.query("SAVEPOINT calora_identity_context");
+  try {
+    await client.query("SELECT set_config($1, $2, true)", ["calora.identity_token", assertion]);
+    const result = await operation();
+    await client.query("SELECT set_config($1, $2, true)", ["calora.identity_token", previous.rows[0]?.value ?? ""]);
+    await client.query("RELEASE SAVEPOINT calora_identity_context");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK TO SAVEPOINT calora_identity_context").catch(() => undefined);
+    await client.query("RELEASE SAVEPOINT calora_identity_context").catch(() => undefined);
     throw error;
   }
 }
