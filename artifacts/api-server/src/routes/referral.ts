@@ -17,7 +17,12 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
 import { and, count, eq, sql } from "drizzle-orm";
-import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
+import {
+  db,
+  referralCodesTable,
+  referralRedemptionsTable,
+  type CaloraDatabase,
+} from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
 import {
@@ -28,18 +33,37 @@ import {
 import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
 import { REFERRAL_REWARD_DAYS } from "../lib/referral-config.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 
 const router: IRouter = Router();
-const INVITE_BASE_URL =
-  "https://mycaloraapp.com/invite";
+const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
 
 /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 8;
 const DELETED_ACCOUNT_REFERENCE_PREFIX = "deleted:";
 
+type ReferralExecutor =
+  CaloraDatabase | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+
+async function withReferralIdentity<T>(
+  externalUserId: string,
+  operation: (database: ReferralExecutor) => Promise<T>,
+): Promise<T> {
+  return withVerifiedDatabaseIdentity(
+    externalUserId,
+    async (database, inTransaction) =>
+      inTransaction
+        ? operation(database)
+        : database.transaction((tx) => operation(tx)),
+  );
+}
+
 function isDeletedAccountReference(value: unknown): boolean {
-  return typeof value === "string" && value.startsWith(DELETED_ACCOUNT_REFERENCE_PREFIX);
+  return (
+    typeof value === "string" &&
+    value.startsWith(DELETED_ACCOUNT_REFERENCE_PREFIX)
+  );
 }
 
 function generateCode(): string {
@@ -52,8 +76,11 @@ function generateCode(): string {
 }
 
 /** Returns the caller's referral code row, creating one on first access. */
-async function ensureCode(userId: string): Promise<string> {
-  const existing = await db
+async function ensureCode(
+  userId: string,
+  database: ReferralExecutor,
+): Promise<string> {
+  const existing = await database
     .select()
     .from(referralCodesTable)
     .where(eq(referralCodesTable.userId, userId))
@@ -64,12 +91,12 @@ async function ensureCode(userId: string): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateCode();
     try {
-      await db.insert(referralCodesTable).values({ userId, code });
+      await database.insert(referralCodesTable).values({ userId, code });
       return code;
     } catch (err) {
       if (classifyAccountDeletionError(err)) throw err;
       // Unique violation on user_id means a concurrent insert won — reuse it.
-      const again = await db
+      const again = await database
         .select()
         .from(referralCodesTable)
         .where(eq(referralCodesTable.userId, userId))
@@ -86,48 +113,48 @@ router.get("/v1/referral", async (req, res) => {
   try {
     const user = await verifyBearerToken(req);
     if (!user) {
-      res.status(401).json({ message: "Please sign in to view your invite code." });
+      res
+        .status(401)
+        .json({ message: "Please sign in to view your invite code." });
       return;
     }
-    await assertAccountWritable(user.id);
-
-    const code = await ensureCode(user.id);
-
-    const [statRows, ownRedemption] = await Promise.all([
-      db
-        .select({
-          status: referralRedemptionsTable.status,
-          value: count(),
-        })
-        .from(referralRedemptionsTable)
-        .where(eq(referralRedemptionsTable.referrerUserId, user.id))
-        .groupBy(referralRedemptionsTable.status),
-      db
-        .select()
-        .from(referralRedemptionsTable)
-        .where(eq(referralRedemptionsTable.referredUserId, user.id))
-        .limit(1),
-    ]);
-
-    const pendingCount = statRows.find((r) => r.status === "pending")?.value ?? 0;
-    const rewardedCount = statRows.find((r) => r.status === "rewarded")?.value ?? 0;
-
-    res.json({
-      code,
-      inviteUrl: `${INVITE_BASE_URL}/${code}`,
-      rewardDays: REFERRAL_REWARD_DAYS,
-      stats: {
-        pendingCount,
-        rewardedCount,
-      },
-      redemption:
-        ownRedemption.length === 0
-          ? { status: "none" }
-          : {
-              status: ownRedemption[0].status === "rewarded" ? "rewarded" : "pending",
-              code: ownRedemption[0].code,
-            },
+    const summary = await withReferralIdentity(user.id, async (database) => {
+      await assertAccountWritable(user.id, database, true);
+      const code = await ensureCode(user.id, database);
+      const [statRows, ownRedemption] = await Promise.all([
+        database
+          .select({ status: referralRedemptionsTable.status, value: count() })
+          .from(referralRedemptionsTable)
+          .where(eq(referralRedemptionsTable.referrerUserId, user.id))
+          .groupBy(referralRedemptionsTable.status),
+        database
+          .select()
+          .from(referralRedemptionsTable)
+          .where(eq(referralRedemptionsTable.referredUserId, user.id))
+          .limit(1),
+      ]);
+      const pendingCount =
+        statRows.find((r) => r.status === "pending")?.value ?? 0;
+      const rewardedCount =
+        statRows.find((r) => r.status === "rewarded")?.value ?? 0;
+      return {
+        code,
+        inviteUrl: `${INVITE_BASE_URL}/${code}`,
+        rewardDays: REFERRAL_REWARD_DAYS,
+        stats: { pendingCount, rewardedCount },
+        redemption:
+          ownRedemption.length === 0
+            ? { status: "none" as const }
+            : {
+                status:
+                  ownRedemption[0].status === "rewarded"
+                    ? ("rewarded" as const)
+                    : ("pending" as const),
+                code: ownRedemption[0].code,
+              },
+      };
     });
+    res.json(summary);
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
       logger.warn(
@@ -138,7 +165,9 @@ router.get("/v1/referral", async (req, res) => {
       return;
     }
     logger.error(safeErrorDetails(err), "Referral summary failed");
-    res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
+    res.status(503).json({
+      message: "Referrals are unavailable right now. Please try again later.",
+    });
   }
 });
 
@@ -147,57 +176,65 @@ router.post("/v1/referral/redeem", async (req, res) => {
   try {
     const user = await verifyBearerToken(req);
     if (!user) {
-      res.status(401).json({ message: "Please sign in to redeem an invite code." });
+      res
+        .status(401)
+        .json({ message: "Please sign in to redeem an invite code." });
       return;
     }
-    await assertAccountWritable(user.id);
-
-    const rawCode = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+    const rawCode =
+      typeof req.body?.code === "string"
+        ? req.body.code.trim().toUpperCase()
+        : "";
     if (rawCode.length < 4 || rawCode.length > 16) {
       res.status(400).json({ message: "That invite code doesn't look right." });
       return;
     }
 
-    const codeRows = await db
-      .select()
-      .from(referralCodesTable)
-      .where(eq(referralCodesTable.code, rawCode))
-      .limit(1);
-    if (codeRows.length === 0) {
+    const redemption = await withReferralIdentity(user.id, async (database) => {
+      await assertAccountWritable(user.id, database, true);
+      const codeRows = await database
+        .select()
+        .from(referralCodesTable)
+        .where(eq(referralCodesTable.code, rawCode))
+        .limit(1);
+      if (codeRows.length === 0) return { kind: "not_found" as const };
+      const referrerUserId = codeRows[0].userId;
+      if (referrerUserId === user.id) return { kind: "self" as const };
+      const existing = await database
+        .select()
+        .from(referralRedemptionsTable)
+        .where(eq(referralRedemptionsTable.referredUserId, user.id))
+        .limit(1);
+      if (existing.length > 0) return { kind: "duplicate" as const };
+      try {
+        await database.insert(referralRedemptionsTable).values({
+          code: rawCode,
+          referrerUserId,
+          referredUserId: user.id,
+          status: "pending",
+        });
+      } catch (err) {
+        if (classifyAccountDeletionError(err)) throw err;
+        return { kind: "duplicate" as const };
+      }
+      return { kind: "created" as const };
+    });
+    if (redemption.kind === "not_found") {
       res.status(404).json({ message: "We couldn't find that invite code." });
       return;
     }
-
-    const referrerUserId = codeRows[0].userId;
-    if (referrerUserId === user.id) {
-      res.status(400).json({ message: "You can't redeem your own invite code." });
+    if (redemption.kind === "self") {
+      res
+        .status(400)
+        .json({ message: "You can't redeem your own invite code." });
       return;
     }
-
-    const existing = await db
-      .select()
-      .from(referralRedemptionsTable)
-      .where(eq(referralRedemptionsTable.referredUserId, user.id))
-      .limit(1);
-    if (existing.length > 0) {
-      res.status(409).json({ message: "This account has already used an invite code." });
+    if (redemption.kind === "duplicate") {
+      res
+        .status(409)
+        .json({ message: "This account has already used an invite code." });
       return;
     }
-
-    try {
-      await db.insert(referralRedemptionsTable).values({
-        code: rawCode,
-        referrerUserId,
-        referredUserId: user.id,
-        status: "pending",
-      });
-    } catch (err) {
-      if (classifyAccountDeletionError(err)) throw err;
-      // Unique index race: a concurrent redeem won.
-      res.status(409).json({ message: "This account has already used an invite code." });
-      return;
-    }
-
     res.json({
       status: "pending",
       message: `Invite accepted! Capture and confirm a meal to unlock ${REFERRAL_REWARD_DAYS} days of Pro for you both.`,
@@ -212,7 +249,9 @@ router.post("/v1/referral/redeem", async (req, res) => {
       return;
     }
     logger.error(safeErrorDetails(err), "Referral redemption failed");
-    res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
+    res.status(503).json({
+      message: "Referrals are unavailable right now. Please try again later.",
+    });
   }
 });
 
@@ -224,13 +263,14 @@ router.post("/v1/referral/activate", async (req, res) => {
       res.status(401).json({ message: "Please sign in first." });
       return;
     }
-    await assertAccountWritable(user.id);
-
-    const rows = await db
-      .select()
-      .from(referralRedemptionsTable)
-      .where(eq(referralRedemptionsTable.referredUserId, user.id))
-      .limit(1);
+    const rows = await withReferralIdentity(user.id, async (database) => {
+      await assertAccountWritable(user.id, database, true);
+      return database
+        .select()
+        .from(referralRedemptionsTable)
+        .where(eq(referralRedemptionsTable.referredUserId, user.id))
+        .limit(1);
+    });
 
     if (rows.length === 0) {
       res.json({
@@ -252,7 +292,9 @@ router.post("/v1/referral/activate", async (req, res) => {
     // The stamp is an atomic UPDATE so concurrent activations qualify exactly
     // once; a loser re-reads the fresh row and works from the winner's state.
     if (redemption.qualifiedAt === null) {
-      const qualified = await hasSavedDiaryEntry(user.id);
+      const qualified = await withReferralIdentity(user.id, (database) =>
+        hasSavedDiaryEntry(user.id, database),
+      );
       if (!qualified) {
         res.json({
           status: "pending",
@@ -264,24 +306,28 @@ router.post("/v1/referral/activate", async (req, res) => {
         return;
       }
 
-      const stamped = await db
-        .update(referralRedemptionsTable)
-        .set({ qualifiedAt: sql`now()`, qualifiedSignal: "server_capture" })
-        .where(
-          and(
-            eq(referralRedemptionsTable.id, redemption.id),
-            sql`${referralRedemptionsTable.qualifiedAt} IS NULL`,
-          ),
-        )
-        .returning({ id: referralRedemptionsTable.id });
+      const stamped = await withReferralIdentity(user.id, async (database) =>
+        database
+          .update(referralRedemptionsTable)
+          .set({ qualifiedAt: sql`now()`, qualifiedSignal: "server_capture" })
+          .where(
+            and(
+              eq(referralRedemptionsTable.id, redemption.id),
+              sql`${referralRedemptionsTable.qualifiedAt} IS NULL`,
+            ),
+          )
+          .returning({ id: referralRedemptionsTable.id }),
+      );
 
       if (stamped.length === 0) {
         // A concurrent activation stamped first — never trust the stale row.
-        const fresh = await db
-          .select()
-          .from(referralRedemptionsTable)
-          .where(eq(referralRedemptionsTable.id, redemption.id))
-          .limit(1);
+        const fresh = await withReferralIdentity(user.id, (database) =>
+          database
+            .select()
+            .from(referralRedemptionsTable)
+            .where(eq(referralRedemptionsTable.id, redemption.id))
+            .limit(1),
+        );
         if (fresh.length === 0 || fresh[0].qualifiedAt === null) {
           res.json({
             status: "pending",
@@ -302,33 +348,41 @@ router.post("/v1/referral/activate", async (req, res) => {
     // On grant failure the claim is released so a later session retries.
     let referredRewarded = redemption.referredRewardedAt !== null;
     if (!referredRewarded) {
-      const claim = await db
-        .update(referralRedemptionsTable)
-        .set({ referredRewardedAt: sql`now()`, status: "rewarded" })
-        .where(
-          and(
-            eq(referralRedemptionsTable.id, redemption.id),
-            sql`${referralRedemptionsTable.referredRewardedAt} IS NULL`,
-          ),
-        )
-        .returning();
+      const claim = await withReferralIdentity(user.id, async (database) =>
+        database
+          .update(referralRedemptionsTable)
+          .set({ referredRewardedAt: sql`now()`, status: "rewarded" })
+          .where(
+            and(
+              eq(referralRedemptionsTable.id, redemption.id),
+              sql`${referralRedemptionsTable.referredRewardedAt} IS NULL`,
+            ),
+          )
+          .returning(),
+      );
 
       if (claim.length > 0) {
         try {
           await grantPromoDays(user.id, REFERRAL_REWARD_DAYS);
           referredRewarded = true;
         } catch (err) {
-          logger.error(safeErrorDetails(err), "Referred-user promotional grant failed");
-          await db
-            .update(referralRedemptionsTable)
-            .set({ referredRewardedAt: null, status: "pending" })
-            .where(eq(referralRedemptionsTable.id, redemption.id));
+          logger.error(
+            safeErrorDetails(err),
+            "Referred-user promotional grant failed",
+          );
+          await withReferralIdentity(user.id, (database) =>
+            database
+              .update(referralRedemptionsTable)
+              .set({ referredRewardedAt: null, status: "pending" })
+              .where(eq(referralRedemptionsTable.id, redemption.id)),
+          );
           res.status(502).json({
             status: "pending",
             referredRewarded: false,
             referrerRewarded: false,
             referrerRewardSkipped: false,
-            message: "We couldn't unlock your reward just now — we'll retry automatically.",
+            message:
+              "We couldn't unlock your reward just now — we'll retry automatically.",
           });
           return;
         }
@@ -340,20 +394,26 @@ router.post("/v1/referral/activate", async (req, res) => {
 
     // ── Referrer's reward — claim-first idempotency ──────────────────────
     let referrerRewarded = redemption.referrerRewardedAt !== null;
-    const referrerWasDeleted = isDeletedAccountReference(redemption.referrerUserId);
+    const referrerWasDeleted = isDeletedAccountReference(
+      redemption.referrerUserId,
+    );
     if (!referrerRewarded && !referrerWasDeleted) {
       let claimedReferrerReward = false;
       try {
-        const rowsClaimed = await db
-          .update(referralRedemptionsTable)
-          .set({ referrerRewardedAt: sql`now()` })
-          .where(
-            and(
-              eq(referralRedemptionsTable.id, redemption.id),
-              sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
-            ),
-          )
-          .returning();
+        const rowsClaimed = await withReferralIdentity(
+          user.id,
+          async (database) =>
+            database
+              .update(referralRedemptionsTable)
+              .set({ referrerRewardedAt: sql`now()` })
+              .where(
+                and(
+                  eq(referralRedemptionsTable.id, redemption.id),
+                  sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
+                ),
+              )
+              .returning(),
+        );
         claimedReferrerReward = rowsClaimed.length > 0;
       } catch (err) {
         if (classifyAccountDeletionError(err)) throw err;
@@ -366,11 +426,16 @@ router.post("/v1/referral/activate", async (req, res) => {
           referrerRewarded = true;
         } catch (err) {
           // Release the claim so a later activation can retry the grant.
-          logger.error(safeErrorDetails(err), "Referrer promotional grant failed");
-          await db
-            .update(referralRedemptionsTable)
-            .set({ referrerRewardedAt: null })
-            .where(eq(referralRedemptionsTable.id, redemption.id));
+          logger.error(
+            safeErrorDetails(err),
+            "Referrer promotional grant failed",
+          );
+          await withReferralIdentity(user.id, (database) =>
+            database
+              .update(referralRedemptionsTable)
+              .set({ referrerRewardedAt: null })
+              .where(eq(referralRedemptionsTable.id, redemption.id)),
+          );
         }
       }
     } else if (referrerWasDeleted) {
@@ -398,7 +463,9 @@ router.post("/v1/referral/activate", async (req, res) => {
       return;
     }
     logger.error(safeErrorDetails(err), "Referral activation failed");
-    res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
+    res.status(503).json({
+      message: "Referrals are unavailable right now. Please try again later.",
+    });
   }
 });
 

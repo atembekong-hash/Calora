@@ -22,11 +22,11 @@ import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import {
-  db,
   aiCaptureCandidatesTable,
   aiCaptureSessionsTable,
   diaryEntriesTable,
   usersTable,
+  type CaloraDatabase,
 } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
@@ -38,6 +38,7 @@ import {
   type ImageEvidence,
 } from "../lib/image-metadata.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   accountDeletionFenceSignal,
@@ -45,6 +46,8 @@ import {
 } from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
+type SyncExecutor =
+  CaloraDatabase | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -116,7 +119,7 @@ type DiaryUpsertPayload = {
     servingQuantity?: number;
     servingUnit?: string;
     servingWeightG?: number;
-    nutritionBasis?: 'per_serving' | 'per_100g' | 'per_100ml' | 'unknown';
+    nutritionBasis?: "per_serving" | "per_100g" | "per_100ml" | "unknown";
     servingMetadataSource?: string;
   };
 };
@@ -151,9 +154,22 @@ function parseSyncMetadata(
     const value = nonNeg(payload[key]);
     if (value !== null) metadata[key] = value;
   }
-  if (typeof payload.servingUnit === "string" && payload.servingUnit.trim()) metadata.servingUnit = payload.servingUnit.trim().slice(0, 64);
-  if (payload.nutritionBasis === "per_serving" || payload.nutritionBasis === "per_100g" || payload.nutritionBasis === "per_100ml" || payload.nutritionBasis === "unknown") metadata.nutritionBasis = payload.nutritionBasis;
-  if (typeof payload.servingMetadataSource === "string" && payload.servingMetadataSource.trim()) metadata.servingMetadataSource = payload.servingMetadataSource.trim().slice(0, 160);
+  if (typeof payload.servingUnit === "string" && payload.servingUnit.trim())
+    metadata.servingUnit = payload.servingUnit.trim().slice(0, 64);
+  if (
+    payload.nutritionBasis === "per_serving" ||
+    payload.nutritionBasis === "per_100g" ||
+    payload.nutritionBasis === "per_100ml" ||
+    payload.nutritionBasis === "unknown"
+  )
+    metadata.nutritionBasis = payload.nutritionBasis;
+  if (
+    typeof payload.servingMetadataSource === "string" &&
+    payload.servingMetadataSource.trim()
+  )
+    metadata.servingMetadataSource = payload.servingMetadataSource
+      .trim()
+      .slice(0, 160);
   const imageEvidence = normalizeImageEvidence(
     payload.imageEvidence,
     accountScope,
@@ -376,7 +392,7 @@ type MutationClaim = "apply" | "accepted" | "stale";
  * upsert cannot resurrect a record deleted on another device.
  */
 async function claimDiaryMutation(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: SyncExecutor,
   userId: string,
   mutation: RawMutation,
   clientId: string,
@@ -473,286 +489,317 @@ router.post("/v1/sync", async (req, res) => {
     }
 
     const { mutations } = parsed;
-    await assertAccountWritable(user.id);
-    const userId = await ensureUserRow(user.id, user.email);
+    const result = await withVerifiedDatabaseIdentity(
+      user.id,
+      async (database, inTransaction) => {
+        const execute = async (executor: SyncExecutor) => {
+          await assertAccountWritable(user.id, executor, true);
+          const userId = await ensureUserRow(
+            user.id,
+            user.email,
+            executor,
+            true,
+          );
 
-    const accepted: string[] = [];
-    const conflicts: Array<{ mutationId: string; reason: string }> = [];
+          const accepted: string[] = [];
+          const conflicts: Array<{ mutationId: string; reason: string }> = [];
 
-    for (const mutation of mutations) {
-      // Require a canonical UUID so the mutation can be recorded in
-      // calora_sync_mutations (uuid PK) for cross-session deduplication.
-      // Non-UUID mutationIds are never safe to accept because they cannot be
-      // deduplicated — the client must use crypto.randomUUID().
-      if (!isUuid(mutation.mutationId)) {
-        conflicts.push({
-          mutationId: mutation.mutationId,
-          reason: "invalid_mutation_id",
-        });
-        continue;
-      }
-
-      // Reject unsupported entity types explicitly so the client knows the
-      // mutation was not applied.
-      if (mutation.entity !== "diaryEntry") {
-        conflicts.push({
-          mutationId: mutation.mutationId,
-          reason: "unsupported_entity",
-        });
-        continue;
-      }
-
-      try {
-        if (mutation.operation === "upsert") {
-          const p = parseDiaryUpsert(mutation.payload, user.id);
-          if (!p.ok) {
-            conflicts.push({
-              mutationId: mutation.mutationId,
-              reason: "validation_failed",
-            });
-            continue;
-          }
-          const v = p.value;
-
-          // ── Capture session verification ───────────────────────────────────
-          // When the client supplies a captureSessionId the server verifies:
-          //   1. The session exists and belongs to the authenticated user.
-          //   2. The session mode is a supported capture mode.
-          // On failure the session claim is silently dropped — the diary row
-          // is still written for local-first/manual logging, but it cannot
-          // qualify a referral.
-          let verifiedCaptureSessionId: string | null = null;
-          if (v.captureSessionId !== null) {
-            const sessions = await db
-              .select({
-                id: aiCaptureSessionsTable.id,
-                mode: aiCaptureSessionsTable.mode,
-              })
-              .from(aiCaptureSessionsTable)
-              .innerJoin(
-                usersTable,
-                eq(aiCaptureSessionsTable.userId, usersTable.id),
-              )
-              .where(
-                and(
-                  eq(aiCaptureSessionsTable.id, v.captureSessionId),
-                  eq(usersTable.id, userId),
-                ),
-              )
-              .limit(1);
-            if (
-              sessions.length > 0 &&
-              (sessions[0].mode === "food" ||
-                sessions[0].mode === "barcode" ||
-                sessions[0].mode === "nutrition_label")
-            ) {
-              verifiedCaptureSessionId = sessions[0].id;
+          for (const mutation of mutations) {
+            // Require a canonical UUID so the mutation can be recorded in
+            // calora_sync_mutations (uuid PK) for cross-session deduplication.
+            // Non-UUID mutationIds are never safe to accept because they cannot be
+            // deduplicated — the client must use crypto.randomUUID().
+            if (!isUuid(mutation.mutationId)) {
+              conflicts.push({
+                mutationId: mutation.mutationId,
+                reason: "invalid_mutation_id",
+              });
+              continue;
             }
-            // If the session is not found, doesn't belong to the user, or is
-            // not an approved image/barcode mode (text, voice, receipt, etc.),
-            // verifiedCaptureSessionId stays null and the row is written
-            // without a provenance anchor.
-          }
 
-          // `exact` is the only evidence state a client is not allowed to
-          // self-assert. Bind it to a server-recorded candidate from this
-          // caller's verified capture session, or downgrade it to unverified.
-          if (v.syncMetadata.imageEvidence?.semanticRole === "exact") {
-            let verifiedEvidence: ImageEvidence | null = null;
-            if (verifiedCaptureSessionId) {
-              const candidates = await db
-                .select({ evidence: aiCaptureCandidatesTable.evidence })
-                .from(aiCaptureCandidatesTable)
-                .where(
-                  eq(
-                    aiCaptureCandidatesTable.sessionId,
-                    verifiedCaptureSessionId,
-                  ),
-                );
-              for (const candidate of candidates) {
-                const candidateEvidence = candidate.evidence?.imageEvidence;
-                if (
-                  matchesCaptureImageEvidence(
-                    candidateEvidence,
-                    v.syncMetadata.imageEvidence,
-                    user.id,
-                  )
-                ) {
-                  verifiedEvidence = normalizeImageEvidence(
-                    candidateEvidence,
-                    user.id,
-                    undefined,
-                    { allowExact: true },
-                  );
-                  break;
+            // Reject unsupported entity types explicitly so the client knows the
+            // mutation was not applied.
+            if (mutation.entity !== "diaryEntry") {
+              conflicts.push({
+                mutationId: mutation.mutationId,
+                reason: "unsupported_entity",
+              });
+              continue;
+            }
+
+            try {
+              if (mutation.operation === "upsert") {
+                const p = parseDiaryUpsert(mutation.payload, user.id);
+                if (!p.ok) {
+                  conflicts.push({
+                    mutationId: mutation.mutationId,
+                    reason: "validation_failed",
+                  });
+                  continue;
                 }
-              }
-            }
-            v.syncMetadata.imageEvidence =
-              verifiedEvidence ??
-              normalizeImageEvidence(v.syncMetadata.imageEvidence, user.id, {
-                imageUrl: v.imageUrl,
-                imageSource: v.imageSource,
-                imageAssetKey: v.syncMetadata.imageAssetKey,
-              }) ??
-              undefined;
-          }
+                const v = p.value;
 
-          // Upsert on (user_id, client_id): re-sending the same clientId
-          // updates the existing row rather than creating a duplicate.
-          // Raw SQL is required because the partial unique index
-          // (WHERE client_id IS NOT NULL) cannot be named as a Drizzle
-          // conflict target.
-          // The diary write and its idempotency ledger entry must be durable
-          // together. In particular, a ledger failure must not leave an entry
-          // that a retry would treat as already processed (or vice versa).
-          await db
-            .transaction(async (tx) => {
-              const claim = await claimDiaryMutation(
-                tx,
-                userId,
-                mutation,
-                v.clientId,
-              );
-              if (claim === "stale") return "stale";
-              if (claim === "accepted") return "accepted";
+                // ── Capture session verification ───────────────────────────────────
+                // When the client supplies a captureSessionId the server verifies:
+                //   1. The session exists and belongs to the authenticated user.
+                //   2. The session mode is a supported capture mode.
+                // On failure the session claim is silently dropped — the diary row
+                // is still written for local-first/manual logging, but it cannot
+                // qualify a referral.
+                let verifiedCaptureSessionId: string | null = null;
+                if (v.captureSessionId !== null) {
+                  const sessions = await executor
+                    .select({
+                      id: aiCaptureSessionsTable.id,
+                      mode: aiCaptureSessionsTable.mode,
+                    })
+                    .from(aiCaptureSessionsTable)
+                    .innerJoin(
+                      usersTable,
+                      eq(aiCaptureSessionsTable.userId, usersTable.id),
+                    )
+                    .where(
+                      and(
+                        eq(aiCaptureSessionsTable.id, v.captureSessionId),
+                        eq(usersTable.id, userId),
+                      ),
+                    )
+                    .limit(1);
+                  if (
+                    sessions.length > 0 &&
+                    (sessions[0].mode === "food" ||
+                      sessions[0].mode === "barcode" ||
+                      sessions[0].mode === "nutrition_label")
+                  ) {
+                    verifiedCaptureSessionId = sessions[0].id;
+                  }
+                  // If the session is not found, doesn't belong to the user, or is
+                  // not an approved image/barcode mode (text, voice, receipt, etc.),
+                  // verifiedCaptureSessionId stays null and the row is written
+                  // without a provenance anchor.
+                }
 
-              await tx.execute(sql`
-              INSERT INTO calora_diary_entries
-                (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
-                 calories, protein_g, carbs_g, fat_g, provenance,
-                 confidence, notes, image_url, image_source, sync_metadata, client_updated_at)
-              VALUES
-                (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
-                 ${v.entryDate}::date, ${v.meal},
-                 ${v.name}, ${v.serving},
-                 ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
-                 ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
-                 ${v.provenance}, ${v.confidence}::integer,
-                  ${v.notes}, ${v.imageUrl}, ${v.imageSource}, ${JSON.stringify(v.syncMetadata)}::jsonb,
-                  ${mutation.clientUpdatedAt}::timestamptz)
-              ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
-              DO UPDATE SET
-                entry_date          = EXCLUDED.entry_date,
-                meal                = EXCLUDED.meal,
-                name                = EXCLUDED.name,
-                serving             = EXCLUDED.serving,
-                calories            = EXCLUDED.calories,
-                protein_g           = EXCLUDED.protein_g,
-                carbs_g             = EXCLUDED.carbs_g,
-                fat_g               = EXCLUDED.fat_g,
-                provenance          = EXCLUDED.provenance,
-                confidence          = EXCLUDED.confidence,
-                notes               = EXCLUDED.notes,
-                image_url           = EXCLUDED.image_url,
-                image_source        = EXCLUDED.image_source,
-                sync_metadata       = EXCLUDED.sync_metadata,
-                capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
-                client_updated_at   = EXCLUDED.client_updated_at,
-                updated_at          = now()
-            `);
-              // The diary outbox is the durable retry path for capture approval.
-              // Once this owner-scoped session and its diary row are committed,
-              // acknowledge review → approved in the same transaction. The
-              // conditional update is idempotent and cannot affect another user.
-              if (verifiedCaptureSessionId) {
-                await tx
-                  .update(aiCaptureSessionsTable)
-                  .set({ status: "approved" })
-                  .where(
-                    and(
-                      eq(aiCaptureSessionsTable.id, verifiedCaptureSessionId),
-                      eq(aiCaptureSessionsTable.userId, userId),
-                      eq(aiCaptureSessionsTable.status, "review"),
-                    ),
+                // `exact` is the only evidence state a client is not allowed to
+                // self-assert. Bind it to a server-recorded candidate from this
+                // caller's verified capture session, or downgrade it to unverified.
+                if (v.syncMetadata.imageEvidence?.semanticRole === "exact") {
+                  let verifiedEvidence: ImageEvidence | null = null;
+                  if (verifiedCaptureSessionId) {
+                    const candidates = await executor
+                      .select({ evidence: aiCaptureCandidatesTable.evidence })
+                      .from(aiCaptureCandidatesTable)
+                      .where(
+                        eq(
+                          aiCaptureCandidatesTable.sessionId,
+                          verifiedCaptureSessionId,
+                        ),
+                      );
+                    for (const candidate of candidates) {
+                      const candidateEvidence =
+                        candidate.evidence?.imageEvidence;
+                      if (
+                        matchesCaptureImageEvidence(
+                          candidateEvidence,
+                          v.syncMetadata.imageEvidence,
+                          user.id,
+                        )
+                      ) {
+                        verifiedEvidence = normalizeImageEvidence(
+                          candidateEvidence,
+                          user.id,
+                          undefined,
+                          { allowExact: true },
+                        );
+                        break;
+                      }
+                    }
+                  }
+                  v.syncMetadata.imageEvidence =
+                    verifiedEvidence ??
+                    normalizeImageEvidence(
+                      v.syncMetadata.imageEvidence,
+                      user.id,
+                      {
+                        imageUrl: v.imageUrl,
+                        imageSource: v.imageSource,
+                        imageAssetKey: v.syncMetadata.imageAssetKey,
+                      },
+                    ) ??
+                    undefined;
+                }
+
+                // Upsert on (user_id, client_id): re-sending the same clientId
+                // updates the existing row rather than creating a duplicate.
+                // Raw SQL is required because the partial unique index
+                // (WHERE client_id IS NOT NULL) cannot be named as a Drizzle
+                // conflict target.
+                // The diary write and its idempotency ledger entry must be durable
+                // together. In particular, a ledger failure must not leave an entry
+                // that a retry would treat as already processed (or vice versa).
+                await (async (tx: SyncExecutor) => {
+                  const claim = await claimDiaryMutation(
+                    tx,
+                    userId,
+                    mutation,
+                    v.clientId,
                   );
-              }
-              return "apply";
-            })
-            .then((claim) => {
-              if (claim === "stale") {
-                conflicts.push({
-                  mutationId: mutation.mutationId,
-                  reason: "stale_write",
+                  if (claim === "stale") return "stale";
+                  if (claim === "accepted") return "accepted";
+
+                  await tx.execute(sql`
+                INSERT INTO calora_diary_entries
+                  (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
+                   calories, protein_g, carbs_g, fat_g, provenance,
+                   confidence, notes, image_url, image_source, sync_metadata, client_updated_at)
+                VALUES
+                  (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
+                   ${v.entryDate}::date, ${v.meal},
+                   ${v.name}, ${v.serving},
+                   ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
+                   ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
+                   ${v.provenance}, ${v.confidence}::integer,
+                    ${v.notes}, ${v.imageUrl}, ${v.imageSource}, ${JSON.stringify(v.syncMetadata)}::jsonb,
+                    ${mutation.clientUpdatedAt}::timestamptz)
+                ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
+                DO UPDATE SET
+                  entry_date          = EXCLUDED.entry_date,
+                  meal                = EXCLUDED.meal,
+                  name                = EXCLUDED.name,
+                  serving             = EXCLUDED.serving,
+                  calories            = EXCLUDED.calories,
+                  protein_g           = EXCLUDED.protein_g,
+                  carbs_g             = EXCLUDED.carbs_g,
+                  fat_g               = EXCLUDED.fat_g,
+                  provenance          = EXCLUDED.provenance,
+                  confidence          = EXCLUDED.confidence,
+                  notes               = EXCLUDED.notes,
+                  image_url           = EXCLUDED.image_url,
+                  image_source        = EXCLUDED.image_source,
+                  sync_metadata       = EXCLUDED.sync_metadata,
+                  capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
+                  client_updated_at   = EXCLUDED.client_updated_at,
+                  updated_at          = now()
+              `);
+                  // The diary outbox is the durable retry path for capture approval.
+                  // Once this owner-scoped session and its diary row are committed,
+                  // acknowledge review → approved in the same transaction. The
+                  // conditional update is idempotent and cannot affect another user.
+                  if (verifiedCaptureSessionId) {
+                    await tx
+                      .update(aiCaptureSessionsTable)
+                      .set({ status: "approved" })
+                      .where(
+                        and(
+                          eq(
+                            aiCaptureSessionsTable.id,
+                            verifiedCaptureSessionId,
+                          ),
+                          eq(aiCaptureSessionsTable.userId, userId),
+                          eq(aiCaptureSessionsTable.status, "review"),
+                        ),
+                      );
+                  }
+                  return "apply";
+                })(executor).then((claim) => {
+                  if (claim === "stale") {
+                    conflicts.push({
+                      mutationId: mutation.mutationId,
+                      reason: "stale_write",
+                    });
+                  } else {
+                    accepted.push(mutation.mutationId);
+                  }
+                });
+              } else if (mutation.operation === "delete") {
+                const clientId = mutation.payload.clientId;
+                if (
+                  typeof clientId !== "string" ||
+                  clientId.length < 1 ||
+                  clientId.length > 128
+                ) {
+                  conflicts.push({
+                    mutationId: mutation.mutationId,
+                    reason: "validation_failed",
+                  });
+                  continue;
+                }
+
+                // Scoped delete: the WHERE clause ensures one user can never
+                // remove another user's diary row even if they guess a client_id.
+                await (async (tx: SyncExecutor) => {
+                  const claim = await claimDiaryMutation(
+                    tx,
+                    userId,
+                    mutation,
+                    clientId,
+                  );
+                  if (claim === "stale") return "stale";
+                  if (claim === "accepted") return "accepted";
+
+                  await tx.execute(sql`
+                DELETE FROM calora_diary_entries
+                WHERE user_id = ${userId}::uuid
+                  AND client_id = ${clientId}
+              `);
+                  return "apply";
+                })(executor).then((claim) => {
+                  if (claim === "stale") {
+                    conflicts.push({
+                      mutationId: mutation.mutationId,
+                      reason: "stale_write",
+                    });
+                  } else {
+                    accepted.push(mutation.mutationId);
+                  }
                 });
               } else {
-                accepted.push(mutation.mutationId);
+                // Unknown diary operation: report as conflict rather than silently
+                // discarding the mutation.
+                conflicts.push({
+                  mutationId: mutation.mutationId,
+                  reason: "unsupported_operation",
+                });
               }
-            });
-        } else if (mutation.operation === "delete") {
-          const clientId = mutation.payload.clientId;
-          if (
-            typeof clientId !== "string" ||
-            clientId.length < 1 ||
-            clientId.length > 128
-          ) {
-            conflicts.push({
-              mutationId: mutation.mutationId,
-              reason: "validation_failed",
-            });
-            continue;
+            } catch (err) {
+              if (
+                classifyAccountDeletionError(err) ===
+                ACCOUNT_DELETION_FENCE_ERROR_CLASS
+              ) {
+                deletionFenceRejectionCount += 1;
+                continue;
+              }
+              logger.error(
+                {
+                  mutationId: mutation.mutationId,
+                  err,
+                },
+                "Sync mutation failed",
+              );
+              // A database error leaves the verified outer transaction unusable
+              // in PostgreSQL. Abort the batch so its ledger and diary writes
+              // cannot be partially committed; the client can safely retry.
+              throw err;
+            }
           }
 
-          // Scoped delete: the WHERE clause ensures one user can never
-          // remove another user's diary row even if they guess a client_id.
-          await db
-            .transaction(async (tx) => {
-              const claim = await claimDiaryMutation(
-                tx,
-                userId,
-                mutation,
-                clientId,
-              );
-              if (claim === "stale") return "stale";
-              if (claim === "accepted") return "accepted";
-
-              await tx.execute(sql`
-              DELETE FROM calora_diary_entries
-              WHERE user_id = ${userId}::uuid
-                AND client_id = ${clientId}
-            `);
-              return "apply";
-            })
-            .then((claim) => {
-              if (claim === "stale") {
-                conflicts.push({
-                  mutationId: mutation.mutationId,
-                  reason: "stale_write",
-                });
-              } else {
-                accepted.push(mutation.mutationId);
-              }
-            });
-        } else {
-          // Unknown diary operation: report as conflict rather than silently
-          // discarding the mutation.
-          conflicts.push({
-            mutationId: mutation.mutationId,
-            reason: "unsupported_operation",
-          });
-        }
-      } catch (err) {
-        if (
-          classifyAccountDeletionError(err) ===
-          ACCOUNT_DELETION_FENCE_ERROR_CLASS
-        ) {
-          deletionFenceRejectionCount += 1;
-          continue;
-        }
-        logger.error(
-          {
-            mutationId: mutation.mutationId,
-            err,
-          },
-          "Sync mutation failed",
-        );
-        conflicts.push({
-          mutationId: mutation.mutationId,
-          reason: "server_error",
-        });
-      }
-    }
-
+          const records = await executor
+            .select()
+            .from(diaryEntriesTable)
+            .where(eq(diaryEntriesTable.userId, userId));
+          return {
+            accepted,
+            conflicts,
+            records: records
+              .filter((row) => row.clientId !== null)
+              .map(serializeDiaryRecord),
+            nextCursor: "",
+          };
+        };
+        return inTransaction
+          ? execute(database)
+          : database.transaction((tx) => execute(tx));
+      },
+    );
     if (deletionFenceRejectionCount > 0) {
       logger.warn(
         accountDeletionFenceSignal("/v1/sync", deletionFenceRejectionCount),
@@ -764,18 +811,7 @@ router.post("/v1/sync", async (req, res) => {
       return;
     }
 
-    const records = await db
-      .select()
-      .from(diaryEntriesTable)
-      .where(eq(diaryEntriesTable.userId, userId));
-    res.json({
-      accepted,
-      conflicts,
-      records: records
-        .filter((row) => row.clientId !== null)
-        .map(serializeDiaryRecord),
-      nextCursor: "",
-    });
+    res.json(result);
   } catch (err) {
     const errorClass = classifyAccountDeletionError(err);
     if (errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
