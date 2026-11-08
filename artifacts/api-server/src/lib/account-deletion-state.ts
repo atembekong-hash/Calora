@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, type CaloraDatabase } from "@workspace/db";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
 } from "./account-deletion-fence-schema.mjs";
@@ -23,6 +23,8 @@ const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 const LEASE_SECONDS = 5 * 60;
 export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
+type AccountTransaction = Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+type AccountExecutor = CaloraDatabase | AccountTransaction;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
 /**
  * Atomically claim a shared recovery-warning cooldown record.
@@ -102,9 +104,13 @@ function identityFingerprint(externalUserId: string): string {
  * user row. Account deletion takes the corresponding exclusive lock, so a
  * deletion cannot succeed alongside a newly-created local record.
  */
-export async function assertAccountWritable(externalUserId: string): Promise<void> {
+export async function assertAccountWritable(
+  externalUserId: string,
+  database: CaloraDatabase = db,
+  inTransaction = false,
+): Promise<void> {
   const fingerprint = identityFingerprint(externalUserId);
-  await db.transaction(async (tx) => {
+  const check = async (tx: AccountExecutor) => {
     await tx.execute(sql`
       INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
       VALUES (${fingerprint}, 'active')
@@ -119,7 +125,12 @@ export async function assertAccountWritable(externalUserId: string): Promise<voi
     if (result.rows[0]?.state !== "active") {
       throw new AccountDeletionInProgressError();
     }
-  });
+  };
+  if (inTransaction) {
+    await check(database);
+    return;
+  }
+  await database.transaction(async (tx) => check(tx));
 }
 
 export async function claimAccountDeletion(externalUserId: string): Promise<AccountDeletionClaim> {
