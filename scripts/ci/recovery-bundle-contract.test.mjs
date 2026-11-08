@@ -21,17 +21,29 @@ test("backup creator requires a 32-byte managed key and encrypted authenticated 
   assert.match(creator, /--no-owner/);
   assert.match(creator, /--no-privileges/);
   assert.match(creator, /rejectSecretLikeContent/);
+  assert.match(creator, /temporaryOutput/);
+  assert.match(creator, /fs\.rename\(temporaryOutput, resolvedOutput\)/);
 });
 
 test("restore is fail-closed for production and verifies the manifest before mutation", () => {
   assert.match(restorer, /CALORA_RECOVERY_NONPRODUCTION !== "true"/);
   assert.match(restorer, /DISPOSABLE_EMPTY_NONPRODUCTION/);
   assert.match(restorer, /Manifest checksum mismatch/);
+  assert.match(restorer, /Database archive checksum mismatch/);
+  assert.match(restorer, /Missing database archive checksum/);
   assert.match(restorer, /Unsafe archive member/);
   assert.match(restorer, /tar.*-tzf/);
   assert.match(restorer, /--exit-on-error/);
   assert.match(restorer, /--no-owner/);
   assert.match(restorer, /--no-privileges/);
+});
+
+test("manual workflow validates before upload and emits sanitized evidence", () => {
+  assert.match(workflow, /concurrency:/);
+  assert.match(workflow, /Validate encrypted recovery bundle before upload/);
+  assert.match(workflow, /Write sanitized recovery evidence/);
+  assert.match(workflow, /calora\.recovery-evidence\.v1/);
+  assert.match(workflow, /retention-days: 30/);
 });
 
 test("staged security SQL is not in the auto-applied migration directory", () => {

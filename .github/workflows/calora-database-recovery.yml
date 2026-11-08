@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: calora-recovery-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   recovery-bundle:
     name: Create encrypted recovery bundle
@@ -49,6 +53,31 @@ jobs:
           [[ -n "$STORAGE_MANIFEST" ]] && args+=(--storage-manifest "$STORAGE_MANIFEST")
           [[ -n "$PROVIDER_MANIFEST" ]] && args+=(--provider-manifest "$PROVIDER_MANIFEST")
           node scripts/recovery/create-encrypted-backup.mjs "${args[@]}"
+      - name: Validate encrypted recovery bundle before upload
+        run: |
+          set -euo pipefail
+          node scripts/recovery/restore-encrypted-backup.mjs \
+            --input "$RUNNER_TEMP/calora-recovery/calora-${GITHUB_RUN_ID}.enc" \
+            --validate-only
+      - name: Write sanitized recovery evidence
+        if: success()
+        run: |
+          set -euo pipefail
+          node - <<'NODE' > "$RUNNER_TEMP/calora-recovery/evidence.json"
+          import crypto from "node:crypto";
+          import fs from "node:fs";
+          const file = process.env.RUNNER_TEMP + `/calora-recovery/calora-${process.env.GITHUB_RUN_ID}.enc`;
+          const hash = crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+          process.stdout.write(JSON.stringify({
+            schemaVersion: "calora.recovery-evidence.v1",
+            result: "pass",
+            runId: process.env.GITHUB_RUN_ID,
+            environment: process.env.CALORA_RECOVERY_ENVIRONMENT,
+            bundleSha256: hash,
+            retentionDays: 30,
+            createdAt: new Date().toISOString(),
+          }) + "\n");
+          NODE
       - name: Upload encrypted recovery bundle
         if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -56,6 +85,14 @@ jobs:
           name: calora-encrypted-recovery-${{ github.run_id }}
           path: ${{ runner.temp }}/calora-recovery/*.enc
           if-no-files-found: error
+          retention-days: 30
+      - name: Upload sanitized recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: calora-recovery-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-recovery/evidence.json
+          if-no-files-found: warn
           retention-days: 30
       - name: Record failure evidence
         if: failure()
