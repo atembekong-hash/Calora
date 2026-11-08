@@ -80,7 +80,9 @@ BEGIN
     'calora_users','calora_account_deletion_states','calora_profiles','calora_diary_entries','calora_weight_entries',
     'calora_saved_meals','calora_recipes','calora_subscriptions','calora_sync_mutations',
     'calora_consent_events','calora_privacy_rights_requests','calora_coach_v2_settings',
-    'calora_coach_v2_conversations','calora_coach_v2_turns'
+    'calora_coach_v2_conversations','calora_coach_v2_turns','calora_referral_codes',
+    'calora_referral_redemptions','calora_ai_capture_sessions','calora_ai_capture_candidates',
+    'calora_referral_qualifications'
   ] LOOP
     IF to_regclass('public.' || table_name) IS NOT NULL THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
@@ -95,6 +97,21 @@ BEGIN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (identity_fingerprint = encode(extensions.digest(public.calora_current_external_user_id(), ''sha256''), ''hex'')) WITH CHECK (identity_fingerprint = encode(extensions.digest(public.calora_current_external_user_id(), ''sha256''), ''hex''))', table_name);
       ELSIF table_name = 'calora_coach_v2_turns' THEN
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (EXISTS (SELECT 1 FROM public.calora_coach_v2_conversations c WHERE c.id = conversation_id AND c.user_id = public.calora_current_user_id())) WITH CHECK (EXISTS (SELECT 1 FROM public.calora_coach_v2_conversations c WHERE c.id = conversation_id AND c.user_id = public.calora_current_user_id()))', table_name);
+      ELSIF table_name = 'calora_referral_codes' THEN
+        EXECUTE format('DROP POLICY IF EXISTS mission417_referral_code_read ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS mission417_referral_code_write ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS mission417_referral_code_update ON public.%I', table_name);
+        EXECUTE format('DROP POLICY IF EXISTS mission417_referral_code_delete ON public.%I', table_name);
+        EXECUTE format('CREATE POLICY mission417_referral_code_read ON public.%I FOR SELECT TO calora_api_runtime_rls USING (true)', table_name);
+        EXECUTE format('CREATE POLICY mission417_referral_code_write ON public.%I FOR INSERT TO calora_api_runtime_rls WITH CHECK (user_id = public.calora_current_external_user_id())', table_name);
+        EXECUTE format('CREATE POLICY mission417_referral_code_update ON public.%I FOR UPDATE TO calora_api_runtime_rls USING (user_id = public.calora_current_external_user_id()) WITH CHECK (user_id = public.calora_current_external_user_id())', table_name);
+        EXECUTE format('CREATE POLICY mission417_referral_code_delete ON public.%I FOR DELETE TO calora_api_runtime_rls USING (user_id = public.calora_current_external_user_id())', table_name);
+      ELSIF table_name = 'calora_referral_redemptions' THEN
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (referred_user_id = public.calora_current_external_user_id() OR referrer_user_id = public.calora_current_external_user_id()) WITH CHECK (referred_user_id = public.calora_current_external_user_id() OR referrer_user_id = public.calora_current_external_user_id())', table_name);
+      ELSIF table_name = 'calora_ai_capture_candidates' THEN
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (EXISTS (SELECT 1 FROM public.calora_ai_capture_sessions s WHERE s.id = session_id AND s.user_id = public.calora_current_user_id())) WITH CHECK (EXISTS (SELECT 1 FROM public.calora_ai_capture_sessions s WHERE s.id = session_id AND s.user_id = public.calora_current_user_id()))', table_name);
+      ELSIF table_name = 'calora_referral_qualifications' THEN
+        EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (external_user_id = public.calora_current_external_user_id()) WITH CHECK (external_user_id = public.calora_current_external_user_id())', table_name);
       ELSE
         EXECUTE format('CREATE POLICY mission417_owner_all ON public.%I FOR ALL TO calora_api_runtime_rls USING (user_id = public.calora_current_user_id()) WITH CHECK (user_id = public.calora_current_user_id())', table_name);
       END IF;
