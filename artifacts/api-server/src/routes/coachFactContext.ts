@@ -6,6 +6,10 @@ import {
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db } from "@workspace/db";
+import {
+  currentDatabaseContext,
+  withVerifiedDatabaseIdentity,
+} from "../lib/database-identity.js";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
@@ -655,6 +659,18 @@ export async function claimFactContextNonce(
   expiresAt: Date,
 ): Promise<"claimed" | "replayed" | "error"> {
   try {
+    const context = currentDatabaseContext();
+    if (context) {
+      const result = await context.queryExecutor.query(
+        `INSERT INTO calora_coach_fact_context_idempotency
+          (external_user_id, request_nonce, expires_at)
+         VALUES ($1, $2, $3::timestamptz)
+         ON CONFLICT (external_user_id, request_nonce) DO NOTHING`,
+        [externalUserId, requestNonce, expiresAt.toISOString()],
+      );
+      const count = result.rowCount ?? 1;
+      return count > 0 ? "claimed" : "replayed";
+    }
     const result = await db.execute(sql`
       INSERT INTO calora_coach_fact_context_idempotency
         (external_user_id, request_nonce, expires_at)
@@ -748,7 +764,9 @@ router.post(
     // Consent is server-owned. Client flags cannot authorize this endpoint.
     let hasConsent = false;
     try {
-      hasConsent = await hasCurrentCoachFactConsent(user.id, user.email);
+      hasConsent = await withVerifiedDatabaseIdentity(user.id, async () =>
+        hasCurrentCoachFactConsent(user.id, user.email),
+      );
     } catch {
       res
         .status(503)
@@ -834,8 +852,21 @@ router.post(
     // ── Deletion fence + idempotency / replay guard ────────────────────────────
     // Reject before creating any nonce ledger row, so a deletion saga cannot
     // accumulate new account-owned state.
+    let nonceResult: "claimed" | "replayed" | "error";
     try {
-      await assertAccountWritable(user.id);
+      // Nonce is claimed atomically BEFORE the rate-limit and provider call.
+      // No content (facts, messages, statements) is stored — metadata only.
+      nonceResult = await withVerifiedDatabaseIdentity(
+        user.id,
+        async (database, inTransaction) => {
+          await assertAccountWritable(user.id, database, inTransaction);
+          return claimFactContextNonce(
+            user.id,
+            factContext.requestNonce,
+            factContext.expiresAt,
+          );
+        },
+      );
     } catch (error) {
       if (classifyAccountDeletionError(error)) {
         res.status(503).json({
@@ -846,13 +877,6 @@ router.post(
       }
       throw error;
     }
-    // Nonce is claimed atomically BEFORE the rate-limit and provider call.
-    // No content (facts, messages, statements) is stored — metadata only.
-    const nonceResult = await claimFactContextNonce(
-      user.id,
-      factContext.requestNonce,
-      factContext.expiresAt,
-    );
     if (nonceResult === "replayed") {
       res.status(409).json({
         message: "This Coach Fact Context request has already been processed.",

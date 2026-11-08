@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { coachFactContextConsentsTable, db } from "@workspace/db";
 import { ensureUserRow, findUserRow } from "./user-rows.js";
 import { assertAccountWritable } from "./account-deletion-state.js";
+import { currentDatabaseContext } from "./database-identity.js";
 
 export const COACH_FACT_CONTEXT_CONSENT_PURPOSE =
   "coach_fact_context_v1" as const;
@@ -61,9 +62,10 @@ export async function getCoachFactConsent(
   email: string | null,
 ): Promise<CoachFactConsentStatus> {
   void email;
-  const userId = await findUserRow(externalUserId);
+  const context = currentDatabaseContext();
+  const userId = await findUserRow(externalUserId, context?.database);
   if (!userId) return noConsent();
-  const [row] = await db
+  const [row] = await (context?.database ?? db)
     .select({
       documentVersion: coachFactContextConsentsTable.documentVersion,
       state: coachFactContextConsentsTable.state,
@@ -88,10 +90,20 @@ export async function acceptCoachFactConsent(
   externalUserId: string,
   email: string | null,
 ): Promise<CoachFactConsentStatus> {
-  await assertAccountWritable(externalUserId);
-  const userId = await ensureUserRow(externalUserId, email);
+  const context = currentDatabaseContext();
+  await assertAccountWritable(
+    externalUserId,
+    context?.database,
+    context?.inTransaction ?? false,
+  );
+  const userId = await ensureUserRow(
+    externalUserId,
+    email,
+    context?.database,
+    context?.inTransaction ?? false,
+  );
   const now = new Date();
-  await db
+  await (context?.database ?? db)
     .insert(coachFactContextConsentsTable)
     .values({
       userId,
@@ -122,10 +134,20 @@ export async function revokeCoachFactConsent(
   externalUserId: string,
   email: string | null,
 ): Promise<CoachFactConsentStatus> {
-  await assertAccountWritable(externalUserId);
-  const userId = await ensureUserRow(externalUserId, email);
+  const context = currentDatabaseContext();
+  await assertAccountWritable(
+    externalUserId,
+    context?.database,
+    context?.inTransaction ?? false,
+  );
+  const userId = await ensureUserRow(
+    externalUserId,
+    email,
+    context?.database,
+    context?.inTransaction ?? false,
+  );
   const now = new Date();
-  await db
+  await (context?.database ?? db)
     .insert(coachFactContextConsentsTable)
     .values({
       userId,

@@ -192,7 +192,18 @@ describe("Coach V2 saved-chat transitions", () => {
         rowCount: 1,
       })
       .mockResolvedValueOnce({ rows: [{ days: 1 }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            saved_meals: 2,
+            recipes: 3,
+            recent_capture_sessions: 1,
+            latest_subscription_status: "active",
+          },
+        ],
+        rowCount: 1,
+      });
 
     await expect(
       buildCoachV2Snapshot("user-id", "2026-10-06"),
@@ -200,6 +211,12 @@ describe("Coach V2 saved-chat transitions", () => {
       snapshotDate: "2026-10-06",
       today: { calories: 163, proteinG: 4, carbsG: 38, fatG: 1, entries: 2 },
       recentDaysLogged: 1,
+      appSignals: {
+        savedMeals: 2,
+        recipes: 3,
+        recentCaptureSessions: 1,
+        latestSubscriptionStatus: "active",
+      },
     });
 
     expect(poolQuery).toHaveBeenNthCalledWith(

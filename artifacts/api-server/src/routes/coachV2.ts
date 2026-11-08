@@ -33,6 +33,8 @@ import { isCoachReportIntakeEnabled } from "../lib/admin-feature-flags.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
+import { currentDatabaseContext } from "../lib/database-identity.js";
 
 const router: IRouter = Router();
 const COACH_V2_ACCOUNT_RATE_LIMIT = 30;
@@ -204,6 +206,15 @@ function snapshotForPrompt(snapshot: CoachV2Snapshot | null): string {
       snapshot.latestWeightKg === null
         ? null
         : Math.round(snapshot.latestWeightKg),
+    appSignals: snapshot.appSignals
+      ? {
+          savedMeals: snapshot.appSignals.savedMeals,
+          recipes: snapshot.appSignals.recipes,
+          recentCaptureSessions: snapshot.appSignals.recentCaptureSessions,
+          latestSubscriptionStatus:
+            snapshot.appSignals.latestSubscriptionStatus,
+        }
+      : null,
   });
 }
 
@@ -217,7 +228,7 @@ export function buildCoachV2Messages(input: {
       content: [
         "You are Calora Coach, a supportive general wellness and app-navigation assistant.",
         "Give concise, practical responses. You are not medical care: do not diagnose, provide treatment recommendations, prescribe, give medication or pregnancy-specific guidance, replace professional care, promise certainty, or provide emergency advice. Encourage qualified help for symptoms, eating-disorder concerns, pregnancy-specific questions, medication decisions, or emergencies.",
-        "For signed-in users, use only the bounded server snapshot below. Never claim access to food names, notes, images, raw timelines, account identifiers, complete history, health-provider data, or any data that the snapshot does not contain.",
+        "For signed-in users, use only the bounded server snapshot below. It may contain profile, nutrition, weight, saved-content, capture-activity, and subscription availability signals. Never claim access to food names, notes, images, raw timelines, account identifiers, complete history, health-provider data, hydration/steps/fasting values, or any data that the snapshot does not contain.",
         "If the snapshot has no data, say so plainly. Do not invent meals, targets, nutrients, hydration, plans, or trends.",
         "You can explain Calora's local features generally, but do not imply an action was completed unless the user completed it in the app.",
         "Use whole numbers for nutrition, calories, health, weight, hydration, and percentage measurements in every response.",
@@ -249,23 +260,13 @@ async function withAccountDeletionReadLock<T>(
   externalUserId: string,
   operation: () => Promise<T>,
 ): Promise<T> {
-  const client = await pool.connect();
-  const lockKey = `calora-account-deletion:${externalUserId}`;
-  try {
-    await client.query(
-      "SELECT pg_advisory_lock_shared(hashtextextended($1, 0))",
-      [lockKey],
-    );
-    await assertAccountWritable(externalUserId);
-    return await operation();
-  } finally {
-    await client
-      .query("SELECT pg_advisory_unlock_shared(hashtextextended($1, 0))", [
-        lockKey,
-      ])
-      .catch(() => undefined);
-    client.release();
-  }
+  return withVerifiedDatabaseIdentity(
+    externalUserId,
+    async (database, inTransaction) => {
+      await assertAccountWritable(externalUserId, database, inTransaction);
+      return operation();
+    },
+  );
 }
 
 async function enforceCoachV2RateLimit(
@@ -332,7 +333,10 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
   try {
     verified = await optionalVerifiedUser(req);
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Coach authentication verifier unavailable");
+    logger.error(
+      safeErrorDetails(error),
+      "Coach authentication verifier unavailable",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
     return;
   }
@@ -375,7 +379,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
     );
     if (!allowed) return;
 
-    const response = await withAccountDeletionReadLock(
+    const prepared = await withAccountDeletionReadLock(
       verified.id,
       async () => {
         const userId = await resolveCoachV2User(verified.id, verified.email);
@@ -387,21 +391,35 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
               boundedCoachSnapshotDate(input.snapshotDate),
             )
           : null;
-        try {
-          const message = await requestCoachReply(turn.history, snapshot);
-          await completeCoachV2Turn(turn.conversationId, turn.turnId, message);
-          return { message, ok: true };
-        } catch (error) {
-          logger.error(safeErrorDetails(error), "Coach provider request failed");
-          await completeCoachV2Turn(
-            turn.conversationId,
-            turn.turnId,
-            COACH_V2_PROVIDER_FAILURE,
-          );
-          return { message: COACH_V2_PROVIDER_FAILURE, ok: false };
-        }
+        return { userId, turn, snapshot };
       },
     );
+
+    let response: { message: string; ok: boolean };
+    try {
+      const message = await requestCoachReply(
+        prepared.turn.history,
+        prepared.snapshot,
+      );
+      await withAccountDeletionReadLock(verified.id, async () => {
+        await completeCoachV2Turn(
+          prepared.turn.conversationId,
+          prepared.turn.turnId,
+          message,
+        );
+      });
+      response = { message, ok: true };
+    } catch (error) {
+      logger.error(safeErrorDetails(error), "Coach provider request failed");
+      await withAccountDeletionReadLock(verified.id, async () => {
+        await completeCoachV2Turn(
+          prepared.turn.conversationId,
+          prepared.turn.turnId,
+          COACH_V2_PROVIDER_FAILURE,
+        );
+      });
+      response = { message: COACH_V2_PROVIDER_FAILURE, ok: false };
+    }
 
     if (!response.ok) {
       res.status(503).json({ message: response.message });
@@ -459,17 +477,23 @@ router.post("/v1/coach/v2/report", async (req, res) => {
   }
   try {
     const verified = await optionalVerifiedUser(req);
-    const userId = verified
-      ? await resolveCoachV2User(verified.id, verified.email)
-      : null;
-    const scope = userId ? "account" : "guest";
     const digest = createHash("sha256")
       .update(messageRef, "utf8")
       .digest("hex");
-    await pool.query(
-      "INSERT INTO calora_coach_reports (user_id, scope, message_ref_digest, reason) VALUES ($1::uuid, $2, $3, $4)",
-      [userId, scope, digest, reason],
-    );
+    if (verified) {
+      await withAccountDeletionReadLock(verified.id, async () => {
+        const userId = await resolveCoachV2User(verified.id, verified.email);
+        await (currentDatabaseContext()?.queryExecutor ?? pool).query(
+          "INSERT INTO calora_coach_reports (user_id, scope, message_ref_digest, reason) VALUES ($1::uuid, $2, $3, $4)",
+          [userId, "account", digest, reason],
+        );
+      });
+    } else {
+      await pool.query(
+        "INSERT INTO calora_coach_reports (user_id, scope, message_ref_digest, reason) VALUES ($1::uuid, $2, $3, $4)",
+        [null, "guest", digest, reason],
+      );
+    }
     res.status(202).json({ accepted: true });
   } catch (error) {
     logger.error(safeErrorDetails(error), "Unable to record Coach report");
@@ -488,17 +512,23 @@ router.get("/v1/coach/v2/conversation", async (req, res) => {
     return;
   }
   try {
-    const userId = await resolveCoachV2User(verified.id, verified.email);
-    const [turns, settings] = await Promise.all([
-      getCoachV2Conversation(userId),
-      getCoachV2Settings(userId),
-    ]);
+    const result = await withAccountDeletionReadLock(verified.id, async () => {
+      const userId = await resolveCoachV2User(verified.id, verified.email);
+      const [turns, settings] = await Promise.all([
+        getCoachV2Conversation(userId),
+        getCoachV2Settings(userId),
+      ]);
+      return { turns, settings };
+    });
     res.json({
-      turns,
-      personalizationEnabled: settings.personalizationEnabled,
+      turns: result.turns,
+      personalizationEnabled: result.settings.personalizationEnabled,
     });
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Unable to read Coach V2 conversation");
+    logger.error(
+      safeErrorDetails(error),
+      "Unable to read Coach V2 conversation",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -518,13 +548,17 @@ router.delete("/v1/coach/v2/conversation", async (req, res) => {
     });
     if (!cleared) {
       res.status(409).json({
-        message: "Please wait for Coach to finish replying before clearing your history.",
+        message:
+          "Please wait for Coach to finish replying before clearing your history.",
       });
       return;
     }
     res.status(204).send();
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Unable to clear Coach V2 conversation");
+    logger.error(
+      safeErrorDetails(error),
+      "Unable to clear Coach V2 conversation",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -538,10 +572,19 @@ router.get("/v1/coach/v2/conversations", async (req, res) => {
     return;
   }
   try {
-    const userId = await resolveCoachV2User(verified.id, verified.email);
-    res.json({ conversations: await listCoachV2Conversations(userId) });
+    const conversations = await withAccountDeletionReadLock(
+      verified.id,
+      async () => {
+        const userId = await resolveCoachV2User(verified.id, verified.email);
+        return listCoachV2Conversations(userId);
+      },
+    );
+    res.json({ conversations });
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Unable to list Coach V2 conversations");
+    logger.error(
+      safeErrorDetails(error),
+      "Unable to list Coach V2 conversations",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -567,7 +610,10 @@ router.post("/v1/coach/v2/conversation/new", async (req, res) => {
     }
     res.status(204).send();
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Unable to start a new Coach V2 conversation");
+    logger.error(
+      safeErrorDetails(error),
+      "Unable to start a new Coach V2 conversation",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -606,7 +652,10 @@ router.delete("/v1/coach/v2/conversation/:conversationId", async (req, res) => {
     // unknown identifier so this route never confirms another account's data.
     res.status(404).json({ message: "Saved Coach chat not found." });
   } catch (error) {
-    logger.error(safeErrorDetails(error), "Unable to delete saved Coach V2 chat");
+    logger.error(
+      safeErrorDetails(error),
+      "Unable to delete saved Coach V2 chat",
+    );
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
   }
 });
@@ -653,7 +702,10 @@ router.post(
       }
       res.json(conversation);
     } catch (error) {
-      logger.error(safeErrorDetails(error), "Unable to open Coach V2 conversation");
+      logger.error(
+        safeErrorDetails(error),
+        "Unable to open Coach V2 conversation",
+      );
       res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
     }
   },
@@ -666,8 +718,14 @@ router.get("/v1/coach/v2/settings", async (req, res) => {
     return;
   }
   try {
-    const userId = await resolveCoachV2User(verified.id, verified.email);
-    res.json(await getCoachV2Settings(userId));
+    const settings = await withAccountDeletionReadLock(
+      verified.id,
+      async () => {
+        const userId = await resolveCoachV2User(verified.id, verified.email);
+        return getCoachV2Settings(userId);
+      },
+    );
+    res.json(settings);
   } catch (error) {
     logger.error(safeErrorDetails(error), "Unable to read Coach V2 settings");
     res.status(503).json({ message: COACH_V2_PROVIDER_FAILURE });
