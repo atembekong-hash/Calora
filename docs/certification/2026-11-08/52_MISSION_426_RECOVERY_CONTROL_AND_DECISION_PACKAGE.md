@@ -6,6 +6,10 @@
 **Production release branch:** `release/calora-production` (not modified)
 **Verdict:** **ENGINEERING CORRECTION PASS; CAL-17 REMAINS BLOCKED**
 
+**Implementation commit:** `22e4baae57ca892b143379a1e2409f7dc3257283`
+**Protected pull request:** [#412](https://github.com/atembekong-hash/Calora/pull/412)
+**Protected-main merge commit:** `11d3ec0a6455d36d3e1cf4a030cbfbd0fd9b32c0`
+
 ## Executive verdict
 
 The confirmed P1 recovery target-isolation defect has been corrected in the repository. The workflow now accepts only two source-enforced non-production target choices, runs only from protected `main`, maps each target to a distinct protected GitHub Environment, validates a non-secret target identity and independent attestation before the secret-bearing job, and repeats the validation immediately before `pg_dump`. Unsupported targets, production-like aliases, missing or mismatched metadata, invalid endpoint identity, and unapproved refs fail closed before database execution or artifact publication.
