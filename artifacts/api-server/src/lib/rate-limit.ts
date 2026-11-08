@@ -40,7 +40,9 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   try {
     const result = await pool.query<{ count: number; reset_at: Date }>(
-      `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
+      process.env.CALORA_RLS_DATABASE_MODE === "staged-rls"
+        ? `SELECT count, reset_at FROM calora_check_rate_limit($1, $2)`
+        : `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
        VALUES ($1, 1, NOW() + ($2 || ' seconds')::INTERVAL)
        ON CONFLICT (key) DO UPDATE SET
          count    = CASE
@@ -60,13 +62,19 @@ export async function checkRateLimit(
     if (!row) return { allowed: true, retryAfterSecs: 0 };
 
     if (row.count > limit) {
-      const retryAfterSecs = Math.max(1, Math.ceil((row.reset_at.getTime() - Date.now()) / 1000));
+      const retryAfterSecs = Math.max(
+        1,
+        Math.ceil((row.reset_at.getTime() - Date.now()) / 1000),
+      );
       return { allowed: false, retryAfterSecs };
     }
 
     return { allowed: true, retryAfterSecs: 0 };
   } catch (err) {
-    if (options?.rethrowAccountDeletionFence && classifyAccountDeletionError(err)) {
+    if (
+      options?.rethrowAccountDeletionFence &&
+      classifyAccountDeletionError(err)
+    ) {
       throw err;
     }
     if (options?.failClosed) {

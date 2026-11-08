@@ -71,6 +71,31 @@ REVOKE ALL ON FUNCTION public.calora_current_user_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.calora_current_external_user_id() TO calora_api_runtime_rls;
 GRANT EXECUTE ON FUNCTION public.calora_current_user_id() TO calora_api_runtime_rls;
 
+-- Operational metering is intentionally not exposed as a tenant table. The
+-- restricted runtime receives only this atomic, parameterized operation.
+CREATE OR REPLACE FUNCTION public.calora_check_rate_limit(p_key text, p_window_secs integer)
+RETURNS TABLE(count integer, reset_at timestamptz)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+  INSERT INTO public.calora_capture_rate_limits (key, count, reset_at)
+  VALUES (p_key, 1, now() + (p_window_secs || ' seconds')::interval)
+  ON CONFLICT (key) DO UPDATE SET
+    count = CASE
+      WHEN calora_capture_rate_limits.reset_at <= now() THEN 1
+      ELSE calora_capture_rate_limits.count + 1
+    END,
+    reset_at = CASE
+      WHEN calora_capture_rate_limits.reset_at <= now()
+        THEN now() + (p_window_secs || ' seconds')::interval
+      ELSE calora_capture_rate_limits.reset_at
+    END
+  RETURNING calora_capture_rate_limits.count, calora_capture_rate_limits.reset_at;
+$function$;
+REVOKE ALL ON FUNCTION public.calora_check_rate_limit(text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.calora_check_rate_limit(text, integer) TO calora_api_runtime_rls;
+
 -- Only user-owned tables are included in this prototype. Admin, migration,
 -- provider-cache, rate-limit, and server-config tables remain inaccessible.
 DO $$
