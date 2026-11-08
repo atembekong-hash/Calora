@@ -50,7 +50,7 @@ const { queued, dbMock, insertCalls, deleteCalls, loggerWarn, loggerError } = vi
       };
       return chain;
     },
-    transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(dbMock),
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(dbMock)),
   };
 
   return { queued, dbMock, insertCalls, deleteCalls, loggerWarn: vi.fn(), loggerError: vi.fn() };
@@ -479,6 +479,7 @@ describe('POST /v1/diary/first-log', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ synced: true, alreadyExisted: false });
     expect(insertCalls.length).toBe(1);
+    expect(dbMock.transaction).not.toHaveBeenCalled();
   });
 
   it('persists only the canonical server envelope for matching exact capture evidence', async () => {

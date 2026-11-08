@@ -41,6 +41,7 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
   const clientId = `m422-client-${run}`;
   const mutationId = randomUUID();
   const sessionId = randomUUID();
+  const firstLogSessionId = randomUUID();
   let app: import("express").Express;
   let admin: Pool;
   let runtimePool: (typeof import("@workspace/db"))["pool"];
@@ -94,6 +95,21 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
        VALUES ($1::uuid, 'Synthetic capture meal', 420, 30, 40, 12, 90, '{}'::jsonb)`,
       [sessionId],
     );
+    const b = await admin.query<{ id: string }>(
+      `SELECT id FROM calora_users WHERE external_id = $1`,
+      [userB],
+    );
+    await admin.query(
+      `INSERT INTO calora_ai_capture_sessions (id, user_id, mode, status)
+       VALUES ($1::uuid, $2::uuid, 'food', 'review')`,
+      [firstLogSessionId, b.rows[0].id],
+    );
+    await admin.query(
+      `INSERT INTO calora_ai_capture_candidates
+         (session_id, name, calories, protein_g, carbs_g, fat_g, confidence, evidence)
+       VALUES ($1::uuid, 'Synthetic first-log meal', 320, 20, 35, 10, 90, '{}'::jsonb)`,
+      [firstLogSessionId],
+    );
     await admin.query(
       `INSERT INTO calora_referral_codes (user_id, code)
        VALUES ($1, $2)
@@ -143,6 +159,47 @@ describe.skipIf(!RUN)("Mission 422 staged-RLS real handlers", () => {
     const cSummary = await request(app).get("/v1/referral");
     expect(cSummary.status).toBe(200);
     expect(cSummary.body.redemption.status).toBe("none");
+  });
+
+  it("runs capture-verified first-log through one staged identity transaction", async () => {
+    actAs(userB);
+    const firstLog = await request(app)
+      .post("/v1/diary/first-log")
+      .send({
+        captureSessionId: firstLogSessionId,
+        entryDate: "2026-11-08",
+        meal: "Breakfast",
+        name: "Synthetic first-log meal",
+        serving: "1 bowl",
+        calories: 320,
+        proteinG: 20,
+        carbsG: 35,
+        fatG: 10,
+        provenance: "Photo estimate",
+        confidence: 90,
+        clientUpdatedAt: "2026-11-08T12:00:00.000Z",
+      });
+    expect(firstLog.status).toBe(200);
+    expect(firstLog.body).toEqual({ synced: true, alreadyExisted: false });
+
+    actAs(userA);
+    const foreign = await request(app)
+      .post("/v1/diary/first-log")
+      .send({
+        captureSessionId: firstLogSessionId,
+        entryDate: "2026-11-08",
+        meal: "Breakfast",
+        name: "Synthetic first-log meal",
+        serving: "1 bowl",
+        calories: 320,
+        proteinG: 20,
+        carbsG: 35,
+        fatG: 10,
+        provenance: "Photo estimate",
+        confidence: 90,
+        clientUpdatedAt: "2026-11-08T12:00:00.000Z",
+      });
+    expect(foreign.status).toBe(422);
   });
 
   it("runs sync and referral activation through real handlers with three-user RLS isolation", async () => {

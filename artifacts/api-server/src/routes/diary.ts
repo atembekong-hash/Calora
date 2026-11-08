@@ -395,163 +395,178 @@ router.post("/v1/diary/first-log", async (req, res) => {
     }
     const entry = parsed.data;
 
-    const userId = await ensureUserRow(user.id, user.email);
+    const result = await withVerifiedDatabaseIdentity(
+      user.id,
+      async (database, inTransaction) => {
+        await assertAccountWritable(user.id, database, inTransaction);
+        const userId = await ensureUserRow(
+          user.id,
+          user.email,
+          database,
+          inTransaction,
+        );
 
-    const existing = await db
-      .select({ id: diaryEntriesTable.id })
-      .from(diaryEntriesTable)
-      .where(eq(diaryEntriesTable.userId, userId))
-      .limit(1);
-    if (existing.length > 0) {
+        const existing = await database
+          .select({ id: diaryEntriesTable.id })
+          .from(diaryEntriesTable)
+          .where(eq(diaryEntriesTable.userId, userId))
+          .limit(1);
+        if (existing.length > 0) return { kind: "already_existed" as const };
+
+        // ── Server-verified provenance ───────────────────────────────────
+        // The cited capture session must exist, belong to this user, be
+        // recent, and not have anchored a sync before.
+        const sessions = await database
+          .select()
+          .from(aiCaptureSessionsTable)
+          .where(
+            and(
+              eq(aiCaptureSessionsTable.id, entry.captureSessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
+            ),
+          )
+          .limit(1);
+        const session = sessions[0];
+        if (
+          !session ||
+          session.reviewedAt !== null ||
+          Date.now() - session.createdAt.getTime() > SESSION_MAX_AGE_MS
+        ) {
+          return { kind: "invalid_session" as const };
+        }
+
+        // Text-mode captures cannot anchor this capture-first sync route.
+        if (session.mode === "text") return { kind: "text_capture" as const };
+
+        // The submitted nutrition must be consistent with what the server
+        // analyzed (portion edits allowed within a generous band).
+        const candidates = await database
+          .select({
+            calories: aiCaptureCandidatesTable.calories,
+            evidence: aiCaptureCandidatesTable.evidence,
+          })
+          .from(aiCaptureCandidatesTable)
+          .innerJoin(
+            aiCaptureSessionsTable,
+            eq(aiCaptureCandidatesTable.sessionId, aiCaptureSessionsTable.id),
+          )
+          .where(
+            and(
+              eq(aiCaptureCandidatesTable.sessionId, entry.captureSessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
+            ),
+          );
+        const analyzedCalories = candidates.reduce(
+          (sum, c) => sum + Number(c.calories),
+          0,
+        );
+        const withinBand =
+          analyzedCalories > 0 &&
+          entry.calories >= analyzedCalories * 0.25 &&
+          entry.calories <= analyzedCalories * 2.5 + 100;
+        if (!withinBand) return { kind: "nutrition_mismatch" as const };
+
+        // Claim the session (single use) and write the entry atomically — a
+        // failed insert must not consume the user's only qualifying session.
+        const rows = await database
+          .update(aiCaptureSessionsTable)
+          .set({ reviewedAt: sql`now()` })
+          .where(
+            and(
+              eq(aiCaptureSessionsTable.id, entry.captureSessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
+              sql`${aiCaptureSessionsTable.reviewedAt} IS NULL`,
+            ),
+          )
+          .returning({ id: aiCaptureSessionsTable.id });
+        if (rows.length === 0) return { kind: "already_claimed" as const };
+
+        let image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+        let imageEvidence: ImageEvidence | null = null;
+        if (entry.imageEvidence?.semanticRole === "exact") {
+          for (const candidate of candidates) {
+            const candidateEvidence = candidate.evidence?.imageEvidence;
+            if (
+              !matchesCaptureImageEvidence(
+                candidateEvidence,
+                entry.imageEvidence,
+                user.id,
+              )
+            )
+              continue;
+            imageEvidence = normalizeImageEvidence(
+              candidateEvidence,
+              user.id,
+              undefined,
+              { allowExact: true },
+            );
+            break;
+          }
+        }
+        imageEvidence ??= normalizeImageEvidence(entry.imageEvidence, user.id, {
+          imageUrl: image.imageUrl,
+          imageSource: image.imageSource,
+          imageAssetKey: entry.imageAssetKey,
+        });
+        if (imageEvidence?.semanticRole === "exact" && imageEvidence.locator) {
+          image = normalizeImageMetadata(
+            imageEvidence.locator,
+            imageEvidence.provider ?? image.imageSource,
+          );
+        }
+        const values: typeof diaryEntriesTable.$inferInsert = {
+          userId,
+          entryDate: entry.entryDate.toISOString().slice(0, 10),
+          meal: entry.meal,
+          name: entry.name,
+          serving: entry.serving,
+          calories: String(entry.calories),
+          proteinG: String(entry.proteinG),
+          carbsG: String(entry.carbsG),
+          fatG: String(entry.fatG),
+          provenance: entry.provenance,
+          confidence: entry.confidence,
+          notes: entry.notes,
+          imageUrl: image.imageUrl,
+          imageSource: image.imageSource,
+          syncMetadata: {
+            ...(typeof entry.imageAssetKey === "string"
+              ? { imageAssetKey: entry.imageAssetKey }
+              : {}),
+            ...(imageEvidence ? { imageEvidence } : {}),
+          },
+          clientUpdatedAt: entry.clientUpdatedAt,
+        };
+        await database.insert(diaryEntriesTable).values(values);
+        return { kind: "synced" as const };
+      },
+    );
+
+    if (result.kind === "already_existed") {
       res.json({ synced: true, alreadyExisted: true });
       return;
     }
-
-    // ── Server-verified provenance ─────────────────────────────────────
-    // The cited capture session must exist, belong to this user, be
-    // recent, and not have anchored a sync before.
-    const sessions = await db
-      .select()
-      .from(aiCaptureSessionsTable)
-      .where(
-        and(
-          eq(aiCaptureSessionsTable.id, entry.captureSessionId),
-          eq(aiCaptureSessionsTable.userId, userId),
-        ),
-      )
-      .limit(1);
-    const session = sessions[0];
-    if (
-      !session ||
-      session.reviewedAt !== null ||
-      Date.now() - session.createdAt.getTime() > SESSION_MAX_AGE_MS
-    ) {
+    if (result.kind === "invalid_session") {
       res.status(422).json({
         message:
           "This entry doesn't match a recent food scan. Log a meal with capture first.",
       });
       return;
     }
-
-    // Text-mode captures cannot anchor this capture-first sync route.
-    if (session.mode === "text") {
+    if (result.kind === "text_capture") {
       res.status(422).json({
         message:
           "Text-only captures cannot be saved through this capture sync. Use image or barcode capture.",
       });
       return;
     }
-
-    // The submitted nutrition must be consistent with what the server
-    // analyzed (portion edits allowed within a generous band).
-    const candidates = await db
-      .select({
-        calories: aiCaptureCandidatesTable.calories,
-        evidence: aiCaptureCandidatesTable.evidence,
-      })
-      .from(aiCaptureCandidatesTable)
-      .innerJoin(
-        aiCaptureSessionsTable,
-        eq(aiCaptureCandidatesTable.sessionId, aiCaptureSessionsTable.id),
-      )
-      .where(
-        and(
-          eq(aiCaptureCandidatesTable.sessionId, entry.captureSessionId),
-          eq(aiCaptureSessionsTable.userId, userId),
-        ),
-      );
-    const analyzedCalories = candidates.reduce(
-      (sum, c) => sum + Number(c.calories),
-      0,
-    );
-    const withinBand =
-      analyzedCalories > 0 &&
-      entry.calories >= analyzedCalories * 0.25 &&
-      entry.calories <= analyzedCalories * 2.5 + 100;
-    if (!withinBand) {
+    if (result.kind === "nutrition_mismatch") {
       res.status(422).json({
         message: "This entry doesn't match the scanned meal's nutrition.",
       });
       return;
     }
-
-    // Claim the session (single use) and write the entry atomically — a
-    // failed insert must not consume the user's only qualifying session.
-    const claimed = await db.transaction(async (tx) => {
-      const rows = await tx
-        .update(aiCaptureSessionsTable)
-        .set({ reviewedAt: sql`now()` })
-        .where(
-          and(
-            eq(aiCaptureSessionsTable.id, entry.captureSessionId),
-            eq(aiCaptureSessionsTable.userId, userId),
-            sql`${aiCaptureSessionsTable.reviewedAt} IS NULL`,
-          ),
-        )
-        .returning({ id: aiCaptureSessionsTable.id });
-      if (rows.length === 0) return false;
-
-      let image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
-      let imageEvidence: ImageEvidence | null = null;
-      if (entry.imageEvidence?.semanticRole === "exact") {
-        for (const candidate of candidates) {
-          const candidateEvidence = candidate.evidence?.imageEvidence;
-          if (
-            !matchesCaptureImageEvidence(
-              candidateEvidence,
-              entry.imageEvidence,
-              user.id,
-            )
-          )
-            continue;
-          imageEvidence = normalizeImageEvidence(
-            candidateEvidence,
-            user.id,
-            undefined,
-            { allowExact: true },
-          );
-          break;
-        }
-      }
-      imageEvidence ??= normalizeImageEvidence(entry.imageEvidence, user.id, {
-        imageUrl: image.imageUrl,
-        imageSource: image.imageSource,
-        imageAssetKey: entry.imageAssetKey,
-      });
-      if (imageEvidence?.semanticRole === "exact" && imageEvidence.locator) {
-        image = normalizeImageMetadata(
-          imageEvidence.locator,
-          imageEvidence.provider ?? image.imageSource,
-        );
-      }
-      const values: typeof diaryEntriesTable.$inferInsert = {
-        userId,
-        entryDate: entry.entryDate.toISOString().slice(0, 10),
-        meal: entry.meal,
-        name: entry.name,
-        serving: entry.serving,
-        calories: String(entry.calories),
-        proteinG: String(entry.proteinG),
-        carbsG: String(entry.carbsG),
-        fatG: String(entry.fatG),
-        provenance: entry.provenance,
-        confidence: entry.confidence,
-        notes: entry.notes,
-        imageUrl: image.imageUrl,
-        imageSource: image.imageSource,
-        syncMetadata: {
-          ...(typeof entry.imageAssetKey === "string"
-            ? { imageAssetKey: entry.imageAssetKey }
-            : {}),
-          ...(imageEvidence ? { imageEvidence } : {}),
-        },
-        clientUpdatedAt: entry.clientUpdatedAt,
-      };
-      await tx.insert(diaryEntriesTable).values(values);
-      return true;
-    });
-
-    if (!claimed) {
+    if (result.kind === "already_claimed") {
       res.status(422).json({ message: "This food scan was already used." });
       return;
     }
