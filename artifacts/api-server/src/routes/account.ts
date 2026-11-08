@@ -11,7 +11,7 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { sql, eq } from "drizzle-orm";
-import { db, pool, usersTable } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { getSupabaseAdmin } from "../lib/supabase-admin.js";
 import {
   claimAccountDeletion,
@@ -24,7 +24,11 @@ import {
   type RecoverableAccountDeletion,
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
-import { logger, safeErrorDetails, noteSuppressedRecoveryWarning } from "../lib/logger.js";
+import {
+  logger,
+  safeErrorDetails,
+  noteSuppressedRecoveryWarning,
+} from "../lib/logger.js";
 import {
   eraseRecipePhotoObjects,
   isRecipePhotoStorageConfigured,
@@ -44,7 +48,9 @@ function ageSeconds(record: RecoverySignalRecord, now: number): number {
   return Math.max(0, Math.floor((now - startedAt) / 1000));
 }
 
-function countStages(records: RecoverySignalRecord[]): Record<AccountDeletionStage, number> {
+function countStages(
+  records: RecoverySignalRecord[],
+): Record<AccountDeletionStage, number> {
   return records.reduce<Record<AccountDeletionStage, number>>(
     (counts, record) => {
       counts[record.stage] += 1;
@@ -55,9 +61,13 @@ function countStages(records: RecoverySignalRecord[]): Record<AccountDeletionSta
 }
 
 function correlationKeys(records: RecoverySignalRecord[]): string[] {
-  return [...new Set(
-    records.map((record) => record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH)),
-  )];
+  return [
+    ...new Set(
+      records.map((record) =>
+        record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
+      ),
+    ),
+  ];
 }
 
 function recoveryWarningKey(
@@ -65,17 +75,23 @@ function recoveryWarningKey(
   overdue: RecoverySignalRecord[],
 ): string {
   return [
-    ...failed.map((record) => [
-      "failed",
-      record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
-      record.stage,
-    ].join(":")),
-    ...overdue.map((record) => [
-      "overdue",
-      record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
-      record.stage,
-    ].join(":")),
-  ].sort().join("|");
+    ...failed.map((record) =>
+      [
+        "failed",
+        record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
+        record.stage,
+      ].join(":"),
+    ),
+    ...overdue.map((record) =>
+      [
+        "overdue",
+        record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
+        record.stage,
+      ].join(":"),
+    ),
+  ]
+    .sort()
+    .join("|");
 }
 
 async function shouldEmitRecoveryWarning(
@@ -107,7 +123,9 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
     // The database fence blocks ordinary writes after a tombstone. This scoped
     // setting authorizes only this deletion transaction to anonymize a referral
     // relationship when its other participant is concurrently deleting.
-    await tx.execute(sql`SELECT set_config('calora.deletion_worker', 'on', true)`);
+    await tx.execute(
+      sql`SELECT set_config('calora.deletion_worker', 'on', true)`,
+    );
     await tx.execute(sql`
       DELETE FROM calora_referral_qualifications
       WHERE external_user_id = ${externalUserId}
@@ -149,7 +167,9 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
     `);
 
     // All user-owned records reference calora_users with ON DELETE CASCADE.
-    await tx.delete(usersTable).where(eq(usersTable.externalId, externalUserId));
+    await tx
+      .delete(usersTable)
+      .where(eq(usersTable.externalId, externalUserId));
   });
 }
 
@@ -160,7 +180,9 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
  * cannot be finalized while private media might remain at an unreachable
  * provider.
  */
-async function hasTrackedRecipePhotoObjects(externalUserId: string): Promise<boolean> {
+async function hasTrackedRecipePhotoObjects(
+  externalUserId: string,
+): Promise<boolean> {
   const result = await db.execute(sql`
     SELECT 1
     FROM calora_recipe_media
@@ -171,20 +193,13 @@ async function hasTrackedRecipePhotoObjects(externalUserId: string): Promise<boo
   return result.rows.length > 0;
 }
 
-export async function runAccountDeletion(externalUserId: string): Promise<"completed" | "in_progress"> {
-  // A session-scoped advisory lock remains held throughout external provider
-  // calls. Unlike a time lease alone, a slow worker cannot lose ownership and
-  // continue concurrently after another worker takes over.
-  const client = await pool.connect();
-  const lock = await client.query<{ locked: boolean }>(
-    "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked",
-    [`calora-account-deletion:${externalUserId}`],
-  );
-  if (!lock.rows[0]?.locked) {
-    client.release();
-    return "in_progress";
-  }
-
+export async function runAccountDeletion(
+  externalUserId: string,
+): Promise<"completed" | "in_progress"> {
+  // claimAccountDeletion atomically owns a short-lived lease. The lease is
+  // the only concurrency guard needed here; unlike a session advisory lock,
+  // it does not keep a database connection checked out while object storage,
+  // RevenueCat, or Supabase Auth calls are in flight.
   let operationId: string | null = null;
   try {
     let claim = await claimAccountDeletion(externalUserId);
@@ -197,12 +212,23 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
     // A deployment without configured object storage may proceed only when the
     // server-owned media ledger proves this account owns no storage objects.
     // Any tracked media remains fail-closed until its provider can be reached.
-    if (isRecipePhotoStorageConfigured() || await hasTrackedRecipePhotoObjects(externalUserId)) {
+    if (
+      isRecipePhotoStorageConfigured() ||
+      (await hasTrackedRecipePhotoObjects(externalUserId))
+    ) {
       await eraseRecipePhotoObjects(externalUserId);
     }
     if (claim.stage === "object_storage") {
-      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "application")) {
-        throw new Error("Account deletion ownership was lost after object-storage erasure.");
+      if (
+        !(await checkpointAccountDeletion(
+          externalUserId,
+          claim.operationId,
+          "application",
+        ))
+      ) {
+        throw new Error(
+          "Account deletion ownership was lost after object-storage erasure.",
+        );
       }
       claim = { ...claim, stage: "application" };
     }
@@ -211,12 +237,28 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
     // recovery even if a previous worker recorded a late checkpoint before
     // crashing or if an incomplete legacy operation is resumed.
     await deleteApplicationData(externalUserId);
-    if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "revenuecat")) {
-      throw new Error("Account deletion ownership was lost before RevenueCat erasure.");
+    if (
+      !(await checkpointAccountDeletion(
+        externalUserId,
+        claim.operationId,
+        "revenuecat",
+      ))
+    ) {
+      throw new Error(
+        "Account deletion ownership was lost before RevenueCat erasure.",
+      );
     }
     await deleteRevenueCatSubscriber(externalUserId);
-    if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "auth")) {
-      throw new Error("Account deletion ownership was lost before Auth erasure.");
+    if (
+      !(await checkpointAccountDeletion(
+        externalUserId,
+        claim.operationId,
+        "auth",
+      ))
+    ) {
+      throw new Error(
+        "Account deletion ownership was lost before Auth erasure.",
+      );
     }
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) throw new Error("Supabase Admin is unavailable");
@@ -224,20 +266,21 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
     // A prior worker may have completed Auth removal just before crashing.
     // Supabase's not-found response therefore proves this idempotent stage.
     if (error && (error as { status?: number }).status !== 404) throw error;
-    if (!await completeAccountDeletion(externalUserId, claim.operationId)) {
-      throw new Error("Account deletion ownership was lost before finalization.");
+    if (!(await completeAccountDeletion(externalUserId, claim.operationId))) {
+      throw new Error(
+        "Account deletion ownership was lost before finalization.",
+      );
     }
     return "completed";
   } catch (error) {
     // The state helper only mutates a matching operation, so a stale worker
     // cannot overwrite a successor's checkpoint or terminal tombstone.
     if (operationId) {
-      await markAccountDeletionFailed(externalUserId, operationId).catch(() => undefined);
+      await markAccountDeletionFailed(externalUserId, operationId).catch(
+        () => undefined,
+      );
     }
     throw error;
-  } finally {
-    await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [`calora-account-deletion:${externalUserId}`]).catch(() => undefined);
-    client.release();
   }
 }
 
@@ -252,7 +295,9 @@ type TerminalDeletionMediaOrphan = {
  * call the existing account-scoped erasure routine; it is never logged or
  * returned from an HTTP route.
  */
-async function listTerminalDeletionMediaOrphans(): Promise<TerminalDeletionMediaOrphan[]> {
+async function listTerminalDeletionMediaOrphans(): Promise<
+  TerminalDeletionMediaOrphan[]
+> {
   const result = await db.execute<{
     external_user_id: string;
     has_object_backed_media: boolean;
@@ -357,7 +402,9 @@ export async function recoverPendingAccountDeletions(): Promise<void> {
           overdueCount: overdue.length,
           overdueStages: countStages(overdue),
           oldestAgeSeconds: unresolved.length
-            ? Math.max(...unresolved.map((deletion) => ageSeconds(deletion, now)))
+            ? Math.max(
+                ...unresolved.map((deletion) => ageSeconds(deletion, now)),
+              )
             : 0,
           correlationKeys: correlationKeys([...failed, ...overdue]),
         },
@@ -376,7 +423,12 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   // ── 0. Guard: credentials must be configured ────────────────────────────
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
-    res.status(503).json({ message: "Account deletion is not available right now. Please contact support." });
+    res
+      .status(503)
+      .json({
+        message:
+          "Account deletion is not available right now. Please contact support.",
+      });
     return;
   }
 
@@ -385,17 +437,24 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
   if (!token) {
-    res.status(401).json({ message: "Missing or invalid Authorization header." });
+    res
+      .status(401)
+      .json({ message: "Missing or invalid Authorization header." });
     return;
   }
 
   // ── 2. Verify token and resolve user ID ────────────────────────────────
   // getUser() validates the JWT signature against the Supabase project key.
   // We never trust a user-supplied ID.
-  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  const { data: userData, error: userError } =
+    await supabaseAdmin.auth.getUser(token);
 
   if (userError || !userData?.user) {
-    res.status(401).json({ message: "Token is invalid or has expired. Please sign in again." });
+    res
+      .status(401)
+      .json({
+        message: "Token is invalid or has expired. Please sign in again.",
+      });
     return;
   }
 
@@ -407,12 +466,22 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   try {
     const outcome = await runAccountDeletion(userId);
     if (outcome === "in_progress") {
-      res.status(202).json({ message: "Account deletion is already in progress. It will continue securely." });
+      res
+        .status(202)
+        .json({
+          message:
+            "Account deletion is already in progress. It will continue securely.",
+        });
       return;
     }
   } catch (error) {
     req.log.error(safeErrorDetails(error), "Account deletion operation failed");
-    res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
+    res
+      .status(502)
+      .json({
+        message:
+          "Account deletion failed on the server. Please try again or contact support.",
+      });
     return;
   }
   res.status(200).json({ message: "Account permanently deleted." });
