@@ -46,6 +46,7 @@ import {
   assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 
 const router: IRouter = Router();
 
@@ -253,18 +254,21 @@ router.get("/v1/diary", async (req, res) => {
   const date = typeof req.query.date === "string" ? req.query.date : "";
   if (!isDate(date))
     return res.status(400).json({ message: "A valid date is required." });
-  const userId = await ensureUserRow(auth.id, auth.email);
-  const rows = await db
-    .select()
-    .from(diaryEntriesTable)
-    .where(
-      and(
-        eq(diaryEntriesTable.userId, userId),
-        eq(diaryEntriesTable.entryDate, date),
-      ),
-    )
-    .orderBy(desc(diaryEntriesTable.createdAt));
-  return res.json({ date, entries: rows.map(serialize) });
+  const entries = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+    const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+    const rows = await database
+      .select()
+      .from(diaryEntriesTable)
+      .where(
+        and(
+          eq(diaryEntriesTable.userId, userId),
+          eq(diaryEntriesTable.entryDate, date),
+        ),
+      )
+      .orderBy(desc(diaryEntriesTable.createdAt));
+    return rows.map(serialize);
+  });
+  return res.json({ date, entries });
 });
 
 router.post("/v1/diary", async (req, res) => {
@@ -280,49 +284,49 @@ router.post("/v1/diary", async (req, res) => {
         message: parsed.error.issues[0]?.message ?? "Invalid diary entry",
       });
     const entry = parsed.data;
-    await assertAccountWritable(auth.id);
-    const userId = await ensureUserRow(auth.id, auth.email);
-    // Image metadata is optional and provider/user supplied — re-validate it
-    // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
-    // are persisted and a source label without a URL is dropped.
-    const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
-    const imageEvidence = normalizeImageEvidence(entry.imageEvidence, auth.id, {
-      imageUrl: image.imageUrl,
-      imageSource: image.imageSource,
-      imageAssetKey: entry.imageAssetKey,
+    const created = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+      await assertAccountWritable(auth.id, database, inTransaction);
+      const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+      // Image metadata is optional and provider/user supplied — re-validate it
+      // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
+      // are persisted and a source label without a URL is dropped.
+      const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+      const imageEvidence = normalizeImageEvidence(entry.imageEvidence, auth.id, {
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
+        imageAssetKey: entry.imageAssetKey,
+      });
+      const values: typeof diaryEntriesTable.$inferInsert = {
+        userId,
+        entryDate: entry.entryDate.toISOString().slice(0, 10),
+        meal: entry.meal,
+        name: entry.name,
+        serving: entry.serving,
+        calories: String(entry.calories),
+        proteinG: String(entry.proteinG),
+        carbsG: String(entry.carbsG),
+        fatG: String(entry.fatG),
+        provenance: entry.provenance,
+        confidence: entry.confidence,
+        notes: entry.notes ?? null,
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
+        syncMetadata: {
+          ...(entry.servingQuantity != null ? { servingQuantity: entry.servingQuantity } : {}),
+          ...(entry.servingUnit ? { servingUnit: entry.servingUnit } : {}),
+          ...(entry.servingWeightG != null ? { servingWeightG: entry.servingWeightG } : {}),
+          ...(entry.nutritionBasis ? { nutritionBasis: entry.nutritionBasis } : {}),
+          ...(entry.servingMetadataSource ? { servingMetadataSource: entry.servingMetadataSource } : {}),
+          ...(typeof entry.imageAssetKey === "string"
+            ? { imageAssetKey: entry.imageAssetKey }
+            : {}),
+          ...(imageEvidence ? { imageEvidence } : {}),
+        },
+        clientUpdatedAt: entry.clientUpdatedAt,
+      };
+      const [row] = await database.insert(diaryEntriesTable).values(values).returning();
+      return row;
     });
-    const values: typeof diaryEntriesTable.$inferInsert = {
-      userId,
-      entryDate: entry.entryDate.toISOString().slice(0, 10),
-      meal: entry.meal,
-      name: entry.name,
-      serving: entry.serving,
-      calories: String(entry.calories),
-      proteinG: String(entry.proteinG),
-      carbsG: String(entry.carbsG),
-      fatG: String(entry.fatG),
-      provenance: entry.provenance,
-      confidence: entry.confidence,
-      notes: entry.notes ?? null,
-      imageUrl: image.imageUrl,
-      imageSource: image.imageSource,
-      syncMetadata: {
-        ...(entry.servingQuantity != null ? { servingQuantity: entry.servingQuantity } : {}),
-        ...(entry.servingUnit ? { servingUnit: entry.servingUnit } : {}),
-        ...(entry.servingWeightG != null ? { servingWeightG: entry.servingWeightG } : {}),
-        ...(entry.nutritionBasis ? { nutritionBasis: entry.nutritionBasis } : {}),
-        ...(entry.servingMetadataSource ? { servingMetadataSource: entry.servingMetadataSource } : {}),
-        ...(typeof entry.imageAssetKey === "string"
-          ? { imageAssetKey: entry.imageAssetKey }
-          : {}),
-        ...(imageEvidence ? { imageEvidence } : {}),
-      },
-      clientUpdatedAt: entry.clientUpdatedAt,
-    };
-    const [created] = await db
-      .insert(diaryEntriesTable)
-      .values(values)
-      .returning();
     return res.status(201).json(serialize(created));
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
@@ -345,16 +349,18 @@ router.delete("/v1/diary/:entryId", async (req, res) => {
       return res
         .status(401)
         .json({ message: "Please sign in to delete a diary entry." });
-    await assertAccountWritable(auth.id);
-    const userId = await ensureUserRow(auth.id, auth.email);
-    await db
-      .delete(diaryEntriesTable)
-      .where(
-        and(
-          eq(diaryEntriesTable.id, req.params.entryId),
-          eq(diaryEntriesTable.userId, userId),
-        ),
-      );
+    await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+      await assertAccountWritable(auth.id, database, inTransaction);
+      const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+      await database
+        .delete(diaryEntriesTable)
+        .where(
+          and(
+            eq(diaryEntriesTable.id, req.params.entryId),
+            eq(diaryEntriesTable.userId, userId),
+          ),
+        );
+    });
     return res.status(204).send();
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
