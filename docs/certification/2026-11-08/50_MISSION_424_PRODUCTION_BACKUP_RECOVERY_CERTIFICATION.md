@@ -133,8 +133,10 @@ No production backup schedule, production dump, production credential, Railway d
 ## 9. Delivery provenance
 
 - Mission 424 source baseline: `b626fe1ca91231166dd9942229abc0881456da80`.
-- Mission 424 implementation branch: `mission/424-recovery-certification`.
-- PR and final protected-main merge SHA will be recorded after required CI completes.
+- Mission 424 implementation commit: `9fc75052cbafb491f3a768a45cc505650272e643` on `mission/424-recovery-certification`.
+- Protected pull request: [#410](https://github.com/atembekong-hash/Calora/pull/410).
+- Protected-main merge commit: `0086ebf1bb5deda1156716b735d5d8faecab9e1d`.
+- This provenance correction is documentation-only and does not alter the implementation or production state.
 
 ## Final verdict
 
