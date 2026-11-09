@@ -173,6 +173,10 @@ const shiftCalendarMonth = (key: string, amount: number) => {
   return `${shifted.getFullYear()}-${`${shifted.getMonth() + 1}`.padStart(2, '0')}`;
 };
 const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const FOOD_WIDGET_ART = {
+  water: require('../../assets/images/foods/berry-protein-smoothie.jpg'),
+  calorie: require('../../assets/images/foods/avocado-toast.jpg'),
+} as const;
 
 function CalendarPicker({
   visible,
@@ -627,6 +631,9 @@ export function WaterCard({
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
       <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: HYDRATION_WIDGET_HEIGHT * TODAY_WIDGET_HEIGHT_SCALE * WATER_WIDGET_HEIGHT_SCALE, backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View pointerEvents="none" style={styles.waterFoodAccent}>
+          <Image source={FOOD_WIDGET_ART.water} resizeMode="cover" style={styles.waterFoodAccentImage} />
+        </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Hydration" onPress={onOpenHydration} style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground, flex: 1 }]}>Water</Text>
@@ -1617,6 +1624,9 @@ export function CalorieGauge({
 
   return (
     <View style={gaugeStyles.container}>
+      <View pointerEvents="none" style={gaugeStyles.foodAccent}>
+        <Image source={FOOD_WIDGET_ART.calorie} resizeMode="cover" style={gaugeStyles.foodAccentImage} />
+      </View>
       {/* ── Full-width SVG arc + centred text ── */}
       <View style={[gaugeStyles.arcWrap, { width: gaugeW, height: gaugeH }]}>
         <View pointerEvents="none" style={[gaugeStyles.ringLayer, { width: ringW, height: ringH, left: ringLeft, top: ringTop, transform: [{ translateY: CALORIE_RING_VERTICAL_OFFSET }] }]}>
@@ -1692,6 +1702,8 @@ export function CalorieGauge({
 function makeGaugeStyles(f: number) {
   return StyleSheet.create({
   container: { marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 0, alignItems: 'center' },
+  foodAccent: { position: 'absolute' as const, width: 56, height: 56, borderRadius: 18, right: 4, top: 6, overflow: 'hidden' as const, opacity: 0.14 },
+  foodAccentImage: { width: '100%', height: '100%' },
   arcWrap:   { position: 'relative' as const },
   ringLayer: { position: 'absolute' as const },
   textOverlay: {
@@ -2581,6 +2593,8 @@ function makeStyles(f: number) {
   wellnessSection: { gap: 14, marginBottom: h(28) },
   wellnessRow: { flexDirection: 'row', gap: 12 },
   wellnessCard: { flex: 1, minHeight: h(182), borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: h(16), shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  waterFoodAccent: { position: 'absolute', right: 0, top: 0, width: 104, height: 76, borderTopRightRadius: 22, borderBottomLeftRadius: 34, overflow: 'hidden', opacity: 0.12 },
+  waterFoodAccentImage: { width: '100%', height: '100%' },
   wellnessCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: h(14) },
   wellnessIcon: { width: 34, height: h(34), borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
