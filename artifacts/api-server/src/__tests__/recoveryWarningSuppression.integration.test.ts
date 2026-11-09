@@ -4,7 +4,9 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { PoolClient } from "pg";
+import { sql } from "drizzle-orm";
 import { isDatabaseIntegrationTestEnabled } from "./db-integration-gate.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 
 const { deleteUser, info, warn } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
@@ -114,8 +116,7 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
             {
               table_name: "calora_recovery_warning_suppressions",
               relation_kind: "r",
-              primary_key_name:
-                "calora_recovery_warning_suppressions_pkey",
+              primary_key_name: "calora_recovery_warning_suppressions_pkey",
             },
           ]);
 
@@ -159,11 +160,10 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
 
           expect(expiryIndexMetadata.rows).toEqual([
             {
-              index_name:
-                "calora_recovery_warning_suppressions_expires_at_idx",
+              index_name: "calora_recovery_warning_suppressions_expires_at_idx",
               is_unique: false,
               is_valid: true,
-            columns: "expires_at",
+              columns: "expires_at",
             },
           ]);
         } finally {
@@ -187,124 +187,116 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
 describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
   "recovery warning suppression claims (disposable schema)",
   () => {
-    it(
-      "allows exactly one of two concurrent API instances to claim a warning",
-      async () => {
-        const { pool } = await import("@workspace/db");
-        const { claimRecoveryWarningSuppression } =
-          await import("../lib/account-deletion-state.js");
-        const schemaName = `calora_recovery_claim_${randomUUID().replaceAll("-", "")}`;
-        const quotedSchemaName = `"${schemaName}"`;
-        const warningSignature =
-          "failed:0123456789abcdef:revenuecat|overdue:fedcba9876543210:application";
-        const warningKey = createHash("sha256")
-          .update(warningSignature)
-          .digest("hex");
-        const now = new Date("2026-09-05T09:00:00.000Z");
+    it("allows exactly one of two concurrent API instances to claim a warning", async () => {
+      const { pool } = await import("@workspace/db");
+      const { claimRecoveryWarningSuppression } =
+        await import("../lib/account-deletion-state.js");
+      const schemaName = `calora_recovery_claim_${randomUUID().replaceAll("-", "")}`;
+      const quotedSchemaName = `"${schemaName}"`;
+      const warningSignature =
+        "failed:0123456789abcdef:revenuecat|overdue:fedcba9876543210:application";
+      const warningKey = createHash("sha256")
+        .update(warningSignature)
+        .digest("hex");
+      const now = new Date("2026-09-05T09:00:00.000Z");
 
-        async function configurePoolSearchPath(): Promise<void> {
-          const maxClients = pool.options.max ?? 10;
-          const clients: PoolClient[] = [];
-          try {
-            for (let index = 0; index < maxClients; index += 1) {
-              const client = await pool.connect();
-              clients.push(client);
-              await client.query(
-                `SET search_path TO ${quotedSchemaName}, public`,
-              );
+      async function configurePoolSearchPath(): Promise<void> {
+        const maxClients = pool.options.max ?? 10;
+        const clients: PoolClient[] = [];
+        try {
+          for (let index = 0; index < maxClients; index += 1) {
+            const client = await pool.connect();
+            clients.push(client);
+            await client.query(
+              `SET search_path TO ${quotedSchemaName}, public`,
+            );
+          }
+        } finally {
+          for (const client of clients) {
+            client.release();
+          }
+        }
+      }
+
+      async function resetPoolSearchPath(): Promise<void> {
+        const maxClients = pool.options.max ?? 10;
+        const resetClients: PoolClient[] = [];
+        const releasedClients = new Set<PoolClient>();
+        try {
+          for (let index = 0; index < maxClients; index += 1) {
+            resetClients.push(await pool.connect());
+          }
+          for (const client of resetClients) {
+            try {
+              await client.query("RESET search_path");
+            } finally {
+              client.release();
+              releasedClients.add(client);
             }
-          } finally {
-            for (const client of clients) {
+          }
+        } catch (error) {
+          for (const client of resetClients) {
+            if (!releasedClients.has(client)) {
               client.release();
             }
           }
+          throw error;
         }
+      }
 
-        async function resetPoolSearchPath(): Promise<void> {
-          const maxClients = pool.options.max ?? 10;
-          const resetClients: PoolClient[] = [];
-          const releasedClients = new Set<PoolClient>();
-          try {
-            for (let index = 0; index < maxClients; index += 1) {
-              resetClients.push(await pool.connect());
-            }
-            for (const client of resetClients) {
-              try {
-                await client.query("RESET search_path");
-              } finally {
-                client.release();
-                releasedClients.add(client);
-              }
-            }
-          } catch (error) {
-            for (const client of resetClients) {
-              if (!releasedClients.has(client)) {
-                client.release();
-              }
-            }
-            throw error;
-          }
-        }
-
+      try {
+        const setupClient = await pool.connect();
         try {
-          const setupClient = await pool.connect();
-          try {
-            await setupClient.query(`CREATE SCHEMA ${quotedSchemaName}`);
-            await setupClient.query(`SET search_path TO ${quotedSchemaName}`);
-            await setupClient.query(MIGRATION_SQL);
-            await setupClient.query("RESET search_path");
-          } finally {
-            setupClient.release();
-          }
-
-          await configurePoolSearchPath();
-
-          const claims = await Promise.all([
-            claimRecoveryWarningSuppression(warningSignature, now),
-            claimRecoveryWarningSuppression(warningSignature, now),
-          ]);
-
-          expect(claims.sort()).toEqual([false, true]);
-
-          const verificationClient = await pool.connect();
-          try {
-            const rows = await verificationClient.query<{
-              warning_key: string;
-              emitted_at: Date;
-              expires_at: Date;
-            }>(
-              `SELECT warning_key, emitted_at, expires_at
-               FROM calora_recovery_warning_suppressions`,
-            );
-
-            expect(rows.rows).toHaveLength(1);
-            expect(rows.rows[0]).toMatchObject({
-              warning_key: warningKey,
-              emitted_at: now,
-              expires_at: new Date(
-                now.getTime() + 15 * 60 * 1000,
-              ),
-            });
-            expect(JSON.stringify(rows.rows)).not.toContain(
-              warningSignature,
-            );
-          } finally {
-            verificationClient.release();
-          }
+          await setupClient.query(`CREATE SCHEMA ${quotedSchemaName}`);
+          await setupClient.query(`SET search_path TO ${quotedSchemaName}`);
+          await setupClient.query(MIGRATION_SQL);
+          await setupClient.query("RESET search_path");
         } finally {
-          await resetPoolSearchPath();
-          const cleanupClient = await pool.connect();
-          try {
-            await cleanupClient.query(
-              `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
-            );
-          } finally {
-            cleanupClient.release();
-          }
+          setupClient.release();
         }
-      },
-      30_000,
-    );
+
+        await configurePoolSearchPath();
+
+        const claims = await Promise.all([
+          claimRecoveryWarningSuppression(warningSignature, now),
+          claimRecoveryWarningSuppression(warningSignature, now),
+        ]);
+
+        expect(claims.sort()).toEqual([false, true]);
+
+        const verificationClient = await pool.connect();
+        try {
+          const rows = await verificationClient.query<{
+            warning_key: string;
+            emitted_at: Date;
+            expires_at: Date;
+          }>(
+            `SELECT warning_key, emitted_at, expires_at
+               FROM calora_recovery_warning_suppressions`,
+          );
+
+          expect(rows.rows).toHaveLength(1);
+          expect(rows.rows[0]).toMatchObject({
+            warning_key: warningKey,
+            emitted_at: now,
+            expires_at: new Date(now.getTime() + 15 * 60 * 1000),
+          });
+          expect(JSON.stringify(rows.rows)).not.toContain(warningSignature);
+        } finally {
+          verificationClient.release();
+        }
+      } finally {
+        await resetPoolSearchPath();
+        const cleanupClient = await pool.connect();
+        try {
+          await cleanupClient.query(
+            `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
+          );
+        } finally {
+          cleanupClient.release();
+        }
+      }
+    }, 30_000);
   },
 );
 
@@ -322,9 +314,7 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
         for (let index = 0; index < maxClients; index += 1) {
           const client = await pool.connect();
           clients.push(client);
-          await client.query(
-            `SET search_path TO ${quotedSchemaName}, public`,
-          );
+          await client.query(`SET search_path TO ${quotedSchemaName}, public`);
         }
       } finally {
         for (const client of clients) client.release();
@@ -356,20 +346,6 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
       const client = await pool.connect();
       try {
         await client.query(`CREATE SCHEMA ${quotedSchemaName}`);
-        await client.query(`
-          CREATE TABLE ${quotedSchemaName}.calora_account_deletion_states (
-            identity_fingerprint text PRIMARY KEY NOT NULL,
-            state text NOT NULL,
-            operation_id uuid,
-            stage text NOT NULL DEFAULT 'application',
-            lease_expires_at timestamptz,
-            recovery_external_user_id text,
-            requested_at timestamptz,
-            completed_at timestamptz,
-            updated_at timestamptz NOT NULL DEFAULT now(),
-            last_error text
-          )
-        `);
         // Shadow the public suppression table with a relation that cannot be
         // deleted from. This forces the actual cooldown claim to receive a
         // database error while leaving the recovery-state tables available.
@@ -389,68 +365,71 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
       await pool.query(`DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`);
     });
 
-    it(
-      "emits redacted warning metadata and completes a later retry when the cooldown table is unavailable",
-      async () => {
-        const rawAccountId = "raw-auth-id-that-must-not-be-logged";
-        const fingerprint = createHash("sha256")
-          .update(rawAccountId)
-          .digest("hex");
-        const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
-        warn.mockReset();
-        deleteUser.mockReset();
-        deleteUser
-          .mockRejectedValueOnce(
-            new Error(`provider failed for ${rawAccountId}`),
-          )
-          .mockResolvedValueOnce({ error: null });
+    it("emits redacted warning metadata and completes a later retry when the cooldown table is unavailable", async () => {
+      const rawAccountId = "raw-auth-id-that-must-not-be-logged";
+      const fingerprint = createHash("sha256")
+        .update(rawAccountId)
+        .digest("hex");
+      const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+      warn.mockReset();
+      deleteUser.mockReset();
+      deleteUser
+        .mockRejectedValueOnce(new Error(`provider failed for ${rawAccountId}`))
+        .mockResolvedValueOnce({ error: null });
 
-        await pool.query(
-          `INSERT INTO ${quotedSchemaName}.calora_account_deletion_states (
-             identity_fingerprint, state, stage, recovery_external_user_id,
-             requested_at, updated_at, lease_expires_at
-           ) VALUES ($1, 'deleting', 'auth', $2, $3, $3, NOW() - INTERVAL '1 second')`,
-          [fingerprint, rawAccountId, requestedAt],
-        );
+      await withVerifiedDatabaseIdentity(rawAccountId, async (database) => {
+        await database.execute(sql`
+            DELETE FROM calora_account_deletion_states
+             WHERE identity_fingerprint = ${fingerprint}
+          `);
+        await database.execute(sql`
+            INSERT INTO calora_account_deletion_states (
+              identity_fingerprint, state, stage, recovery_external_user_id,
+              requested_at, updated_at, lease_expires_at
+            ) VALUES (${fingerprint}, 'deleting', 'auth', ${rawAccountId},
+              ${requestedAt}, ${requestedAt}, NOW() - INTERVAL '1 second')
+          `);
+      });
 
-        const { recoverPendingAccountDeletions, runAccountDeletion } =
-          await import("../routes/account.js");
-        await recoverPendingAccountDeletions();
+      const { recoverPendingAccountDeletions, runAccountDeletion } =
+        await import("../routes/account.js");
+      await recoverPendingAccountDeletions();
 
-        expect(deleteUser).toHaveBeenCalledOnce();
-        expect(warn).toHaveBeenCalledOnce();
-        const [fields, message] = warn.mock.calls[0];
-        expect(message).toBe("Account deletion recovery needs attention");
-        expect(fields).toMatchObject({
-          event: "account_deletion_recovery",
-          attemptedCount: 1,
-          failureCount: 1,
-          failureStages: { application: 0, revenuecat: 0, auth: 1 },
-          unresolvedCount: 1,
-          overdueCount: 1,
-          overdueStages: { application: 0, revenuecat: 0, auth: 1 },
-          correlationKeys: [fingerprint.slice(0, 16)],
-        });
-        expect(JSON.stringify(fields)).not.toContain(rawAccountId);
-        expect(JSON.stringify(fields)).not.toContain("provider failed");
+      expect(deleteUser).toHaveBeenCalledOnce();
+      expect(warn).toHaveBeenCalledOnce();
+      const [fields, message] = warn.mock.calls[0];
+      expect(message).toBe("Account deletion recovery needs attention");
+      expect(fields).toMatchObject({
+        event: "account_deletion_recovery",
+        attemptedCount: 1,
+        failureCount: 1,
+        failureStages: { application: 0, revenuecat: 0, auth: 1 },
+        unresolvedCount: 1,
+        overdueCount: 1,
+        overdueStages: { application: 0, revenuecat: 0, auth: 1 },
+        correlationKeys: [fingerprint.slice(0, 16)],
+      });
+      expect(JSON.stringify(fields)).not.toContain(rawAccountId);
+      expect(JSON.stringify(fields)).not.toContain("provider failed");
 
-        // A failed worker renews no lease; make the following attempt
-        // unambiguously eligible without waiting for the recovery timer.
-        await pool.query(
-          `UPDATE ${quotedSchemaName}.calora_account_deletion_states
-           SET lease_expires_at = NOW() - INTERVAL '1 second'
-           WHERE identity_fingerprint = $1`,
-          [fingerprint],
-        );
-        await expect(runAccountDeletion(rawAccountId)).resolves.toBe("completed");
+      // A failed worker renews no lease; make the following attempt
+      // unambiguously eligible without waiting for the recovery timer.
+      await withVerifiedDatabaseIdentity(rawAccountId, async (database) => {
+        await database.execute(sql`
+            UPDATE calora_account_deletion_states
+               SET lease_expires_at = NOW() - INTERVAL '1 second'
+             WHERE identity_fingerprint = ${fingerprint}
+          `);
+      });
+      await expect(runAccountDeletion(rawAccountId)).resolves.toBe("completed");
 
-        expect(deleteUser).toHaveBeenCalledTimes(2);
-        const recoveryState = await pool.query(
-          `SELECT state, recovery_external_user_id, last_error, lease_expires_at
-           FROM ${quotedSchemaName}.calora_account_deletion_states
-           WHERE identity_fingerprint = $1`,
-          [fingerprint],
-        );
+      expect(deleteUser).toHaveBeenCalledTimes(2);
+      await withVerifiedDatabaseIdentity(rawAccountId, async (database) => {
+        const recoveryState = await database.execute(sql`
+            SELECT state, recovery_external_user_id, last_error, lease_expires_at
+              FROM calora_account_deletion_states
+             WHERE identity_fingerprint = ${fingerprint}
+          `);
         expect(recoveryState.rows).toEqual([
           {
             state: "deleted",
@@ -459,8 +438,7 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
             lease_expires_at: null,
           },
         ]);
-      },
-      30_000,
-    );
+      });
+    }, 30_000);
   },
 );

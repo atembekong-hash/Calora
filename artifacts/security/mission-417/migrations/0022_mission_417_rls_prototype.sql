@@ -96,6 +96,83 @@ $function$;
 REVOKE ALL ON FUNCTION public.calora_check_rate_limit(text, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.calora_check_rate_limit(text, integer) TO calora_api_runtime_rls;
 
+-- Background recovery has no tenant identity before it selects an eligible
+-- deletion. This read-only bridge exposes only the bounded recovery worklist;
+-- all per-account claim, cleanup, checkpoint, and completion operations still
+-- run inside a verified identity transaction.
+CREATE OR REPLACE FUNCTION public.calora_list_recoverable_account_deletions()
+RETURNS TABLE(
+  recovery_external_user_id text,
+  identity_fingerprint text,
+  stage text,
+  requested_at timestamptz,
+  updated_at timestamptz
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+  SELECT s.recovery_external_user_id, s.identity_fingerprint, s.stage,
+         s.requested_at, s.updated_at
+    FROM public.calora_account_deletion_states AS s
+   WHERE s.state = 'deleting'
+     AND s.recovery_external_user_id IS NOT NULL
+     AND (s.lease_expires_at IS NULL OR s.lease_expires_at <= now())
+   ORDER BY s.updated_at ASC
+   LIMIT 25
+$function$;
+REVOKE ALL ON FUNCTION public.calora_list_recoverable_account_deletions() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.calora_list_recoverable_account_deletions() TO calora_api_runtime_rls;
+
+CREATE OR REPLACE FUNCTION public.calora_delete_capture_rate_limits(p_external_user_id text)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $function$
+  DELETE FROM public.calora_capture_rate_limits
+   WHERE key = 'user:' || p_external_user_id
+      OR key LIKE '%:user:' || p_external_user_id
+$function$;
+REVOKE ALL ON FUNCTION public.calora_delete_capture_rate_limits(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.calora_delete_capture_rate_limits(text) TO calora_api_runtime_rls;
+
+CREATE OR REPLACE FUNCTION public.calora_delete_account_application_data(p_external_user_id text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, extensions
+AS $function$
+DECLARE
+  deleted_referrer_id text := 'deleted:' || md5(random()::text || clock_timestamp()::text);
+  deleted_referred_id text := 'deleted:' || md5(random()::text || clock_timestamp()::text);
+BEGIN
+  DELETE FROM public.calora_referral_qualifications
+   WHERE external_user_id = p_external_user_id;
+  DELETE FROM public.calora_referral_codes
+   WHERE user_id = p_external_user_id;
+  UPDATE public.calora_referral_redemptions
+     SET referrer_user_id = deleted_referrer_id, code = 'deleted'
+   WHERE referrer_user_id = p_external_user_id;
+  UPDATE public.calora_referral_redemptions
+     SET referred_user_id = deleted_referred_id
+   WHERE referred_user_id = p_external_user_id;
+  PERFORM public.calora_delete_capture_rate_limits(p_external_user_id);
+  DELETE FROM public.calora_coach_fact_context_idempotency
+   WHERE external_user_id = p_external_user_id;
+  DELETE FROM public.calora_cohort_memberships
+   WHERE external_user_id = p_external_user_id;
+  DELETE FROM public.calora_coach_reports
+   WHERE user_id = (SELECT id FROM public.calora_users WHERE external_id = p_external_user_id);
+  DELETE FROM public.calora_recipe_media
+   WHERE owner_external_id = p_external_user_id;
+  DELETE FROM public.calora_users
+   WHERE external_id = p_external_user_id;
+END
+$function$;
+REVOKE ALL ON FUNCTION public.calora_delete_account_application_data(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.calora_delete_account_application_data(text) TO calora_api_runtime_rls;
+
 -- Only user-owned tables are included in this prototype. Admin, migration,
 -- provider-cache, rate-limit, and server-config tables remain inaccessible.
 DO $$

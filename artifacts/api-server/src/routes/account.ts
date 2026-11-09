@@ -33,10 +33,23 @@ import {
   eraseRecipePhotoObjects,
   isRecipePhotoStorageConfigured,
 } from "../lib/recipe-photo-storage.js";
+import {
+  databaseIdentityMode,
+  currentDatabaseContext,
+  withVerifiedDatabaseIdentity,
+} from "../lib/database-identity.js";
 
 const router: IRouter = Router();
 const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
 const CORRELATION_KEY_LENGTH = 16;
+
+async function withDeletionIdentity<T>(
+  externalUserId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (databaseIdentityMode() !== "staged-rls") return operation();
+  return withVerifiedDatabaseIdentity(externalUserId, async () => operation());
+}
 
 type RecoverySignalRecord = Pick<
   RecoverableAccountDeletion,
@@ -119,13 +132,19 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
   const deletedReferrerId = `deleted:${randomUUID()}`;
   const deletedReferredId = `deleted:${randomUUID()}`;
 
-  await db.transaction(async (tx) => {
+  const cleanup = async (tx: any) => {
     // The database fence blocks ordinary writes after a tombstone. This scoped
     // setting authorizes only this deletion transaction to anonymize a referral
     // relationship when its other participant is concurrently deleting.
     await tx.execute(
       sql`SELECT set_config('calora.deletion_worker', 'on', true)`,
     );
+    if (databaseIdentityMode() === "staged-rls") {
+      await tx.execute(
+        sql`SELECT public.calora_delete_account_application_data(${externalUserId})`,
+      );
+      return;
+    }
     await tx.execute(sql`
       DELETE FROM calora_referral_qualifications
       WHERE external_user_id = ${externalUserId}
@@ -144,11 +163,17 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
       SET referred_user_id = ${deletedReferredId}
       WHERE referred_user_id = ${externalUserId}
     `);
-    await tx.execute(sql`
-      DELETE FROM calora_capture_rate_limits
-      WHERE key = ${`user:${externalUserId}`}
-         OR key LIKE ${`%:user:${externalUserId}`}
-    `);
+    if (databaseIdentityMode() === "staged-rls") {
+      await tx.execute(
+        sql`SELECT public.calora_delete_capture_rate_limits(${externalUserId})`,
+      );
+    } else {
+      await tx.execute(sql`
+        DELETE FROM calora_capture_rate_limits
+        WHERE key = ${`user:${externalUserId}`}
+           OR key LIKE ${`%:user:${externalUserId}`}
+      `);
+    }
     await tx.execute(sql`
       DELETE FROM calora_coach_fact_context_idempotency
       WHERE external_user_id = ${externalUserId}
@@ -170,7 +195,13 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
     await tx
       .delete(usersTable)
       .where(eq(usersTable.externalId, externalUserId));
-  });
+  };
+  const context = currentDatabaseContext();
+  if (context?.inTransaction) {
+    await cleanup(context.database);
+  } else {
+    await db.transaction(cleanup);
+  }
 }
 
 /**
@@ -202,10 +233,15 @@ export async function runAccountDeletion(
   // RevenueCat, or Supabase Auth calls are in flight.
   let operationId: string | null = null;
   try {
-    let claim = await claimAccountDeletion(externalUserId);
+    let claim = await withDeletionIdentity(externalUserId, () =>
+      claimAccountDeletion(externalUserId),
+    );
     if (claim.kind === "completed") return "completed";
     if (claim.kind === "in_progress") return "in_progress";
-    operationId = claim.operationId;
+    if (claim.kind !== "claimed")
+      throw new Error("Invalid deletion claim state");
+    const claimedOperationId = claim.operationId;
+    operationId = claimedOperationId;
     // This runs for every non-terminal claim, including legacy operations that
     // already checkpointed past application cleanup before object erasure was
     // introduced. It is idempotent and therefore safe on every recovery retry.
@@ -214,16 +250,20 @@ export async function runAccountDeletion(
     // Any tracked media remains fail-closed until its provider can be reached.
     if (
       isRecipePhotoStorageConfigured() ||
-      (await hasTrackedRecipePhotoObjects(externalUserId))
+      (await withDeletionIdentity(externalUserId, () =>
+        hasTrackedRecipePhotoObjects(externalUserId),
+      ))
     ) {
       await eraseRecipePhotoObjects(externalUserId);
     }
     if (claim.stage === "object_storage") {
       if (
-        !(await checkpointAccountDeletion(
-          externalUserId,
-          claim.operationId,
-          "application",
+        !(await withDeletionIdentity(externalUserId, () =>
+          checkpointAccountDeletion(
+            externalUserId,
+            claimedOperationId,
+            "application",
+          ),
         ))
       ) {
         throw new Error(
@@ -236,12 +276,16 @@ export async function runAccountDeletion(
     // storage erasure. It is idempotent, and this preserves fail-closed
     // recovery even if a previous worker recorded a late checkpoint before
     // crashing or if an incomplete legacy operation is resumed.
-    await deleteApplicationData(externalUserId);
+    await withDeletionIdentity(externalUserId, () =>
+      deleteApplicationData(externalUserId),
+    );
     if (
-      !(await checkpointAccountDeletion(
-        externalUserId,
-        claim.operationId,
-        "revenuecat",
+      !(await withDeletionIdentity(externalUserId, () =>
+        checkpointAccountDeletion(
+          externalUserId,
+          claimedOperationId,
+          "revenuecat",
+        ),
       ))
     ) {
       throw new Error(
@@ -250,10 +294,8 @@ export async function runAccountDeletion(
     }
     await deleteRevenueCatSubscriber(externalUserId);
     if (
-      !(await checkpointAccountDeletion(
-        externalUserId,
-        claim.operationId,
-        "auth",
+      !(await withDeletionIdentity(externalUserId, () =>
+        checkpointAccountDeletion(externalUserId, claimedOperationId, "auth"),
       ))
     ) {
       throw new Error(
@@ -266,7 +308,11 @@ export async function runAccountDeletion(
     // A prior worker may have completed Auth removal just before crashing.
     // Supabase's not-found response therefore proves this idempotent stage.
     if (error && (error as { status?: number }).status !== 404) throw error;
-    if (!(await completeAccountDeletion(externalUserId, claim.operationId))) {
+    if (
+      !(await withDeletionIdentity(externalUserId, () =>
+        completeAccountDeletion(externalUserId, claimedOperationId),
+      ))
+    ) {
       throw new Error(
         "Account deletion ownership was lost before finalization.",
       );
@@ -276,9 +322,10 @@ export async function runAccountDeletion(
     // The state helper only mutates a matching operation, so a stale worker
     // cannot overwrite a successor's checkpoint or terminal tombstone.
     if (operationId) {
-      await markAccountDeletionFailed(externalUserId, operationId).catch(
-        () => undefined,
-      );
+      const failedOperationId = operationId;
+      await withDeletionIdentity(externalUserId, () =>
+        markAccountDeletionFailed(externalUserId, failedOperationId),
+      ).catch(() => undefined);
     }
     throw error;
   }
@@ -423,12 +470,10 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   // ── 0. Guard: credentials must be configured ────────────────────────────
   const supabaseAdmin = getSupabaseAdmin();
   if (!supabaseAdmin) {
-    res
-      .status(503)
-      .json({
-        message:
-          "Account deletion is not available right now. Please contact support.",
-      });
+    res.status(503).json({
+      message:
+        "Account deletion is not available right now. Please contact support.",
+    });
     return;
   }
 
@@ -450,11 +495,9 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
     await supabaseAdmin.auth.getUser(token);
 
   if (userError || !userData?.user) {
-    res
-      .status(401)
-      .json({
-        message: "Token is invalid or has expired. Please sign in again.",
-      });
+    res.status(401).json({
+      message: "Token is invalid or has expired. Please sign in again.",
+    });
     return;
   }
 
@@ -466,22 +509,18 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   try {
     const outcome = await runAccountDeletion(userId);
     if (outcome === "in_progress") {
-      res
-        .status(202)
-        .json({
-          message:
-            "Account deletion is already in progress. It will continue securely.",
-        });
+      res.status(202).json({
+        message:
+          "Account deletion is already in progress. It will continue securely.",
+      });
       return;
     }
   } catch (error) {
     req.log.error(safeErrorDetails(error), "Account deletion operation failed");
-    res
-      .status(502)
-      .json({
-        message:
-          "Account deletion failed on the server. Please try again or contact support.",
-      });
+    res.status(502).json({
+      message:
+        "Account deletion failed on the server. Please try again or contact support.",
+    });
     return;
   }
   res.status(200).json({ message: "Account permanently deleted." });
