@@ -429,6 +429,8 @@ function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: Return
   const abortRef = useRef<AbortController | null>(null);
   const finishingRef = useRef(false);
   const mountedRef = useRef(true);
+  const activeAccountIdRef = useRef(session?.user.id ?? null);
+  activeAccountIdRef.current = session?.user.id ?? null;
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -645,7 +647,7 @@ function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: Return
         accountId: session.user.id,
         recipe: saved,
         updateRecipe,
-        isAccountActive: (id) => session.user.id === id,
+        isAccountActive: (id) => mountedRef.current && activeAccountIdRef.current === id,
         force: true,
       }).catch(() => undefined);
       if (usedLocalFallback) {
@@ -3484,7 +3486,7 @@ export default function RecipesScreen() {
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : recipesQuery.data?.browsePoolSize != null ? `${recipesQuery.data.browsePoolSize.toLocaleString()} recipes available to explore` : `${visibleRemote.length + visibleLocal.length} recipes loaded`}</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : recipesQuery.data?.browsePoolSize != null ? `${recipesQuery.data.browsePoolSize.toLocaleString()} recipes in the curated browse cycle` : `${visibleRemote.length + visibleLocal.length} recipes currently loaded`}</Text>
             </View>
             <Feather name="book-open" size={18} color={colors.mutedForeground} />
           </View>

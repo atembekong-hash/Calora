@@ -69,7 +69,7 @@ describe('Create recipe image persistence across session reopens', () => {
     expect(savedRecipe.image).toBe(imageUrl);
     expect(savedRecipe.imageId).toBe(imageId);
     expect(savedRecipe.imageMediaId).toBe(mediaId);
-    expect(firstLifecycleKey).toContain(`recipe-create-reopen-7:url_ready:${imageId}:${mediaId}`);
+    expect(firstLifecycleKey).toContain(`recipe-create-reopen-7:url_ready:accepted:${imageId}:${mediaId}`);
     expect(persistedRecipe).toMatchObject({ imageId, imageMediaId: mediaId, imageStatus: 'url_ready', imageReviewState: 'accepted' });
     expect(persistedRecipe).not.toHaveProperty('image');
     expect(persistedRecipe).not.toHaveProperty('imageUrlExpiresAt');

@@ -443,7 +443,7 @@ export function nextGeneratedRecipeImageCheckDelay(recipes: readonly GeneratedRe
 
 export function generatedRecipeImageLifecycleKey(recipes: readonly GeneratedRecipeImageCandidate[]): string {
   return recipes
-    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? '', recipe.image ?? '', recipe.imageUrlExpiresAt ?? '', recipe.imagePreviewErrorCode ?? '', recipe.imageProvenance ?? ''].join(':'))
+    .map((recipe) => [recipe.id, recipe.imageStatus ?? '', recipe.imageReviewState ?? '', recipe.imageId ?? '', recipe.imageMediaId ?? '', recipe.imageErrorCode ?? '', recipe.imagePreviewErrorCode ?? '', recipe.imageProvenance ?? ''].join(':'))
     .join('|');
 }
 
