@@ -5,6 +5,10 @@ import { ACCOUNT_DELETION_FENCE_ERROR_CLASS } from "./account-deletion-fence-sch
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
 import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
 import { noteRecoveryWarningCooldownStorageUnavailable } from "./logger.js";
+import {
+  currentDatabaseContext,
+  databaseIdentityMode,
+} from "./database-identity.js";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
 export type AccountDeletionStage =
@@ -27,6 +31,10 @@ type AccountTransaction = Parameters<
 >[0];
 type AccountExecutor = CaloraDatabase | AccountTransaction;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
+
+function currentDatabase(): CaloraDatabase {
+  return currentDatabaseContext()?.database ?? db;
+}
 /**
  * Atomically claim a shared recovery-warning cooldown record.
  *
@@ -140,7 +148,7 @@ export async function claimAccountDeletion(
   externalUserId: string,
 ): Promise<AccountDeletionClaim> {
   const fingerprint = identityFingerprint(externalUserId);
-  return db.transaction(async (tx) => {
+  const claim = async (tx: AccountExecutor): Promise<AccountDeletionClaim> => {
     await tx.execute(sql`
       INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
       VALUES (${fingerprint}, 'active')
@@ -180,7 +188,11 @@ export async function claimAccountDeletion(
       WHERE identity_fingerprint = ${fingerprint}
     `);
     return { kind: "claimed", operationId, stage };
-  });
+  };
+  const context = currentDatabaseContext();
+  return context?.inTransaction
+    ? claim(context.database)
+    : db.transaction(claim);
 }
 
 export async function checkpointAccountDeletion(
@@ -189,7 +201,7 @@ export async function checkpointAccountDeletion(
   stage: AccountDeletionStage,
 ): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET stage = ${stage}, updated_at = now(),
         lease_expires_at = now() + (${LEASE_SECONDS} || ' seconds')::interval,
@@ -205,7 +217,7 @@ export async function markAccountDeletionFailed(
   operationId: string,
 ): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET updated_at = now(), last_error = 'retry_required', lease_expires_at = now()
     WHERE identity_fingerprint = ${fingerprint} AND state = 'deleting' AND operation_id = ${operationId}::uuid
@@ -219,7 +231,7 @@ export async function completeAccountDeletion(
   operationId: string,
 ): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET state = 'deleted', completed_at = now(), updated_at = now(),
         operation_id = NULL, recovery_external_user_id = NULL,
@@ -233,21 +245,23 @@ export async function completeAccountDeletion(
 export async function listRecoverableAccountDeletions(): Promise<
   RecoverableAccountDeletion[]
 > {
-  const rows = await db.execute<{
+  const rows = await currentDatabase().execute<{
     recovery_external_user_id: string;
     identity_fingerprint: string;
     stage: AccountDeletionStage;
     requested_at: Date | string | null;
     updated_at: Date | string;
-  }>(sql`
-    SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
-    FROM calora_account_deletion_states
-    WHERE state = 'deleting'
-      AND recovery_external_user_id IS NOT NULL
-      AND (lease_expires_at IS NULL OR lease_expires_at <= now())
-    ORDER BY updated_at ASC
-    LIMIT 25
-  `);
+  }>(
+    databaseIdentityMode() === "staged-rls"
+      ? sql`SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at FROM public.calora_list_recoverable_account_deletions()`
+      : sql`SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
+            FROM calora_account_deletion_states
+            WHERE state = 'deleting'
+              AND recovery_external_user_id IS NOT NULL
+              AND (lease_expires_at IS NULL OR lease_expires_at <= now())
+            ORDER BY updated_at ASC
+            LIMIT 25`,
+  );
   return rows.rows.map((row) => ({
     externalUserId: row.recovery_external_user_id,
     identityFingerprint: row.identity_fingerprint,
