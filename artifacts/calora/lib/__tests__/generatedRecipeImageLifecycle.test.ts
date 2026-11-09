@@ -61,6 +61,16 @@ describe('generated recipe image renewal decision', () => {
     expect(generatedRecipeImageLifecycleKey([ready])).not.toBe(generatedRecipeImageLifecycleKey([generating]));
   });
 
+  it('does not treat signed locator rotation as a lifecycle change', () => {
+    const current = generatedRecipe({ imageStatus: 'url_ready', imageMediaId: 'media-7' });
+    const rotated = {
+      ...current,
+      image: 'https://storage.example/signed-new.png',
+      imageUrlExpiresAt: new Date(NOW + 8 * GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS).toISOString(),
+    };
+    expect(generatedRecipeImageLifecycleKey([rotated])).toBe(generatedRecipeImageLifecycleKey([current]));
+  });
+
   it('classifies newly created local recipes before generated provenance is persisted', () => {
     expect(isGeneratedRecipeImageCandidate(generatedRecipe({
       imageProvenance: undefined,
