@@ -6739,33 +6739,6 @@
       "role": "Learning card books and botanical illustration",
       "owner": "Calora product team",
       "reviewStatus": "reviewed decorative renderer"
-    },
-    {
-      "id": "today-water-food-accent",
-      "path": "artifacts/calora/app/(tabs)/index.tsx",
-      "anchor": "source={FOOD_WIDGET_ART.water}",
-      "classification": "decorative",
-      "role": "Subtle food texture accent on the Today hydration widget",
-      "owner": "Calora product team",
-      "reviewStatus": "reviewed decorative renderer"
-    },
-    {
-      "id": "today-calorie-food-accent",
-      "path": "artifacts/calora/app/(tabs)/index.tsx",
-      "anchor": "source={FOOD_WIDGET_ART.calorie}",
-      "classification": "decorative",
-      "role": "Subtle food texture accent on the Today calorie widget",
-      "owner": "Calora product team",
-      "reviewStatus": "reviewed decorative renderer"
-    },
-    {
-      "id": "more-saved-meals-food-accent",
-      "path": "artifacts/calora/app/(tabs)/more.tsx",
-      "anchor": "source={SAVED_MEALS_ART}",
-      "classification": "decorative",
-      "role": "Saved meals food photograph used as a restrained More-tab card surface",
-      "owner": "Calora product team",
-      "reviewStatus": "reviewed decorative renderer"
     }
   ]
 }

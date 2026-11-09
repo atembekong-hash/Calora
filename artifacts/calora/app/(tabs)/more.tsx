@@ -19,7 +19,6 @@ const PURPLE = "#a477ff";
 const FASTING_ART = require("../../assets/images/more/fasting-avocado-citrus.png");
 const LEARNING_ART = require("../../assets/images/more/learning-books-leaves.png");
 const PRO_ART = require("../../assets/images/more/calora-pro-crown.png");
-const SAVED_MEALS_ART = require("../../assets/images/meals/berry-oats.jpg");
 
 function IconBox({
   color,
@@ -169,23 +168,6 @@ function BottomRow({
   );
 }
 
-function SavedMealsRow({ label = "Saved meals" }: { label?: string }) {
-  const { colors, fontScale, mode } = useCalora();
-  const pageStyles = makeStyles(fontScale, colors, mode);
-  return (
-    <ScalePressable accessibilityRole="button" accessibilityLabel={`Open ${label}`} onPress={() => router.push("/saved-meals")} style={pageStyles.savedMealsRow}>
-      <Image accessible={false} source={SAVED_MEALS_ART} contentFit="cover" style={pageStyles.savedMealsImage} />
-      <View pointerEvents="none" style={pageStyles.savedMealsScrim} />
-      <View style={pageStyles.savedMealsIcon}><Feather name="coffee" size={18} color="#fff" /></View>
-      <View style={pageStyles.savedMealsCopy}>
-        <Text style={pageStyles.savedMealsTitle}>{label}</Text>
-        <Text numberOfLines={1} style={pageStyles.savedMealsSubtitle}>Keep nourishing favorites close</Text>
-      </View>
-      <Feather name="chevron-right" size={21} color="#fff" />
-    </ScalePressable>
-  );
-}
-
 export default function MoreScreen() {
   const { fontScale, colors, mode } = useCalora();
   const pageStyles = makeStyles(fontScale, colors, mode);
@@ -227,7 +209,7 @@ export default function MoreScreen() {
         <CaloraProCard />
         <View style={pageStyles.bottomRows}>
           <BottomRow label="Living Memory" icon="cloud" tint="#c69242" route="/memory" />
-          <SavedMealsRow label="Saved meals" />
+          <BottomRow label="Saved meals" icon="coffee" tint={colors.accentForeground} route="/saved-meals" />
           <BottomRow label="Reminders" icon="bell" tint="#f3b33f" route="/profile?tab=you&open=reminders" />
         </View>
       </ScrollView>
@@ -293,12 +275,5 @@ function makeStyles(scale: number, colors: ReturnType<typeof useCalora>["colors"
     bottomRows: { gap: 10, marginTop: 1 },
     bottomRow: { minHeight: 58, borderRadius: 17, paddingHorizontal: 12, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: dark ? "#142a24" : colors.card, borderWidth: 1, borderColor: dark ? "#2f5448" : colors.border, shadowColor: "#000", shadowOpacity: dark ? 0.14 : 0.04, shadowRadius: 7, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
     bottomRowLabel: { flex: 1, color: colors.foreground, fontSize: 14 * scale, fontWeight: "800" },
-    savedMealsRow: { minHeight: 74, borderRadius: 17, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 12, overflow: "hidden", backgroundColor: dark ? "#244e3d" : "#52785c", position: "relative" },
-    savedMealsImage: { ...StyleSheet.absoluteFillObject, opacity: dark ? 0.48 : 0.72 },
-    savedMealsScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: dark ? "rgba(7,27,20,.68)" : "rgba(18,54,30,.48)" },
-    savedMealsIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.18)", borderWidth: 1, borderColor: "rgba(255,255,255,.3)" },
-    savedMealsCopy: { flex: 1, minWidth: 0 },
-    savedMealsTitle: { color: "#fff", fontSize: 14 * scale, fontWeight: "800" },
-    savedMealsSubtitle: { color: "rgba(255,255,255,.82)", fontSize: 10 * scale, marginTop: 2 },
   });
 }

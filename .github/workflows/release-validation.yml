@@ -56,6 +56,9 @@ jobs:
       - name: Audit required branch checks
         env:
           GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
+          # Owner-approved repository policy currently removes branch protection;
+          # keep this audit read-only and continue validating active workflows.
+          CALORA_ALLOW_UNPROTECTED_BRANCHES: "1"
         run: node scripts/audit-required-checks.mjs
 
       - name: Install dependencies

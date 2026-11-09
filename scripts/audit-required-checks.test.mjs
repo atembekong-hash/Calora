@@ -166,6 +166,31 @@ test("requires the sole-maintainer automated merge protections", () => {
   assert.match(formatAuditReport(complete), /controls are present/);
 });
 
+test("accepts an explicitly owner-approved unprotected mode without disabling workflow auditing", () => {
+  const strict = auditBranchProtection({
+    defaultBranch: "main",
+    requiredContexts: [],
+    activeCheckNames: ["Run release validation suite"],
+    protection: null,
+    requiredSignatures: null,
+  });
+  assert.equal(strict.ok, false);
+  assert.ok(strict.policyIssues.length > 0);
+
+  const approved = auditBranchProtection({
+    defaultBranch: "main",
+    requiredContexts: [],
+    activeCheckNames: ["Run release validation suite"],
+    protection: null,
+    requiredSignatures: null,
+    allowUnprotected: true,
+  });
+  assert.equal(approved.ok, true);
+  assert.deepEqual(approved.policyIssues, []);
+  assert.equal(approved.branchProtectionMode, "intentionally-unprotected");
+  assert.match(formatAuditReport(approved), /owner-approved policy/);
+});
+
 test("audits active branch rulesets against workflow checks and app binding", () => {
   const report = auditBranchRulesets({
     activeCheckNames: collectWorkflowCheckNames([
