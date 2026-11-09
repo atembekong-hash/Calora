@@ -18,14 +18,14 @@ if (expo?.version !== "1.0.1") failures.push("expo.version must be 1.0.1");
 if (expo?.ios?.bundleIdentifier !== "com.etiendem.caloraapp") {
   failures.push("expo.ios.bundleIdentifier is incorrect");
 }
-if (expo?.ios?.buildNumber !== "17") {
-  failures.push("iOS buildNumber must be 17");
+if (expo?.ios?.buildNumber !== "19") {
+  failures.push("iOS buildNumber must be 19");
 }
 if (expo?.android?.package !== "com.etiendem.caloraapp") {
   failures.push("expo.android.package is incorrect");
 }
-if (expo?.android?.versionCode !== 28) {
-  failures.push("Android versionCode must be 28");
+if (expo?.android?.versionCode !== 29) {
+  failures.push("Android versionCode must be 29");
 }
 if (!expo?.android?.permissions?.includes("android.permission.HIGH_SAMPLING_RATE_SENSORS")) {
   failures.push("Android high-rate sensor permission is required for responsive live steps");
