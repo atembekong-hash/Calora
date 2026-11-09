@@ -54,7 +54,7 @@ The disposable rehearsal exercised owner-scoped claim, retry, review, render ack
 
 ## Release boundary
 
-This correction is source-validated but not yet merged or deployed in this report. The protected workflow must run before merge. No native build is needed for the server semantic-hash change; the Recipes wording and account-guard correction are native source changes and require the ordinary authorized native release process if they are to reach installed binaries. No Android/iOS build is authorized by this report.
+The correction was merged through protected PR #429 as `dbf92f41fe0ef1088a4a9e50cf4a0a889e53e8ca`. No Railway deployment or production migration was performed as part of this mission. No native build is needed for the server semantic-hash change; the Recipes wording and account-guard correction are native source changes and require the ordinary authorized native release process if they are to reach installed binaries. No Android/iOS build is authorized by this report.
 
 The web 3,664 count remains an evidence gap. The correct next step is to identify the deployed web client and its API/data source, then compare its claimed total with the API’s explicit finite-pool metadata. Until that evidence exists, launch certification must not treat either number as a global catalogue truth.
 
