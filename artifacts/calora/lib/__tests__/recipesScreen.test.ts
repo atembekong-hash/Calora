@@ -8,6 +8,10 @@ const source = readFileSync(
 );
 
 describe('Recipes Discover layout contracts', () => {
+  it('describes the unfiltered provider pool as a curated browse cycle, not a catalogue total', () => {
+    expect(source).toContain('recipes in the curated browse cycle');
+    expect(source).not.toContain('recipes available to explore');
+  });
   it('keeps adjacent section panes directly under the gesture track', () => {
     expect(source).toContain('testID="recipes-section-content"');
     expect(source).toContain('renderItem={renderRecipeSection}');

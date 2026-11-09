@@ -3,7 +3,8 @@ import { pool } from "@workspace/db";
 
 export const RECIPE_MEDIA_MODEL = "gpt-image-2.5-flare";
 export const RECIPE_MEDIA_MODEL_VERSION = `${RECIPE_MEDIA_MODEL}:low:1024:v1`;
-export const RECIPE_MEDIA_PROMPT_VERSION = "recipe-photo-semantic-v4-ingredient-fidelity";
+export const RECIPE_MEDIA_PROMPT_VERSION =
+  "recipe-photo-semantic-v5-identity-stable-ingredient-fidelity";
 export const RECIPE_MEDIA_URL_TTL_SECS = 60 * 60 * 24 * 6;
 /** Review capabilities are deliberately much shorter than accepted-image locators. */
 export const RECIPE_MEDIA_REVIEW_PREVIEW_URL_TTL_SECS = 15 * 60;
@@ -120,11 +121,12 @@ export function canonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhot
   };
 }
 
-function hashCanonicalRecipePhotoContent(input: RecipePhotoInput): RecipePhotoInput {
+function hashCanonicalRecipePhotoContent(
+  input: RecipePhotoInput,
+): Omit<RecipePhotoInput, "clientRecipeId"> {
   const canonical = canonicalRecipePhotoContent(input);
   const normalize = (value: string | undefined) => value?.toLocaleLowerCase("en-US") || undefined;
   return {
-    clientRecipeId: normalize(canonical.clientRecipeId)!,
     title: normalize(canonical.title)!,
     description: normalize(canonical.description) ?? "",
     ingredients: canonical.ingredients.map((item) => normalize(item)!).filter(Boolean),
@@ -184,6 +186,7 @@ export function recipePhotoIngredientManifest(input: RecipePhotoInput): string[]
  */
 export function buildRecipePhotoPrompt(input: RecipePhotoInput): string {
   const recipe = canonicalRecipePhotoContent(input);
+  const { clientRecipeId: _clientRecipeId, ...semanticRecipe } = recipe;
   const ingredientManifest = recipePhotoIngredientManifest(recipe);
   return [
     "Create one realistic editorial photograph of the completed recipe described in the JSON data below.",
@@ -196,7 +199,7 @@ export function buildRecipePhotoPrompt(input: RecipePhotoInput): string {
     recipePhotoCompositionGuidance(recipe),
     "Use a simple appropriate serving vessel, natural window light, realistic texture, and an overhead three-quarter composition. No people, hands, words, labels, logos, or packaging.",
     `INGREDIENT_MANIFEST_JSON=${JSON.stringify(ingredientManifest)}`,
-    `RECIPE_DATA_JSON=${JSON.stringify(recipe)}`,
+    `RECIPE_DATA_JSON=${JSON.stringify(semanticRecipe)}`,
   ].join("\n");
 }
 
