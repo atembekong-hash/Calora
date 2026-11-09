@@ -520,7 +520,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("import { useClock } from '@/lib/useClock';");
     expect(source).toContain('const now = useClock();');
     expect(source).toContain('const headerPhoto = HOME_HEADER_FOOD_PHOTOS[now.getHours() % HOME_HEADER_FOOD_PHOTOS.length];');
-    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, objectFit: 'cover' }");
+    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', objectFit: 'cover' }");
     expect(source).toContain("homeHeaderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(9, 31, 24, 0.44)' }");
     expect(source).toContain("homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4, transform: [{ translateX: 6 }, { translateY: 2 }] }");
     expect(source).toContain('const WATER_CUP_SCALE = 1.48;');
@@ -706,7 +706,7 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('recipeSection: { marginTop: 4, marginHorizontal: -10 }');
     expect(source).toContain("dashboardGridCell: { flexGrow: 0, flexShrink: 1, flexBasis: '49%', width: '49%', minWidth: 0, maxWidth: '49%' }");
     expect(source).toContain('const useSingleColumnWellness = viewportWidth < 360 || fontScale > 1.22;');
-    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, objectFit: 'cover' }");
+    expect(source).toContain("homeHeaderImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', objectFit: 'cover' }");
     expect(source).toContain("dashboardFastingTrack: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: h(8) }");
   });
 
