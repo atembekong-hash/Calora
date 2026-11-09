@@ -204,6 +204,14 @@ export function auditRequiredChecks(input) {
  */
 export function auditBranchProtection(input) {
   const report = auditRequiredChecks(input);
+  if (!input.protection && input.allowUnprotected === true) {
+    return {
+      ...report,
+      policyIssues: [],
+      branchProtectionMode: "intentionally-unprotected",
+      ok: report.ok,
+    };
+  }
   const policyIssues = [];
   const protection = input.protection || {};
   const statusChecks = protection.required_status_checks;
@@ -426,6 +434,10 @@ export function formatAuditReport(report) {
   if (report.policyIssues?.length) {
     lines.push("Branch-protection policy issues:");
     for (const issue of report.policyIssues) lines.push(`- ${issue}`);
+  } else if (report.branchProtectionMode === "intentionally-unprotected") {
+    lines.push(
+      "Branch protection is intentionally disabled by owner-approved policy; workflow validation remains active.",
+    );
   } else if (report.policyIssues) {
     lines.push("Branch-protection policy controls are present.");
   }
@@ -588,6 +600,7 @@ async function run() {
     activeCheckNames,
     protection: protectionResponse,
     requiredSignatures: requiredSignaturesResponse,
+    allowUnprotected: process.env.CALORA_ALLOW_UNPROTECTED_BRANCHES === "1",
   });
   report.branchRulesetAudit = branchRulesetAudit;
   report.ok = report.ok && branchRulesetAudit.ok;
