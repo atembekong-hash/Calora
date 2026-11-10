@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
-import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
+import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable, type CaloraDatabase } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
@@ -21,6 +21,7 @@ import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -76,45 +77,52 @@ async function persistCaptureSession(
 ): Promise<string | null> {
   if (candidates.length === 0) return null;
   try {
-    const userId = await ensureUserRow(user.id, user.email);
     const sessionId = randomUUID();
-    // Keep the session and its review candidates atomic. A session without
-    // candidates cannot be resumed or safely accepted by the diary sync path,
-    // so a candidate-write failure must roll back the session insert too.
-    await db.transaction(async (tx) => {
-      await tx.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
-      await tx.insert(aiCaptureCandidatesTable).values(
-        candidates.map((candidate) => {
-          const imageEvidence = normalizeImageEvidence(
-            candidate.imageEvidence,
-            user.id,
-            {
-              imageUrl: candidate.imageUrl,
-              imageSource: candidate.imageSource,
-            },
-            { allowExact: true },
-          );
-          // Return exactly the evidence persisted for this authenticated
-          // caller. The account scope is server-issued and cannot be selected
-          // by a client or inferred from a URL.
-          candidate.imageEvidence = imageEvidence ?? undefined;
-          return {
-          sessionId,
-          name: candidate.name,
-          calories: String(candidate.calories),
-          proteinG: String(candidate.proteinG),
-          carbsG: String(candidate.carbsG),
-          fatG: String(candidate.fatG),
-          confidence: candidate.confidence,
-          evidence: {
-            serving: candidate.serving,
-            provenance: candidate.provenance,
-            sourceLabel: candidate.sourceLabel,
-            ...(imageEvidence ? { imageEvidence } : {}),
-          },
-          };
-        }),
-      );
+    await withVerifiedDatabaseIdentity(user.id, async (database, inTransaction) => {
+      const userId = await ensureUserRow(user.id, user.email, database, inTransaction);
+      type CaptureExecutor =
+        | CaloraDatabase
+        | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+      const writeSession = async (executor: CaptureExecutor) => {
+        await executor.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
+        await executor.insert(aiCaptureCandidatesTable).values(
+          candidates.map((candidate) => {
+            const imageEvidence = normalizeImageEvidence(
+              candidate.imageEvidence,
+              user.id,
+              {
+                imageUrl: candidate.imageUrl,
+                imageSource: candidate.imageSource,
+              },
+              { allowExact: true },
+            );
+            // Return exactly the evidence persisted for this authenticated
+            // caller. The account scope is server-issued and cannot be selected
+            // by a client or inferred from a URL.
+            candidate.imageEvidence = imageEvidence ?? undefined;
+            return {
+              sessionId,
+              name: candidate.name,
+              calories: String(candidate.calories),
+              proteinG: String(candidate.proteinG),
+              carbsG: String(candidate.carbsG),
+              fatG: String(candidate.fatG),
+              confidence: candidate.confidence,
+              evidence: {
+                serving: candidate.serving,
+                provenance: candidate.provenance,
+                sourceLabel: candidate.sourceLabel,
+                ...(imageEvidence ? { imageEvidence } : {}),
+              },
+            };
+          }),
+        );
+      };
+      // Keep the session and candidates atomic. In staged mode the verified
+      // outer transaction is already active; legacy mode retains the prior
+      // nested transaction behavior.
+      if (inTransaction) await writeSession(database);
+      else await database.transaction(writeSession);
     });
     return sessionId;
   } catch (err) {
@@ -684,38 +692,36 @@ router.post("/v1/capture/:sessionId/approve", async (req, res) => {
   }
 
   try {
-    const userId = await ensureUserRow(user.id, user.email);
-    const updated = await db
-      .update(aiCaptureSessionsTable)
-      .set({ status: "approved" })
-      .where(and(
-        eq(aiCaptureSessionsTable.id, sessionId),
-        eq(aiCaptureSessionsTable.userId, userId),
-        eq(aiCaptureSessionsTable.status, "review"),
-      ))
-      .returning({ id: aiCaptureSessionsTable.id });
+    const approved = await withVerifiedDatabaseIdentity(user.id, async (database, inTransaction) => {
+      const userId = await ensureUserRow(user.id, user.email, database, inTransaction);
+      const updated = await database
+        .update(aiCaptureSessionsTable)
+        .set({ status: "approved" })
+        .where(and(
+          eq(aiCaptureSessionsTable.id, sessionId),
+          eq(aiCaptureSessionsTable.userId, userId),
+          eq(aiCaptureSessionsTable.status, "review"),
+        ))
+        .returning({ id: aiCaptureSessionsTable.id });
+      if (updated.length > 0) return true;
 
-    if (updated.length > 0) {
+      // Do not reveal whether a session is missing or belongs to another
+      // account. An already-approved session owned by this caller is the only
+      // idempotent success case.
+      const owned = await database
+        .select({ status: aiCaptureSessionsTable.status })
+        .from(aiCaptureSessionsTable)
+        .where(and(
+          eq(aiCaptureSessionsTable.id, sessionId),
+          eq(aiCaptureSessionsTable.userId, userId),
+        ))
+        .limit(1);
+      return owned[0]?.status === "approved";
+    });
+    if (approved) {
       res.status(204).end();
       return;
     }
-
-    // Do not reveal whether a session is missing or belongs to another
-    // account. An already-approved session owned by this caller is the only
-    // idempotent success case.
-    const owned = await db
-      .select({ status: aiCaptureSessionsTable.status })
-      .from(aiCaptureSessionsTable)
-      .where(and(
-        eq(aiCaptureSessionsTable.id, sessionId),
-        eq(aiCaptureSessionsTable.userId, userId),
-      ))
-      .limit(1);
-    if (owned[0]?.status === "approved") {
-      res.status(204).end();
-      return;
-    }
-
     res.status(409).json({ message: "This capture is unavailable or belongs to another account." });
   } catch (error) {
     if (classifyAccountDeletionError(error)) {

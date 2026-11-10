@@ -78,7 +78,7 @@ const {
             return Promise.reject(new Error('sync mutation ledger insert failed'));
           }
           return Promise.resolve({
-            rows: transaction.statements.length === 1 ? [{ status: 'apply' }] : [],
+            rows: [{ status: 'apply' }],
           });
         },
         update: () => ({
@@ -86,6 +86,16 @@ const {
             where: async () => undefined,
           }),
         }),
+        select: () => makeSelectChain(selectResults.shift() ?? []),
+        insert: () => {
+          const chain: Record<string, unknown> = {};
+          const noop = () => chain;
+          for (const m of ['values', 'onConflictDoNothing', 'returning']) {
+            chain[m] = noop;
+          }
+          chain.then = (resolve: (v: unknown[]) => void) => resolve([{ id: 'user-uuid-1' }]);
+          return chain;
+        },
       };
       try {
         const result = await fn(tx);
@@ -338,7 +348,7 @@ describe('POST /v1/sync', () => {
       {
         errorClass: 'account_deletion_fence',
         route: '/v1/sync',
-        count: 2,
+        count: 1,
       },
       'Account deletion fence rejected sync writes',
     );
@@ -441,11 +451,10 @@ describe('POST /v1/sync', () => {
     const mutation = validUpsert({}, randomUUID());
     const res = await request(app).post('/v1/sync').send(body([mutation]));
 
-    expect(res.status).toBe(200);
-    expect(res.body.accepted).toEqual([]);
-    expect(res.body.conflicts).toEqual([
-      { mutationId: mutation.mutationId, reason: 'server_error' },
-    ]);
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Sync is unavailable right now. Please try again later.',
+    });
     expect(transactions).toEqual([
       { statements: expect.any(Array), committed: false },
     ]);
@@ -606,11 +615,10 @@ describe('POST /v1/sync', () => {
     const mutation = validDelete();
     const res = await request(app).post('/v1/sync').send(body([mutation]));
 
-    expect(res.status).toBe(200);
-    expect(res.body.accepted).toEqual([]);
-    expect(res.body.conflicts).toEqual([
-      { mutationId: mutation.mutationId, reason: 'server_error' },
-    ]);
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Sync is unavailable right now. Please try again later.',
+    });
     expect(transactions).toEqual([
       { statements: expect.any(Array), committed: false },
     ]);

@@ -1,15 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
-import {
-  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-} from "./account-deletion-fence-schema.mjs";
+import { db, type CaloraDatabase } from "@workspace/db";
+import { ACCOUNT_DELETION_FENCE_ERROR_CLASS } from "./account-deletion-fence-schema.mjs";
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
 import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
 import { noteRecoveryWarningCooldownStorageUnavailable } from "./logger.js";
+import {
+  currentDatabaseContext,
+  databaseIdentityMode,
+} from "./database-identity.js";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
-export type AccountDeletionStage = "object_storage" | "application" | "revenuecat" | "auth";
+export type AccountDeletionStage =
+  "object_storage" | "application" | "revenuecat" | "auth";
 export type AccountDeletionClaim =
   | { kind: "completed" }
   | { kind: "in_progress" }
@@ -23,7 +26,15 @@ const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 const LEASE_SECONDS = 5 * 60;
 export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
+type AccountTransaction = Parameters<
+  Parameters<CaloraDatabase["transaction"]>[0]
+>[0];
+type AccountExecutor = CaloraDatabase | AccountTransaction;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
+
+function currentDatabase(): CaloraDatabase {
+  return currentDatabaseContext()?.database ?? db;
+}
 /**
  * Atomically claim a shared recovery-warning cooldown record.
  *
@@ -40,7 +51,9 @@ export async function claimRecoveryWarningSuppression(
   warningSignature: string,
   now = new Date(),
 ): Promise<boolean> {
-  const warningKey = createHash("sha256").update(warningSignature).digest("hex");
+  const warningKey = createHash("sha256")
+    .update(warningSignature)
+    .digest("hex");
   const expiresAt = new Date(now.getTime() + RECOVERY_WARNING_COOLDOWN_MS);
 
   try {
@@ -102,9 +115,13 @@ function identityFingerprint(externalUserId: string): string {
  * user row. Account deletion takes the corresponding exclusive lock, so a
  * deletion cannot succeed alongside a newly-created local record.
  */
-export async function assertAccountWritable(externalUserId: string): Promise<void> {
+export async function assertAccountWritable(
+  externalUserId: string,
+  database: AccountExecutor = db,
+  inTransaction = false,
+): Promise<void> {
   const fingerprint = identityFingerprint(externalUserId);
-  await db.transaction(async (tx) => {
+  const check = async (tx: AccountExecutor) => {
     await tx.execute(sql`
       INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
       VALUES (${fingerprint}, 'active')
@@ -119,12 +136,19 @@ export async function assertAccountWritable(externalUserId: string): Promise<voi
     if (result.rows[0]?.state !== "active") {
       throw new AccountDeletionInProgressError();
     }
-  });
+  };
+  if (inTransaction) {
+    await check(database);
+    return;
+  }
+  await database.transaction(async (tx) => check(tx));
 }
 
-export async function claimAccountDeletion(externalUserId: string): Promise<AccountDeletionClaim> {
+export async function claimAccountDeletion(
+  externalUserId: string,
+): Promise<AccountDeletionClaim> {
   const fingerprint = identityFingerprint(externalUserId);
-  return db.transaction(async (tx) => {
+  const claim = async (tx: AccountExecutor): Promise<AccountDeletionClaim> => {
     await tx.execute(sql`
       INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
       VALUES (${fingerprint}, 'active')
@@ -142,7 +166,11 @@ export async function claimAccountDeletion(externalUserId: string): Promise<Acco
     `);
     const row = current.rows[0];
     if (row?.state === "deleted") return { kind: "completed" };
-    if (row?.state === "deleting" && row.lease_expires_at && row.lease_expires_at > new Date()) {
+    if (
+      row?.state === "deleting" &&
+      row.lease_expires_at &&
+      row.lease_expires_at > new Date()
+    ) {
       return { kind: "in_progress" };
     }
     const operationId = randomUUID();
@@ -160,12 +188,20 @@ export async function claimAccountDeletion(externalUserId: string): Promise<Acco
       WHERE identity_fingerprint = ${fingerprint}
     `);
     return { kind: "claimed", operationId, stage };
-  });
+  };
+  const context = currentDatabaseContext();
+  return context?.inTransaction
+    ? claim(context.database)
+    : db.transaction(claim);
 }
 
-export async function checkpointAccountDeletion(externalUserId: string, operationId: string, stage: AccountDeletionStage): Promise<boolean> {
+export async function checkpointAccountDeletion(
+  externalUserId: string,
+  operationId: string,
+  stage: AccountDeletionStage,
+): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET stage = ${stage}, updated_at = now(),
         lease_expires_at = now() + (${LEASE_SECONDS} || ' seconds')::interval,
@@ -176,9 +212,12 @@ export async function checkpointAccountDeletion(externalUserId: string, operatio
   return result.rows.length === 1;
 }
 
-export async function markAccountDeletionFailed(externalUserId: string, operationId: string): Promise<boolean> {
+export async function markAccountDeletionFailed(
+  externalUserId: string,
+  operationId: string,
+): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET updated_at = now(), last_error = 'retry_required', lease_expires_at = now()
     WHERE identity_fingerprint = ${fingerprint} AND state = 'deleting' AND operation_id = ${operationId}::uuid
@@ -187,9 +226,12 @@ export async function markAccountDeletionFailed(externalUserId: string, operatio
   return result.rows.length === 1;
 }
 
-export async function completeAccountDeletion(externalUserId: string, operationId: string): Promise<boolean> {
+export async function completeAccountDeletion(
+  externalUserId: string,
+  operationId: string,
+): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  const result = await db.execute(sql`
+  const result = await currentDatabase().execute(sql`
     UPDATE calora_account_deletion_states
     SET state = 'deleted', completed_at = now(), updated_at = now(),
         operation_id = NULL, recovery_external_user_id = NULL,
@@ -200,22 +242,26 @@ export async function completeAccountDeletion(externalUserId: string, operationI
   return result.rows.length === 1;
 }
 
-export async function listRecoverableAccountDeletions(): Promise<RecoverableAccountDeletion[]> {
-  const rows = await db.execute<{
+export async function listRecoverableAccountDeletions(): Promise<
+  RecoverableAccountDeletion[]
+> {
+  const rows = await currentDatabase().execute<{
     recovery_external_user_id: string;
     identity_fingerprint: string;
     stage: AccountDeletionStage;
     requested_at: Date | string | null;
     updated_at: Date | string;
-  }>(sql`
-    SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
-    FROM calora_account_deletion_states
-    WHERE state = 'deleting'
-      AND recovery_external_user_id IS NOT NULL
-      AND (lease_expires_at IS NULL OR lease_expires_at <= now())
-    ORDER BY updated_at ASC
-    LIMIT 25
-  `);
+  }>(
+    databaseIdentityMode() === "staged-rls"
+      ? sql`SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at FROM public.calora_list_recoverable_account_deletions()`
+      : sql`SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
+            FROM calora_account_deletion_states
+            WHERE state = 'deleting'
+              AND recovery_external_user_id IS NOT NULL
+              AND (lease_expires_at IS NULL OR lease_expires_at <= now())
+            ORDER BY updated_at ASC
+            LIMIT 25`,
+  );
   return rows.rows.map((row) => ({
     externalUserId: row.recovery_external_user_id,
     identityFingerprint: row.identity_fingerprint,

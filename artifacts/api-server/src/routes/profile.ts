@@ -8,15 +8,17 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db, profilesTable, usersTable } from "@workspace/db";
+import { db, profilesTable, usersTable, type CaloraDatabase } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 import {
-  assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
+type ProfileTransaction = Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+type ProfileExecutor = CaloraDatabase | ProfileTransaction;
 const ONBOARDING_CONSENT_VERSION = "calora-onboarding-v1";
 const MINIMUM_COMMERCIAL_AGE = 18;
 const UpdateProfileBody = z.object({
@@ -68,8 +70,8 @@ function serializeProfile(
   };
 }
 
-async function readProfile(userId: string) {
-  const rows = await db
+async function readProfile(userId: string, database: CaloraDatabase = db) {
+  const rows = await database
     .select({
       profile: profilesTable,
       name: usersTable.displayName,
@@ -88,8 +90,10 @@ router.get("/v1/profile", async (req, res): Promise<void> => {
     return;
   }
 
-  const userId = await ensureUserRow(auth.id, auth.email);
-  const row = await readProfile(userId);
+  const row = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+    const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+    return readProfile(userId, database);
+  });
   if (!row) {
     res
       .status(404)
@@ -107,19 +111,6 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
     return;
   }
 
-  try {
-    await assertAccountWritable(auth.id);
-  } catch (error) {
-    if (classifyAccountDeletionError(error)) {
-      res.status(503).json({
-        message:
-          "Profile is unavailable while account deletion is in progress.",
-      });
-      return;
-    }
-    throw error;
-  }
-
   const parsed = UpdateProfileBody.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -128,10 +119,12 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
     return;
   }
 
-  const userId = await ensureUserRow(auth.id, auth.email);
   const now = new Date();
   const input = parsed.data;
-  const profile = await db.transaction(async (tx) => {
+  try {
+    const profile = await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+      const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+      const writeProfile = async (tx: ProfileExecutor) => {
     // Preserve optional fields from a supported older client. New clients send
     // the complete profile snapshot, so this is last-write-wins only within the
     // account-owning profile row — never across accounts.
@@ -223,10 +216,22 @@ router.put("/v1/profile", async (req, res): Promise<void> => {
         )
       `);
     }
-    return saved;
-  });
-
-  res.json(serializeProfile(profile, input.name));
+        return saved;
+      };
+      return inTransaction
+        ? writeProfile(database)
+        : database.transaction(async (tx) => writeProfile(tx));
+    });
+    res.json(serializeProfile(profile, input.name));
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      res.status(503).json({
+        message: "Profile is unavailable while account deletion is in progress.",
+      });
+      return;
+    }
+    throw error;
+  }
 });
 
 /**
@@ -242,25 +247,24 @@ router.delete("/v1/profile", async (req, res): Promise<void> => {
   }
 
   try {
-    await assertAccountWritable(auth.id);
+    await withVerifiedDatabaseIdentity(auth.id, async (database, inTransaction) => {
+      const userId = await ensureUserRow(auth.id, auth.email, database, inTransaction);
+      await database.delete(profilesTable).where(eq(profilesTable.userId, userId));
+      await database
+        .update(usersTable)
+        .set({ displayName: null, updatedAt: new Date() })
+        .where(eq(usersTable.id, userId));
+    });
+    res.status(204).send();
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
       res.status(503).json({
-        message:
-          "Profile is unavailable while account deletion is in progress.",
+        message: "Profile is unavailable while account deletion is in progress.",
       });
       return;
     }
     throw error;
   }
-  const userId = await ensureUserRow(auth.id, auth.email);
-  await db.delete(profilesTable).where(eq(profilesTable.userId, userId));
-  await db
-    .update(usersTable)
-    .set({ displayName: null, updatedAt: new Date() })
-    .where(eq(usersTable.id, userId));
-
-  res.status(204).send();
 });
 
 export default router;

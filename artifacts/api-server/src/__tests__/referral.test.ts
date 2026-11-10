@@ -159,7 +159,7 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     expect(res.body.referredRewarded).toBe(false);
     expect(res.body.referrerRewarded).toBe(false);
     expect(grantPromoDays).not.toHaveBeenCalled();
-    expect(hasSavedDiaryEntry).toHaveBeenCalledWith(USER.id);
+    expect(hasSavedDiaryEntry).toHaveBeenCalledWith(USER.id, expect.anything());
   });
 
   it('grants both sides when the redemption was already qualified by a saved meal', async () => {
