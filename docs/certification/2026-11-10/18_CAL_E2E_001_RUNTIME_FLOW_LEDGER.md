@@ -77,3 +77,14 @@ The following journeys were executed against the deployed web application in the
 - **Persistence verified:** Hydration and mood were reflected in dependent views after route transitions; the saved recipe was present in Saved Recipes. These are genuine local web-runtime persistence observations, not proof of account/cloud synchronization.
 - **Restart/recovery verified:** Route reload/navigation recovery was verified for Today, Hydration, Progress, and Saved Recipes. A process restart, offline interruption, account switch, and authenticated recovery were not executed.
 - **Complete end-to-end certification:** Not yet proven because authenticated backend persistence, cross-device reconciliation, provider-backed flows, and native Android/iOS execution remain unavailable in this session.
+
+
+## Extended recipe-feed execution added 2026-11-10
+
+| Flow ID | Journey | Screen/navigation | Interaction | State/persistence | Outcome |
+|---|---|---|---|---|---|
+| CAL-E2E-WEB-016 | Discover extended pagination | Re-entered deployed Recipes → Discover and scrolled the actual recipe feed through multiple long-scroll positions | Advanced the feed through repeated scroll loads and inspected the rendered DOM after each expansion | 213 recipe-card open controls were rendered; 212 unique titles. The sole duplicate was the already-saved `Salmon quinoa bowl`, rendered once in the saved shelf and once in Explore; no duplicate pagination item was observed. | **PASS for public Discover pagination/dedup evidence** |
+| CAL-E2E-WEB-017 | Discover catalogue boundary | Same extended Discover session | Read the live catalogue metadata after pagination | Runtime displayed `704 recipes in the curated browse cycle`; the scoped count remained stable while the feed expanded. | **PASS for corrected count semantics** |
+| CAL-E2E-WEB-018 | Plus authenticated boundary | Opened the live Plus tab from Recipes and inspected the resulting protected state | Attempted the available sign-in affordance without entering credentials or bypassing guards | Runtime exposed `Plus sources require sign-in`; no authorized authenticated test account/session was available in the isolated browser, so premium recipe loading and persistence were not executed. | **BLOCKED at required authentication boundary; not a Plus defect** |
+
+The extended run did not mutate production data, invoke generation, submit billing, access customer records, start a build, or deploy. The remaining Plus E2E requirement is one owner-authorized authenticated test session (or a non-production test environment) followed by verification of premium loading, save, detail, and recovery behavior.
