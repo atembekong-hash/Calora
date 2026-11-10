@@ -1,5 +1,9 @@
 import { pool } from "@workspace/db";
-import type { PoolClient } from "pg";
+import type { CaloraDatabase } from "@workspace/db";
+import {
+  currentDatabaseContext,
+  type DatabaseQueryExecutor,
+} from "./database-identity.js";
 import { ensureUserRow } from "./user-rows.js";
 
 export type CoachV2Role = "user" | "assistant";
@@ -36,6 +40,13 @@ export type CoachV2Snapshot = {
   };
   recentDaysLogged: number;
   latestWeightKg: number | null;
+  /** Bounded availability signals for app-wide Coach navigation/context. */
+  appSignals?: {
+    savedMeals: number;
+    recipes: number;
+    recentCaptureSessions: number;
+    latestSubscriptionStatus: string | null;
+  };
 };
 
 type ConversationRow = { id: string };
@@ -63,14 +74,24 @@ function toFiniteNumber(value: unknown): number {
 export async function resolveCoachV2User(
   externalId: string,
   email: string | null,
+  database?: CaloraDatabase,
+  inTransaction = false,
 ): Promise<string> {
-  return ensureUserRow(externalId, email);
+  const context = currentDatabaseContext();
+  return ensureUserRow(
+    externalId,
+    email,
+    database ?? context?.database,
+    inTransaction || context?.inTransaction === true,
+  );
 }
 
 export async function getCoachV2Settings(
   userId: string,
 ): Promise<CoachV2Settings> {
-  const result = await pool.query<{ personalization_enabled: boolean }>(
+  const result = await (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+    personalization_enabled: boolean;
+  }>(
     `SELECT personalization_enabled
        FROM calora_coach_v2_settings
       WHERE user_id = $1::uuid`,
@@ -85,7 +106,7 @@ export async function setCoachV2Settings(
   userId: string,
   personalizationEnabled: boolean,
 ): Promise<CoachV2Settings> {
-  await pool.query(
+  await (currentDatabaseContext()?.queryExecutor ?? pool).query(
     `INSERT INTO calora_coach_v2_settings (user_id, personalization_enabled, updated_at)
      VALUES ($1::uuid, $2, NOW())
      ON CONFLICT (user_id) DO UPDATE SET
@@ -97,7 +118,7 @@ export async function setCoachV2Settings(
 }
 
 async function getOrCreateActiveConversation(
-  client: PoolClient,
+  client: DatabaseQueryExecutor,
   userId: string,
 ): Promise<ConversationRow> {
   const existing = await client.query<ConversationRow>(
@@ -154,7 +175,9 @@ function rowsToTurns(rows: TurnRow[]): CoachV2Turn[] {
 export async function getCoachV2Conversation(
   userId: string,
 ): Promise<CoachV2Turn[]> {
-  const result = await pool.query<TurnRow>(
+  const result = await (
+    currentDatabaseContext()?.queryExecutor ?? pool
+  ).query<TurnRow>(
     `SELECT id, user_message, assistant_message, created_at, completed_at
        FROM calora_coach_v2_turns
       WHERE conversation_id = (
@@ -173,7 +196,9 @@ export async function getCoachV2Conversation(
 export async function listCoachV2Conversations(
   userId: string,
 ): Promise<CoachV2ConversationSummary[]> {
-  const result = await pool.query<ConversationSummaryRow>(
+  const result = await (
+    currentDatabaseContext()?.queryExecutor ?? pool
+  ).query<ConversationSummaryRow>(
     `SELECT conversations.id,
             conversations.created_at,
             conversations.updated_at,
@@ -207,7 +232,7 @@ export async function listCoachV2Conversations(
 }
 
 async function lockCoachV2ConversationUser(
-  client: PoolClient,
+  client: DatabaseQueryExecutor,
   userId: string,
 ): Promise<void> {
   await client.query(
@@ -216,13 +241,42 @@ async function lockCoachV2ConversationUser(
   );
 }
 
-export async function startNewCoachV2Conversation(
+async function withCoachMutation<T>(
   userId: string,
-): Promise<boolean> {
+  operation: (executor: DatabaseQueryExecutor) => Promise<T>,
+): Promise<T> {
+  const context = currentDatabaseContext();
+  if (context) {
+    await lockCoachV2ConversationUser(context.queryExecutor, userId);
+    return operation(context.queryExecutor);
+  }
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await lockCoachV2ConversationUser(client, userId);
+    const result = await operation(client);
+    if (
+      result === false ||
+      result === "not_found" ||
+      result === "active_or_pending"
+    ) {
+      await client.query("ROLLBACK");
+      return result;
+    }
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function startNewCoachV2Conversation(
+  userId: string,
+): Promise<boolean> {
+  return withCoachMutation(userId, async (client) => {
     const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
       `SELECT EXISTS (
          SELECT 1
@@ -235,10 +289,7 @@ export async function startNewCoachV2Conversation(
        ) AS has_pending_turn`,
       [userId],
     );
-    if (pendingTurn.rows[0]?.has_pending_turn) {
-      await client.query("ROLLBACK");
-      return false;
-    }
+    if (pendingTurn.rows[0]?.has_pending_turn) return false;
     await client.query(
       `UPDATE calora_coach_v2_conversations AS conversations
           SET archived_at = NOW(), updated_at = NOW()
@@ -250,24 +301,15 @@ export async function startNewCoachV2Conversation(
           )`,
       [userId],
     );
-    await client.query("COMMIT");
     return true;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function openCoachV2Conversation(
   userId: string,
   conversationId: string,
 ): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await lockCoachV2ConversationUser(client, userId);
+  return withCoachMutation(userId, async (client) => {
     const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
       `SELECT EXISTS (
          SELECT 1
@@ -280,20 +322,14 @@ export async function openCoachV2Conversation(
        ) AS has_pending_turn`,
       [userId],
     );
-    if (pendingTurn.rows[0]?.has_pending_turn) {
-      await client.query("ROLLBACK");
-      return false;
-    }
+    if (pendingTurn.rows[0]?.has_pending_turn) return false;
     const selected = await client.query<ConversationRow>(
       `SELECT id FROM calora_coach_v2_conversations
         WHERE id = $1::uuid AND user_id = $2::uuid
         FOR UPDATE`,
       [conversationId, userId],
     );
-    if (!selected.rows[0]) {
-      await client.query("ROLLBACK");
-      return false;
-    }
+    if (!selected.rows[0]) return false;
     await client.query(
       `UPDATE calora_coach_v2_conversations
           SET archived_at = NOW(), updated_at = NOW()
@@ -308,34 +344,18 @@ export async function openCoachV2Conversation(
         WHERE id = $1::uuid AND user_id = $2::uuid`,
       [conversationId, userId],
     );
-    await client.query("COMMIT");
     return true;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export type DeleteCoachV2ConversationResult =
   "deleted" | "not_found" | "active_or_pending";
 
-/**
- * Deletes one archived conversation owned by `userId` and relies on the
- * database foreign-key cascade to remove only that conversation's turns.
- * Active conversations are intentionally not deletable through this saved-chat
- * action, so an in-flight assistant turn cannot be removed underneath the
- * completion worker.
- */
 export async function deleteCoachV2Conversation(
   userId: string,
   conversationId: string,
 ): Promise<DeleteCoachV2ConversationResult> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await lockCoachV2ConversationUser(client, userId);
+  return withCoachMutation(userId, async (client) => {
     const selected = await client.query<{
       id: string;
       archived_at: Date | null;
@@ -347,15 +367,8 @@ export async function deleteCoachV2Conversation(
       [conversationId, userId],
     );
     const conversation = selected.rows[0];
-    if (!conversation) {
-      await client.query("ROLLBACK");
-      return "not_found";
-    }
-    if (conversation.archived_at === null) {
-      await client.query("ROLLBACK");
-      return "active_or_pending";
-    }
-
+    if (!conversation) return "not_found";
+    if (conversation.archived_at === null) return "active_or_pending";
     const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
       `SELECT EXISTS (
          SELECT 1 FROM calora_coach_v2_turns
@@ -364,11 +377,7 @@ export async function deleteCoachV2Conversation(
        ) AS has_pending_turn`,
       [conversationId],
     );
-    if (pendingTurn.rows[0]?.has_pending_turn) {
-      await client.query("ROLLBACK");
-      return "active_or_pending";
-    }
-
+    if (pendingTurn.rows[0]?.has_pending_turn) return "active_or_pending";
     const deleted = await client.query(
       `DELETE FROM calora_coach_v2_conversations
         WHERE id = $1::uuid
@@ -376,25 +385,14 @@ export async function deleteCoachV2Conversation(
           AND archived_at IS NOT NULL`,
       [conversationId, userId],
     );
-    if (deleted.rowCount !== 1) {
-      await client.query("ROLLBACK");
-      return "not_found";
-    }
-    await client.query("COMMIT");
-    return "deleted";
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+    return deleted.rowCount === 1 ? "deleted" : "not_found";
+  });
 }
 
-export async function clearCoachV2Conversation(userId: string): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await lockCoachV2ConversationUser(client, userId);
+export async function clearCoachV2Conversation(
+  userId: string,
+): Promise<boolean> {
+  return withCoachMutation(userId, async (client) => {
     const pendingTurn = await client.query<{ has_pending_turn: boolean }>(
       `SELECT EXISTS (
          SELECT 1
@@ -406,22 +404,13 @@ export async function clearCoachV2Conversation(userId: string): Promise<boolean>
        ) AS has_pending_turn`,
       [userId],
     );
-    if (pendingTurn.rows[0]?.has_pending_turn) {
-      await client.query("ROLLBACK");
-      return false;
-    }
+    if (pendingTurn.rows[0]?.has_pending_turn) return false;
     await client.query(
       `DELETE FROM calora_coach_v2_conversations WHERE user_id = $1::uuid`,
       [userId],
     );
-    await client.query("COMMIT");
     return true;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function startCoachV2Turn(
@@ -432,10 +421,7 @@ export async function startCoachV2Turn(
   conversationId: string;
   history: Array<{ role: CoachV2Role; content: string }>;
 }> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await lockCoachV2ConversationUser(client, userId);
+  return withCoachMutation(userId, async (client) => {
     const conversation = await getOrCreateActiveConversation(client, userId);
     const inserted = await client.query<{ id: string }>(
       `INSERT INTO calora_coach_v2_turns (conversation_id, ordinal, user_message)
@@ -458,7 +444,6 @@ export async function startCoachV2Turn(
         ORDER BY ordinal DESC LIMIT 6`,
       [conversation.id, turnId],
     );
-    await client.query("COMMIT");
     return {
       turnId,
       conversationId: conversation.id,
@@ -470,12 +455,7 @@ export async function startCoachV2Turn(
         { role: "user", content: message },
       ],
     };
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function completeCoachV2Turn(
@@ -483,7 +463,7 @@ export async function completeCoachV2Turn(
   turnId: string,
   message: string,
 ): Promise<boolean> {
-  const result = await pool.query(
+  const result = await (currentDatabaseContext()?.queryExecutor ?? pool).query(
     `UPDATE calora_coach_v2_turns AS turns
         SET assistant_message = $3, completed_at = NOW()
        FROM calora_coach_v2_conversations AS conversations
@@ -505,49 +485,73 @@ export async function buildCoachV2Snapshot(
   // day. Keep an explicit server-day fallback for internal callers and tests.
   const effectiveSnapshotDate =
     snapshotDate ?? new Date().toISOString().slice(0, 10);
-  const [profileResult, todayResult, coverageResult, weightResult] =
-    await Promise.all([
-      pool.query<{
-        goal: string;
-        activity_level: string;
-        diet_preference: string;
-        calorie_target: number;
-      }>(
-        `SELECT goal, activity_level, diet_preference, calorie_target
+  const [
+    profileResult,
+    todayResult,
+    coverageResult,
+    weightResult,
+    appSignalsResult,
+  ] = await Promise.all([
+    (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+      goal: string;
+      activity_level: string;
+      diet_preference: string;
+      calorie_target: number;
+    }>(
+      `SELECT goal, activity_level, diet_preference, calorie_target
          FROM calora_profiles WHERE user_id = $1::uuid LIMIT 1`,
-        [userId],
-      ),
-      pool.query<{
-        calories: unknown;
-        protein_g: unknown;
-        carbs_g: unknown;
-        fat_g: unknown;
-        entries: unknown;
-      }>(
-        `SELECT COALESCE(SUM(calories), 0) AS calories,
+      [userId],
+    ),
+    (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+      calories: unknown;
+      protein_g: unknown;
+      carbs_g: unknown;
+      fat_g: unknown;
+      entries: unknown;
+    }>(
+      `SELECT COALESCE(SUM(calories), 0) AS calories,
               COALESCE(SUM(protein_g), 0) AS protein_g,
               COALESCE(SUM(carbs_g), 0) AS carbs_g,
               COALESCE(SUM(fat_g), 0) AS fat_g,
               COUNT(*) AS entries
          FROM calora_diary_entries
         WHERE user_id = $1::uuid AND entry_date = $2::date`,
-        [userId, effectiveSnapshotDate],
-      ),
-      pool.query<{ days: unknown }>(
-        `SELECT COUNT(DISTINCT entry_date) AS days
+      [userId, effectiveSnapshotDate],
+    ),
+    (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+      days: unknown;
+    }>(
+      `SELECT COUNT(DISTINCT entry_date) AS days
          FROM calora_diary_entries
         WHERE user_id = $1::uuid
           AND entry_date >= $2::date - INTERVAL '6 days'
           AND entry_date <= $2::date`,
-        [userId, effectiveSnapshotDate],
-      ),
-      pool.query<{ weight_kg: unknown }>(
-        `SELECT weight_kg FROM calora_weight_entries
+      [userId, effectiveSnapshotDate],
+    ),
+    (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+      weight_kg: unknown;
+    }>(
+      `SELECT weight_kg FROM calora_weight_entries
         WHERE user_id = $1::uuid
         ORDER BY entry_date DESC, created_at DESC LIMIT 1`,
-        [userId],
-      ),
-    ]);
+      [userId],
+    ),
+    (currentDatabaseContext()?.queryExecutor ?? pool).query<{
+      saved_meals: unknown;
+      recipes: unknown;
+      recent_capture_sessions: unknown;
+      latest_subscription_status: string | null;
+    }>(
+      `SELECT
+           (SELECT COUNT(*) FROM calora_saved_meals WHERE user_id = $1::uuid) AS saved_meals,
+           (SELECT COUNT(*) FROM calora_recipes WHERE user_id = $1::uuid) AS recipes,
+           (SELECT COUNT(*) FROM calora_ai_capture_sessions
+             WHERE user_id = $1::uuid AND created_at >= NOW() - INTERVAL '30 days') AS recent_capture_sessions,
+           (SELECT status FROM calora_subscriptions
+             WHERE user_id = $1::uuid ORDER BY updated_at DESC LIMIT 1) AS latest_subscription_status`,
+      [userId],
+    ),
+  ]);
   const profile = profileResult.rows[0];
   const today = todayResult.rows[0];
   return {
@@ -571,5 +575,16 @@ export async function buildCoachV2Snapshot(
     latestWeightKg: weightResult.rows[0]
       ? toFiniteNumber(weightResult.rows[0].weight_kg)
       : null,
+    appSignals: {
+      savedMeals: Math.trunc(
+        toFiniteNumber(appSignalsResult.rows[0]?.saved_meals),
+      ),
+      recipes: Math.trunc(toFiniteNumber(appSignalsResult.rows[0]?.recipes)),
+      recentCaptureSessions: Math.trunc(
+        toFiniteNumber(appSignalsResult.rows[0]?.recent_capture_sessions),
+      ),
+      latestSubscriptionStatus:
+        appSignalsResult.rows[0]?.latest_subscription_status ?? null,
+    },
   };
 }

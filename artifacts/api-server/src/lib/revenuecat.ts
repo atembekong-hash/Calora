@@ -44,8 +44,12 @@ function revenueCatOrigin(): string {
   } catch {
     throw new RevenueCatProviderError("Configuration");
   }
+  const loopbackTestHttp =
+    process.env.NODE_ENV === "test" &&
+    process.env.CALORA_TEST_REVENUECAT_ALLOW_HTTP_EMULATOR === "true" &&
+    parsed.protocol === "http:";
   if (
-    parsed.protocol !== "https:"
+    !(parsed.protocol === "https:" || loopbackTestHttp)
     || !LOOPBACK_HOSTS.has(parsed.hostname)
     || parsed.username
     || parsed.password
@@ -101,6 +105,7 @@ async function revenueCatRequest(
   operation: string,
   body?: unknown,
   secretApiKeyOverride?: string,
+  idempotencyKey?: string,
 ): Promise<Response> {
   const secretApiKey = secretApiKeyOverride ?? revenueCatConfig().secretApiKey;
   const origin = revenueCatOrigin();
@@ -112,6 +117,7 @@ async function revenueCatRequest(
         Authorization: `Bearer ${secretApiKey}`,
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(idempotencyKey === undefined ? {} : { "Idempotency-Key": idempotencyKey }),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(REVENUECAT_REQUEST_TIMEOUT_MS),
@@ -174,7 +180,7 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
  * Grants `days` of the Pro promotional entitlement to `appUserId`, extending
  * (never truncating) any existing access. Returns the new end time.
  */
-export async function grantPromoDays(appUserId: string, days: number): Promise<Date> {
+export async function grantPromoDays(appUserId: string, days: number, idempotencyKey?: string): Promise<Date> {
   revenueCatConfig();
   const encodedId = encodeURIComponent(appUserId);
 
@@ -198,6 +204,8 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
     "POST",
     "promo grant",
     { end_time_ms: endTimeMs },
+    undefined,
+    idempotencyKey,
   );
   if (!grantRes.ok) {
     // Provider bodies can contain customer identifiers or other diagnostics;

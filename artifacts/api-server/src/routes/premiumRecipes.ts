@@ -5,6 +5,10 @@ import {
   listPremiumRecipes,
   premiumProviderStatus,
 } from "../lib/premiumRecipes";
+import {
+  hasActivePremiumEntitlement,
+  RevenueCatProviderError,
+} from "../lib/revenuecat";
 import { logger, safeErrorDetails } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { checkRateLimit } from "../lib/rate-limit";
@@ -32,7 +36,7 @@ type PremiumAccess =
   | { allowed: true; userId: string }
   | {
       allowed: false;
-      status: 401 | 429 | 503;
+      status: 401 | 403 | 429 | 503;
       message: string;
       retryAfterSecs?: number;
     };
@@ -117,9 +121,35 @@ async function authorizePremiumAccess(
       retryAfterSecs: deniedRate.retryAfterSecs,
     };
   }
-  // Plus recipes are a signed-in Calora benefit. Billing/RevenueCat remains
-  // authoritative for subscription-specific features, but must never prevent
-  // an authenticated person from browsing this recipe catalogue.
+
+  try {
+    if (!(await hasActivePremiumEntitlement(user.id))) {
+      return {
+        allowed: false,
+        status: 403,
+        message: "An active Calora Pro subscription is required for Plus recipes.",
+      };
+    }
+  } catch (error) {
+    if (error instanceof RevenueCatProviderError) {
+      logger.warn(
+        { errorClass: "revenuecat_entitlement_unavailable", route },
+        "Premium recipe entitlement verification unavailable",
+      );
+    } else {
+      logger.warn(
+        safeErrorDetails(error),
+        "Premium recipe entitlement verification failed",
+      );
+    }
+    return {
+      allowed: false,
+      status: 503,
+      message:
+        "Premium recipes are temporarily unavailable. Please try again shortly.",
+    };
+  }
+
   return { allowed: true, userId: user.id };
 }
 

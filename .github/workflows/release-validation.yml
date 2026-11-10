@@ -133,6 +133,9 @@ jobs:
           RELEASE_SENSITIVE_ACTIVATION_COMMIT: ""
         run: pnpm --filter @workspace/api-server run build
 
+      - name: Verify recipe-media source and artifact parity
+        run: pnpm --filter @workspace/api-server run verify:recipe-media-artifact
+
       - name: Build Calora production static artifact
         env:
           EXPO_PUBLIC_DOMAIN: mycaloraapp.com

@@ -51,6 +51,13 @@ describe("recipe media semantic contract", () => {
     expect(hash).not.toBe(priorPromptVersionHash);
   });
 
+  it("keeps the same semantic dish hash when only the local recipe identity changes", () => {
+    expect(recipePhotoContentHash({ ...INPUT, clientRecipeId: "another-device-id" })).toBe(
+      recipePhotoContentHash(INPUT),
+    );
+    expect(buildRecipePhotoPrompt(INPUT)).not.toContain(INPUT.clientRecipeId);
+  });
+
   it("includes every semantic field and explicit dietary exclusions as inert JSON data", () => {
     const prompt = buildRecipePhotoPrompt(INPUT);
     for (const expected of [INPUT.title, "tofu", "Bake the tofu", "Fusion", "Dinner bowl", "Vegan", "Chickenless"]) {

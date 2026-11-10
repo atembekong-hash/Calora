@@ -303,7 +303,7 @@ describe("AI recipe creation endpoints", () => {
     expect(reviewSql).toContain("semantic_review_state = 'needs_review'");
   });
 
-  it("applies the same account photo quota to a retry before claiming or generating new pixels", async () => {
+  it("claims a retry before applying the account photo quota, without generating new pixels when limited", async () => {
     checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 600 });
 
     const response = await request(app)
@@ -312,7 +312,9 @@ describe("AI recipe creation endpoints", () => {
 
     expect(response.status).toBe(429);
     expect(response.headers["retry-after"]).toBe("600");
-    expect(photoMediaQuery).not.toHaveBeenCalled();
+    expect(photoMediaQuery).toHaveBeenCalledTimes(2);
+    expect(String(photoMediaQuery.mock.calls[0]?.[0])).toContain("status = 'generating'");
+    expect(String(photoMediaQuery.mock.calls[1]?.[0])).toContain("status = 'retryable_error'");
     expect(mockOpenAiImageGenerate).not.toHaveBeenCalled();
     expect(checkRateLimit).toHaveBeenCalledWith(
       `recipes-photo:user:${USER.id}`,

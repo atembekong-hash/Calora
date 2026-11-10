@@ -2,6 +2,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  bigint,
   check,
   date,
   doublePrecision,
@@ -193,6 +194,15 @@ export const savedMealsTable = pgTable("calora_saved_meals", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+export const savedStateSyncTable = pgTable("calora_saved_state_sync", {
+  userId: uuid("user_id").primaryKey().references(() => usersTable.id, { onDelete: "cascade" }),
+  savedMeals: jsonb("saved_meals").$type<Record<string, unknown>[]>().default([]).notNull(),
+  savedRecipeIds: jsonb("saved_recipe_ids").$type<string[]>().default([]).notNull(),
+  deletedMealIds: jsonb("deleted_meal_ids").$type<string[]>().default([]).notNull(),
+  deletedRecipeIds: jsonb("deleted_recipe_ids").$type<string[]>().default([]).notNull(),
+  clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const recipesTable = pgTable("calora_recipes", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -310,9 +320,26 @@ export const subscriptionsTable = pgTable("calora_subscriptions", {
   entitlement: text("entitlement").notNull(),
   status: text("status").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+  lastEventTimestampMs: bigint("last_event_timestamp_ms", { mode: "number" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   userProductIndex: uniqueIndex("calora_subscription_user_product_idx").on(table.userId, table.productId),
+}));
+
+export const revenueCatWebhookEventsTable = pgTable("calora_revenuecat_webhook_events", {
+  eventId: text("event_id").primaryKey(),
+  appUserId: text("app_user_id"),
+  eventType: text("event_type").notNull(),
+  eventTimestampMs: bigint("event_timestamp_ms", { mode: "number" }),
+  environment: text("environment"),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  status: text("status").notNull(),
+  error: text("error"),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (table) => ({
+  userReceivedIndex: index("calora_revenuecat_webhook_events_user_received_idx").on(table.appUserId, table.receivedAt),
+  statusReceivedIndex: index("calora_revenuecat_webhook_events_status_received_idx").on(table.status, table.receivedAt),
 }));
 
 /**
@@ -349,6 +376,27 @@ export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   referredIndex: uniqueIndex("calora_referral_redemptions_referred_idx").on(table.referredUserId),
+}));
+
+/**
+ * Staged-only provider grant state. The table is intentionally created by the
+ * Mission 422 artifact, not by the normal auto-applied migration directory.
+ */
+export const referralRewardAttemptsTable = pgTable("calora_referral_reward_attempts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  redemptionId: uuid("redemption_id").notNull().references(() => referralRedemptionsTable.id, { onDelete: "cascade" }),
+  side: text("side").notNull(), // referred | referrer
+  attemptKey: uuid("attempt_key").defaultRandom().notNull(),
+  state: text("state").notNull().default("processing"), // processing | retry | granted
+  leaseUntil: timestamp("lease_until", { withTimezone: true }).notNull(),
+  providerGrantedAt: timestamp("provider_granted_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  reconciliationRequired: boolean("reconciliation_required").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  redemptionSideIndex: uniqueIndex("calora_referral_reward_attempts_redemption_side_idx").on(table.redemptionId, table.side),
+  attemptKeyIndex: uniqueIndex("calora_referral_reward_attempts_attempt_key_idx").on(table.attemptKey),
 }));
 
 export const syncMutationsTable = pgTable("calora_sync_mutations", {
@@ -609,6 +657,7 @@ export const insertFoodItemSchema = createInsertSchema(foodItemsTable);
 export const insertDiaryEntrySchema = createInsertSchema(diaryEntriesTable);
 export const insertWeightEntrySchema = createInsertSchema(weightEntriesTable);
 export const insertSavedMealSchema = createInsertSchema(savedMealsTable);
+export const insertSavedStateSyncSchema = createInsertSchema(savedStateSyncTable);
 export const insertRecipeSchema = createInsertSchema(recipesTable);
 export const insertRecipeMediaSchema = createInsertSchema(recipeMediaTable);
 export const insertRecipeItemSchema = createInsertSchema(recipeItemsTable);
@@ -688,6 +737,7 @@ export type RecipeItem = typeof recipeItemsTable.$inferSelect;
 export type AiCaptureSession = typeof aiCaptureSessionsTable.$inferSelect;
 export type AiCaptureCandidate = typeof aiCaptureCandidatesTable.$inferSelect;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
+export type RevenueCatWebhookEvent = typeof revenueCatWebhookEventsTable.$inferSelect;
 export type SyncMutation = typeof syncMutationsTable.$inferSelect;
 export type ConsentEvent = typeof consentEventsTable.$inferSelect;
 export type PrivacyRightsRequest = typeof privacyRightsRequestsTable.$inferSelect;

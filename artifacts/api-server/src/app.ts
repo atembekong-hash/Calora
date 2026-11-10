@@ -9,6 +9,7 @@ import router from "./routes";
 import universalLinksRouter from "./routes/universal-links";
 import publicPagesRouter from "./routes/public-pages";
 import adminRouter from "./routes/admin";
+import revenueCatWebhookRouter from "./routes/revenuecatWebhook";
 import { logger, safeErrorDetails } from "./lib/logger";
 import { isCorsOriginAllowed } from "./lib/cors-policy";
 import { HealthCheckResponse } from "@workspace/api-zod";
@@ -71,6 +72,12 @@ app.use(
     },
   }),
 );
+// RevenueCat HMAC signs the exact raw JSON bytes. Preserve them before the
+// global parser so verification cannot be bypassed by re-serialization.
+app.use(
+  "/api/v1/webhooks/revenuecat",
+  express.raw({ type: "application/json", limit: "1mb" }),
+);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -95,6 +102,7 @@ app.use(publicPagesRouter);
 app.use("/api/legal", publicPagesRouter);
 
 app.use("/api", router);
+app.use("/api", revenueCatWebhookRouter);
 
 const handleUnhandledRequestError: ErrorRequestHandler = (
   err,
@@ -108,7 +116,9 @@ const handleUnhandledRequestError: ErrorRequestHandler = (
     return;
   }
   if (isSupabaseVerifierError(err)) {
-    res.status(503).json({ message: "Authentication service is temporarily unavailable." });
+    res
+      .status(503)
+      .json({ message: "Authentication service is temporarily unavailable." });
     return;
   }
   res.status(500).json({ message: "An unexpected server error occurred." });
