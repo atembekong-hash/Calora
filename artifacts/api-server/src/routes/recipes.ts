@@ -42,6 +42,7 @@ import {
   findOwnerRecipeMedia,
   isRecipeMediaUuid,
   listOwnerRecipeMedia,
+  markRecipeMediaError,
   parseRecipePhotoInput,
   retryOwnerRecipeMedia,
   setOwnerRecipeMediaReview,
@@ -693,45 +694,6 @@ router.post("/v1/recipes/photo", async (req, res) => {
         "A stable recipe ID, title, ingredients, and instructions are required before creating its photo.",
     });
 
-  let rate;
-  try {
-    rate = await checkRateLimit(
-      `recipes-photo:user:${user.id}`,
-      RECIPE_PHOTO_RATE_LIMIT,
-      RECIPE_GEN_RATE_WINDOW_SECS,
-      { failClosed: true, rethrowAccountDeletionFence: true },
-    );
-  } catch (error) {
-    if (classifyAccountDeletionError(error)) {
-      logger.warn(
-        accountDeletionFenceSignal("/v1/recipes/photo"),
-        "Account deletion fence rejected recipe photo request",
-      );
-      return res
-        .status(503)
-        .json({
-          code: "account_unavailable",
-          retryable: true,
-          message:
-            "Recipe photo generation is temporarily unavailable. Please try again shortly.",
-        });
-    }
-    throw error;
-  }
-  if (!rate.allowed) {
-    res.setHeader("Retry-After", String(rate.retryAfterSecs));
-    return res.status(rate.degraded ? 503 : 429).json({
-      code: rate.degraded
-        ? "recipe_photo_temporarily_unavailable"
-        : "recipe_photo_rate_limited",
-      retryable: true,
-      message: rate.degraded
-        ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
-        : "You’ve reached the recipe photo limit. Please try again later.",
-      retryAfterSecs: rate.retryAfterSecs,
-    });
-  }
-
   try {
     await withRecipePhotoDeletionReadLock(user.id, async () => {
       const claim = await withRecipeIdentity(user.id, (executor) =>
@@ -743,6 +705,34 @@ router.post("/v1/recipes/photo", async (req, res) => {
           return;
         }
         res.status(202).json(toRecipeMediaResource(claim.row));
+        return;
+      }
+      let rate;
+      try {
+        rate = await checkRateLimit(
+          `recipes-photo:user:${user.id}`,
+          RECIPE_PHOTO_RATE_LIMIT,
+          RECIPE_GEN_RATE_WINDOW_SECS,
+          { failClosed: true, rethrowAccountDeletionFence: true },
+        );
+      } catch (error) {
+        if (classifyAccountDeletionError(error)) {
+          logger.warn(accountDeletionFenceSignal("/v1/recipes/photo"), "Account deletion fence rejected recipe photo request");
+          await markRecipeMediaError(user.id, claim.row.id, "account_unavailable", claim.row.attempts);
+          res.status(503).json({ code: "account_unavailable", retryable: true, message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+          return;
+        }
+        throw error;
+      }
+      if (!rate.allowed) {
+        await markRecipeMediaError(user.id, claim.row.id, rate.degraded ? "rate_limiter_unavailable" : "rate_limited", claim.row.attempts);
+        res.setHeader("Retry-After", String(rate.retryAfterSecs));
+        res.status(rate.degraded ? 503 : 429).json({
+          code: rate.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+          retryable: true,
+          message: rate.degraded ? "Recipe photo generation is temporarily unavailable. Please try again shortly." : "You’ve reached the recipe photo limit. Please try again later.",
+          retryAfterSecs: rate.retryAfterSecs,
+        });
         return;
       }
       res

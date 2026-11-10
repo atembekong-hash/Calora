@@ -22,6 +22,7 @@ test("release validation preserves the required job and emits an attested same-S
   assert.match(release, /node scripts\/ci\/validate-eas-native-profiles\.mjs artifacts\/calora\/eas\.json/);
   assert.match(release, /node scripts\/verify-db-source-provenance\.mjs/);
   assert.match(release, /pnpm run test:ci/);
+  assert.match(release, /Build API production artifact[\s\S]*?Verify recipe-media source and artifact parity[\s\S]*?pnpm --filter @workspace\/api-server run verify:recipe-media-artifact/);
   assert.match(release, /name: Attest release validation gate/);
   assert.match(release, /needs: release-validation/);
   assert.match(release, /id-token: write/);

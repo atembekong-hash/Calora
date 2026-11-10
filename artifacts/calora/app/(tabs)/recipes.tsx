@@ -23,10 +23,10 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { RecipeAiNutritionWidget } from '@/components/RecipeAiNutritionWidget';
 import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing';
-import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing';
+import { formatRecipePortions, nextRecipePortions, recipePortionLabel, scaleRecipeIngredients, sourceRecipeYield } from '@/lib/recipeServing';
 import { SwipeGestureExclusion, SwipeMenuHighlight, SwipeMenuHighlightProvider, SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
-import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
+import { isEditablePersonalRecipe, recipeProvenance } from '@/lib/recipeModel';
 import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
@@ -293,15 +293,13 @@ function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe;
   const estimated = recipeProvenance(recipe).nutritionConfidence === 'estimated';
   // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
   // the user knows it is approximate. Local recipes have user-entered values.
-  const nutrition = isFiniteNutritionValue(recipe.calories) ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}` : recipeNutritionLabel(recipe);
+  const nutrition = isFiniteNutritionValue(recipe.calories) ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}` : null;
   return (
     <View style={[styles.recipeMeta, compact && styles.compactRecipeMeta]}>
       <Text
         style={[
           styles.recipeKcal,
-          {
-            color: isFiniteNutritionValue(recipe.calories) ? colors.foreground : colors.warning,
-          },
+          { color: colors.foreground },
         ]}
       >
         {nutrition}
@@ -1507,8 +1505,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const saveBrowseRecipeAsMeal = useCallback((candidate: BrowseRecipe) => {
     const meal = recipeSavedMealInput(candidate);
     if (!meal) return;
-    saveMeal(meal);
-    Alert.alert('Meal saved', `${candidate.name} is ready to log from Saved meals.`);
+    const saved = saveMeal(meal);
+    Alert.alert(saved ? 'Meal saved' : 'Already saved', saved ? `${candidate.name} is ready to log from Saved meals.` : `${candidate.name} is already available in Saved meals.`);
   }, [saveMeal]);
   const savedMealForRecipe = (candidate: BrowseRecipe) => {
     const meal = recipeSavedMealInput(candidate);
@@ -1690,6 +1688,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const scaledFat = isFiniteNutritionValue(detail.fatG) ? detail.fatG * servingCount : null;
   const nutritionIncomplete = nutritionState === 'available' && !hasCompleteNutrition(detail);
   const sourceYield = sourceRecipeYield(detail);
+  const scaledIngredients = useMemo(() => scaleRecipeIngredients(detail.ingredients ?? [], servingCount, sourceYield), [detail.ingredients, servingCount, sourceYield]);
   const servingLabel = formatRecipePortions(servingCount);
   const diaryNutrition = scaleRecipeNutritionForDiary(detail, diaryServings);
 
@@ -1777,7 +1776,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
 
   // --- Feature 4: shopping list ---
   const addToShoppingList = () => {
-    const ingredients = detail.ingredients?.filter((_, i) => selectedIngredients.has(i)) ?? [];
+    const ingredients = scaledIngredients.filter((_, i) => selectedIngredients.has(i)).map((ingredient) => ingredient.text);
     // Always close the sheet — even if the detail query is mid-refetch and
     // ingredients is temporarily empty. Dropping the early-return guard here
     // prevents the modal from getting stuck open when React Query refetches
@@ -1830,7 +1829,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
       proteinG,
       carbsG,
       fatG,
-      ingredients: detail.ingredients ?? [],
+      ingredients: scaledIngredients.map((ingredient) => ingredient.text),
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
     };
@@ -1910,8 +1909,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                 disabled={!canLog}
                 onPress={() => {
                   if (!canLog || scaledKcal === null || scaledProtein === null || scaledCarbs === null || scaledFat === null) return;
-                  saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat, mealType: normalizeSavedMealType(recipeMealType(detail)) });
-                  Alert.alert('Meal saved', `${detail.name} is ready to log from Saved meals.`);
+                  const saved = saveMeal({ name: detail.name, kind: 'recipe', foodIds: [detail.id], calories: scaledKcal, protein: scaledProtein, carbs: scaledCarbs, fat: scaledFat, mealType: normalizeSavedMealType(recipeMealType(detail)) });
+                  Alert.alert(saved ? 'Meal saved' : 'Already saved', saved ? `${detail.name} is ready to log from Saved meals.` : `${detail.name} is already available in Saved meals.`);
                 }}
                 style={[styles.closeButton, { backgroundColor: colors.muted, opacity: canLog ? 1 : 0.45 }]}
               >
@@ -2016,7 +2015,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                   </Pressable>
                 </View>
               </View>
-              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{sourceYield ? `Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}. Ingredient quantities are listed as supplied; adjust them for your portions.` : 'Source recipe yield is unavailable. Ingredient quantities are listed as supplied; adjust them for your portions.'}</Text>
+              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{sourceYield ? `${scaledIngredients.some((ingredient) => !ingredient.scaled) ? 'Quantities that could be parsed are scaled; other text remains as supplied. ' : ''}Source recipe makes ${formatRecipePortions(sourceYield)} ${recipePortionLabel(sourceYield)}.` : 'Source recipe yield is unavailable, so ingredient quantities remain as supplied.'}</Text>
 
               {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
               {detail.prepMinutes || (detail as CaloraRecipe).servings || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType ? (
@@ -2258,10 +2257,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                       <Text style={[styles.shopActionText, { color: colors.primary }]}>Add to list</Text>
                     </Pressable>
                   </View>
-                  {detail.ingredients.map((ingredient, idx) => (
+                  {scaledIngredients.map((ingredient, idx) => (
                     <View key={idx} style={styles.ingredientRow}>
                       <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
-                      <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text>
+                      <Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient.text}</Text>
                     </View>
                   ))}
                 </>
@@ -2648,10 +2647,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
               maxHeight on ScrollView grows to full content on web, pushing
               Add/Cancel buttons past the planSheet's clipping boundary. */}
         <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-          {detail.ingredients?.map((ingredient, idx) => (
+          {scaledIngredients.map((ingredient, idx) => (
             <Pressable
               key={idx}
-              accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
+              accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient.text}`}
               onPress={() =>
                 setSelectedIngredients((prev) => {
                   const next = new Set(prev);
@@ -2673,7 +2672,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
               >
                 {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
               </View>
-              <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
+              <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient.text}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -2919,8 +2918,8 @@ export default function RecipesScreen() {
   const saveRecipeAsMeal = useCallback((recipe: BrowseRecipe) => {
     const meal = recipeSavedMealInput(recipe);
     if (!meal) return;
-    saveMeal(meal);
-    Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
+    const saved = saveMeal(meal);
+    Alert.alert(saved ? 'Meal saved' : 'Already saved', saved ? `${recipe.name} is ready to log from Saved meals.` : `${recipe.name} is already available in Saved meals.`);
   }, [saveMeal]);
   const savedMealForRecipe = useCallback((recipe: BrowseRecipe) => {
     const meal = recipeSavedMealInput(recipe);

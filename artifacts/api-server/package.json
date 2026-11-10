@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
+    "verify:recipe-media-artifact": "node ../../scripts/verify-recipe-media-artifact-parity.mjs",
     "verify:release": "node ../../scripts/verify-api-release.mjs",
     "verify:release-identity": "node ../../scripts/verify-api-runtime-identity.mjs",
     "verify:public-release": "node ./scripts/verify-public-release.mjs",
