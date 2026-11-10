@@ -126,15 +126,16 @@ export type RepeatPattern = {
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 
-type ServingUnit = 'packet' | 'sachet' | 'g' | 'ml' | 'serving';
+type ServingUnit = 'packet' | 'sachet' | 'g' | 'ml' | 'fl_oz' | 'serving';
 
 const normalizeServingUnit = (value: string | null | undefined): ServingUnit | undefined => {
-  const unit = value?.trim().toLowerCase();
+  const unit = value?.trim().toLowerCase().replace(/\s+/g, ' ');
   if (!unit) return undefined;
   if (unit === 'packet' || unit === 'packets') return 'packet';
   if (unit === 'sachet' || unit === 'sachets') return 'sachet';
   if (unit === 'g' || unit === 'gram' || unit === 'grams') return 'g';
   if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') return 'ml';
+  if (unit === 'fl oz' || unit === 'floz' || unit === 'fluid ounce' || unit === 'fluid ounces') return 'fl_oz';
   if (unit === 'serving' || unit === 'servings') return 'serving';
   return undefined;
 };
@@ -147,19 +148,19 @@ export type ServingInputResult =
 export function parseServingInput(value: string, component: Pick<FoodMemoryComponent, 'nutritionBasis' | 'servingUnit' | 'servingWeightG'>): ServingInputResult {
   const input = value.trim();
   if (!input) return { valid: false, error: 'Enter a quantity before adding this meal.' };
-  const match = input.match(/^([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]+)?(?:\s|$)/);
+  const match = input.match(/^([0-9]+(?:[.,][0-9]+)?)\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)?(?:\s|$)/i);
   if (!match) return { valid: false, error: 'Enter a quantity such as 9.4 g or 2 servings.' };
   const quantity = Number(match[1].replace(',', '.'));
   if (!Number.isFinite(quantity) || quantity <= 0) return { valid: false, error: 'Quantity must be greater than zero.' };
   if (quantity > 10000) return { valid: false, error: 'Quantity is too large to verify.' };
   const explicitUnit = match[2] ? normalizeServingUnit(match[2]) : undefined;
-  if (match[2] && !explicitUnit) return { valid: false, error: 'Use a supported unit such as g, ml, packet, or serving.' };
+  if (match[2] && !explicitUnit) return { valid: false, error: 'Use a supported unit such as g, ml, fl oz, packet, or serving.' };
   const unit = explicitUnit
     ?? normalizeServingUnit(component.servingUnit)
     ?? (component.nutritionBasis === 'per_100g' ? 'g' : component.nutritionBasis === 'per_100ml' ? 'ml' : undefined);
   if (!unit) return { valid: false, error: 'Include a supported unit so the quantity can be calculated.' };
-  if (component.nutritionBasis === 'per_100g' && unit === 'ml') return { valid: false, error: 'This food is measured by weight; enter grams or a known packet size.' };
-  if (component.nutritionBasis === 'per_100ml' && unit !== 'ml') return { valid: false, error: 'This food is measured by volume; enter milliliters.' };
+  if (component.nutritionBasis === 'per_100g' && (unit === 'ml' || unit === 'fl_oz')) return { valid: false, error: 'This food is measured by weight; enter grams or a known packet size.' };
+  if (component.nutritionBasis === 'per_100ml' && unit !== 'ml' && unit !== 'fl_oz') return { valid: false, error: 'This food is measured by volume; enter milliliters or fl oz.' };
   if (component.nutritionBasis === 'per_100g' && (unit === 'packet' || unit === 'sachet') && !(component.servingWeightG && component.servingWeightG > 0)) {
     return { valid: false, error: 'This packet has no verified weight. Enter grams instead.' };
   }
@@ -192,7 +193,10 @@ export function nutritionMultiplierForComponent(component: Pick<FoodMemoryCompon
     const totalWeight = component.servingUnit === 'g' ? component.servingWeightG : component.servingWeightG * (component.servingQuantity || 1);
     return totalWeight / 100;
   }
-  if (component.nutritionBasis === 'per_100ml' && component.servingQuantity) return component.servingQuantity / 100;
+  if (component.nutritionBasis === 'per_100ml' && component.servingQuantity) {
+    const milliliters = component.servingUnit === 'fl_oz' ? component.servingQuantity * 29.5735 : component.servingQuantity;
+    return milliliters / 100;
+  }
   if (component.nutritionBasis === 'per_serving' && component.servingQuantity) return component.servingQuantity;
   return 1;
 }
