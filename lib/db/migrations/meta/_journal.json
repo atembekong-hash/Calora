@@ -141,6 +141,13 @@
       "when": 1791440640000,
       "tag": "0020_privacy_rights_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791444240000,
+      "tag": "0021_saved_state_sync",
+      "breakpoints": true
     }
   ]
 }

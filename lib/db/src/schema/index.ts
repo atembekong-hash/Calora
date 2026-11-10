@@ -194,6 +194,15 @@ export const savedMealsTable = pgTable("calora_saved_meals", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+export const savedStateSyncTable = pgTable("calora_saved_state_sync", {
+  userId: uuid("user_id").primaryKey().references(() => usersTable.id, { onDelete: "cascade" }),
+  savedMeals: jsonb("saved_meals").$type<Record<string, unknown>[]>().default([]).notNull(),
+  savedRecipeIds: jsonb("saved_recipe_ids").$type<string[]>().default([]).notNull(),
+  deletedMealIds: jsonb("deleted_meal_ids").$type<string[]>().default([]).notNull(),
+  deletedRecipeIds: jsonb("deleted_recipe_ids").$type<string[]>().default([]).notNull(),
+  clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const recipesTable = pgTable("calora_recipes", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -648,6 +657,7 @@ export const insertFoodItemSchema = createInsertSchema(foodItemsTable);
 export const insertDiaryEntrySchema = createInsertSchema(diaryEntriesTable);
 export const insertWeightEntrySchema = createInsertSchema(weightEntriesTable);
 export const insertSavedMealSchema = createInsertSchema(savedMealsTable);
+export const insertSavedStateSyncSchema = createInsertSchema(savedStateSyncTable);
 export const insertRecipeSchema = createInsertSchema(recipesTable);
 export const insertRecipeMediaSchema = createInsertSchema(recipeMediaTable);
 export const insertRecipeItemSchema = createInsertSchema(recipeItemsTable);

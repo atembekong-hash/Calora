@@ -496,6 +496,7 @@ type CaloraContextValue = {
   setDiarySyncState: (state: Exclude<SyncState, 'offline'>) => void;
   pendingMutations: OutboxMutation[];
   applySyncedDiaryLogs: (logs: FoodLog[]) => void;
+  applySyncedSavedState: (savedMeals: SavedMeal[], savedRecipeIds: string[]) => void;
   healthConnected: boolean;
   healthConnection: HealthConnection;
   /** Foreground live-motion overlay; not separately persisted or synced. */
@@ -2291,6 +2292,13 @@ export function CaloraProvider({
         activityLogs,
         plannerMeals,
       })));
+    },
+    applySyncedSavedState: (nextSavedMeals, nextSavedRecipeIds) => {
+      const meals = nextSavedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' }));
+      updateExportField('savedMeals', () => meals);
+      updateExportField('savedRecipeIds', () => [...new Set(nextSavedRecipeIds)]);
+      setSavedMeals(meals);
+      setSavedRecipeIds([...new Set(nextSavedRecipeIds)]);
     },
     createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
