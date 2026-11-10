@@ -98,3 +98,9 @@ The extended run did not mutate production data, invoke generation, submit billi
 | CAL-E2E-WEB-020 | Authenticated Plus tab | Opened Recipes and activated the Plus tab in the authenticated session. | Plus tab became the active recipe section and rendered the authenticated recipe surface with saved-account controls and recipe cards. | The live UI exposed `Plus recipes` and account-backed saved state; it did not expose a reliable Plus-only provenance marker or separate entitlement label in the rendered payload. | **PARTIAL: authenticated Plus surface rendered; premium-source differentiation remains unverified** |
 
 The authenticated check used only the owner-provided test account in the isolated browser. No recipe generation, billing change, production customer-record query, native build, or deployment was performed. The password was not written to the repository or included in the ledger.
+
+
+### Authenticated Plus visual evidence
+
+- Rendered screenshot captured from the authenticated deployed session: `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_11-33-30_1138.webp`.
+- Earlier authenticated Recipes/Plus capture: `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_11-28-47_8274.webp`.
