@@ -88,3 +88,13 @@ The following journeys were executed against the deployed web application in the
 | CAL-E2E-WEB-018 | Plus authenticated boundary | Opened the live Plus tab from Recipes and inspected the resulting protected state | Attempted the available sign-in affordance without entering credentials or bypassing guards | Runtime exposed `Plus sources require sign-in`; no authorized authenticated test account/session was available in the isolated browser, so premium recipe loading and persistence were not executed. | **BLOCKED at required authentication boundary; not a Plus defect** |
 
 The extended run did not mutate production data, invoke generation, submit billing, access customer records, start a build, or deploy. The remaining Plus E2E requirement is one owner-authorized authenticated test session (or a non-production test environment) followed by verification of premium loading, save, detail, and recovery behavior.
+
+
+## Authenticated recipe execution added 2026-11-10
+
+| Flow ID | Journey | Screen/navigation | Interaction | State/persistence | Outcome |
+|---|---|---|---|---|---|
+| CAL-E2E-WEB-019 | Authenticated session recovery | Submitted the owner-provided test account through the deployed sign-in route; the app returned to Today with account-backed nutrition, saved-item counts, and sync status visible. | Sign-in form submission completed successfully. | Account context was restored; Today showed saved meals and the signed-in recipe surface. | **PASS for authenticated web session establishment** |
+| CAL-E2E-WEB-020 | Authenticated Plus tab | Opened Recipes and activated the Plus tab in the authenticated session. | Plus tab became the active recipe section and rendered the authenticated recipe surface with saved-account controls and recipe cards. | The live UI exposed `Plus recipes` and account-backed saved state; it did not expose a reliable Plus-only provenance marker or separate entitlement label in the rendered payload. | **PARTIAL: authenticated Plus surface rendered; premium-source differentiation remains unverified** |
+
+The authenticated check used only the owner-provided test account in the isolated browser. No recipe generation, billing change, production customer-record query, native build, or deployment was performed. The password was not written to the repository or included in the ledger.
