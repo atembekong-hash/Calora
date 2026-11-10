@@ -150,7 +150,16 @@ describe("GET /v1/recipes — query and provider metadata boundaries", () => {
     const wrapped = await request(app).get("/v1/recipes?limit=2&offset=2");
 
     expect(first.status).toBe(200);
-    expect(first.body).toMatchObject({ continuousBrowse: true, browseCycle: 0, browsePoolSize: 2, nextOffset: 2 });
+    expect(first.body).toMatchObject({
+      continuousBrowse: true,
+      browseCycle: 0,
+      browsePoolSize: 2,
+      availableCount: 2,
+      filteredCount: null,
+      loadedCount: 2,
+      hasMore: true,
+      nextOffset: 2,
+    });
     expect(crossing.status).toBe(200);
     expect(crossing.body).toMatchObject({ continuousBrowse: true, browseCycle: 0, browsePoolSize: 2, nextOffset: 3 });
     expect(crossing.body.recipes.map((recipe: { id: string }) => recipe.id)).toEqual(["cycle-b", "cycle-a"]);
@@ -190,7 +199,15 @@ describe("GET /v1/recipes — query and provider metadata boundaries", () => {
     const exhausted = await request(app).get("/v1/recipes?category=Seafood&limit=2&offset=2");
 
     expect(first.status).toBe(200);
-    expect(first.body).toMatchObject({ continuousBrowse: false, browseCycle: 0, nextOffset: null });
+    expect(first.body).toMatchObject({
+      continuousBrowse: false,
+      browseCycle: 0,
+      availableCount: 2,
+      filteredCount: 2,
+      loadedCount: 2,
+      hasMore: false,
+      nextOffset: null,
+    });
     expect(exhausted.status).toBe(200);
     expect(exhausted.body).toMatchObject({ continuousBrowse: false, browseCycle: 0, nextOffset: null, recipes: [] });
   });
