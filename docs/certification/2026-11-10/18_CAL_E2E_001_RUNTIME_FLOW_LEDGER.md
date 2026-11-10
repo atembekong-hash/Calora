@@ -18,6 +18,8 @@ The following flows were executed against `https://app.mycaloraapp.com/` in the 
 | CAL-E2E-WEB-005 | Create recipe guest flow | PASS for non-generating interactions. Create rendered without authentication, exposed ingredient/style/preferences controls, and selecting Eggs updated the selected-ingredients state to `Eggs`. The paid/provider-backed Generate action was not invoked. | Web; Android/iOS shared flow | `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_10-29-51_2857.webp` |
 | CAL-E2E-WEB-006 | Protected-route guard | PASS. Direct navigation to `/fasting` redirected to the public Today shell rather than bypassing authentication/runtime guards. | Web; Android/iOS | Browser navigation result |
 | CAL-E2E-WEB-007 | Fasting entry from Today | PASS. Opening Fasting through the Today dashboard rendered the 12:12 ready state, plan choices, custom-plan entry, local history, learning guide, meal-reminder state, and safety notice. | Web; Android/iOS | `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_10-30-09_9354.webp` |
+| CAL-E2E-WEB-008 | Hydration entry from Today | PASS. Opening Hydration rendered the 0% goal state, unit switch, quick-add control, editable daily goal, daily/weekly/monthly tabs, seven-day history, and learning cards. | Web; Android/iOS shared flow | `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_10-39-28_2776.webp` |
+| CAL-E2E-WEB-009 | Steps entry from Today | PASS for the unavailable-provider state. Opening Steps rendered the goal, Today/Week/Month views, empty movement metrics, Connect Health CTA, trend controls, hourly-detail empty state, and movement education. | Web; Android/iOS shared flow | `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_10-39-45_2724.webp` |
 
 ## Application route inventory
 
@@ -52,4 +54,4 @@ Native Android/iOS execution requires the already-built candidate artifacts, a c
 
 ## Verdict
 
-**CAL-E2E-001 remains BLOCKED for full certification.** New runtime evidence proves the public startup, Today, Recipes, corrected catalogue semantics, guest Create interaction, route guard, and Fasting entry path. Full certification still requires authenticated provider flows, the gated security/Coach rehearsals, and genuine Android/iOS runtime evidence.
+**CAL-E2E-001 remains BLOCKED for full certification.** New runtime evidence proves the public startup, Today, Recipes, corrected catalogue semantics, guest Create interaction, route guard, Fasting, Hydration, and Steps entry paths. Full certification still requires authenticated provider flows, the gated security/Coach rehearsals, and genuine Android/iOS runtime evidence.
