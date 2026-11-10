@@ -170,9 +170,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Source: {sourceName}');
   });
 
-  it('renders up to forty related recipes in two independently swipeable twenty-card rows', () => {
+  it('renders up to twelve related recipes in two independently swipeable six-card rows', () => {
     expect(source).toContain('const RECIPE_SUGGESTION_ROW_COUNT = 2');
-    expect(source).toContain('const RECIPE_SUGGESTIONS_PER_ROW = 20');
+    expect(source).toContain('const RECIPE_SUGGESTIONS_PER_ROW = 6');
     expect(source).toContain('const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW');
     expect(source).toContain('suggestedRecipes.slice(');
     expect(source).toContain('rowIndex * RECIPE_SUGGESTIONS_PER_ROW');

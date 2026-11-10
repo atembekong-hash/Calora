@@ -919,33 +919,6 @@ router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
     return res
       .status(400)
       .json({ message: "That recipe photo reference is invalid." });
-  let rate;
-  try {
-    rate = await checkRateLimit(
-      `recipes-photo:user:${user.id}`,
-      RECIPE_PHOTO_RATE_LIMIT,
-      RECIPE_GEN_RATE_WINDOW_SECS,
-      { failClosed: true, rethrowAccountDeletionFence: true },
-    );
-  } catch (error) {
-    if (classifyAccountDeletionError(error)) {
-      return respondRecipePhotoRetryDeletionFence(res);
-    }
-    throw error;
-  }
-  if (!rate.allowed) {
-    res.setHeader("Retry-After", String(rate.retryAfterSecs));
-    return res.status(rate.degraded ? 503 : 429).json({
-      code: rate.degraded
-        ? "recipe_photo_temporarily_unavailable"
-        : "recipe_photo_rate_limited",
-      retryable: true,
-      message: rate.degraded
-        ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
-        : "You’ve reached the recipe photo limit. Please try again later.",
-      retryAfterSecs: rate.retryAfterSecs,
-    });
-  }
   try {
     // Claiming a retry changes persistent media state. Acquire the same
     // account-deletion read lock before that claim, not only before the
@@ -957,9 +930,38 @@ router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
           retryOwnerRecipeMedia(user.id, req.params.mediaId, executor),
         );
         if (!row) return null;
+        let rate;
+        try {
+          rate = await checkRateLimit(
+            `recipes-photo:user:${user.id}`,
+            RECIPE_PHOTO_RATE_LIMIT,
+            RECIPE_GEN_RATE_WINDOW_SECS,
+            { failClosed: true, rethrowAccountDeletionFence: true },
+          );
+        } catch (error) {
+          if (classifyAccountDeletionError(error)) {
+            await markRecipeMediaError(user.id, row.id, "account_unavailable", row.attempts);
+            return { deletionFence: true as const };
+          }
+          throw error;
+        }
+        if (!rate.allowed) {
+          await markRecipeMediaError(user.id, row.id, rate.degraded ? "rate_limiter_unavailable" : "rate_limited", row.attempts);
+          return { rateLimited: true as const, degraded: rate.degraded, retryAfterSecs: rate.retryAfterSecs };
+        }
         return generateClaimedRecipeMedia(user.id, row);
       },
     );
+    if (generated && "deletionFence" in generated) return respondRecipePhotoRetryDeletionFence(res);
+    if (generated && "rateLimited" in generated) {
+      res.setHeader("Retry-After", String(generated.retryAfterSecs));
+      return res.status(generated.degraded ? 503 : 429).json({
+        code: generated.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+        retryable: true,
+        message: generated.degraded ? "Recipe photo generation is temporarily unavailable. Please try again shortly." : "You’ve reached the recipe photo limit. Please try again later.",
+        retryAfterSecs: generated.retryAfterSecs,
+      });
+    }
     if (!generated) {
       return res
         .status(409)
@@ -1787,14 +1789,23 @@ router.get("/v1/recipes", async (req, res) => {
       ? Math.floor(offset / meals.length)
       : 0;
     const browsePoolSize = continuousBrowse ? meals.length : null;
+    const catalogueSnapshot = createHash("sha256")
+      .update(`${SOURCE}|${query ?? ""}|${category ?? ""}|${meals.map((meal) => meal.id).join(",")}`)
+      .digest("hex")
+      .slice(0, 16);
     res.json({
       source: SOURCE,
       recipes,
+      availableCount: meals.length,
+      filteredCount: query || category ? meals.length : null,
+      loadedCount: recipes.length,
       warmupPending,
       nextOffset,
+      hasMore: nextOffset !== null,
       continuousBrowse,
       browseCycle,
       browsePoolSize,
+      catalogueSnapshot,
       terminalReason:
         nextOffset === null
           ? "No more recipes are available for this query."

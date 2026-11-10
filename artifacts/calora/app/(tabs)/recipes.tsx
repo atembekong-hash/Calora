@@ -71,7 +71,7 @@ const PREMIUM_RECIPE_PREFETCH_DISTANCE = 3200;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;
 const RECIPE_SUGGESTION_ROW_COUNT = 2;
-const RECIPE_SUGGESTIONS_PER_ROW = 20;
+const RECIPE_SUGGESTIONS_PER_ROW = 6;
 const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW;
 type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
@@ -2414,7 +2414,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                     <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
                     <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Swipe either row to keep exploring.</Text>
                   </View>
-                  <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 20 per row</Text>
+                  <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 6 per row</Text>
                 </View>
                 <View style={styles.suggestionRows}>
                   {suggestionRows.map((row, rowIndex) => (
