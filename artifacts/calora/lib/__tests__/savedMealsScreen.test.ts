@@ -31,6 +31,7 @@ describe('saved meal entry points', () => {
     expect(planner).toContain('Save ${detail.name} as meal');
     expect(planner).toContain("kind: 'meal'");
     expect(planner).toContain('mealType: detail.meal');
+    expect(planner).toContain("Alert.alert(saved ? 'Meal saved' : 'Already saved'");
     expect(home).toContain('meal: meal.mealType ?? savedMealCategory(meal)');
   });
 
