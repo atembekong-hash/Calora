@@ -57,3 +57,23 @@ Native Android/iOS execution requires the already-built candidate artifacts, a c
 ## Verdict
 
 **CAL-E2E-001 remains BLOCKED for full certification.** New runtime evidence proves the public startup, Today, Recipes, corrected catalogue semantics, guest Create interaction, route guard, Fasting, Hydration, and Steps entry paths. Full certification still requires authenticated provider flows, the gated security/Coach rehearsals, and genuine Android/iOS runtime evidence.
+
+## Complete user-journey execution added 2026-11-10
+
+The following journeys were executed against the deployed web application in the isolated sandbox browser. No production account, customer record, billing state, backend mutation, deployment, or native build was used.
+
+| Flow ID | Journey | Screen/navigation | Interaction | Visible state change | Persistence/recovery | Outcome |
+|---|---|---|---|---|---|---|
+| CAL-E2E-WEB-012 | Hydration quick-add | Verified Today → Hydration entry | Tapped Add 8 fl oz | Verified 0 → 8 fl oz, 0 → 1 cup, 13% goal | Navigated to Today and back; Today and Progress both showed 8 fl oz. | **PASS for local web journey**; server/account sync remains unverified. |
+| CAL-E2E-WEB-013 | Mood check-in | Verified Today → Progress | Selected Good | Verified confirmation and Good selected | Progress showed Good in Daily check-ins and Today’s signals after navigation. | **PASS for local web journey**; authenticated cross-device sync remains unverified. |
+| CAL-E2E-WEB-014 | Discover recipe save | Verified Recipes → Discover | Opened save options for Salmon quinoa bowl and selected Save recipe | Save control changed to Manage/Saved state | Opened Saved Recipes; shelf showed 1 saved item, Salmon quinoa bowl. | **PASS for local web journey**; account-backed cross-device sync remains unverified. |
+| CAL-E2E-WEB-015 | Fasting plan selection and start attempt | Verified Today → Fasting; selected 16:8 | Plan selection rendered as 16:8; Start window was activated | Plan selection remained visible; start action did not transition to an active window in the guest runtime | No active-window persistence was demonstrated. | **PARTIAL / runtime guard boundary**; do not classify as a fasting defect without an authenticated session. |
+
+### Evidence quality classification
+
+- **Screen/navigation verified:** Hydration, Progress, Saved Recipes, and Fasting journeys above.
+- **Interaction verified:** Hydration quick-add, Good mood selection, recipe save-options and recipe save, and 16:8 plan selection.
+- **State change verified:** Hydration totals, mood selection/confirmation, recipe saved/manage state, and 16:8 selection.
+- **Persistence verified:** Hydration and mood were reflected in dependent views after route transitions; the saved recipe was present in Saved Recipes. These are genuine local web-runtime persistence observations, not proof of account/cloud synchronization.
+- **Restart/recovery verified:** Route reload/navigation recovery was verified for Today, Hydration, Progress, and Saved Recipes. A process restart, offline interruption, account switch, and authenticated recovery were not executed.
+- **Complete end-to-end certification:** Not yet proven because authenticated backend persistence, cross-device reconciliation, provider-backed flows, and native Android/iOS execution remain unavailable in this session.
