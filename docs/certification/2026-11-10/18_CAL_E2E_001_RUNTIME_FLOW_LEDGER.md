@@ -117,3 +117,15 @@ The prior authenticated Plus classification was rechecked from a fresh live runt
 | CAL-E2E-WEB-024 | Plus/Create client contract regression | Ran client recipe, access, pagination, catalogue-state, and saved-premium tests | No live data mutation | 69/69 tests passed | **PASS for client contract; not a substitute for authenticated runtime evidence** |
 
 The current runtime blockers are specific: (1) a valid authenticated test session is not available in the browser, (2) the Plus server contract additionally requires an active RevenueCat entitlement, and (3) Create full-recipe generation requires a signed-in account and an approved non-production/cost-controlled AI provider. No production billing, customer record, provider generation, build, or deployment was performed during this recheck.
+
+## Fresh Plus/Create pager evidence added 2026-11-10
+
+The recipe pager was exercised directly in the deployed browser. Horizontal paging moved the rendered pane from Discover through Plus to Create; DOM geometry confirmed the Create pane was the visible pane (`recipes-section-content-pane-create` at the viewport origin). This is stronger evidence than the stale accessibility snapshot, which continued listing the adjacent panes.
+
+| Flow ID | Journey | Screen/navigation | Interaction | State/persistence | Outcome |
+|---|---|---|---|---|---|
+| CAL-E2E-WEB-025 | Plus-to-Create pager transition | Recipes opened in the deployed web runtime | Swiped the actual recipe section content horizontally; the pager moved from Plus to the Create pane | Create pane rendered the AI Recipe Creator controls; no generation was submitted | **PASS for pager navigation and Create screen rendering; generation remains unverified** |
+| CAL-E2E-WEB-026 | Plus runtime screenshot recheck | Recipes → Plus in the same live runtime | Plus pane was reached and inspected after the pager transition | Live content showed `Plus sources require sign-in` and `Your session ended. Sign in again.`; no premium request was issued | **BLOCKED at authentication boundary; not evidence of a Plus provider defect** |
+| CAL-E2E-WEB-027 | Create runtime screenshot capture | Recipes → Create in the same live runtime | Create controls were inspected without invoking the provider-backed Generate action | AI Recipe Creator, starting-point options, ingredient selection surface, and preferences were rendered; no generated recipe or persistence was produced | **PARTIAL: input surface verified; full generation blocked by approved provider/session prerequisites** |
+
+Fresh genuine browser screenshot evidence: `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_12-01-43_5522.webp`. The screenshot is retained as runtime evidence even though the sandbox browser’s wide RN-Web layout makes the pane visually compressed; the DOM geometry and rendered text establish which pane was active.
