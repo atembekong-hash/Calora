@@ -1,7 +1,13 @@
 -- Migration: 0022_revenuecat_webhook_lifecycle
 -- Description: Durable RevenueCat webhook idempotency and lifecycle ledger.
-ALTER TABLE calora_subscriptions
-  ADD COLUMN IF NOT EXISTS last_event_timestamp_ms BIGINT;
+DO $revenuecat_subscription_column$
+BEGIN
+  IF to_regclass('public.calora_subscriptions') IS NOT NULL THEN
+    ALTER TABLE calora_subscriptions
+      ADD COLUMN IF NOT EXISTS last_event_timestamp_ms BIGINT;
+  END IF;
+END
+$revenuecat_subscription_column$;
 
 CREATE TABLE IF NOT EXISTS calora_revenuecat_webhook_events (
   event_id TEXT PRIMARY KEY,
