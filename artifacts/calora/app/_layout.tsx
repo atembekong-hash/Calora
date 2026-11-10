@@ -26,6 +26,7 @@ import { AppStatusBar } from '@/components/AppChrome';
 import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
 import { useDiarySync } from '@/hooks/useDiarySync';
+import { useSavedStateSync } from '@/hooks/useSavedStateSync';
 import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
 import { BRAND } from '@/lib/brand';
 import { getRootAccessGateState } from '@/lib/rootAccessGate';
@@ -196,6 +197,11 @@ function DiarySyncWorker() {
   return null;
 }
 
+function SavedStateSyncWorker() {
+  useSavedStateSync();
+  return null;
+}
+
 /** One account-keyed, non-blocking home for an already-sanitized transient. */
 function PostLogIntelligenceHost() {
   const { postLogInsight, clearPostLogInsight, hydrated, colors, fontScale } = useCalora();
@@ -299,6 +305,7 @@ function AccountScopedProviders({ children }: { children: React.ReactNode }) {
             <KeyboardProvider>
               <AppStatusBar />
               <DiarySyncWorker />
+              <SavedStateSyncWorker />
               <ReferralActivator />
               <PostLogIntelligenceHost />
               {children}

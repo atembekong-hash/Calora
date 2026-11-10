@@ -16,6 +16,7 @@ import premiumRecipesRouter from "./premiumRecipes";
 import restaurantFoodsRouter from "./restaurantFoods";
 import profileRouter from "./profile";
 import privacyRightsRouter from "./privacyRights";
+import savedStateRouter from "./savedState";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(premiumRecipesRouter);
 router.use(restaurantFoodsRouter);
 router.use(profileRouter);
 router.use(privacyRightsRouter);
+router.use(savedStateRouter);
 
 export default router;
