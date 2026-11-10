@@ -1444,3 +1444,26 @@ BEGIN
   END LOOP;
 END
 $calora_latest_server_only_access$;
+
+-- RevenueCat webhook lifecycle ledger. This keeps fresh empty targets aligned
+-- with the application schema; 0022_revenuecat_webhook_lifecycle handles
+-- existing targets through the normal migration chain.
+ALTER TABLE public.calora_subscriptions
+    ADD COLUMN last_event_timestamp_ms bigint;
+CREATE TABLE public.calora_revenuecat_webhook_events (
+    event_id text NOT NULL,
+    app_user_id text,
+    event_type text NOT NULL,
+    event_timestamp_ms bigint,
+    environment text,
+    payload jsonb NOT NULL,
+    status text NOT NULL,
+    error text,
+    received_at timestamp with time zone DEFAULT now() NOT NULL,
+    processed_at timestamp with time zone,
+    CONSTRAINT calora_revenuecat_webhook_events_pkey PRIMARY KEY (event_id),
+    CONSTRAINT calora_revenuecat_webhook_events_status_check CHECK ((status = ANY (ARRAY['received'::text, 'applied'::text, 'ignored'::text, 'dead_letter'::text])))
+);
+CREATE INDEX calora_revenuecat_webhook_events_user_received_idx ON public.calora_revenuecat_webhook_events USING btree (app_user_id, received_at);
+CREATE INDEX calora_revenuecat_webhook_events_status_received_idx ON public.calora_revenuecat_webhook_events USING btree (status, received_at);
+COMMENT ON TABLE public.calora_revenuecat_webhook_events IS 'Durable idempotency and audit ledger for RevenueCat webhook deliveries; payloads are provider data, not client claims.';

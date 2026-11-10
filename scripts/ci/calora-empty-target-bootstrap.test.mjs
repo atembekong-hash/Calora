@@ -71,11 +71,11 @@ async function query(sql) {
   }
 }
 
-// A truly empty target receives the complete 33-table baseline, server-only
+// A truly empty target receives the complete 34-table baseline, server-only
 // RLS/grants, and no fabricated domain rows.
 await resetDatabase();
 const emptyOutput = bootstrap();
-assert.match(emptyOutput, /installed 33 Calora tables/);
+assert.match(emptyOutput, /installed 34 Calora tables/);
 const migrationOutput = migrate();
 assert.match(migrationOutput, /All migrations applied successfully/);
 const fresh = await query(`
@@ -93,7 +93,7 @@ const fresh = await query(`
     (SELECT count(*)::int FROM public.calora_migration_journal) AS migration_boundary_count
 `);
 assert.deepEqual(fresh.rows, [{
-  table_count: 33,
+  table_count: 34,
   nonempty_table_count: 0,
   fence_count: 10,
   rls_table_count: 33,
