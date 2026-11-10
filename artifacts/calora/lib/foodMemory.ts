@@ -159,6 +159,7 @@ export function parseServingInput(value: string, component: Pick<FoodMemoryCompo
     ?? normalizeServingUnit(component.servingUnit)
     ?? (component.nutritionBasis === 'per_100g' ? 'g' : component.nutritionBasis === 'per_100ml' ? 'ml' : undefined);
   if (!unit) return { valid: false, error: 'Include a supported unit so the quantity can be calculated.' };
+  if (component.nutritionBasis === 'per_serving' && unit === 'fl_oz') return { valid: false, error: 'This food is measured by provider servings; enter the serving count instead of fluid ounces.' };
   if (component.nutritionBasis === 'per_100g' && (unit === 'ml' || unit === 'fl_oz')) return { valid: false, error: 'This food is measured by weight; enter grams or a known packet size.' };
   if (component.nutritionBasis === 'per_100ml' && unit !== 'ml' && unit !== 'fl_oz') return { valid: false, error: 'This food is measured by volume; enter milliliters or fl oz.' };
   if (component.nutritionBasis === 'per_100g' && (unit === 'packet' || unit === 'sachet') && !(component.servingWeightG && component.servingWeightG > 0)) {
