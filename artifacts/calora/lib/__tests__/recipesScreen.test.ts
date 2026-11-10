@@ -343,7 +343,7 @@ describe('Recipes Discover layout contracts', () => {
   });
 
   it('gives only media-free personal recipes a confirmed local edit and deletion lifecycle', () => {
-    expect(source).toContain("import { isEditablePersonalRecipe, recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel'");
+    expect(source).toContain("import { isEditablePersonalRecipe, recipeProvenance } from '@/lib/recipeModel'");
     expect(source).toContain('const editablePersonalRecipe = isEditablePersonalRecipe(detail);');
     expect(source).toContain('accessibilityLabel="Edit personal recipe"');
     expect(source).toContain('accessibilityLabel="Delete personal recipe"');
@@ -413,19 +413,19 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("editing ? 'Save changes' : 'Save recipe'");
   });
 
-  it('keeps nutrition portions explicit without guessing ingredient quantities', () => {
+  it('keeps nutrition portions explicit and scales only trustworthy ingredient quantities', () => {
     expect(source).toContain("import { scaleRecipeNutritionForDiary } from '@/lib/recipeDiaryServing'");
-    expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipePortionLabel, sourceRecipeYield } from '@/lib/recipeServing'");
+    expect(source).toContain("import { formatRecipePortions, nextRecipePortions, recipePortionLabel, scaleRecipeIngredients, sourceRecipeYield } from '@/lib/recipeServing'");
     expect(source).toContain('const sourceYield = sourceRecipeYield(detail);');
+    expect(source).toContain('const scaledIngredients = useMemo(() => scaleRecipeIngredients');
     expect(source).toContain('scaleRecipeNutritionForDiary(detail, diaryServings)');
     expect(source).toContain('setDiaryServings(servingCount);');
     expect(source).toContain('...scaleRecipeNutritionForDiary(detail, servingCount)');
     expect(source).toContain('servingLabel: `${servingLabel} ${recipePortionLabel(servingCount)}`');
-    expect(source).not.toContain('scaleIngredient(');
     expect(source).toContain('addIngredientsToShopping(ingredients, detail.id);');
-    expect(source).toContain('ingredients: detail.ingredients ?? []');
+    expect(source).toContain('ingredients: scaledIngredients.map((ingredient) => ingredient.text)');
     expect(source).toContain('serving: `${servingLabel} ${recipePortionLabel(servingCount)}`');
-    expect(source).toContain('Ingredient quantities are listed as supplied; adjust them for your portions.');
+    expect(source).toContain('Quantities that could be parsed are scaled; other text remains as supplied.');
     expect(source).toContain('const canLog = hasCompleteNutrition(detail);');
   });
 

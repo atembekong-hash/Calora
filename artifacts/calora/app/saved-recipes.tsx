@@ -180,8 +180,8 @@ export default function SavedRecipesScreen() {
     if (!('calories' in recipe && 'proteinG' in recipe && 'carbsG' in recipe && 'fatG' in recipe)) return;
     const { calories, proteinG, carbsG, fatG } = recipe;
     if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return;
-    saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType('mealType' in recipe && typeof recipe.mealType === 'string' ? recipe.mealType : undefined) });
-    Alert.alert('Meal saved', `${recipe.name} is ready to log from Saved meals.`);
+    const saved = saveMeal({ name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType('mealType' in recipe && typeof recipe.mealType === 'string' ? recipe.mealType : undefined) });
+    Alert.alert(saved ? 'Meal saved' : 'Already saved', saved ? `${recipe.name} is ready to log from Saved meals.` : `${recipe.name} is already available in Saved meals.`);
   };
 
   const localIds = useMemo(() => new Set(localRecipes.map((recipe) => recipe.id)), [localRecipes]);
