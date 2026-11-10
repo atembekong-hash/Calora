@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 20) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 21) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
