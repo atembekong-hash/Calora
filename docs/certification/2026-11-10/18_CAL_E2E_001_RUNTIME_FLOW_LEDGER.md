@@ -104,3 +104,16 @@ The authenticated check used only the owner-provided test account in the isolate
 
 - Rendered screenshot captured from the authenticated deployed session: `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_11-33-30_1138.webp`.
 - Earlier authenticated Recipes/Plus capture: `/home/ubuntu/screenshots/app_mycaloraapp_2026-11-10_11-28-47_8274.webp`.
+
+## Corrective Plus/Create recheck added 2026-11-10
+
+The prior authenticated Plus classification was rechecked from a fresh live runtime before attempting any premium or AI-provider operation. The browser now exposes `@calora/account-state-v3:guest`, no auth cookie/session, and the Plus screen renders the intended fail-closed boundary: `Plus sources require sign-in` with `Sign in to access Plus recipes`. A second submission of the owner-provided test account through the deployed sign-in controls did not establish a session or return an error state. This supersedes the prior partial Plus classification for the current runtime and prevents claiming premium-source evidence from the earlier card rendering.
+
+| Flow ID | Journey | Screen/navigation | Interaction | State/persistence | Outcome |
+|---|---|---|---|---|---|
+| CAL-E2E-WEB-021 | Plus session/entitlement recheck | Opened Recipes → Plus and inspected the live guard | Activated Plus and attempted the existing sign-in recovery path | No live auth session was established; no premium request was issued | **BLOCKED at authentication boundary; no Plus defect established** |
+| CAL-E2E-WEB-022 | Plus provider contract rehearsal | Ran the disposable API premium-provider suite | No production provider call | 33/33 tests passed, including anonymous denial, entitlement denial, fail-closed provider outage, pagination, deduplication, nutrition integrity, rate limits, and safe retries | **PASS for source/disposable contract; runtime entitlement evidence unavailable** |
+| CAL-E2E-WEB-023 | Create generation contract rehearsal | Ran the disposable AI recipe-generation suite with a non-production sentinel | No production AI generation invoked | 25/25 tests passed, including signed-in requirement, bounded guest concepts, quota ordering, structured output, nutrition, private photo lifecycle, and provider failure recovery | **PASS for source/disposable contract; live generation blocked by missing approved test provider** |
+| CAL-E2E-WEB-024 | Plus/Create client contract regression | Ran client recipe, access, pagination, catalogue-state, and saved-premium tests | No live data mutation | 69/69 tests passed | **PASS for client contract; not a substitute for authenticated runtime evidence** |
+
+The current runtime blockers are specific: (1) a valid authenticated test session is not available in the browser, (2) the Plus server contract additionally requires an active RevenueCat entitlement, and (3) Create full-recipe generation requires a signed-in account and an approved non-production/cost-controlled AI provider. No production billing, customer record, provider generation, build, or deployment was performed during this recheck.
