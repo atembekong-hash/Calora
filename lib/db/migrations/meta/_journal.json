@@ -148,6 +148,13 @@
       "when": 1791444240000,
       "tag": "0021_saved_state_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794304725000,
+      "tag": "0022_revenuecat_webhook_lifecycle",
+      "breakpoints": true
     }
   ]
 }
