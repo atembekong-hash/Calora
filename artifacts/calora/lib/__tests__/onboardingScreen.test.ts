@@ -118,7 +118,8 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     const rootSource = await rootLayoutSource();
     const tabsSource = await tabLayoutSource();
 
-    expect(rootSource).toContain('const allowTabRouteShell = retainApplicationShell');
+    expect(rootSource).toContain('const allowTabRouteShell = applicationShellWasEntered');
+    expect(rootSource).toContain('shouldAllowOnboardingRoute');
     expect(rootSource).toContain('<Stack.Protected guard={allowTabRouteShell}>');
     expect(rootSource).toContain('<Stack.Screen name="(tabs)" options={{ headerShown: false }} />');
     expect(tabsSource).toContain('shouldRetainApplicationShell');

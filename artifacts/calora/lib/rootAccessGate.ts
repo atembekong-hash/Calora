@@ -12,6 +12,19 @@ export type RootAccessGateState = {
   allowApplication: boolean;
 };
 
+/** Once entered, a transient bootstrap remount must not reclaim the index route. */
+export function shouldAllowOnboardingRoute({
+  shellEntered,
+  allowOnboarding,
+  reviewRequested,
+}: {
+  shellEntered: boolean;
+  allowOnboarding: boolean;
+  reviewRequested: boolean;
+}): boolean {
+  return shellEntered && !reviewRequested ? false : allowOnboarding;
+}
+
 export function shouldRetainApplicationShell({
   shellEntered,
   hydrated,
