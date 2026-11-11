@@ -1,7 +1,7 @@
-# 243 — CAL-SCAN-ACCURACY-003 Live Benchmark Access Report
+﻿# 243 â€” CAL-SCAN-ACCURACY-003 Live Benchmark Access Report
 
-**Branch:** `fix/scan-accuracy-002`  
-**Mission:** Unlock live benchmark testing  
+**Branch:** `fix/scan-accuracy-002`
+**Mission:** Unlock live benchmark testing
 **Status:** BLOCKED at safe staging-access boundary; no provider calls made.
 
 ## Investigation completed
@@ -55,4 +55,5 @@ After that action, the existing runner can execute the 68-image baseline and, if
 
 ## Verdict
 
-**BLOCKED — genuine external access dependency.** The mission cannot honestly claim first accuracy measurements without an authorized non-production endpoint, isolated data store, authentication token, and provider access. All safe repository-side preparation is complete; no further live measurement can proceed without the owner action above.
+**BLOCKED â€” genuine external access dependency.** The mission cannot honestly claim first accuracy measurements without an authorized non-production endpoint, isolated data store, authentication token, and provider access. All safe repository-side preparation is complete; no further live measurement can proceed without the owner action above.
+
