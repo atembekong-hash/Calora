@@ -311,7 +311,9 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
   const rawServing = String(product.serving_size ?? "").trim() || (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity) ? declaredQuantity : "");
   const weightMatch = rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i);
   const quantityMatch = rawServing.match(/^(\d+(?:\.\d+)?)/);
-  const parsedServing = rawServing ? { serving: rawServing, servingQuantity: quantityMatch ? Number(quantityMatch[1]) : null, servingUnit: rawServing.match(/\d+(?:\.\d+)?\s*([a-zA-Z]+)/)?.[1]?.toLowerCase() ?? null, servingWeightG: weightMatch ? Number(weightMatch[1]) : null, source: "Open Food Facts" } : null;
+  const rawServingUnit = rawServing.match(/\d+(?:\.\d+)?\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)/i)?.[1]?.toLowerCase().replace(/\s+/g, " ") ?? null;
+  const isProviderFluidOunceServing = nutritionBasis === "per_serving" && (rawServingUnit === "fl oz" || rawServingUnit === "fluid ounce" || rawServingUnit === "fluid ounces");
+  const parsedServing = rawServing ? { serving: rawServing, servingQuantity: isProviderFluidOunceServing ? 1 : quantityMatch ? Number(quantityMatch[1]) : null, servingUnit: isProviderFluidOunceServing ? "serving" : rawServingUnit, servingWeightG: weightMatch ? Number(weightMatch[1]) : null, source: "Open Food Facts" } : null;
   const serving = parsedServing ?? { serving: nutritionBasis === "per_100ml" ? "100 ml (reference quantity)" : "100 g (reference quantity)", servingQuantity: 100, servingUnit: nutritionBasis === "per_100ml" ? "ml" : "g", servingWeightG: nutritionBasis === "per_100ml" ? null : 100, source: "Open Food Facts nutrition reference" };
   const referenceSuffix = nutritionBasis === "per_serving" ? "_serving" : nutritionBasis === "per_100ml" ? "_100ml" : "_100g";
   const calories = numberOrZero(nutriments[`energy-kcal${referenceSuffix}`]);

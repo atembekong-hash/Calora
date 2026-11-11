@@ -134,8 +134,13 @@ describe('nutritionForComponents', () => {
 
   it('parses supported units and rejects unresolved or unsafe quantities', () => {
     const per100g = makeComponent({ nutritionBasis: 'per_100g', servingUnit: 'g', servingWeightG: 100 });
+    const perServing = makeComponent({ nutritionBasis: 'per_serving', servingUnit: 'serving' });
+    const per100ml = makeComponent({ nutritionBasis: 'per_100ml', servingUnit: 'ml' });
     expect(parseServingInput('9.4g', per100g)).toEqual({ valid: true, quantity: 9.4, unit: 'g' });
-    expect(parseServingInput('0.5 serving', makeComponent({ nutritionBasis: 'per_serving' }))).toEqual({ valid: true, quantity: 0.5, unit: 'serving' });
+    expect(parseServingInput('0.5 serving', perServing)).toEqual({ valid: true, quantity: 0.5, unit: 'serving' });
+    expect(parseServingInput('12 fl oz', perServing).valid).toBe(false);
+    expect(parseServingInput('12 fl oz', per100ml)).toEqual({ valid: true, quantity: 12, unit: 'fl_oz' });
+    expect(nutritionForComponents([makeComponent({ nutritionBasis: 'per_100ml', servingQuantity: 12, servingUnit: 'fl_oz', calories: 100 })]).calories).toBe(355);
     expect(parseServingInput('9.4 oz', per100g).valid).toBe(false);
     expect(parseServingInput('-1 g', per100g).valid).toBe(false);
     expect(parseServingInput('', per100g).valid).toBe(false);

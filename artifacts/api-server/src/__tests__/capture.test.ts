@@ -1478,6 +1478,11 @@ describe('barcode candidate identity', () => {
     expect(candidate).toMatchObject({ serving: '1 packet (9.4 g)', servingQuantity: 1, servingUnit: 'packet', servingWeightG: 9.4, nutritionBasis: 'per_100g', calories: 372, carbsG: 85.106 });
   });
 
+  it('normalizes a Heineken-style 12 fl oz provider serving to one serving', () => {
+    const candidate = offCandidate({ code: '07289149', product_name: 'Heineken', brands: 'Heineken', serving_size: '12 fl oz (12 fl oz)', nutriments: { 'energy-kcal_serving': 142, proteins_serving: 2, carbohydrates_serving: 11, fat_serving: 0 } }, '07289149');
+    expect(candidate).toMatchObject({ serving: '12 fl oz (12 fl oz)', servingQuantity: 1, servingUnit: 'serving', nutritionBasis: 'per_serving', calories: 142, proteinG: 2, carbsG: 11, fatG: 0 });
+  });
+
   it('rejects a provider product whose returned code differs from the scanned code', () => {
     expect(offCandidate({ code: '0000000000000', product_name: 'Wrong item' }, '1111111111111')).toBeNull();
   });
