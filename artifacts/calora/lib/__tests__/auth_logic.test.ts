@@ -174,6 +174,24 @@ describe("Auth Logic Verification", () => {
     expect(mockExchange).toHaveBeenCalledWith("test-code");
   });
 
+  it("fails closed when the native PKCE exchange stalls", async () => {
+    vi.useFakeTimers();
+    try {
+      mockExchange.mockReturnValue(new Promise(() => undefined));
+      const resultPromise = handleOAuthCallbackUrl(
+        "https://mycaloraapp.com/auth/callback?code=stalled-code",
+      );
+      await vi.waitFor(() => expect(mockExchange).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(15_000);
+      await expect(resultPromise).resolves.toMatchObject({
+        success: false,
+        error: { code: "token" },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("accepts the exact dedicated production web callback", async () => {
     mockExchange.mockResolvedValue({
       data: { session: { user: {} } },
@@ -322,7 +340,7 @@ describe("Auth Logic Verification", () => {
     expect(mockExchange).toHaveBeenCalledTimes(2);
   });
 
-  it("does not expire a pending exchange or duplicate it after the success TTL", async () => {
+  it("does not expire a pending exchange or duplicate it before the timeout", async () => {
     vi.useFakeTimers();
     let resolveExchange!: (value: unknown) => void;
     mockExchange.mockReturnValue(
@@ -336,7 +354,7 @@ describe("Auth Logic Verification", () => {
     );
     await Promise.resolve();
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(61_000);
+    await vi.advanceTimersByTimeAsync(10_000);
     const duplicate = handleOAuthCallbackUrl(
       "https://mycaloraapp.com/auth/callback?code=long-pending-code",
     );
