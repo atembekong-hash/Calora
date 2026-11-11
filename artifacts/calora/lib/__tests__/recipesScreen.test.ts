@@ -518,10 +518,20 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied)');
   });
 
+  it('recovers a just-authenticated Plus session before presenting Sign In', () => {
+    expect(source).toContain('retrySessionRestore');
+    expect(source).toContain('authRecoveryAttemptedRef');
+    expect(source).toContain('const recoveryKey = `${userId ?? \'signed-out\'}:${offset}:${search}:${category}`');
+    expect(source).toContain('const refreshed = await query.refetch()');
+    expect(source).toContain('if (userId) return;');
+    expect(source).toContain('onAccessDenied();');
+  });
+
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
     expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
     expect(source).toContain("category === 'Quick'");
-    expect(source).toContain("category === 'Quick'\n      ? []");
+    expect(source).toContain('discoverVisitRemoteEntries');
+    expect(source).toContain("category === 'Quick'");
     expect(source).toContain('curated quick recipes with known preparation times');
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });
