@@ -7,6 +7,7 @@ import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { PromiseTimeoutError, withTimeout } from "./withTimeout";
 
 /**
  * HTTPS is intentional here. The production host is associated with this
@@ -89,6 +90,7 @@ function getValidatedCallbackIntent(url: URL): AuthCallbackIntent {
 }
 
 const OAUTH_CODE_SUCCESS_TTL_MS = 60_000;
+const OAUTH_CODE_EXCHANGE_TIMEOUT_MS = 15_000;
 const MAX_OAUTH_CODE_EXCHANGES = 8;
 
 type PendingOAuthCodeExchange = {
@@ -215,7 +217,11 @@ async function exchangeOAuthCodeOnce(
   const result = (async (): Promise<AuthResult> => {
     onStatus?.("Exchanging code\u2026");
     try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { data, error } = await withTimeout(
+        supabase.auth.exchangeCodeForSession(code),
+        OAUTH_CODE_EXCHANGE_TIMEOUT_MS,
+        "OAuth code exchange",
+      );
       if (error)
         return {
           success: false,
@@ -506,6 +512,15 @@ export async function getSession() {
 // ---------------------------------------------------------------------------
 
 function classifyError(err: unknown): { success: false; error: AuthError } {
+  if (err instanceof PromiseTimeoutError) {
+    return {
+      success: false,
+      error: {
+        code: "token",
+        message: resolveUserMessage("token", err.message),
+      },
+    };
+  }
   const message =
     err instanceof Error ? err.message : String(err ?? "Unknown error");
   const lower = message.toLowerCase();
