@@ -32,6 +32,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(tabSurface).toContain('onPress={() => changeSection(section)}');
   });
 
+  it('keeps Discover open and preserves Plus and Create as reachable sections', () => {
+    expect(source).toContain("const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const");
+    expect(source).toContain("if (section === 'discover') return renderDiscoverSection();");
+    expect(source).toContain("section === 'premium' ? 'Plus'");
+    expect(source).toContain("section === 'create' ? (");
+    expect(source).toContain('<CreateConcepts');
+    expect(source).toContain('testID="recipes-section-content"');
+  });
+
   it('removes nonessential motion from Discover, Plus, and Create surfaces', () => {
     expect(source).not.toContain('FadeInDown');
     expect(source).toContain('transition={0}');

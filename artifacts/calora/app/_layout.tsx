@@ -343,6 +343,10 @@ function RootLayoutNav() {
   // Secondary application routes remain unavailable until then.
   const allowTabRouteShell = allowApplication || (!hydrationError && (!hydrated || !profileSyncReady));
   const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
+  const authRouteIsActive = segments.some((segment) => {
+    const value = String(segment);
+    return value === 'auth' || value === 'callback';
+  });
   const effectivePostAuthIntent = resolvePostAuthIntent({
     callbackRouteIsActive,
     isPasswordRecovery,
@@ -353,6 +357,7 @@ function RootLayoutNav() {
     hasSession: !!user,
     intent: effectivePostAuthIntent,
     applicationReady: allowApplication,
+    authRouteIsActive,
   });
 
   useEffect(() => {

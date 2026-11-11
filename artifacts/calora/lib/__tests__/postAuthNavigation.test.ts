@@ -73,6 +73,32 @@ describe('post-auth navigation policy', () => {
     });
   });
 
+  it('does not replace an already-mounted application route after auth settles', () => {
+    expect(getPostAuthNavigationPlan({
+      restoreStatus: 'ready',
+      hasSession: true,
+      intent: 'ordinary',
+      applicationReady: true,
+      authRouteIsActive: false,
+    })).toEqual({
+      authRoutesEnabled: true,
+      destination: null,
+    });
+  });
+
+  it('keeps ordinary auth completion routed to the tabs when the auth route is active', () => {
+    expect(getPostAuthNavigationPlan({
+      restoreStatus: 'ready',
+      hasSession: true,
+      intent: 'ordinary',
+      applicationReady: true,
+      authRouteIsActive: true,
+    })).toEqual({
+      authRoutesEnabled: true,
+      destination: '/(tabs)',
+    });
+  });
+
   it('prunes stack history and executes only one Home transition for duplicate callback delivery', () => {
     const router = { dismissAll: vi.fn(), replace: vi.fn() };
     const coordinator = createPostAuthNavigationCoordinator(router);
