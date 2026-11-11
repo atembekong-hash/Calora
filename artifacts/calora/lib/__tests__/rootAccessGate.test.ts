@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getInviteDestination, getRootAccessGateState, shouldRetainApplicationShell } from '../rootAccessGate';
+import { getInviteDestination, getRootAccessGateState, shouldAllowOnboardingRoute, shouldRetainApplicationShell } from '../rootAccessGate';
 
 describe('root access gate', () => {
   it('keeps every protected route unavailable before hydration, reconciliation, onboarding, and consent complete', () => {
@@ -81,6 +81,12 @@ describe('root access gate', () => {
       restoreStatus: 'ready',
       hasSession: false,
     })).toBe(false);
+  });
+
+  it('keeps the tab shell route ahead of the index after a transient bootstrap remount', () => {
+    expect(shouldAllowOnboardingRoute({ shellEntered: true, allowOnboarding: true, reviewRequested: false })).toBe(false);
+    expect(shouldAllowOnboardingRoute({ shellEntered: true, allowOnboarding: true, reviewRequested: true })).toBe(true);
+    expect(shouldAllowOnboardingRoute({ shellEntered: false, allowOnboarding: true, reviewRequested: false })).toBe(true);
   });
 });
 

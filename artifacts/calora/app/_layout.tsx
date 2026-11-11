@@ -29,7 +29,7 @@ import { useDiarySync } from '@/hooks/useDiarySync';
 import { useSavedStateSync } from '@/hooks/useSavedStateSync';
 import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
 import { BRAND } from '@/lib/brand';
-import { getRootAccessGateState, shouldRetainApplicationShell } from '@/lib/rootAccessGate';
+import { getRootAccessGateState, shouldAllowOnboardingRoute, shouldRetainApplicationShell } from '@/lib/rootAccessGate';
 import {
   createPostAuthNavigationCoordinator,
   getPostAuthNavigationPlan,
@@ -317,7 +317,11 @@ function AccountScopedProviders({ children }: { children: React.ReactNode }) {
   );
 }
 
-function RootLayoutNav() {
+function RootLayoutNav({
+  applicationShellEnteredRef,
+}: {
+  applicationShellEnteredRef: React.MutableRefObject<boolean>;
+}) {
   const {
     hydrated,
     hydrationError,
@@ -329,9 +333,12 @@ function RootLayoutNav() {
   const segments = useSegments();
   const { user, restoreStatus, postAuthIntent, isPasswordRecovery } = useAuth();
   const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
-  const applicationShellEnteredRef = useRef(false);
   const applicationShellIsActive = segments.some((segment) => String(segment) === '(tabs)');
   if (applicationShellIsActive) applicationShellEnteredRef.current = true;
+  // A settled signed-out state is an explicit privacy boundary. Clear the
+  // sticky shell marker only after auth restoration has conclusively settled;
+  // transient provider remounts must not reclaim the onboarding/index route.
+  if (restoreStatus === 'ready' && !user) applicationShellEnteredRef.current = false;
   const reviewRequested = mode === 'review';
   const { allowApplication, allowOnboarding } = getRootAccessGateState({
     hydrated,
@@ -348,7 +355,16 @@ function RootLayoutNav() {
     restoreStatus,
     hasSession: !!user,
   });
-  const effectiveAllowOnboarding = retainApplicationShell ? false : allowOnboarding;
+  const applicationShellWasEntered = applicationShellEnteredRef.current;
+  // Route priority must survive a provider/auth bootstrap remount. The
+  // retained marker is deliberately reset above only for a settled sign-out;
+  // otherwise allowing the index/onboarding route here would recreate the
+  // tab navigator with Today as its default and make Recipes disappear.
+  const effectiveAllowOnboarding = shouldAllowOnboardingRoute({
+    shellEntered: applicationShellWasEntered,
+    allowOnboarding,
+    reviewRequested,
+  });
   // Register the tab route shell during a cold bootstrap so a valid direct
   // web URL is not first classified as unmatched. The tab layout itself renders
   // only a neutral bootstrap surface until the existing gate admits content.
@@ -357,7 +373,8 @@ function RootLayoutNav() {
   // readiness change must not expose the onboarding/index route again. Doing
   // so unmounts the tab navigator and its default route is Today, which makes
   // Recipes appear to open and then immediately disappear.
-  const allowTabRouteShell = retainApplicationShell
+  const allowTabRouteShell = applicationShellWasEntered
+    || retainApplicationShell
     || allowApplication
     || (!hydrationError && (!hydrated || !profileSyncReady));
   const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
@@ -439,6 +456,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const applicationShellEnteredRef = useRef(false);
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -462,7 +480,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <AuthProvider>
           <AccountScopedProviders>
-            <RootLayoutNav />
+            <RootLayoutNav applicationShellEnteredRef={applicationShellEnteredRef} />
           </AccountScopedProviders>
         </AuthProvider>
       </ErrorBoundary>
