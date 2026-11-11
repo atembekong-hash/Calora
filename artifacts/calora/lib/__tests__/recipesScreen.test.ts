@@ -530,7 +530,8 @@ describe('Recipes Discover layout contracts', () => {
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
     expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
     expect(source).toContain("category === 'Quick'");
-    expect(source).toContain("category === 'Quick'\n      ? []");
+    expect(source).toContain('discoverVisitRemoteEntries');
+    expect(source).toContain("category === 'Quick'");
     expect(source).toContain('curated quick recipes with known preparation times');
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });
