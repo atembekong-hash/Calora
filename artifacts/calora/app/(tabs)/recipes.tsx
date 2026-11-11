@@ -31,7 +31,7 @@ import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, re
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
-import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
+import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeAccessAction, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
 import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest';
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
 import { shouldLoadMoreRecipePage, shouldRetryRecipePage } from '@/lib/recipePagination';
@@ -1054,8 +1054,19 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
     // or refreshing the corresponding access token. Do not turn that transient
     // 401 into a misleading Sign In prompt. Retry once for the same account and
     // request; persistent failures still fail closed below.
+    const accessAction = premiumRecipeAccessAction(query.error);
     const recoveryKey = `${userId ?? 'signed-out'}:${offset}:${search}:${category}`;
-    if (userId && authRecoveryAttemptedRef.current !== recoveryKey) {
+    const clearDeniedState = () => {
+      setLoadedRecipes([]);
+      setLoadedForUserId(null);
+      requestedOffsetRef.current = null;
+      requestedOffsetsRef.current.clear();
+      failedOffsetRef.current = null;
+      lastPaginationStartedAtRef.current = null;
+      loadingMoreRef.current = false;
+      onAccessDenied();
+    };
+    if (userId && accessAction === 'refresh-session' && authRecoveryAttemptedRef.current !== recoveryKey) {
       authRecoveryAttemptedRef.current = recoveryKey;
       let cancelled = false;
       void (async () => {
@@ -1068,30 +1079,19 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
           return;
         }
         if (cancelled) return;
-        setLoadedRecipes([]);
-        setLoadedForUserId(null);
-        requestedOffsetRef.current = null;
-        requestedOffsetsRef.current.clear();
-        failedOffsetRef.current = null;
-        lastPaginationStartedAtRef.current = null;
-        loadingMoreRef.current = false;
-        onAccessDenied();
+        clearDeniedState();
       })();
       return () => {
         cancelled = true;
       };
     }
 
-    if (userId) return;
-    setLoadedRecipes([]);
-    setLoadedForUserId(null);
-    requestedOffsetRef.current = null;
-    requestedOffsetsRef.current.clear();
-    failedOffsetRef.current = null;
-    lastPaginationStartedAtRef.current = null;
-    loadingMoreRef.current = false;
-    onAccessDenied();
-  }, [accessDenied, category, offset, onAccessDenied, query.refetch, retrySessionRestore, search, userId]);
+    if (userId) {
+      if (accessAction === 'deny') clearDeniedState();
+      return;
+    }
+    clearDeniedState();
+  }, [accessDenied, category, offset, onAccessDenied, query.error, query.refetch, retrySessionRestore, search, userId]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       const previousState = appStateRef.current;
