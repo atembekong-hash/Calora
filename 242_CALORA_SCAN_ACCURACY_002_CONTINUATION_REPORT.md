@@ -1,7 +1,7 @@
-# 242 — CAL-SCAN-ACCURACY-002 Continuation Report
+﻿# 242 â€” CAL-SCAN-ACCURACY-002 Continuation Report
 
-**Branch:** `fix/scan-accuracy-002`  
-**Base preliminary commit:** `7668493ad01298e799b0da88dbb231e94de047e9`  
+**Branch:** `fix/scan-accuracy-002`
+**Base preliminary commit:** `7668493ad01298e799b0da88dbb231e94de047e9`
 **Scope:** bounded benchmark construction, validation-gate repair, and provider-gated measurement harness. No production deployment, database mutation, native build, installation, merge, or store action occurred.
 
 ## Benchmark v1
@@ -78,3 +78,4 @@ No PR was opened or merged, and the branch was not deployed.
 
 [1]: https://raw.githubusercontent.com/Metabolic-Intelligence-Lab/vlm-food-benchmark/main/LICENSE-DATA "VLM Food Benchmark dataset license"
 [2]: https://github.com/google-research-datasets/Nutrition5k "Nutrition5k repository, dataset contents, download scope, and license"
+
