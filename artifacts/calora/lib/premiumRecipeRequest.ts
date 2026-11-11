@@ -34,6 +34,14 @@ export function isPremiumRecipeAuthenticationError(error: unknown): boolean {
   const status = requestStatus(error);
   return status === 401;
 }
+export type PremiumRecipeAccessAction = 'refresh-session' | 'deny' | 'ignore';
+
+export function premiumRecipeAccessAction(error: unknown): PremiumRecipeAccessAction {
+  const status = requestStatus(error);
+  if (status === 401) return 'refresh-session';
+  if (status === 403) return 'deny';
+  return 'ignore';
+}
 /**
  * Retry one transient connection, deadline, or server failure. Auth, input,
  * rate-limit, and provider-policy responses are deliberately never retried.

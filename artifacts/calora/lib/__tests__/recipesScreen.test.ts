@@ -300,7 +300,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("active={activeSection === 'premium'}");
     expect(premiumCatalogue).toContain('if (!active) return;');
     expect(source).toContain('renderItem={renderRecipeSection}');
-    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
+    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeAccessAction, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('signal,');
@@ -531,8 +531,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('retrySessionRestore');
     expect(source).toContain('authRecoveryAttemptedRef');
     expect(source).toContain('const recoveryKey = `${userId ?? \'signed-out\'}:${offset}:${search}:${category}`');
+    expect(source).toContain('const accessAction = premiumRecipeAccessAction(query.error)');
+    expect(source).toContain("accessAction === 'refresh-session'");
+    expect(source).toContain("if (accessAction === 'deny') clearDeniedState();");
     expect(source).toContain('const refreshed = await query.refetch()');
-    expect(source).toContain('if (userId) return;');
     expect(source).toContain('onAccessDenied();');
   });
 
