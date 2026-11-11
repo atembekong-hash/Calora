@@ -1455,7 +1455,11 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
 
   return (
     <BottomSheet visible={visible} onRequestClose={onClose} sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        style={styles.addFoodSheet}
+      >
         <View style={styles.modalHandle} />
         <View style={styles.modalHeading}>
           <View>
@@ -1543,7 +1547,16 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               </View>
             </KeyboardAwareScrollViewCompat>
             <View style={[styles.manualEntryFooter, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-              <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL</Text>
+              <View style={styles.manualEntryHeader}>
+                <View style={[styles.manualEntryIcon, { backgroundColor: colors.accent }]}>
+                  <Feather name="edit-3" size={16} color={colors.primary} />
+                </View>
+                <View style={styles.manualEntryCopy}>
+                  <Text style={[styles.manualEntryTitle, { color: colors.foreground }]}>Manual entry</Text>
+                  <Text style={[styles.manualEntrySubtitle, { color: colors.mutedForeground }]}>Type a food and calories</Text>
+                </View>
+                <Text style={[styles.manualEntryEyebrow, { color: colors.primary }]}>MANUAL</Text>
+              </View>
               <View style={styles.manualRow}>
                 <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} returnKeyType="next" style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                 <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(normalizeWholeNumberInput(value)); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" returnKeyType="done" onSubmitEditing={addManual} style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
@@ -2696,7 +2709,13 @@ function makeStyles(f: number) {
    manualModeScroll: { flex: 1, minHeight: 0 },
   foodOptionsScroll: { flex: 1, minHeight: 0 },
   foodOptionsContent: { paddingBottom: 12 },
-  manualEntryFooter: { paddingTop: 12, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth },
+   manualEntryFooter: { paddingTop: 14, paddingBottom: 16, paddingHorizontal: 2, borderTopWidth: StyleSheet.hairlineWidth, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.06, shadowRadius: 8 },
+  manualEntryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 11, gap: 10 },
+  manualEntryIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  manualEntryCopy: { flex: 1, minWidth: 0 },
+  manualEntryTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14 * f },
+  manualEntrySubtitle: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
+  manualEntryEyebrow: { fontFamily: 'Inter_800ExtraBold', fontSize: 10 * f, letterSpacing: 1.1 },
   editSheetContent: { paddingBottom: 4 },
   modalHandle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#9aa69e', alignSelf: 'center', marginBottom: 20 },
   modalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },

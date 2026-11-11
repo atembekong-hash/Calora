@@ -442,7 +442,8 @@ describe('Today dashboard — date context and display contracts', () => {
     const photoOption = source.indexOf('testID="photo-log-button"');
     const verifiedLabel = source.indexOf('>VERIFIED</Text>');
 
-    expect(source).toContain('<KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>');
+    expect(source).toContain("behavior={Platform.OS === 'ios' ? 'padding' : 'height'}");
+    expect(source).toContain("keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}");
     expect(source).not.toContain('stickyHeaderIndices');
     expect(source).toContain('testID="voice-log-button"');
     expect(source).toContain("params: { date: entryDate, capture: 'voice' }");
@@ -450,6 +451,9 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain("params: { date: entryDate, capture: 'barcode' }");
     expect(source).toContain('styles.manualFooterRow');
     expect(source).toContain('manualInput: { flex: 1, minWidth: 0');
+    expect(source).toContain('Manual entry');
+    expect(source).toContain('Type a food and calories');
+    expect(source).toContain('styles.manualEntryHeader');
     expect(manualFooter).toBeGreaterThan(verifiedLabel);
     expect(manualFooter).toBeGreaterThan(photoOption);
     expect(photoOption).toBeLessThan(verifiedLabel);
