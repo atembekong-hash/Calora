@@ -274,8 +274,8 @@ function confidence(value: unknown, fallback: number) {
   return Math.min(Math.max(Math.round(numberOrZero(value) || fallback), 0), 100);
 }
 
-function ensureComponent(candidate: Partial<CaptureComponent>, index: number, provenance = "Photo estimate"): CaptureComponent {
-  const base = ensureCandidate({ ...candidate, provenance: candidate.provenance || provenance }, index);
+function ensureComponent(candidate: Partial<CaptureComponent>, index: number, provenance = "Photo estimate", sourceLabel = "Managed vision estimate"): CaptureComponent {
+  const base = ensureCandidate({ ...candidate, provenance, sourceLabel }, index);
   const identity = confidence(candidate.confidenceDimensions?.identity, base.confidence);
   const portion = confidence(candidate.confidenceDimensions?.portion, base.provenance === "Photo estimate" ? Math.max(base.confidence - 8, 0) : base.confidence);
   const nutritionSource = confidence(candidate.confidenceDimensions?.nutritionSource, base.provenance.includes("verified") ? base.confidence : Math.max(base.confidence - 12, 0));
@@ -289,9 +289,15 @@ function ensureComponent(candidate: Partial<CaptureComponent>, index: number, pr
     included: candidate.included !== false,
     eatenFraction: Math.min(Math.max(Number(candidate.eatenFraction ?? 1), 0), 1),
     confidenceDimensions: { identity, portion, nutritionSource, preparation },
-    assumptions: Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 6) : [],
+    assumptions: [
+      ...(Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 5) : []),
+      ...(provenance === "Photo estimate" ? ["Nutrition is a visual estimate and was not verified against a nutrition database."] : []),
+    ].slice(0, 6),
     nutritionRange: { caloriesLow: Math.min(low, high), caloriesHigh: Math.max(low, high) },
-    reviewQuestions: Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
+    reviewQuestions: [
+      ...(Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 3) : []),
+      ...(provenance === "Photo estimate" ? ["Confirm the food identity and portion size before saving."] : []),
+    ].slice(0, 4),
   };
 }
 
@@ -485,7 +491,7 @@ async function lookupBarcode(barcode: string) {
   return openFoodFactsFallback ? { candidate: openFoodFactsFallback, provider: "Open Food Facts" } : null;
 }
 
-function parseVisionResponse(content: string) {
+function parseVisionResponse(content: string, provenance = "Photo estimate", sourceLabel = "Managed vision estimate") {
   const cleaned = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
   const parsed = JSON.parse(cleaned) as {
     title?: string;
@@ -495,7 +501,7 @@ function parseVisionResponse(content: string) {
     reviewQuestions?: string[];
   };
   const rawComponents = parsed.components ?? parsed.candidates ?? [];
-  const components = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index)).filter((candidate) => candidate.name !== "Unidentified food");
+  const components = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index, provenance, sourceLabel)).filter((candidate) => candidate.name !== "Unidentified food");
   const candidates = components.map(({ componentId: _componentId, preparation: _preparation, included: _included, eatenFraction: _eatenFraction, confidenceDimensions: _confidenceDimensions, assumptions: _assumptions, nutritionRange: _nutritionRange, reviewQuestions: _reviewQuestions, ...candidate }) => candidate);
   return {
     title: parsed.title?.trim() || (components[0]?.name ?? "Food photo review"),
@@ -570,7 +576,7 @@ async function analyzeNutritionLabel(imageBase64: string, imageMimeType: Capture
   }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Label reader returned no analysis");
-  return parseVisionResponse(content);
+  return parseVisionResponse(content, "Nutrition label", "Label extract");
 }
 
 async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImageMimeType) {
@@ -584,11 +590,11 @@ async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImage
         content: [
           `You are ${BRAND_NAME}'s food recognition engine.`,
           "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
-          "Do not refuse because the food is unfamiliar. Make the best reasonable estimate.",
+          "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "For mixed meals, return one component per visually distinct food. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
-          "Nutrition from an image is an estimate. Never describe it as verified.",
-          "Use edible portion estimates and keep calories/macros non-negative.",
+          "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
+          "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
+          "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
         ].join(" "),
       },
       {
@@ -596,7 +602,7 @@ async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImage
         content: [
           {
             type: "text",
-            text: "Identify every food or drink you can see and estimate one serving for each. Ask only high-impact review questions such as uncertain sauce, serving size, or whether the whole meal was eaten.",
+            text: "Identify every food or drink you can see and estimate one serving for each. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
           },
           {
             type: "image_url",
@@ -639,7 +645,7 @@ async function analyzeReceipt(imageBase64: string, imageMimeType: CaptureImageMi
   }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Receipt reader returned no analysis");
-  return parseVisionResponse(content);
+  return parseVisionResponse(content, "Receipt estimate", "Receipt line-item estimate");
 }
 
 async function transcribeVoice(audioBase64: string, audioFormat: "mp4" | "m4a" | "wav" | "webm" = "mp4") {
@@ -949,7 +955,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
           provenance: "Receipt estimate",
           sourceLabel: "Receipt line-item estimate",
           included: component.confidence >= 55,
-        }, index, "Receipt estimate")),
+        }, index, "Receipt estimate", "Receipt line-item estimate")),
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "delete_after_analysis",
@@ -979,7 +985,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
           ...component,
           provenance: component.provenance || "Nutrition label",
           sourceLabel: component.sourceLabel || "Label extract",
-        }, index, "Nutrition label")),
+        }, index, "Nutrition label", "Label extract")),
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "delete_after_analysis",

@@ -1052,6 +1052,42 @@ describe('/v1/capture/analyze', () => {
       expect(comp.reviewQuestions).toBeDefined();
     });
 
+    it('keeps image nutrition estimate-only even if the model returns verified provenance', async () => {
+      (openai.chat.completions.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse({
+          components: [{
+            name: 'Mixed meal',
+            calories: 500,
+            proteinG: 20,
+            carbsG: 50,
+            fatG: 18,
+            confidence: 82,
+            provenance: 'USDA verified',
+            sourceLabel: 'USDA FoodData Central',
+            confidenceDimensions: { identity: 60, portion: 55, nutritionSource: 40, preparation: 45 },
+          }],
+        }) } }],
+      });
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'food', imageBase64: validJpegBase64, imageMimeType: 'image/jpeg' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.provider).toBe('Managed vision');
+      expect(res.body.components[0]).toMatchObject({
+        provenance: 'Photo estimate',
+        sourceLabel: 'Managed vision estimate',
+      });
+      expect(res.body.components[0].assumptions).toContain(
+        'Nutrition is a visual estimate and was not verified against a nutrition database.',
+      );
+      expect(res.body.components[0].reviewQuestions).toContain(
+        'Confirm the food identity and portion size before saving.',
+      );
+    });
+
     it('returns 502 when the AI provider fails', async () => {
       (openai.chat.completions.create as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new Error('Provider timeout'),
