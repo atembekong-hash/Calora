@@ -1,4 +1,4 @@
-﻿# 242 â€” CAL-SCAN-ACCURACY-002 Continuation Report
+# 242 â€” CAL-SCAN-ACCURACY-002 Continuation Report
 
 **Branch:** `fix/scan-accuracy-002`
 **Base preliminary commit:** `7668493ad01298e799b0da88dbb231e94de047e9`
@@ -27,7 +27,7 @@ Added:
 - `scripts/run-capture-benchmark.mjs`
 - `scripts/evaluate-capture-benchmark.mjs`
 
-The runner requires both `CALORA_BENCHMARK_API_URL` and `CALORA_BENCHMARK_AUTH_TOKEN`. It refuses to run without an explicitly supplied authorized non-production endpoint and token. It also enforces a maximum of 100 calls and records an operator-supplied estimated cost ceiling. The runner sends the original images to Calora's existing `/v1/capture/analyze` endpoint and records HTTP status, latency, raw response, and benchmark reference metadata.
+The runner requires both `CALORA_BENCHMARK_API_URL` and `CALORA_BENCHMARK_AUTH_TOKEN`. It refuses to run without an explicitly supplied authorized non-production endpoint and token. It enforces a maximum of 100 calls per run and a persistent combined budget through `CALORA_BENCHMARK_COMBINED_BUDGET_USD`, `CALORA_BENCHMARK_ESTIMATED_COST_USD`, and `runs/budget-ledger.json`. A second run cannot exceed the original ledger budget. The runner sends the original images to Calora's existing `/v1/capture/analyze` endpoint and records HTTP status, latency, raw response, and benchmark reference metadata.
 
 The evaluator computes only metrics supported by the references:
 
@@ -43,6 +43,12 @@ Unavailable references remain `null`. They are never treated as zero. The evalua
 No provider calls were made. The environment has no `OPENAI_API_KEY`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `API_BASE_URL`, or `CALORA_API_URL`, and no authorized non-production endpoint/token was supplied through the environment. The runner exited with its expected safety status and did not invoke a provider.
 
 Therefore, current accuracy, before/after accuracy, latency, and provider cost are **not measured**. No numerical result is invented. The benchmark and harness are ready for a bounded run as soon as an authorized non-production endpoint and token are present.
+
+## CAL-SCAN-ACCURACY-003 access investigation
+
+The local repository contains only an environment-variable contract; no staging URL, test database, Supabase test configuration, or provider credential is present. The authenticated Railway connector was queried read-only and returned `Unauthorized; please login with railway login`; no project or environment inventory could be obtained. No production endpoint was used as a substitute.
+
+Minimum owner action: authenticate the Railway CLI/connector and identify a non-production environment, then provision a least-privilege test account/token and provider key in that environment's secret manager. The owner should provide only the endpoint and short-lived benchmark token through a secure credential mechanism, never in chat or source control. The exact benchmark command must also set a combined budget, for example `CALORA_BENCHMARK_COMBINED_BUDGET_USD=...`, before either baseline or repeat run.
 
 ## TypeScript validation-gate resolution
 

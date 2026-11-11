@@ -9,6 +9,8 @@ const endpoint = process.env.CALORA_BENCHMARK_API_URL;
 const token = process.env.CALORA_BENCHMARK_AUTH_TOKEN;
 const maxCalls = Number.parseInt(process.env.CALORA_BENCHMARK_MAX_CALLS ?? "68", 10);
 const estimatedCostUsd = Number.parseFloat(process.env.CALORA_BENCHMARK_ESTIMATED_COST_USD ?? "0");
+const combinedBudgetUsd = Number.parseFloat(process.env.CALORA_BENCHMARK_COMBINED_BUDGET_USD ?? "NaN");
+const runLabel = process.env.CALORA_BENCHMARK_RUN_LABEL ?? `run-${new Date().toISOString()}`;
 
 if (!endpoint || !token) {
   console.error("Benchmark not run: set CALORA_BENCHMARK_API_URL and CALORA_BENCHMARK_AUTH_TOKEN for an authorized non-production target.");
@@ -18,6 +20,12 @@ if (!endpoint || !token) {
 if (!Number.isInteger(maxCalls) || maxCalls < 1 || maxCalls > 100) {
   throw new Error("CALORA_BENCHMARK_MAX_CALLS must be an integer from 1 to 100.");
 }
+if (!Number.isFinite(estimatedCostUsd) || estimatedCostUsd < 0) {
+  throw new Error("CALORA_BENCHMARK_ESTIMATED_COST_USD must be a non-negative number.");
+}
+if (!Number.isFinite(combinedBudgetUsd) || combinedBudgetUsd < estimatedCostUsd) {
+  throw new Error("CALORA_BENCHMARK_COMBINED_BUDGET_USD must be set and must cover this run's estimated cost.");
+}
 
 const rows = (await fs.readFile(path.join(benchmarkDir, "metadata", "benchmark.csv"), "utf8"))
   .trim().split(/\r?\n/).slice(1).map(parseCsvLine).map((values) => Object.fromEntries([
@@ -25,6 +33,24 @@ const rows = (await fs.readFile(path.join(benchmarkDir, "metadata", "benchmark.c
   ].map((key, index) => [key, values[index] ?? ""])),);
 
 const selected = rows.slice(0, Math.min(maxCalls, rows.length));
+const runsDir = path.join(benchmarkDir, "runs");
+await fs.mkdir(runsDir, { recursive: true });
+const ledgerPath = path.join(runsDir, "budget-ledger.json");
+let ledger = { version: 1, combined_budget_usd: combinedBudgetUsd, reservations: [] };
+try {
+  ledger = JSON.parse(await fs.readFile(ledgerPath, "utf8"));
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+if (ledger.combined_budget_usd !== combinedBudgetUsd) {
+  throw new Error(`Combined budget mismatch: ledger is ${ledger.combined_budget_usd}, requested ${combinedBudgetUsd}. Use a new benchmark directory for a new budget.`);
+}
+const reservedUsd = ledger.reservations.reduce((sum, reservation) => sum + reservation.estimated_cost_usd, 0);
+if (reservedUsd + estimatedCostUsd > combinedBudgetUsd) {
+  throw new Error(`Combined benchmark budget exceeded: reserved ${reservedUsd.toFixed(4)} + requested ${estimatedCostUsd.toFixed(4)} > ${combinedBudgetUsd.toFixed(4)}.`);
+}
+ledger.reservations.push({ run_label: runLabel, estimated_cost_usd: estimatedCostUsd, max_calls: selected.length, reserved_at: new Date().toISOString() });
+await fs.writeFile(ledgerPath, JSON.stringify(ledger, null, 2));
 const results = [];
 for (const row of selected) {
   const imagePath = path.join(benchmarkDir, row.local_image);
@@ -40,8 +66,7 @@ for (const row of selected) {
   results.push({ benchmark_id: row.benchmark_id, source_dataset: row.source_dataset, status: response.status, latency_ms: latencyMs, reference: row, response: body });
 }
 
-const output = { version: "cal-scan-accuracy-002-v1", endpoint, max_calls: maxCalls, executed_calls: results.length, estimated_cost_usd: estimatedCostUsd, results };
-await fs.mkdir(path.join(benchmarkDir, "runs"), { recursive: true });
+const output = { version: "cal-scan-accuracy-002-v1", run_label: runLabel, endpoint, max_calls: maxCalls, executed_calls: results.length, estimated_cost_usd: estimatedCostUsd, combined_budget_usd: combinedBudgetUsd, reserved_before_run_usd: reservedUsd, results };
 const outputPath = path.join(benchmarkDir, "runs", `run-${new Date().toISOString().replaceAll(":", "-")}.json`);
 await fs.writeFile(outputPath, JSON.stringify(output, null, 2));
 console.log(JSON.stringify({ outputPath, executedCalls: results.length, estimatedCostUsd }, null, 2));
