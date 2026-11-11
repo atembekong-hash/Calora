@@ -29,7 +29,7 @@ import { useDiarySync } from '@/hooks/useDiarySync';
 import { useSavedStateSync } from '@/hooks/useSavedStateSync';
 import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
 import { BRAND } from '@/lib/brand';
-import { getRootAccessGateState } from '@/lib/rootAccessGate';
+import { getRootAccessGateState, shouldRetainApplicationShell } from '@/lib/rootAccessGate';
 import {
   createPostAuthNavigationCoordinator,
   getPostAuthNavigationPlan,
@@ -330,6 +330,8 @@ function RootLayoutNav() {
   const { user, restoreStatus, postAuthIntent, isPasswordRecovery } = useAuth();
   const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
   const applicationShellEnteredRef = useRef(false);
+  const applicationShellIsActive = segments.some((segment) => String(segment) === '(tabs)');
+  if (applicationShellIsActive) applicationShellEnteredRef.current = true;
   const reviewRequested = mode === 'review';
   const { allowApplication, allowOnboarding } = getRootAccessGateState({
     hydrated,
@@ -338,18 +340,31 @@ function RootLayoutNav() {
     onboardingComplete,
     reviewRequested,
   });
+  const retainApplicationShell = shouldRetainApplicationShell({
+    shellEntered: applicationShellEnteredRef.current,
+    hydrated,
+    hydrationError,
+    onboardingComplete,
+    restoreStatus,
+    hasSession: !!user,
+  });
+  const effectiveAllowOnboarding = retainApplicationShell ? false : allowOnboarding;
   // Register the tab route shell during a cold bootstrap so a valid direct
   // web URL is not first classified as unmatched. The tab layout itself renders
   // only a neutral bootstrap surface until the existing gate admits content.
   // Secondary application routes remain unavailable until then.
-  const allowTabRouteShell = allowApplication || (!hydrationError && (!hydrated || !profileSyncReady));
+  // Once the protected application shell is active, a transient profile-sync
+  // readiness change must not expose the onboarding/index route again. Doing
+  // so unmounts the tab navigator and its default route is Today, which makes
+  // Recipes appear to open and then immediately disappear.
+  const allowTabRouteShell = retainApplicationShell
+    || allowApplication
+    || (!hydrationError && (!hydrated || !profileSyncReady));
   const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
   const authRouteIsActive = segments.some((segment) => {
     const value = String(segment);
     return value === 'auth' || value === 'callback';
   });
-  const applicationShellIsActive = segments.some((segment) => String(segment) === '(tabs)');
-  if (applicationShellIsActive) applicationShellEnteredRef.current = true;
   const effectivePostAuthIntent = resolvePostAuthIntent({
     callbackRouteIsActive,
     isPasswordRecovery,
@@ -387,7 +402,7 @@ function RootLayoutNav() {
           unregistered until local hydration and account-profile reconciliation
           both pass.
         */}
-        <Stack.Protected guard={allowOnboarding}>
+        <Stack.Protected guard={effectiveAllowOnboarding}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack.Protected>
         <Stack.Protected guard={allowTabRouteShell}>

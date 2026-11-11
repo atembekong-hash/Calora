@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCalora } from '@/context/CaloraContext';
+import { useAuth } from '@/context/AuthContext';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
@@ -8,7 +9,7 @@ import { SymbolView } from 'expo-symbols';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { motion } from '@/constants/tokens';
-import { getRootAccessGateState } from '@/lib/rootAccessGate';
+import { getRootAccessGateState, shouldRetainApplicationShell } from '@/lib/rootAccessGate';
 
 function AnimatedTabIcon({ focused, children }: { focused: boolean; children: React.ReactNode }) {
   const scale = useSharedValue(1);
@@ -194,6 +195,8 @@ export default function TabLayout() {
     profileSyncReady,
     onboardingComplete,
   } = useCalora();
+  const { restoreStatus, user } = useAuth();
+  const applicationShellReadyRef = React.useRef(false);
   const { applicationReady } = getRootAccessGateState({
     hydrated,
     hydrationError,
@@ -201,11 +204,20 @@ export default function TabLayout() {
     onboardingComplete,
     reviewRequested: false,
   });
+  if (applicationReady) applicationShellReadyRef.current = true;
+  const retainApplicationShell = shouldRetainApplicationShell({
+    shellEntered: applicationShellReadyRef.current,
+    hydrated,
+    hydrationError,
+    onboardingComplete,
+    restoreStatus,
+    hasSession: !!user,
+  });
 
   // Root registration keeps a valid cold-load tab URL out of generic not-found
   // recovery. Keep that registration non-sensitive until the same secure gate
   // admits the application.
-  if (!applicationReady) {
+  if (!applicationReady && !retainApplicationShell) {
     return <View testID="tab-route-bootstrap" style={[styles.bootstrap, { backgroundColor: colors.background }]} />;
   }
 
