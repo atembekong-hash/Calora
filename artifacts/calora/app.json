@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 33,
+      "versionCode": 29,
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.HIGH_SAMPLING_RATE_SENSORS",
