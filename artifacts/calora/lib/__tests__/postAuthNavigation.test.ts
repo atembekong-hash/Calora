@@ -99,6 +99,20 @@ describe('post-auth navigation policy', () => {
     });
   });
 
+  it('does not replace a tab after a stale native auth-route snapshot', () => {
+    expect(getPostAuthNavigationPlan({
+      restoreStatus: 'ready',
+      hasSession: true,
+      intent: 'ordinary',
+      applicationReady: true,
+      authRouteIsActive: true,
+      applicationShellEntered: true,
+    })).toEqual({
+      authRoutesEnabled: true,
+      destination: null,
+    });
+  });
+
   it('prunes stack history and executes only one Home transition for duplicate callback delivery', () => {
     const router = { dismissAll: vi.fn(), replace: vi.fn() };
     const coordinator = createPostAuthNavigationCoordinator(router);

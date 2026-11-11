@@ -329,6 +329,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const { user, restoreStatus, postAuthIntent, isPasswordRecovery } = useAuth();
   const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
+  const applicationShellEnteredRef = useRef(false);
   const reviewRequested = mode === 'review';
   const { allowApplication, allowOnboarding } = getRootAccessGateState({
     hydrated,
@@ -347,6 +348,8 @@ function RootLayoutNav() {
     const value = String(segment);
     return value === 'auth' || value === 'callback';
   });
+  const applicationShellIsActive = segments.some((segment) => String(segment) === '(tabs)');
+  if (applicationShellIsActive) applicationShellEnteredRef.current = true;
   const effectivePostAuthIntent = resolvePostAuthIntent({
     callbackRouteIsActive,
     isPasswordRecovery,
@@ -358,6 +361,7 @@ function RootLayoutNav() {
     intent: effectivePostAuthIntent,
     applicationReady: allowApplication,
     authRouteIsActive,
+    applicationShellEntered: applicationShellEnteredRef.current,
   });
 
   useEffect(() => {
