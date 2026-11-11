@@ -12,6 +12,28 @@ export type RootAccessGateState = {
   allowApplication: boolean;
 };
 
+export function shouldRetainApplicationShell({
+  shellEntered,
+  hydrated,
+  hydrationError,
+  onboardingComplete,
+  restoreStatus,
+  hasSession,
+}: {
+  shellEntered: boolean;
+  hydrated: boolean;
+  hydrationError: unknown;
+  onboardingComplete: boolean;
+  restoreStatus: 'loading' | 'ready' | 'failed';
+  hasSession: boolean;
+}): boolean {
+  return shellEntered
+    && hydrated
+    && !hydrationError
+    && onboardingComplete
+    && (restoreStatus !== 'ready' || hasSession);
+}
+
 /**
  * Computes the only two application route groups that may be mounted for an
  * account scope. Hydration, profile reconciliation, onboarding completion,

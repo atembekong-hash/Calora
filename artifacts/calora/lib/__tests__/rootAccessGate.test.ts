@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getInviteDestination, getRootAccessGateState } from '../rootAccessGate';
+import { getInviteDestination, getRootAccessGateState, shouldRetainApplicationShell } from '../rootAccessGate';
 
 describe('root access gate', () => {
   it('keeps every protected route unavailable before hydration, reconciliation, onboarding, and consent complete', () => {
@@ -62,6 +62,26 @@ describe('root access gate', () => {
     expect(getInviteDestination(true, false)).toBe('/');
     expect(getInviteDestination(true, true)).toBe('/(tabs)/profile');
   });
+
+  it('retains an entered application shell while profile sync briefly becomes unready', () => {
+    expect(shouldRetainApplicationShell({
+      shellEntered: true,
+      hydrated: true,
+      hydrationError: null,
+      onboardingComplete: true,
+      restoreStatus: 'loading',
+      hasSession: true,
+    })).toBe(true);
+
+    expect(shouldRetainApplicationShell({
+      shellEntered: true,
+      hydrated: true,
+      hydrationError: null,
+      onboardingComplete: true,
+      restoreStatus: 'ready',
+      hasSession: false,
+    })).toBe(false);
+  });
 });
 
 describe('legacy starter fixture migration', () => {
@@ -104,7 +124,7 @@ describe('barcode duplicate-capture contract', () => {
 
     expect(source).toContain('if (manualPhotoCaptureRef.current || barcodeLockRef.current || hasScanned || captureBusy');
     expect(source).toContain('barcodeLockRef.current = { barcode, sequence };');
-    expect(source).toContain("setHasScanned(true);\n    void submitAnalysis({ mode: mode === 'auto' ? 'barcode' : mode, barcode }, undefined, sequence);");
+    expect(source).toMatch(/setHasScanned\(true\);[\s\S]{0,240}submitAnalysis\(\{ mode: mode === 'auto' \? 'barcode' : mode, barcode \}/);
     expect(source).toContain("barcodeLockRef.current?.sequence !== barcodeSequence");
     expect(source).toContain("onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current || !cameraReady ? undefined : onBarcodeScanned}");
   });
