@@ -16,6 +16,7 @@ export const DASHBOARD_WIDGET_IDS = [
 export type DashboardWidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
 export type DashboardDensity = "compact" | "expanded";
 export type DashboardPlacement = "left" | "right";
+export type DashboardPreset = "compact" | "extended";
 
 export type DashboardPreferences = {
   version: number;
@@ -65,7 +66,7 @@ export const RESPONSIVE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = [
   "mood",
 ];
 
-const ACTIVE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = DASHBOARD_WIDGET_IDS.filter(
+export const ACTIVE_DASHBOARD_WIDGET_IDS: readonly DashboardWidgetId[] = DASHBOARD_WIDGET_IDS.filter(
   (id) => id !== "mealRhythm" && id !== "weight",
 );
 
@@ -151,8 +152,6 @@ export function normalizeDashboardPreferences(raw: unknown): DashboardPreference
     const value = (candidateDensity as Partial<Record<DashboardWidgetId, unknown>>)[id];
     if (value === "compact" || value === "expanded") density[id] = value;
   }
-  // Versions before the independent-size editor did not render these four
-  // cards as Expanded. Keep their established Compact appearance on upgrade.
   if (candidate.version !== DASHBOARD_PREFERENCES_VERSION) {
     for (const id of RESPONSIVE_DASHBOARD_WIDGET_IDS) density[id] = "compact";
   }
@@ -169,6 +168,39 @@ export function normalizeDashboardPreferences(raw: unknown): DashboardPreference
     density,
     placement,
   };
+}
+
+const STANDARD_PRESET_ORDER: readonly DashboardWidgetId[] = [
+  "calories",
+  "fasting",
+  "steps",
+  "nutrients",
+  "mood",
+  "water",
+  "quickLog",
+  "progressSnapshot",
+  "recipes",
+  "log",
+];
+
+export function applyDashboardPreset(
+  current: DashboardPreferences,
+  preset: DashboardPreset,
+): DashboardPreferences {
+  const order = [
+    ...STANDARD_PRESET_ORDER,
+    ...ACTIVE_DASHBOARD_WIDGET_IDS.filter((id) => !STANDARD_PRESET_ORDER.includes(id)),
+  ];
+  const density = { ...current.density };
+  for (const id of RESPONSIVE_DASHBOARD_WIDGET_IDS) density[id] = preset === "compact" ? "compact" : "expanded";
+  const placement = { ...current.placement, fasting: "left", steps: "right", nutrients: "left", mood: "right" };
+  return normalizeDashboardPreferences({
+    version: DASHBOARD_PREFERENCES_VERSION,
+    visible: [...ACTIVE_DASHBOARD_WIDGET_IDS],
+    order,
+    density,
+    placement,
+  });
 }
 
 export function buildDashboardRows(preferences: DashboardPreferences): DashboardWidgetId[][] {

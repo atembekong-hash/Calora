@@ -22,4 +22,21 @@ describe('Customize Today ordering controls', () => {
     expect(source).toContain('nutrients:');
     expect(source).toContain('fasting:');
   });
+
+  it('exposes both restoring presets, expandable guidance, and an undoable notice', () => {
+    const source = readFileSync(resolve(__dirname, '../../app/dashboard-layout.tsx'), 'utf8');
+    expect(source).toContain('Default Compact');
+    expect(source).toContain('Default Extended');
+    expect(source).toContain('dashboard-preset-compact');
+    expect(source).toContain('dashboard-preset-extended');
+    expect(source).toContain('How to customize your dashboard');
+    expect(source).toContain('actionLabel={undoPreferences ? "Undo" : undefined}');
+    expect(source).toContain('applyDashboardPreset');
+  });
+
+  it('only renders density controls for the four responsive widgets', () => {
+    const source = readFileSync(resolve(__dirname, '../../app/dashboard-layout.tsx'), 'utf8');
+    expect(source).toContain('{RESPONSIVE_DASHBOARD_WIDGET_IDS.includes(id) && <ScalePressable');
+    expect(source).toContain('Compact and Extended are available only for Fasting, Steps, Macro balance, and Mood.');
+  });
 });
