@@ -50,7 +50,7 @@ describe("final certification recovery interactions", () => {
     expect(restaurants).toContain("void searchResult.refetch();");
   });
 
-  it("pins the next safe iOS build number after build 18 was consumed", () => {
-    expect(appConfig.expo?.ios?.buildNumber).toBe("19");
+  it("pins the next safe iOS build number after build 19 was consumed", () => {
+    expect(appConfig.expo?.ios?.buildNumber).toBe("20");
   });
 });
