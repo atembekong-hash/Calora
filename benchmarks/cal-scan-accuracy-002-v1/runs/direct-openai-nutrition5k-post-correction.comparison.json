@@ -1,0 +1,823 @@
+{
+  "version": "cal-scan-accuracy-008-before-after",
+  "baseline_model": "gpt-5.6-terra",
+  "post_model": "gpt-5.6-terra",
+  "primary_case_count": 9,
+  "baseline_cost_usd": 0.06695999999999999,
+  "post_correction_cost_usd": 0.072732,
+  "aggregate": {
+    "completed_cases": 9,
+    "missing_post_cases": 0,
+    "before": {
+      "identity_recall_mean": 0.5555555555555556,
+      "portion_mae_g_mean": null,
+      "latency_ms_mean": 7281.777777777777,
+      "low_confidence_components": 6,
+      "duplicate_components": 0,
+      "structured_weight_count": 0,
+      "nutrition_mae": {
+        "calories": 30.283777111111117,
+        "protein_g": 2.1772222222222215,
+        "carbs_g": 4.905111,
+        "fat_g": 1.472222111111111
+      }
+    },
+    "after": {
+      "identity_recall_mean": 0.6296296296296295,
+      "portion_mae_g_mean": null,
+      "latency_ms_mean": 7872.222222222223,
+      "low_confidence_components": 7,
+      "duplicate_components": 0,
+      "structured_weight_count": 0,
+      "nutrition_mae": {
+        "calories": 46.09933222222222,
+        "protein_g": 1.1145555555555555,
+        "carbs_g": 5.189555444444443,
+        "fat_g": 2.3702221111111115
+      }
+    },
+    "delta": {
+      "identity_recall_mean": 0.07407407407407396,
+      "portion_mae_g_mean": null,
+      "low_confidence_components": 1,
+      "duplicate_components": 0
+    }
+  },
+  "per_meal": [
+    {
+      "benchmark_id": "N5K-1556572657",
+      "before": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 10.600002000000003,
+            "percentage_error": 25.60387080211937,
+            "predicted": 52,
+            "reference": 41.399998
+          },
+          "protein_g": {
+            "absolute_error": 0.11200000000000004,
+            "percentage_error": 38.88888888888891,
+            "predicted": 0.4,
+            "reference": 0.288
+          },
+          "carbs_g": {
+            "absolute_error": 0.4320000000000004,
+            "percentage_error": 19.047619047619065,
+            "predicted": 2.7,
+            "reference": 2.268
+          },
+          "fat_g": {
+            "absolute_error": 1.0480000000000005,
+            "percentage_error": 27.2066458982347,
+            "predicted": 4.9,
+            "reference": 3.852
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 8036,
+        "estimated_cost_usd": 0.007188
+      },
+      "after": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 23.600002000000003,
+            "percentage_error": 57.004838502649214,
+            "predicted": 65,
+            "reference": 41.399998
+          },
+          "protein_g": {
+            "absolute_error": 0.21200000000000002,
+            "percentage_error": 73.61111111111113,
+            "predicted": 0.5,
+            "reference": 0.288
+          },
+          "carbs_g": {
+            "absolute_error": 1.2320000000000002,
+            "percentage_error": 54.32098765432101,
+            "predicted": 3.5,
+            "reference": 2.268
+          },
+          "fat_g": {
+            "absolute_error": 2.648,
+            "percentage_error": 68.7435098650052,
+            "predicted": 6.5,
+            "reference": 3.852
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 7665,
+        "estimated_cost_usd": 0.0066560000000000005
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 13,
+        "protein_absolute_error": 0.09999999999999998,
+        "carbs_absolute_error": 0.7999999999999998,
+        "fat_absolute_error": 1.5999999999999996,
+        "latency_ms": -371
+      }
+    },
+    {
+      "benchmark_id": "N5K-1556575558",
+      "before": {
+        "identity_recall": 0.6666666666666666,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 60.699996999999996,
+            "percentage_error": 58.76088599919982,
+            "predicted": 164,
+            "reference": 103.300003
+          },
+          "protein_g": {
+            "absolute_error": 8.132,
+            "percentage_error": 283.54253835425385,
+            "predicted": 11,
+            "reference": 2.868
+          },
+          "carbs_g": {
+            "absolute_error": 20.381999999999998,
+            "percentage_error": 191.95705405914484,
+            "predicted": 31,
+            "reference": 10.618
+          },
+          "fat_g": {
+            "absolute_error": 4.882,
+            "percentage_error": 70.93868061609997,
+            "predicted": 2,
+            "reference": 6.882
+          }
+        },
+        "component_count": 3,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 11369,
+        "estimated_cost_usd": 0.011928
+      },
+      "after": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 56.699996999999996,
+            "percentage_error": 54.88866926751202,
+            "predicted": 160,
+            "reference": 103.300003
+          },
+          "protein_g": {
+            "absolute_error": 2.132,
+            "percentage_error": 74.33751743375176,
+            "predicted": 5,
+            "reference": 2.868
+          },
+          "carbs_g": {
+            "absolute_error": 7.382,
+            "percentage_error": 69.52345074401958,
+            "predicted": 18,
+            "reference": 10.618
+          },
+          "fat_g": {
+            "absolute_error": 3.1180000000000003,
+            "percentage_error": 45.30659691950015,
+            "predicted": 10,
+            "reference": 6.882
+          }
+        },
+        "component_count": 3,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 12677,
+        "estimated_cost_usd": 0.011888000000000001
+      },
+      "delta": {
+        "identity_recall": 0.33333333333333337,
+        "portion_mae_g": null,
+        "calories_absolute_error": -4,
+        "protein_absolute_error": -6,
+        "carbs_absolute_error": -12.999999999999998,
+        "fat_absolute_error": -1.7639999999999993,
+        "latency_ms": 1308
+      }
+    },
+    {
+      "benchmark_id": "N5K-1557861837",
+      "before": {
+        "identity_recall": 0.3333333333333333,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 98.116001,
+            "percentage_error": 158.54825574539873,
+            "predicted": 160,
+            "reference": 61.883999
+          },
+          "protein_g": {
+            "absolute_error": 5.198,
+            "percentage_error": 59.76086456656703,
+            "predicted": 3.5,
+            "reference": 8.698
+          },
+          "carbs_g": {
+            "absolute_error": 13.54,
+            "percentage_error": 303.58744394618833,
+            "predicted": 18,
+            "reference": 4.46
+          },
+          "fat_g": {
+            "absolute_error": 2.673,
+            "percentage_error": 45.87266174703964,
+            "predicted": 8.5,
+            "reference": 5.827
+          }
+        },
+        "component_count": 3,
+        "low_confidence_components": 2,
+        "duplicate_components": 0,
+        "latency_ms": 11443,
+        "estimated_cost_usd": 0.010752
+      },
+      "after": {
+        "identity_recall": 0.6666666666666666,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 203.11600099999998,
+            "percentage_error": 328.22054857831665,
+            "predicted": 265,
+            "reference": 61.883999
+          },
+          "protein_g": {
+            "absolute_error": 1.6980000000000004,
+            "percentage_error": 19.52172913313406,
+            "predicted": 7,
+            "reference": 8.698
+          },
+          "carbs_g": {
+            "absolute_error": 21.54,
+            "percentage_error": 482.9596412556054,
+            "predicted": 26,
+            "reference": 4.46
+          },
+          "fat_g": {
+            "absolute_error": 10.173,
+            "percentage_error": 174.58383387678052,
+            "predicted": 16,
+            "reference": 5.827
+          }
+        },
+        "component_count": 3,
+        "low_confidence_components": 3,
+        "duplicate_components": 0,
+        "latency_ms": 12859,
+        "estimated_cost_usd": 0.01316
+      },
+      "delta": {
+        "identity_recall": 0.3333333333333333,
+        "portion_mae_g": null,
+        "calories_absolute_error": 104.99999999999999,
+        "protein_absolute_error": -3.5,
+        "carbs_absolute_error": 8,
+        "fat_absolute_error": 7.5,
+        "latency_ms": 1416
+      }
+    },
+    {
+      "benchmark_id": "N5K-1557936555",
+      "before": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 5.279999000000004,
+            "percentage_error": 3.5369768457728914,
+            "predicted": 144,
+            "reference": 149.279999
+          },
+          "protein_g": {
+            "absolute_error": 1,
+            "percentage_error": 8.333333333333332,
+            "predicted": 13,
+            "reference": 12
+          },
+          "carbs_g": {
+            "absolute_error": 0.1519999999999999,
+            "percentage_error": 13.19444444444444,
+            "predicted": 1,
+            "reference": 1.152
+          },
+          "fat_g": {
+            "absolute_error": 0.08000000000000007,
+            "percentage_error": 0.7936507936507943,
+            "predicted": 10,
+            "reference": 10.08
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 4989,
+        "estimated_cost_usd": 0.00558
+      },
+      "after": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 5.279999000000004,
+            "percentage_error": 3.5369768457728914,
+            "predicted": 144,
+            "reference": 149.279999
+          },
+          "protein_g": {
+            "absolute_error": 0.5999999999999996,
+            "percentage_error": 4.9999999999999964,
+            "predicted": 12.6,
+            "reference": 12
+          },
+          "carbs_g": {
+            "absolute_error": 0.35199999999999987,
+            "percentage_error": 30.555555555555546,
+            "predicted": 0.8,
+            "reference": 1.152
+          },
+          "fat_g": {
+            "absolute_error": 0.4800000000000004,
+            "percentage_error": 4.761904761904765,
+            "predicted": 9.6,
+            "reference": 10.08
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 4875,
+        "estimated_cost_usd": 0.005912000000000001
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 0,
+        "protein_absolute_error": -0.40000000000000036,
+        "carbs_absolute_error": 0.19999999999999996,
+        "fat_absolute_error": 0.40000000000000036,
+        "latency_ms": -114
+      }
+    },
+    {
+      "benchmark_id": "N5K-1557937715",
+      "before": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 0.33000200000000035,
+            "percentage_error": 1.5965265211926987,
+            "predicted": 21,
+            "reference": 20.669998
+          },
+          "protein_g": {
+            "absolute_error": 0.03199999999999997,
+            "percentage_error": 6.837606837606831,
+            "predicted": 0.5,
+            "reference": 0.468
+          },
+          "carbs_g": {
+            "absolute_error": 0.1200000000000001,
+            "percentage_error": 2.5641025641025665,
+            "predicted": 4.8,
+            "reference": 4.68
+          },
+          "fat_g": {
+            "absolute_error": 0.02699999999999997,
+            "percentage_error": 9.890109890109876,
+            "predicted": 0.3,
+            "reference": 0.273
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 5126,
+        "estimated_cost_usd": 0.005292000000000001
+      },
+      "after": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 2.6699979999999996,
+            "percentage_error": 12.91726298183483,
+            "predicted": 18,
+            "reference": 20.669998
+          },
+          "protein_g": {
+            "absolute_error": 0.068,
+            "percentage_error": 14.529914529914532,
+            "predicted": 0.4,
+            "reference": 0.468
+          },
+          "carbs_g": {
+            "absolute_error": 0.47999999999999954,
+            "percentage_error": 10.256410256410248,
+            "predicted": 4.2,
+            "reference": 4.68
+          },
+          "fat_g": {
+            "absolute_error": 0.07300000000000001,
+            "percentage_error": 26.73992673992674,
+            "predicted": 0.2,
+            "reference": 0.273
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 6691,
+        "estimated_cost_usd": 0.006644
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 2.3399959999999993,
+        "protein_absolute_error": 0.03600000000000003,
+        "carbs_absolute_error": 0.35999999999999943,
+        "fat_absolute_error": 0.04600000000000004,
+        "latency_ms": 1565
+      }
+    },
+    {
+      "benchmark_id": "N5K-1558028007",
+      "before": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 15.330002,
+            "percentage_error": 28.040977795536048,
+            "predicted": 70,
+            "reference": 54.669998
+          },
+          "protein_g": {
+            "absolute_error": 0.18000000000000016,
+            "percentage_error": 12.67605633802818,
+            "predicted": 1.6,
+            "reference": 1.42
+          },
+          "carbs_g": {
+            "absolute_error": 3.9299999999999997,
+            "percentage_error": 32.56006628003313,
+            "predicted": 16,
+            "reference": 12.07
+          },
+          "fat_g": {
+            "absolute_error": 0.029000000000000012,
+            "percentage_error": 40.84507042253523,
+            "predicted": 0.1,
+            "reference": 0.071
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 6234,
+        "estimated_cost_usd": 0.0060479999999999996
+      },
+      "after": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 40.330002,
+            "percentage_error": 73.76989843679893,
+            "predicted": 95,
+            "reference": 54.669998
+          },
+          "protein_g": {
+            "absolute_error": 0.5800000000000001,
+            "percentage_error": 40.845070422535215,
+            "predicted": 2,
+            "reference": 1.42
+          },
+          "carbs_g": {
+            "absolute_error": 9.93,
+            "percentage_error": 82.27009113504556,
+            "predicted": 22,
+            "reference": 12.07
+          },
+          "fat_g": {
+            "absolute_error": 0.029000000000000012,
+            "percentage_error": 40.84507042253523,
+            "predicted": 0.1,
+            "reference": 0.071
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 6266,
+        "estimated_cost_usd": 0.006548
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 25,
+        "protein_absolute_error": 0.3999999999999999,
+        "carbs_absolute_error": 6,
+        "fat_absolute_error": 0,
+        "latency_ms": 32
+      }
+    },
+    {
+      "benchmark_id": "N5K-1558029278",
+      "before": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 61.06999200000001,
+            "percentage_error": 41.808718658655096,
+            "predicted": 85,
+            "reference": 146.069992
+          },
+          "protein_g": {
+            "absolute_error": 3.99,
+            "percentage_error": 39.93993993993994,
+            "predicted": 6,
+            "reference": 9.99
+          },
+          "carbs_g": {
+            "absolute_error": 0.378,
+            "percentage_error": 100,
+            "predicted": 0,
+            "reference": 0.378
+          },
+          "fat_g": {
+            "absolute_error": 4.339999000000001,
+            "percentage_error": 38.271599494850044,
+            "predicted": 7,
+            "reference": 11.339999
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 5772,
+        "estimated_cost_usd": 0.005868
+      },
+      "after": {
+        "identity_recall": 1,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 60.06999200000001,
+            "percentage_error": 41.12411534875692,
+            "predicted": 86,
+            "reference": 146.069992
+          },
+          "protein_g": {
+            "absolute_error": 3.99,
+            "percentage_error": 39.93993993993994,
+            "predicted": 6,
+            "reference": 9.99
+          },
+          "carbs_g": {
+            "absolute_error": 0.178,
+            "percentage_error": 47.08994708994709,
+            "predicted": 0.2,
+            "reference": 0.378
+          },
+          "fat_g": {
+            "absolute_error": 4.739999000000001,
+            "percentage_error": 41.79893666657291,
+            "predicted": 6.6,
+            "reference": 11.339999
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 5890,
+        "estimated_cost_usd": 0.006092
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": -1,
+        "protein_absolute_error": 0,
+        "carbs_absolute_error": -0.2,
+        "fat_absolute_error": 0.40000000000000036,
+        "latency_ms": 118
+      }
+    },
+    {
+      "benchmark_id": "N5K-1558031526",
+      "before": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 13.057998999999995,
+            "percentage_error": 16.971223558378725,
+            "predicted": 90,
+            "reference": 76.942001
+          },
+          "protein_g": {
+            "absolute_error": 0.708,
+            "percentage_error": 71.37096774193547,
+            "predicted": 1.7,
+            "reference": 0.992
+          },
+          "carbs_g": {
+            "absolute_error": 2.771999000000001,
+            "percentage_error": 15.207366951537917,
+            "predicted": 21,
+            "reference": 18.228001
+          },
+          "fat_g": {
+            "absolute_error": 0.023999999999999994,
+            "percentage_error": 19.354838709677413,
+            "predicted": 0.1,
+            "reference": 0.124
+          }
+        },
+        "component_count": 2,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 6901,
+        "estimated_cost_usd": 0.0077280000000000005
+      },
+      "after": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 13.057998999999995,
+            "percentage_error": 16.971223558378725,
+            "predicted": 90,
+            "reference": 76.942001
+          },
+          "protein_g": {
+            "absolute_error": 0.508,
+            "percentage_error": 51.20967741935484,
+            "predicted": 1.5,
+            "reference": 0.992
+          },
+          "carbs_g": {
+            "absolute_error": 2.771999000000001,
+            "percentage_error": 15.207366951537917,
+            "predicted": 21,
+            "reference": 18.228001
+          },
+          "fat_g": {
+            "absolute_error": 0.023999999999999994,
+            "percentage_error": 19.354838709677413,
+            "predicted": 0.1,
+            "reference": 0.124
+          }
+        },
+        "component_count": 1,
+        "low_confidence_components": 1,
+        "duplicate_components": 0,
+        "latency_ms": 6193,
+        "estimated_cost_usd": 0.007112
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 0,
+        "protein_absolute_error": -0.19999999999999996,
+        "carbs_absolute_error": 0,
+        "fat_absolute_error": 0,
+        "latency_ms": -708
+      }
+    },
+    {
+      "benchmark_id": "N5K-1558110297",
+      "before": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 8.07,
+            "percentage_error": 27.76057791537668,
+            "predicted": 21,
+            "reference": 29.07
+          },
+          "protein_g": {
+            "absolute_error": 0.2430000000000001,
+            "percentage_error": 68.06722689075634,
+            "predicted": 0.6000000000000001,
+            "reference": 0.357
+          },
+          "carbs_g": {
+            "absolute_error": 2.4399999999999995,
+            "percentage_error": 34.17366946778711,
+            "predicted": 4.7,
+            "reference": 7.14
+          },
+          "fat_g": {
+            "absolute_error": 0.14700000000000005,
+            "percentage_error": 96.07843137254906,
+            "predicted": 0.30000000000000004,
+            "reference": 0.153
+          }
+        },
+        "component_count": 2,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 5666,
+        "estimated_cost_usd": 0.006576
+      },
+      "after": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "structured_weight_count": 0,
+        "known_weight_total_g": null,
+        "nutrition": {
+          "calories": {
+            "absolute_error": 10.07,
+            "percentage_error": 34.64052287581699,
+            "predicted": 19,
+            "reference": 29.07
+          },
+          "protein_g": {
+            "absolute_error": 0.2430000000000001,
+            "percentage_error": 68.06722689075634,
+            "predicted": 0.6000000000000001,
+            "reference": 0.357
+          },
+          "carbs_g": {
+            "absolute_error": 2.84,
+            "percentage_error": 39.77591036414566,
+            "predicted": 4.3,
+            "reference": 7.14
+          },
+          "fat_g": {
+            "absolute_error": 0.047000000000000014,
+            "percentage_error": 30.71895424836602,
+            "predicted": 0.2,
+            "reference": 0.153
+          }
+        },
+        "component_count": 2,
+        "low_confidence_components": 0,
+        "duplicate_components": 0,
+        "latency_ms": 7734,
+        "estimated_cost_usd": 0.00872
+      },
+      "delta": {
+        "identity_recall": 0,
+        "portion_mae_g": null,
+        "calories_absolute_error": 2,
+        "protein_absolute_error": 0,
+        "carbs_absolute_error": 0.40000000000000036,
+        "fat_absolute_error": -0.10000000000000003,
+        "latency_ms": 2068
+      }
+    }
+  ],
+  "note": "Structural safeguard changes are reported separately from model-accuracy changes; this comparison does not attribute causality to an individual prompt or normalization change."
+}

@@ -1930,6 +1930,10 @@ export const listRestaurantFoodsResponseFoodsItemSugarGMin = 0;
 
 export const listRestaurantFoodsResponseFoodsItemSodiumMgMin = 0;
 
+export const listRestaurantFoodsResponseFoodsItemServingsItemMetricServingAmountMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemNumberOfUnitsMin = 0;
+
 export const listRestaurantFoodsResponseFoodsItemServingsItemCaloriesMin = 0;
 
 export const listRestaurantFoodsResponseFoodsItemServingsItemProteinGMin = 0;
@@ -1968,6 +1972,11 @@ export const ListRestaurantFoodsResponse = zod.object({
   "servings": zod.array(zod.object({
   "servingId": zod.string().nullable(),
   "description": zod.string(),
+  "metricServingAmount": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemMetricServingAmountMin).nullish(),
+  "metricServingUnit": zod.string().nullish(),
+  "numberOfUnits": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemNumberOfUnitsMin).nullish(),
+  "measurementDescription": zod.string().nullish(),
+  "isDefault": zod.boolean().optional(),
   "calories": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemCaloriesMin).nullable(),
   "proteinG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemProteinGMin).nullable(),
   "carbsG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemCarbsGMin).nullable(),
@@ -2008,6 +2017,10 @@ export const getRestaurantFoodResponseSugarGMin = 0;
 
 export const getRestaurantFoodResponseSodiumMgMin = 0;
 
+export const getRestaurantFoodResponseServingsItemMetricServingAmountMin = 0;
+
+export const getRestaurantFoodResponseServingsItemNumberOfUnitsMin = 0;
+
 export const getRestaurantFoodResponseServingsItemCaloriesMin = 0;
 
 export const getRestaurantFoodResponseServingsItemProteinGMin = 0;
@@ -2042,6 +2055,11 @@ export const GetRestaurantFoodResponse = zod.object({
   "servings": zod.array(zod.object({
   "servingId": zod.string().nullable(),
   "description": zod.string(),
+  "metricServingAmount": zod.number().min(getRestaurantFoodResponseServingsItemMetricServingAmountMin).nullish(),
+  "metricServingUnit": zod.string().nullish(),
+  "numberOfUnits": zod.number().min(getRestaurantFoodResponseServingsItemNumberOfUnitsMin).nullish(),
+  "measurementDescription": zod.string().nullish(),
+  "isDefault": zod.boolean().optional(),
   "calories": zod.number().min(getRestaurantFoodResponseServingsItemCaloriesMin).nullable(),
   "proteinG": zod.number().min(getRestaurantFoodResponseServingsItemProteinGMin).nullable(),
   "carbsG": zod.number().min(getRestaurantFoodResponseServingsItemCarbsGMin).nullable(),

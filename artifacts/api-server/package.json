@@ -18,6 +18,7 @@
     "test:monitoring": "node --test ../../scripts/monitor-account-deletion-fence.test.mjs",
     "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "pretypecheck": "tsc -b ../../lib/db/tsconfig.json ../../lib/api-zod/tsconfig.json ../../lib/integrations-openai-ai-server/tsconfig.json --pretty false",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

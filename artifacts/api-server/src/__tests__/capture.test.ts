@@ -11,7 +11,36 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import { fatSecretCandidate, offCandidate } from '../routes/capture.js';
+import { fatSecretCandidate, offCandidate, parseVisionResponse } from '../routes/capture.js';
+
+describe('photo recognition safeguards', () => {
+  it('extracts explicit gram weights, preserves uncertainty, and removes exact duplicate components', () => {
+    const result = parseVisionResponse(JSON.stringify({
+      title: 'Ambiguous plate',
+      components: [
+        { name: 'Dark beans (likely kidney beans or black beans)', serving: 'About 90 g', servingWeightG: null, calories: 115, proteinG: 8, carbsG: 21, fatG: 1, confidence: 67 },
+        { name: 'Dark beans (likely kidney beans or black beans)', serving: 'About 90 g', servingWeightG: null, calories: 115, proteinG: 8, carbsG: 21, fatG: 1, confidence: 67 },
+      ],
+    }));
+
+    expect(result.components).toHaveLength(1);
+    expect(result.components[0].servingWeightG).toBe(90);
+    expect(result.components[0].assumptions).toContain('Food identity is uncertain; nutrition should remain editable until the user confirms the match.');
+    expect(result.components[0].reviewQuestions).toContain('Please confirm the food identity before relying on its nutrition estimate.');
+  });
+
+  it('preserves genuinely separate portions when their weights or nutrition differ', () => {
+    const result = parseVisionResponse(JSON.stringify({
+      components: [
+        { name: 'Potato', serving: '40 g', calories: 35, proteinG: 0.8, carbsG: 8, fatG: 0 },
+        { name: 'Potato', serving: '80 g', calories: 70, proteinG: 1.6, carbsG: 16, fatG: 0 },
+      ],
+    }));
+
+    expect(result.components).toHaveLength(2);
+    expect(result.components.map((item) => item.servingWeightG)).toEqual([40, 80]);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Shared in-memory state that backs the pool.query mock below.
@@ -1050,6 +1079,42 @@ describe('/v1/capture/analyze', () => {
       expect(comp.confidenceDimensions).toBeDefined();
       expect(comp.assumptions).toBeDefined();
       expect(comp.reviewQuestions).toBeDefined();
+    });
+
+    it('keeps image nutrition estimate-only even if the model returns verified provenance', async () => {
+      (openai.chat.completions.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse({
+          components: [{
+            name: 'Mixed meal',
+            calories: 500,
+            proteinG: 20,
+            carbsG: 50,
+            fatG: 18,
+            confidence: 82,
+            provenance: 'USDA verified',
+            sourceLabel: 'USDA FoodData Central',
+            confidenceDimensions: { identity: 60, portion: 55, nutritionSource: 40, preparation: 45 },
+          }],
+        }) } }],
+      });
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'food', imageBase64: validJpegBase64, imageMimeType: 'image/jpeg' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.provider).toBe('Managed vision');
+      expect(res.body.components[0]).toMatchObject({
+        provenance: 'Photo estimate',
+        sourceLabel: 'Managed vision estimate',
+      });
+      expect(res.body.components[0].assumptions).toContain(
+        'Nutrition is a visual estimate and was not verified against a nutrition database.',
+      );
+      expect(res.body.components[0].reviewQuestions).toContain(
+        'Confirm the food identity and portion size before saving.',
+      );
     });
 
     it('returns 502 when the AI provider fails', async () => {
