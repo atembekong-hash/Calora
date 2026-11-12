@@ -136,7 +136,7 @@ describe("direct OpenAI Nutrition5k baseline", () => {
     expect(ledger.recordedCostUsd).toBe(0.75);
   });
 
-  it.skipIf(process.env.CALORA_DIRECT_BENCHMARK_SKIP_PAID === "1")("runs each of the 10 Nutrition5k cases once with usage and budget evidence", async () => {
+  it.skipIf(process.env.CALORA_DIRECT_BENCHMARK_ALLOW !== "1" || process.env.CALORA_DIRECT_BENCHMARK_SKIP_PAID === "1")("runs each of the 10 Nutrition5k cases once with usage and budget evidence", async () => {
     if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY is required");
     if (process.env.CALORA_DIRECT_BENCHMARK_ALLOW !== "1") throw new Error("Set CALORA_DIRECT_BENCHMARK_ALLOW=1");
     if (await fileExists(outputPath)) throw new Error(`Baseline already exists; refusing to repeat: ${outputPath}`);

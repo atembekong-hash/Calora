@@ -92,7 +92,7 @@ describe("direct OpenAI vision smoke benchmark", () => {
     }
   });
 
-  it("runs exactly three benchmark images through the production analyzer", async () => {
+  it.skipIf(process.env.CALORA_DIRECT_BENCHMARK_ALLOW !== "1")("runs exactly three benchmark images through the production analyzer", async () => {
     if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
       throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY is required for the paid smoke test");
     }
