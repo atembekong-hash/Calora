@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DASHBOARD_PREFERENCES,
+  applyDashboardPreset,
   buildDashboardRows,
   normalizeDashboardPreferences,
   reorderDashboardWidget,
@@ -91,5 +92,28 @@ describe("dashboard preferences", () => {
     expect(result.density.mood).toBe("expanded");
     expect(result.placement.fasting).toBe("right");
     expect(result.placement.steps).toBe("left");
+  });
+
+  it("applies Default Compact with all widgets restored and the requested paired rows", () => {
+    const compact = applyDashboardPreset({
+      ...DEFAULT_DASHBOARD_PREFERENCES,
+      visible: ["calories", "fasting"],
+      order: ["calories", "fasting", "recipes", "log"],
+    }, "compact");
+    expect(compact.visible).toEqual(expect.arrayContaining(["calories", "steps", "nutrients", "mood", "water", "quickLog", "progressSnapshot", "recipes", "log"]));
+    expect(compact.order.slice(0, 10)).toEqual(["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "progressSnapshot", "recipes", "log"]);
+    expect(buildDashboardRows(compact)).toEqual([["fasting", "steps"], ["nutrients", "mood"]]);
+    expect(compact.order.at(-1)).toBe("log");
+    expect(compact.order.at(-2)).toBe("recipes");
+  });
+
+  it("applies Default Extended as full-width responsive cards without locking future edits", () => {
+    const extended = applyDashboardPreset(DEFAULT_DASHBOARD_PREFERENCES, "extended");
+    expect(extended.visible).toEqual(expect.arrayContaining(["calories", "fasting", "steps", "nutrients", "mood", "water", "quickLog", "progressSnapshot", "recipes", "log"]));
+    expect(buildDashboardRows(extended)).toEqual([["fasting"], ["steps"], ["nutrients"], ["mood"]]);
+    expect(extended.density.fasting).toBe("expanded");
+    expect(extended.density.steps).toBe("expanded");
+    expect(extended.density.nutrients).toBe("expanded");
+    expect(extended.density.mood).toBe("expanded");
   });
 });
