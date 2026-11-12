@@ -10,15 +10,20 @@ export interface RestaurantFoodServing {
   /** @nullable */
   servingId: string | null;
   description: string;
-  /** @nullable */
+  /**
+     * @minimum 0
+     * @nullable
+     */
   metricServingAmount?: number | null;
   /** @nullable */
   metricServingUnit?: string | null;
-  /** @nullable */
+  /**
+     * @minimum 0
+     * @nullable
+     */
   numberOfUnits?: number | null;
   /** @nullable */
   measurementDescription?: string | null;
-  /** @nullable */
   isDefault?: boolean;
   /**
      * @minimum 0
