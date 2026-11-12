@@ -28,7 +28,7 @@ jobs:
             const requiredChecks = [
               'Run release validation suite',
               'Run portable fresh-schema integrations (PostgreSQL 16)',
-              'Account-deletion fence validation',
+              'Verify fresh-schema deletion fences (PostgreSQL 16)',
             ];
             let pullRequests = [];
             if (context.eventName === 'pull_request_target') {
