@@ -31,7 +31,7 @@ import { RecipeAuthError, requestGeneratedRecipe, requestGuestRecipeConcepts, re
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
-import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
+import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeAccessAction, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest';
 import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from '@/lib/discoverRecipeRequest';
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
 import { shouldLoadMoreRecipePage, shouldRetryRecipePage } from '@/lib/recipePagination';
@@ -981,7 +981,7 @@ function CreateConcepts({ colors, onOpenRecipe, updateRecipe }: { colors: Return
 
 function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAccessDenied, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange, suggestionMinimumRecipeCount = 0 }: { active: boolean; colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; onSaveAsMeal: (recipe: PremiumRecipe) => void; onAccessDenied: () => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void; suggestionMinimumRecipeCount?: number }) {
   const { savedRecipeIds, toggleSavedRecipe, savedMeals, deleteSavedMeal } = useCalora();
-  const { session, user } = useAuth();
+  const { session, user, retrySessionRestore } = useAuth();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
@@ -995,6 +995,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   const requestedOffsetsRef = useRef(new Set<number>());
   const failedOffsetRef = useRef<number | null>(null);
   const lastPaginationStartedAtRef = useRef<number | null>(null);
+  const authRecoveryAttemptedRef = useRef<string | null>(null);
   const hasMountedFiltersRef = useRef(false);
   const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined;
   const premiumParams = {
@@ -1043,16 +1044,54 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
     queryFetchingRef.current = query.isFetching;
   }, [query.isFetching]);
   useEffect(() => {
-    if (!accessDenied) return;
-    setLoadedRecipes([]);
-    setLoadedForUserId(null);
-    requestedOffsetRef.current = null;
-    requestedOffsetsRef.current.clear();
-    failedOffsetRef.current = null;
-    lastPaginationStartedAtRef.current = null;
-    loadingMoreRef.current = false;
-    onAccessDenied();
-  }, [accessDenied, onAccessDenied]);
+    if (!accessDenied) {
+      authRecoveryAttemptedRef.current = null;
+      return;
+    }
+
+    // A successful sign-in can briefly race the first protected Plus request:
+    // Supabase has a user in React state while the API client is still adopting
+    // or refreshing the corresponding access token. Do not turn that transient
+    // 401 into a misleading Sign In prompt. Retry once for the same account and
+    // request; persistent failures still fail closed below.
+    const accessAction = premiumRecipeAccessAction(query.error);
+    const recoveryKey = `${userId ?? 'signed-out'}:${offset}:${search}:${category}`;
+    const clearDeniedState = () => {
+      setLoadedRecipes([]);
+      setLoadedForUserId(null);
+      requestedOffsetRef.current = null;
+      requestedOffsetsRef.current.clear();
+      failedOffsetRef.current = null;
+      lastPaginationStartedAtRef.current = null;
+      loadingMoreRef.current = false;
+      onAccessDenied();
+    };
+    if (userId && accessAction === 'refresh-session' && authRecoveryAttemptedRef.current !== recoveryKey) {
+      authRecoveryAttemptedRef.current = recoveryKey;
+      let cancelled = false;
+      void (async () => {
+        await retrySessionRestore();
+        if (cancelled) return;
+        const refreshed = await query.refetch();
+        const refreshedStatus = premiumRecipeErrorStatus(refreshed.error);
+        if (!cancelled && refreshedStatus !== 401 && refreshedStatus !== 403) {
+          authRecoveryAttemptedRef.current = null;
+          return;
+        }
+        if (cancelled) return;
+        clearDeniedState();
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (userId) {
+      if (accessAction === 'deny') clearDeniedState();
+      return;
+    }
+    clearDeniedState();
+  }, [accessDenied, category, offset, onAccessDenied, query.error, query.refetch, retrySessionRestore, search, userId]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       const previousState = appStateRef.current;

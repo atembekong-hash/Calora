@@ -4,6 +4,7 @@ import {
   PREMIUM_RECIPE_REQUEST_OPTIONS,
   PREMIUM_RECIPE_REQUEST_TIMEOUT_MS,
   isPremiumRecipeAuthenticationError,
+  premiumRecipeAccessAction,
   premiumRecipeRetryDelay,
   shouldRetryPremiumRecipeRequest,
 } from "../premiumRecipeRequest";
@@ -47,5 +48,11 @@ describe("PREMIUM_RECIPE_REFRESH_POLICY", () => {
     expect(isPremiumRecipeAuthenticationError({ status: 403 })).toBe(false);
     expect(isPremiumRecipeAuthenticationError({ status: 429 })).toBe(false);
     expect(isPremiumRecipeAuthenticationError({ status: 502 })).toBe(false);
+  });
+
+  it("denies entitlement without resetting the authenticated hydration scope", () => {
+    expect(premiumRecipeAccessAction({ status: 401 })).toBe("refresh-session");
+    expect(premiumRecipeAccessAction({ status: 403 })).toBe("deny");
+    expect(premiumRecipeAccessAction({ status: 502 })).toBe("ignore");
   });
 });

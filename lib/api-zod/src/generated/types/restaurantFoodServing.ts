@@ -14,6 +14,21 @@ export interface RestaurantFoodServing {
      * @minimum 0
      * @nullable
      */
+  metricServingAmount?: number | null;
+  /** @nullable */
+  metricServingUnit?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  numberOfUnits?: number | null;
+  /** @nullable */
+  measurementDescription?: string | null;
+  isDefault?: boolean;
+  /**
+     * @minimum 0
+     * @nullable
+     */
   calories: number | null;
   /**
      * @minimum 0

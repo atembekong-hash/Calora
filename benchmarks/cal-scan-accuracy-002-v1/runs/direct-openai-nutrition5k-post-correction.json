@@ -1,0 +1,1309 @@
+{
+  "version": "cal-scan-accuracy-008-nutrition5k-post-correction",
+  "model": "gpt-5.6-terra",
+  "endpoint_kind": "direct-openai",
+  "executed_calls": 9,
+  "estimated_cost_usd": 0.07273199999999999,
+  "budget_usd": 8,
+  "results": [
+    {
+      "benchmark_id": "N5K-1556572657",
+      "ledger_benchmark_id": "post-correction:N5K-1556572657",
+      "status": 200,
+      "latency_ms": 7665,
+      "response": {
+        "title": "Dark olives on a plate",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Dark table olives (possibly Kalamata-style or black olives)",
+            "brand": null,
+            "serving": "About 13 whole olives (all visible olives)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 65,
+            "proteinG": 0.5,
+            "carbsG": 3.5,
+            "fatG": 6.5,
+            "confidence": 62,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Dark table olives (possibly Kalamata-style or black olives)",
+            "brand": null,
+            "serving": "About 13 whole olives (all visible olives)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 65,
+            "proteinG": 0.5,
+            "carbsG": 3.5,
+            "fatG": 6.5,
+            "confidence": 62,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appears to be plain whole olives, likely cured/brined; no visible added dressing or oil.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 72,
+              "portion": 85,
+              "nutritionSource": 55,
+              "preparation": 58
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 59,
+              "caloriesHigh": 72
+            },
+            "reviewQuestions": [
+              "Are these Kalamata olives, standard black ripe olives, or another variety?",
+              "Were the olives packed only in brine, or coated/marinated in oil?",
+              "Were all visible olives eaten, and do they contain pits?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "One distinct food is visible: approximately 13 dark olives.",
+          "No defensible gram weight can be determined from the image alone, so servingWeightG is omitted.",
+          "Nutrition is an image-based estimate and may differ with olive variety, drained amount, and oil-based marinade."
+        ],
+        "reviewQuestions": [
+          "Please confirm the olive type and whether any oil or marinade was included.",
+          "Did you eat the entire visible portion?"
+        ]
+      },
+      "reference": {
+        "known_items": "olives",
+        "portion_grams": "36.000000",
+        "calories": "41.399998",
+        "protein_g": "0.288000",
+        "carbs_g": "2.268000",
+        "fat_g": "3.852000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKtYZtzxzJiHpxmzyFGwLIIsrL5M",
+        "requestId": "req_06f3fa9d40ea4307bedf201e63dc4e61",
+        "model": "gpt-5.6-terra",
+        "created": 1794473788,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 426,
+          "total_tokens": 1198
+        }
+      },
+      "estimated_cost_usd": 0.0066560000000000005
+    },
+    {
+      "benchmark_id": "N5K-1556575558",
+      "ledger_benchmark_id": "post-correction:N5K-1556575558",
+      "status": 200,
+      "latency_ms": 12677,
+      "response": {
+        "title": "Brussels sprouts, dark olives, and celery on a plate",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Brussels sprouts",
+            "brand": null,
+            "serving": "About 8–10 small whole/halved Brussels sprouts (approximately 1 cup cooked)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 55,
+            "proteinG": 4,
+            "carbsG": 11,
+            "fatG": 1,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Dark olives (likely Kalamata or similar cured olives)",
+            "brand": null,
+            "serving": "About 18–22 olives",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 95,
+            "proteinG": 1,
+            "carbsG": 5,
+            "fatG": 9,
+            "confidence": 73,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Celery",
+            "brand": null,
+            "serving": "About 1/2 cup chopped celery",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 10,
+            "proteinG": 0,
+            "carbsG": 2,
+            "fatG": 0,
+            "confidence": 82,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Brussels sprouts",
+            "brand": null,
+            "serving": "About 8–10 small whole/halved Brussels sprouts (approximately 1 cup cooked)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 55,
+            "proteinG": 4,
+            "carbsG": 11,
+            "fatG": 1,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appear cooked (possibly steamed, boiled, or roasted); no obvious sauce is visible.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 94,
+              "portion": 58,
+              "nutritionSource": 70,
+              "preparation": 65
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 41,
+              "caloriesHigh": 72
+            },
+            "reviewQuestions": [
+              "Were the Brussels sprouts cooked with oil, butter, or a glaze?",
+              "Was this the full amount of Brussels sprouts eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Dark olives (likely Kalamata or similar cured olives)",
+            "brand": null,
+            "serving": "About 18–22 olives",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 95,
+            "proteinG": 1,
+            "carbsG": 5,
+            "fatG": 9,
+            "confidence": 73,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Appears drained/served plain; likely cured and brined.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 76,
+              "portion": 62,
+              "nutritionSource": 62,
+              "preparation": 74
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 71,
+              "caloriesHigh": 124
+            },
+            "reviewQuestions": [
+              "Are these Kalamata olives, black olives, or another variety?",
+              "Were the olives packed or marinated in added oil?",
+              "Were pits removed?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Celery",
+            "brand": null,
+            "serving": "About 1/2 cup chopped celery",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 10,
+            "proteinG": 0,
+            "carbsG": 2,
+            "fatG": 0,
+            "confidence": 82,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-3",
+            "preparation": "Appears raw and chopped; no dressing is visible.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 98,
+              "portion": 60,
+              "nutritionSource": 82,
+              "preparation": 88
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 8,
+              "caloriesHigh": 13
+            },
+            "reviewQuestions": [
+              "Was any dressing, oil, or dip added to the celery or mixed into the plate?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "No defensible gram weight can be established from the image because there is no reliable size or weight reference.",
+          "Nutrition is an image-based estimate, not a verified food record.",
+          "No visible dressing, cooking oil, butter, or sauce was included in the estimate.",
+          "The estimates assume the pictured plate represents the amount eaten."
+        ],
+        "reviewQuestions": [
+          "Did you eat everything shown on the plate?",
+          "Were any oils, dressings, butter, or other seasonings used that are not visible?",
+          "Can you confirm the olive type and whether they were oil-marinated?"
+        ]
+      },
+      "reference": {
+        "known_items": "celery | olives | brussels sprouts",
+        "portion_grams": "28.000000 | 62.000000 | 64.000000",
+        "calories": "103.300003",
+        "protein_g": "2.868000",
+        "carbs_g": "10.618000",
+        "fat_g": "6.882000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKtfXmNz3HamyjjbfgQBnffroypd",
+        "requestId": "req_0612dbcd251a47a999fe29c7fbe2b17a",
+        "model": "gpt-5.6-terra",
+        "created": 1794473795,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 862,
+          "total_tokens": 1634
+        }
+      },
+      "estimated_cost_usd": 0.011888000000000001
+    },
+    {
+      "benchmark_id": "N5K-1557861837",
+      "ledger_benchmark_id": "post-correction:N5K-1557861837",
+      "status": 200,
+      "latency_ms": 12859,
+      "response": {
+        "title": "Small plate with leafy salad, cooked eggplant/vegetables, and a browned vegetable slice",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Leafy green salad with pale cheese/crouton-like pieces (possibly Caesar-style)",
+            "brand": null,
+            "serving": "About 1/2 cup of salad remnants",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 80,
+            "proteinG": 3,
+            "carbsG": 7,
+            "fatG": 5,
+            "confidence": 55,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Cooked eggplant chunks with possible zucchini or other vegetables",
+            "brand": null,
+            "serving": "About 1/2 cup cooked vegetable mixture",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 110,
+            "proteinG": 2,
+            "carbsG": 11,
+            "fatG": 7,
+            "confidence": 60,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Browned baked or grilled vegetable slice (possibly zucchini or eggplant-based)",
+            "brand": null,
+            "serving": "One small slice/piece",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 75,
+            "proteinG": 2,
+            "carbsG": 8,
+            "fatG": 4,
+            "confidence": 35,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Leafy green salad with pale cheese/crouton-like pieces (possibly Caesar-style)",
+            "brand": null,
+            "serving": "About 1/2 cup of salad remnants",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 80,
+            "proteinG": 3,
+            "carbsG": 7,
+            "fatG": 5,
+            "confidence": 55,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appears to be a dressed or lightly coated chopped lettuce salad; pale pieces may be croutons and/or cheese.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 65,
+              "portion": 45,
+              "nutritionSource": 35,
+              "preparation": 45
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 60,
+              "caloriesHigh": 104
+            },
+            "reviewQuestions": [
+              "Was this a Caesar-style salad, or another salad with a different dressing?",
+              "Were the pale pieces croutons, cheese, chicken, or another ingredient?",
+              "Was additional dressing or oil used?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Cooked eggplant chunks with possible zucchini or other vegetables",
+            "brand": null,
+            "serving": "About 1/2 cup cooked vegetable mixture",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 110,
+            "proteinG": 2,
+            "carbsG": 11,
+            "fatG": 7,
+            "confidence": 60,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Appears sautéed, roasted, or braised, with a glossy brown sauce or cooking juices.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 70,
+              "portion": 50,
+              "nutritionSource": 40,
+              "preparation": 45
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 83,
+              "caloriesHigh": 143
+            },
+            "reviewQuestions": [
+              "Was this plain roasted eggplant/vegetables, ratatouille, or a sauce-based dish?",
+              "Was oil, cheese, sugar-containing sauce, or meat added during cooking?",
+              "Was the visible portion all that was eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Browned baked or grilled vegetable slice (possibly zucchini or eggplant-based)",
+            "brand": null,
+            "serving": "One small slice/piece",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 75,
+            "proteinG": 2,
+            "carbsG": 8,
+            "fatG": 4,
+            "confidence": 35,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-3",
+            "preparation": "Appears browned on the surface and may be roasted, grilled, breaded, or part of a vegetable casserole.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 30,
+              "portion": 55,
+              "nutritionSource": 25,
+              "preparation": 30
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 56,
+              "caloriesHigh": 98
+            },
+            "reviewQuestions": [
+              "What was the browned slice—zucchini, eggplant, a vegetable gratin, or another item?",
+              "Was it breaded, fried, baked with cheese, or cooked with oil?",
+              "Did you eat the entire piece shown?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "Only visible foods on the plate were counted; no drink is visible.",
+          "Serving weights are omitted because the image does not provide a reliable size or weight reference.",
+          "Nutrition estimates reflect the portions visible and may differ substantially with dressing, oil, breading, cheese, or sauce."
+        ],
+        "reviewQuestions": [
+          "Is this the full amount eaten, or are these leftovers after a larger serving?",
+          "Can you confirm the salad dressing and the identity/preparation of the browned vegetable slice?",
+          "Were any sauces, oils, cheese, or other toppings present but not clearly visible?"
+        ]
+      },
+      "reference": {
+        "known_items": "eggplant | caesar salad | fish",
+        "portion_grams": "53.000000 | 31.000000 | 39.000000",
+        "calories": "61.883999",
+        "protein_g": "8.698000",
+        "carbs_g": "4.460000",
+        "fat_g": "5.827000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKts2FEc6u7zHLqOXLmpRurN50GM",
+        "requestId": "req_306640cd64ac4f1a8d8821c26fdb11ce",
+        "model": "gpt-5.6-terra",
+        "created": 1794473808,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 968,
+          "total_tokens": 1740
+        }
+      },
+      "estimated_cost_usd": 0.01316
+    },
+    {
+      "benchmark_id": "N5K-1557936555",
+      "ledger_benchmark_id": "post-correction:N5K-1557936555",
+      "status": 200,
+      "latency_ms": 4875,
+      "response": {
+        "title": "Scrambled eggs",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Scrambled eggs",
+            "brand": null,
+            "serving": "Approximately 2 large eggs' worth of scrambled egg",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 144,
+            "proteinG": 12.6,
+            "carbsG": 0.8,
+            "fatG": 9.6,
+            "confidence": 68,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Scrambled eggs",
+            "brand": null,
+            "serving": "Approximately 2 large eggs' worth of scrambled egg",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 144,
+            "proteinG": 12.6,
+            "carbsG": 0.8,
+            "fatG": 9.6,
+            "confidence": 68,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Scrambled/cooked eggs; no visible cheese, sauce, or garnish.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 93,
+              "portion": 55,
+              "nutritionSource": 70,
+              "preparation": 58
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 108,
+              "caloriesHigh": 187
+            },
+            "reviewQuestions": [
+              "Was this made from about 2 eggs, or was the portion larger/smaller?",
+              "Were butter, oil, milk/cream, cheese, or other ingredients added during cooking?",
+              "Was the entire portion eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "The image shows one distinct food item: scrambled eggs.",
+          "Portion weight cannot be defensibly measured from the image because there is no reliable size or weight reference.",
+          "Nutrition is an image-based estimate and excludes unconfirmed cooking fats or mix-ins."
+        ],
+        "reviewQuestions": [
+          "How many eggs were used?",
+          "Were any fats, dairy, cheese, or seasonings with calories added?",
+          "Did you eat the whole serving shown?"
+        ]
+      },
+      "reference": {
+        "known_items": "eggs",
+        "portion_grams": "96.000000",
+        "calories": "149.279999",
+        "protein_g": "12.000000",
+        "carbs_g": "1.152000",
+        "fat_g": "10.080000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKu564vQ3dkizgn2pOHyJAXGzBtH",
+        "requestId": "req_2a59aa1014454863bf321056f14c3abb",
+        "model": "gpt-5.6-terra",
+        "created": 1794473821,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 364,
+          "total_tokens": 1136
+        }
+      },
+      "estimated_cost_usd": 0.005912000000000001
+    },
+    {
+      "benchmark_id": "N5K-1557937715",
+      "ledger_benchmark_id": "post-correction:N5K-1557937715",
+      "status": 200,
+      "latency_ms": 6691,
+      "response": {
+        "title": "Raspberries on a plate",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Raspberries (possibly frozen/thawed)",
+            "brand": null,
+            "serving": "About 10–12 raspberries (approximately 1/4 cup; estimated edible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 18,
+            "proteinG": 0.4,
+            "carbsG": 4.2,
+            "fatG": 0.2,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Raspberries (possibly frozen/thawed)",
+            "brand": null,
+            "serving": "About 10–12 raspberries (approximately 1/4 cup; estimated edible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 18,
+            "proteinG": 0.4,
+            "carbsG": 4.2,
+            "fatG": 0.2,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Plain; they appear moist/thawed, but no added ingredients are visible.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 82,
+              "portion": 55,
+              "nutritionSource": 70,
+              "preparation": 80
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 14,
+              "caloriesHigh": 23
+            },
+            "reviewQuestions": [
+              "Are these plain raspberries, or were they packed with sugar/syrup or another topping?",
+              "Was this the entire portion eaten?",
+              "Were the berries fresh, frozen, or sweetened/thawed fruit?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "Only a small portion of red berries is visible; no reliable scale reference supports a defensible gram weight.",
+          "No visible sauces, sugar, yogurt, or other additions were counted."
+        ],
+        "reviewQuestions": [
+          "Can you confirm the berries were plain raspberries and whether the full plate portion was eaten?"
+        ]
+      },
+      "reference": {
+        "known_items": "raspberries",
+        "portion_grams": "39.000000",
+        "calories": "20.669998",
+        "protein_g": "0.468000",
+        "carbs_g": "4.680000",
+        "fat_g": "0.273000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKuADydsfqYoSrZU50Ij7DgPZc0N",
+        "requestId": "req_c917a6a473e447f2ac82f68dc85d7f9d",
+        "model": "gpt-5.6-terra",
+        "created": 1794473826,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 425,
+          "total_tokens": 1197
+        }
+      },
+      "estimated_cost_usd": 0.006644
+    },
+    {
+      "benchmark_id": "N5K-1558028007",
+      "ledger_benchmark_id": "post-correction:N5K-1558028007",
+      "status": 200,
+      "latency_ms": 6266,
+      "response": {
+        "title": "Roasted potato pieces",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Cooked potato pieces (likely roasted or pan-browned)",
+            "brand": null,
+            "serving": "About 5 potato chunks (approximately 1/2 cup)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 95,
+            "proteinG": 2,
+            "carbsG": 22,
+            "fatG": 0.1,
+            "confidence": 64,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Cooked potato pieces (likely roasted or pan-browned)",
+            "brand": null,
+            "serving": "About 5 potato chunks (approximately 1/2 cup)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 95,
+            "proteinG": 2,
+            "carbsG": 22,
+            "fatG": 0.1,
+            "confidence": 64,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Cooked potato pieces with visible browning; estimated as plain cooked potato without added oil or sauce.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 88,
+              "portion": 45,
+              "nutritionSource": 58,
+              "preparation": 60
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 71,
+              "caloriesHigh": 124
+            },
+            "reviewQuestions": [
+              "Were these roasted, fried, or cooked with oil/butter? Added fat could materially increase calories.",
+              "Was this the entire potato portion eaten, or were there additional pieces not shown?",
+              "Can you provide the cooked weight or a size reference for a more accurate serving estimate?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "Only the visible potato pieces are counted.",
+          "Small visible residue on the plate is not counted as a separate sauce or food.",
+          "Nutrition is an image-based estimate, not a verified nutrition record."
+        ],
+        "reviewQuestions": [
+          "Did the potatoes contain added oil, butter, cheese, or a sauce?",
+          "Was the full pictured portion eaten?"
+        ]
+      },
+      "reference": {
+        "known_items": "potatoes",
+        "portion_grams": "71.000000",
+        "calories": "54.669998",
+        "protein_g": "1.420000",
+        "carbs_g": "12.070000",
+        "fat_g": "0.071000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKuGkxHCl4yKFcxpgt2o2EMg5vjf",
+        "requestId": "req_f89bd33bb5f94949b7c079ce331ab69f",
+        "model": "gpt-5.6-terra",
+        "created": 1794473832,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 417,
+          "total_tokens": 1189
+        }
+      },
+      "estimated_cost_usd": 0.006548
+    },
+    {
+      "benchmark_id": "N5K-1558029278",
+      "ledger_benchmark_id": "post-correction:N5K-1558029278",
+      "status": 200,
+      "latency_ms": 5890,
+      "response": {
+        "title": "Cooked bacon strips",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Cooked bacon",
+            "brand": "Unknown",
+            "serving": "2 cooked strips (visible on plate)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 86,
+            "proteinG": 6,
+            "carbsG": 0.2,
+            "fatG": 6.6,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Cooked bacon",
+            "brand": "Unknown",
+            "serving": "2 cooked strips (visible on plate)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 86,
+            "proteinG": 6,
+            "carbsG": 0.2,
+            "fatG": 6.6,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appears cooked/crisped bacon; cooking method and drained fat are unknown.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 94,
+              "portion": 82,
+              "nutritionSource": 58,
+              "preparation": 65
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 77,
+              "caloriesHigh": 95
+            },
+            "reviewQuestions": [
+              "Are these two separate bacon strips, and were both eaten?",
+              "Were they regular pork bacon, turkey bacon, or a thick-cut/brand-specific variety?",
+              "Were they cooked in added oil or butter, or was any rendered fat left on the plate/eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "Only cooked bacon is visibly identifiable; no drinks, sauces, or other foods are visible.",
+          "Serving weight cannot be defensibly determined because there is no reliable size or weight reference in the image."
+        ],
+        "reviewQuestions": [
+          "Was the entire visible portion eaten?",
+          "Please confirm the bacon type and whether it was regular or thick-cut for a more accurate estimate."
+        ]
+      },
+      "reference": {
+        "known_items": "bacon",
+        "portion_grams": "27.000000",
+        "calories": "146.069992",
+        "protein_g": "9.990000",
+        "carbs_g": "0.378000",
+        "fat_g": "11.339999",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKuNev6tVRvv1sYb3Bfcw8O2Zxb7",
+        "requestId": "req_dfe4f32e761e4a1fbb9f360870cc32e5",
+        "model": "gpt-5.6-terra",
+        "created": 1794473839,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 379,
+          "total_tokens": 1151
+        }
+      },
+      "estimated_cost_usd": 0.006092
+    },
+    {
+      "benchmark_id": "N5K-1558031526",
+      "ledger_benchmark_id": "post-correction:N5K-1558031526",
+      "status": 200,
+      "latency_ms": 6193,
+      "response": {
+        "title": "Roasted orange-fleshed root vegetable pieces (likely sweet potato)",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Roasted sweet potato pieces (identity uncertain; could be another orange-fleshed root vegetable)",
+            "brand": null,
+            "serving": "About 8–9 bite-size roasted pieces (approximately 1/2 cup by visual estimate)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 90,
+            "proteinG": 1.5,
+            "carbsG": 21,
+            "fatG": 0.1,
+            "confidence": 55,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Roasted sweet potato pieces (identity uncertain; could be another orange-fleshed root vegetable)",
+            "brand": null,
+            "serving": "About 8–9 bite-size roasted pieces (approximately 1/2 cup by visual estimate)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 90,
+            "proteinG": 1.5,
+            "carbsG": 21,
+            "fatG": 0.1,
+            "confidence": 55,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appears roasted or baked, with browned exterior surfaces.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 55,
+              "portion": 35,
+              "nutritionSource": 55,
+              "preparation": 65
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database.",
+              "Food identity is uncertain; nutrition should remain editable until the user confirms the match."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 68,
+              "caloriesHigh": 117
+            },
+            "reviewQuestions": [
+              "Are these sweet potato pieces, regular potato, squash, or another root vegetable?",
+              "Was oil, butter, sugar/honey, or another glaze used during cooking?",
+              "Is the pictured plate the full amount eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "Only one distinct food is clearly visible; the darker and lighter pieces are treated as differently browned pieces of the same food rather than separate ingredients.",
+          "No reliable size reference is visible, so a gram weight cannot be defensibly estimated from the image."
+        ],
+        "reviewQuestions": [
+          "Please confirm the food identity and whether any cooking oil or sweet glaze was used.",
+          "Did you eat the entire pictured portion?"
+        ]
+      },
+      "reference": {
+        "known_items": "yam",
+        "portion_grams": "62.000000",
+        "calories": "76.942001",
+        "protein_g": "0.992000",
+        "carbs_g": "18.228001",
+        "fat_g": "0.124000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKuSEcVj847iu8opPX1yzI4xFc4o",
+        "requestId": "req_e0688b3629fa46a4b797855a8f4fbb32",
+        "model": "gpt-5.6-terra",
+        "created": 1794473844,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 464,
+          "total_tokens": 1236
+        }
+      },
+      "estimated_cost_usd": 0.007112
+    },
+    {
+      "benchmark_id": "N5K-1558110297",
+      "ledger_benchmark_id": "post-correction:N5K-1558110297",
+      "status": 200,
+      "latency_ms": 7734,
+      "response": {
+        "title": "Small bowl of mixed berries",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Raspberries",
+            "brand": null,
+            "serving": "About 4 whole raspberries (small visible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 8,
+            "proteinG": 0.2,
+            "carbsG": 1.9,
+            "fatG": 0.1,
+            "confidence": 76,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Blackberries",
+            "brand": null,
+            "serving": "About 5 whole blackberries (small visible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 11,
+            "proteinG": 0.4,
+            "carbsG": 2.4,
+            "fatG": 0.1,
+            "confidence": 73,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Raspberries",
+            "brand": null,
+            "serving": "About 4 whole raspberries (small visible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 8,
+            "proteinG": 0.2,
+            "carbsG": 1.9,
+            "fatG": 0.1,
+            "confidence": 76,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Raw, plain",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 94,
+              "portion": 62,
+              "nutritionSource": 78,
+              "preparation": 92
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 6,
+              "caloriesHigh": 10
+            },
+            "reviewQuestions": [
+              "Are there about 4 raspberries in the bowl, including any partially obscured ones?",
+              "Were the berries eaten plain, without sugar, syrup, yogurt, or other additions?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Blackberries",
+            "brand": null,
+            "serving": "About 5 whole blackberries (small visible portion)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 11,
+            "proteinG": 0.4,
+            "carbsG": 2.4,
+            "fatG": 0.1,
+            "confidence": 73,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Raw, plain",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 93,
+              "portion": 56,
+              "nutritionSource": 78,
+              "preparation": 92
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 8,
+              "caloriesHigh": 14
+            },
+            "reviewQuestions": [
+              "Are there about 5 blackberries, or are additional berries hidden underneath the visible ones?",
+              "Was the full bowl eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "The bowl contains only plain raw raspberries and blackberries.",
+          "No defensible gram weight can be determined because there is no clear scale reference.",
+          "Nutrition values are image-based estimates for the visible fruit portion, not verified measurements."
+        ],
+        "reviewQuestions": [
+          "Did you eat the entire bowl?",
+          "Were any sweeteners, cream, yogurt, or other toppings added before or after the photo?"
+        ]
+      },
+      "reference": {
+        "known_items": "berries",
+        "portion_grams": "51.000000",
+        "calories": "29.070000",
+        "protein_g": "0.357000",
+        "carbs_g": "7.140000",
+        "fat_g": "0.153000",
+        "nutrition_status": "dish-level and ingredient-level reference available"
+      },
+      "provider_usage": {
+        "responseId": "chatcmpl-EjKuZMPxNSp8opxJf697jwmvBpIfE",
+        "requestId": "req_b53e86f0e25e47b480f806dce8ac9676",
+        "model": "gpt-5.6-terra",
+        "created": 1794473851,
+        "usage": {
+          "prompt_tokens": 772,
+          "completion_tokens": 598,
+          "total_tokens": 1370
+        }
+      },
+      "estimated_cost_usd": 0.00872
+    }
+  ]
+}

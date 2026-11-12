@@ -90,9 +90,12 @@ describe("RevenueCat webhook lifecycle ingress", () => {
 
   it("rejects an invalid signature and does not open a database transaction", async () => {
     const body = payload();
+    const validSignature = sign(body);
+    const finalNibble = validSignature.at(-1);
+    const invalidSignature = `${validSignature.slice(0, -1)}${finalNibble === "0" ? "1" : "0"}`;
     const response = await request(buildApp())
       .post("/api/v1/webhooks/revenuecat")
-      .set("X-RevenueCat-Webhook-Signature", sign(body).replace(/.$/, "0"))
+      .set("X-RevenueCat-Webhook-Signature", invalidSignature)
       .set("Content-Type", "application/json")
       .send(body);
 

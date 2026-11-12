@@ -12,6 +12,41 @@ export type RootAccessGateState = {
   allowApplication: boolean;
 };
 
+/** Once entered, a transient bootstrap remount must not reclaim the index route. */
+export function shouldAllowOnboardingRoute({
+  shellEntered,
+  allowOnboarding,
+  reviewRequested,
+}: {
+  shellEntered: boolean;
+  allowOnboarding: boolean;
+  reviewRequested: boolean;
+}): boolean {
+  return shellEntered && !reviewRequested ? false : allowOnboarding;
+}
+
+export function shouldRetainApplicationShell({
+  shellEntered,
+  hydrated,
+  hydrationError,
+  onboardingComplete,
+  restoreStatus,
+  hasSession,
+}: {
+  shellEntered: boolean;
+  hydrated: boolean;
+  hydrationError: unknown;
+  onboardingComplete: boolean;
+  restoreStatus: 'loading' | 'ready' | 'failed';
+  hasSession: boolean;
+}): boolean {
+  return shellEntered
+    && hydrated
+    && !hydrationError
+    && onboardingComplete
+    && (restoreStatus !== 'ready' || hasSession);
+}
+
 /**
  * Computes the only two application route groups that may be mounted for an
  * account scope. Hydration, profile reconciliation, onboarding completion,

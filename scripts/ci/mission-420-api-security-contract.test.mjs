@@ -15,7 +15,9 @@ test("capture session persistence and approval use the verified identity executo
 });
 
 test("sync and referral external-grant paths remain visible for separate integration work", () => {
-  assert.match(sync, /\.transaction\(async \(tx\)/);
+  assert.match(sync, /withVerifiedDatabaseIdentity\(\s*user\.id/);
+  assert.match(sync, /async \(database, inTransaction\)/);
+  assert.match(sync, /assertAccountWritable\(user\.id, executor, true\)/);
   assert.match(referral, /grantPromoDays/);
   assert.match(referral, /\.update\(referralRedemptionsTable\)/);
 });

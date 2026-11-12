@@ -32,6 +32,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(tabSurface).toContain('onPress={() => changeSection(section)}');
   });
 
+  it('keeps Discover open and preserves Plus and Create as reachable sections', () => {
+    expect(source).toContain("const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const");
+    expect(source).toContain("if (section === 'discover') return renderDiscoverSection();");
+    expect(source).toContain("section === 'premium' ? 'Plus'");
+    expect(source).toContain("section === 'create' ? (");
+    expect(source).toContain('<CreateConcepts');
+    expect(source).toContain('testID="recipes-section-content"');
+  });
+
   it('removes nonessential motion from Discover, Plus, and Create surfaces', () => {
     expect(source).not.toContain('FadeInDown');
     expect(source).toContain('transition={0}');
@@ -291,7 +300,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("active={activeSection === 'premium'}");
     expect(premiumCatalogue).toContain('if (!active) return;');
     expect(source).toContain('renderItem={renderRecipeSection}');
-    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
+    expect(source).toContain("import { PREMIUM_RECIPE_REQUEST_OPTIONS, premiumRecipeAccessAction, premiumRecipeErrorStatus } from '@/lib/premiumRecipeRequest'");
     expect(source).toContain('request: PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('...PREMIUM_RECIPE_REQUEST_OPTIONS');
     expect(source).toContain('signal,');
@@ -518,10 +527,22 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied)');
   });
 
+  it('recovers a just-authenticated Plus session before presenting Sign In', () => {
+    expect(source).toContain('retrySessionRestore');
+    expect(source).toContain('authRecoveryAttemptedRef');
+    expect(source).toContain('const recoveryKey = `${userId ?? \'signed-out\'}:${offset}:${search}:${category}`');
+    expect(source).toContain('const accessAction = premiumRecipeAccessAction(query.error)');
+    expect(source).toContain("accessAction === 'refresh-session'");
+    expect(source).toContain("if (accessAction === 'deny') clearDeniedState();");
+    expect(source).toContain('const refreshed = await query.refetch()');
+    expect(source).toContain('onAccessDenied();');
+  });
+
   it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
     expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
     expect(source).toContain("category === 'Quick'");
-    expect(source).toContain("category === 'Quick'\n      ? []");
+    expect(source).toContain('discoverVisitRemoteEntries');
+    expect(source).toContain("category === 'Quick'");
     expect(source).toContain('curated quick recipes with known preparation times');
     expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
   });

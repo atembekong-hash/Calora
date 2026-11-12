@@ -99,7 +99,7 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     expect(source).toContain('if ((!hydrated || !profileSyncReady)');
     expect(rootSource).toContain("if (restoreStatus === 'loading') return <AuthRestoreBootstrap />;");
     expect(rootSource).toContain('<CaloraProvider key={scopeKey} accountId={accountId}>');
-    expect(rootSource).toContain('<Stack.Protected guard={allowOnboarding}>');
+    expect(rootSource).toContain('<Stack.Protected guard={effectiveAllowOnboarding}>');
     expect(rootSource).toContain('<Stack.Protected guard={allowApplication}>');
   });
 
@@ -118,11 +118,12 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
     const rootSource = await rootLayoutSource();
     const tabsSource = await tabLayoutSource();
 
-    expect(rootSource).toContain('const allowTabRouteShell = allowApplication ||');
+    expect(rootSource).toContain('const allowTabRouteShell = applicationShellWasEntered');
+    expect(rootSource).toContain('shouldAllowOnboardingRoute');
     expect(rootSource).toContain('<Stack.Protected guard={allowTabRouteShell}>');
     expect(rootSource).toContain('<Stack.Screen name="(tabs)" options={{ headerShown: false }} />');
-    expect(tabsSource).toContain("import { getRootAccessGateState } from '@/lib/rootAccessGate';");
-    expect(tabsSource).toContain('if (!applicationReady) {');
+    expect(tabsSource).toContain('shouldRetainApplicationShell');
+    expect(tabsSource).toContain('if (!applicationReady && !retainApplicationShell) {');
     expect(tabsSource).toContain('testID="tab-route-bootstrap"');
     expect(tabsSource).toContain('return <ClassicTabLayout />;');
   });

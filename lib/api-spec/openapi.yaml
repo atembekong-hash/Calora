@@ -2221,6 +2221,11 @@ components:
       properties:
         servingId: { type: [string, "null"] }
         description: { type: string }
+        metricServingAmount: { type: [number, "null"], minimum: 0 }
+        metricServingUnit: { type: [string, "null"] }
+        numberOfUnits: { type: [number, "null"], minimum: 0 }
+        measurementDescription: { type: [string, "null"] }
+        isDefault: { type: boolean }
         calories: { type: [number, "null"], minimum: 0 }
         proteinG: { type: [number, "null"], minimum: 0 }
         carbsG: { type: [number, "null"], minimum: 0 }

@@ -95,11 +95,17 @@ export function getPostAuthNavigationPlan({
   hasSession,
   intent,
   applicationReady,
+  authRouteIsActive = true,
+  applicationShellEntered = false,
 }: {
   restoreStatus: 'loading' | 'ready' | 'failed';
   hasSession: boolean;
   intent: PostAuthIntent;
   applicationReady: boolean;
+  /** Only an auth/callback route may be replaced by terminal auth navigation. */
+  authRouteIsActive?: boolean;
+  /** Sticky ownership prevents a stale native route snapshot from replacing a tab. */
+  applicationShellEntered?: boolean;
 }): PostAuthNavigationPlan {
   // A storage fault is neither a guest decision nor a completed auth flow.
   // Keep the auth stack available for explicit user recovery after the error
@@ -119,6 +125,23 @@ export function getPostAuthNavigationPlan({
   // PASSWORD_RECOVERY event. Auth remains registered long enough to set a password.
   if (intent === 'recovery') {
     return { authRoutesEnabled: true, destination: '/auth/reset-password' };
+  }
+
+  // Native route snapshots can lag one render behind a tab press. Once the
+  // application shell has been entered, ordinary auth reconciliation no longer
+  // owns navigation, even if a stale snapshot still reports an auth route.
+  if (applicationShellEntered) {
+    return { authRoutesEnabled: true, destination: null };
+  }
+
+  // Once the user is already inside the application, ordinary auth state
+  // updates must never replace the current route. In particular, replacing
+  // `/(tabs)` while Recipes is mounted selects the tab navigator's default
+  // Today screen and makes Recipes appear to open and then immediately close.
+  // The default keeps the historical pure-policy behavior for direct callers;
+  // RootLayoutNav supplies the actual route state.
+  if (!authRouteIsActive) {
+    return { authRoutesEnabled: true, destination: null };
   }
 
   // The root coordinator prunes obsolete sign-in/callback screens. Retaining
