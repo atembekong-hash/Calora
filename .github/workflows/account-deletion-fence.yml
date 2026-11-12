@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    name: Verify fresh-schema deletion fences (PostgreSQL ${{ matrix.postgres_major }})
+    name: Account-deletion fence validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
