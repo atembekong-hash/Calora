@@ -46,22 +46,27 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
       },
     },
   );
-  const providerSuggestion = React.useMemo(() => {
+  const providerMatch = React.useMemo(() => {
     if (component.provenance !== 'photo_estimate' || providerSearch.data?.status !== 'available') return null;
     const ranked = rankNutritionMatches(component.name, providerSearch.data.foods);
     const top = ranked[0];
     const second = ranked[1];
-    if (!top || top.score < 0.8 || (second && top.score - second.score < 0.15)) return null;
+    if (!top) return null;
     const reconciled = reconcileComponentWithRestaurantFood(component, top.food);
-    return reconciled.ok ? { component: reconciled.component, name: reconciled.matchedName } : null;
+    if (!reconciled.ok) return null;
+    return {
+      component: reconciled.component,
+      name: reconciled.matchedName,
+      autoApply: top.score >= 0.8 && (!second || top.score - second.score >= 0.15),
+    };
   }, [component, providerSearch.data]);
   React.useEffect(() => {
-    if (!providerSuggestion || component.provenance !== 'photo_estimate') return;
-    const key = `${component.id}:${providerSuggestion.component.sourceLabel}:${providerSuggestion.component.name}`;
+    if (!providerMatch?.autoApply || component.provenance !== 'photo_estimate') return;
+    const key = `${component.id}:${providerMatch.component.sourceLabel}:${providerMatch.component.name}`;
     if (appliedSuggestionRef.current === key) return;
     appliedSuggestionRef.current = key;
-    onChange(providerSuggestion.component);
-  }, [component.id, component.provenance, onChange, providerSuggestion]);
+    onChange(providerMatch.component);
+  }, [component.id, component.provenance, onChange, providerMatch]);
   const servingMultiplier = nutritionMultiplierForComponent(component);
   const servingError = servingInputErrorForComponent(component);
   return (
@@ -92,20 +97,17 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
       {servingError ? <Text accessibilityLiveRegion="polite" style={[styles.servingError, { color: colors.warningForeground }]}>{servingError}</Text> : null}
       <Pressable accessibilityLabel={`${component.included ? 'Remove' : 'Include'} ${component.name}`} onPress={() => onChange({ ...component, included: !component.included })} style={[styles.includeButton, { borderColor: colors.border }]}><Feather name={component.included ? 'eye-off' : 'eye'} size={14} color={colors.mutedForeground} /><Text style={[styles.includeButtonText, { color: colors.mutedForeground }]}>{component.included ? 'Remove from meal' : 'Include in meal'}</Text></Pressable>
       {component.reviewQuestions.length ? <Text style={[styles.questionText, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text> : null}
-      {component.provenance === 'photo_estimate' && providerSearch.data?.status === 'available' && providerSearch.data.foods.length > 0 ? (
+      {component.provenance === 'photo_estimate' && providerMatch ? (
         <View style={[styles.providerSuggestion, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.providerSuggestionText, { color: colors.foreground }]}>Nutrition match available ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â review before using</Text>
+          <Text style={[styles.providerSuggestionText, { color: colors.foreground }]}>{providerMatch.autoApply ? 'Nutrition match applied automatically' : 'Possible nutrition match — review before using'}</Text>
           <Pressable
-            accessibilityLabel={`Use verified nutrition match for ${component.name}`}
+            accessibilityLabel={`${providerMatch.autoApply ? 'Use' : 'Review'} nutrition match for ${component.name}`}
             onPress={() => {
-              const top = rankNutritionMatches(component.name, providerSearch.data?.foods ?? [])[0];
-              if (!top) return;
-              const reconciled = reconcileComponentWithRestaurantFood(component, top.food);
-              if (reconciled.ok) onChange(reconciled.component);
+              onChange(providerMatch.component);
             }}
             style={[styles.providerSuggestionButton, { backgroundColor: colors.primary }]}
           >
-            <Text style={[styles.providerSuggestionButtonText, { color: colors.primaryForeground }]}>Use match</Text>
+            <Text style={[styles.providerSuggestionButtonText, { color: colors.primaryForeground }]}>{providerMatch.autoApply ? 'Keep match' : 'Use top match'}</Text>
           </Pressable>
         </View>
       ) : null}

@@ -60,10 +60,19 @@ describe("Scan screen recovery contracts", () => {
   it('automatically applies only conservative provider matches and keeps an explicit fallback action', () => {
     expect(source).toContain('useListRestaurantFoods(');
     expect(source).toContain('rankNutritionMatches(component.name, providerSearch.data.foods)');
-    expect(source).toContain('top.score < 0.8');
-    expect(source).toContain('top.score - second.score < 0.15');
+    expect(source).toContain('top.score >= 0.8');
+    expect(source).toContain('top.score - second.score >= 0.15');
     expect(source).toContain('reconcileComponentWithRestaurantFood(component, top.food)');
-    expect(source).toContain('Use verified nutrition match for');
+    expect(source).toContain('Possible nutrition match — review before using');
+    expect(source).toContain('Use top match');
+  });
+
+  it('gates provider searches and caches each food query to avoid request storms', () => {
+    expect(source).toContain('component.provenance === \'photo_estimate\' && component.included');
+    expect(source).toContain('component.name.trim().length >= 2');
+    expect(source).toContain('limit: 5, offset: 0');
+    expect(source).toContain('staleTime: 5 * 60_000');
+    expect(source).toContain('retry: false');
   });
 
   it('gives Barcode capture a food-photo fallback when product lookup cannot match', () => {
