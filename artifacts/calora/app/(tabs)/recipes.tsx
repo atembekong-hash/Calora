@@ -1249,7 +1249,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
         <Feather name="lock" size={22} color={colors.primary} />
         <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
         <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text>
-        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
           <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
         </Pressable>
       </View>
@@ -1260,7 +1260,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
         <Feather name="log-in" size={22} color={colors.warning} />
         <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
         <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text>
-        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
           <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
         </Pressable>
       </View>
@@ -3063,14 +3063,22 @@ export default function RecipesScreen() {
     recipeId: routeRecipeId,
     recipeSource: routeRecipeSource,
     recipeName: routeRecipeName,
+    section: routeSection,
   } = useLocalSearchParams<{
     recipeId?: string;
     recipeSource?: PlannerRecipeSource;
     recipeName?: string;
+    section?: RecipeSection;
   }>();
   const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
   const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
   const recipeName = Array.isArray(routeRecipeName) ? routeRecipeName[0] : routeRecipeName;
+  const section = Array.isArray(routeSection) ? routeSection[0] : routeSection;
+  useEffect(() => {
+    if (!section || !RECIPE_SECTIONS.includes(section)) return;
+    setActiveSection(section);
+    router.setParams({ section: undefined });
+  }, [router, section]);
   const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? (recipeId ?? '') : '', {
     query: {
       queryKey: ['recipe', recipeId ?? ''],

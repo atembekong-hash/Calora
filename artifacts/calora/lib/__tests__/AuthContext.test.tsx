@@ -247,6 +247,27 @@ describe('AuthProvider bootstrap ordering', () => {
     expect(screen.getByTestId('google-identity').textContent).toBe('google-user');
   });
 
+  it('preserves the validated Plus destination through a successful sign-in', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    signInWithEmailMock.mockResolvedValue({ success: true, session: { user: { id: 'plus-user' } } });
+
+    function DestinationState() {
+      const { postAuthDestination, signInWithEmail } = useAuth();
+      return (
+        <>
+          <output data-testid="destination">{postAuthDestination ?? 'none'}</output>
+          <button onClick={() => { void signInWithEmail('email@example.com', 'password', '/(tabs)/recipes?section=premium'); }}>plus sign-in</button>
+        </>
+      );
+    }
+
+    render(<AuthProvider><DestinationState /></AuthProvider>);
+    await waitFor(() => expect(screen.getByTestId('destination').textContent).toBe('none'));
+
+    await act(async () => { screen.getByRole('button', { name: 'plus sign-in' }).click(); });
+    expect(screen.getByTestId('destination').textContent).toBe('/(tabs)/recipes?section=premium');
+  });
+
   it('treats a refreshed session as an ordinary authenticated transition', async () => {
     getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
     render(<AuthProvider><AuthState /></AuthProvider>);

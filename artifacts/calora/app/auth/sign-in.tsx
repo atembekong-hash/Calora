@@ -25,6 +25,7 @@ import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 import { isValidEmail } from '@/lib/auth';
 import { getSafeAuthErrorMessage } from '@/lib/auth-callback-routing';
+import type { PostAuthDestination } from '@/lib/postAuthNavigation';
 
 export default function SignInScreen() {
   const { colors } = useCalora();
@@ -34,9 +35,11 @@ export default function SignInScreen() {
   // Read an explicit authError param passed by the OAuth callback (non-cancelled
   // failures only). A cancelled redirect arrives with no params, so this will be
   // undefined and the screen renders clean.
-  const { authError: authErrorParam } = useLocalSearchParams<{
+  const { authError: authErrorParam, returnTo } = useLocalSearchParams<{
     authError?: string;
+    returnTo?: string;
   }>();
+  const postAuthDestination: PostAuthDestination | undefined = returnTo === 'plus' ? '/(tabs)/recipes?section=premium' : undefined;
   const initialError = authErrorParam && authErrorParam !== 'cancelled' ? getSafeAuthErrorMessage(authErrorParam) : null;
 
   const [email, setEmail] = useState('');
@@ -50,7 +53,7 @@ export default function SignInScreen() {
     setError(null);
     setLoading('google');
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle(postAuthDestination);
       if (!result.success) {
         if (result.error.code !== 'cancelled') {
           setError(result.error.message);
@@ -62,7 +65,7 @@ export default function SignInScreen() {
     } finally {
       setLoading(null);
     }
-  }, [loading, signInWithGoogle]);
+  }, [loading, postAuthDestination, signInWithGoogle]);
 
   const handleEmailSignIn = useCallback(async () => {
     if (loading) return;
@@ -78,7 +81,7 @@ export default function SignInScreen() {
     setError(null);
     setLoading('email');
     try {
-      const result = await signInWithEmail(trimmedEmail, password);
+      const result = await signInWithEmail(trimmedEmail, password, postAuthDestination);
       if (!result.success) {
         setError(result.error.message);
         return;
@@ -88,7 +91,7 @@ export default function SignInScreen() {
     } finally {
       setLoading(null);
     }
-  }, [loading, email, password, signInWithEmail]);
+  }, [email, loading, password, postAuthDestination, signInWithEmail]);
 
   const isDisabled = loading !== null;
 
