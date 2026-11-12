@@ -148,7 +148,10 @@ export type ServingInputResult =
 export function parseServingInput(value: string, component: Pick<FoodMemoryComponent, 'nutritionBasis' | 'servingUnit' | 'servingWeightG'>): ServingInputResult {
   const input = value.trim();
   if (!input) return { valid: false, error: 'Enter a quantity before adding this meal.' };
-  const match = input.match(/^([0-9]+(?:[.,][0-9]+)?)\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)?(?:\s|$)/i);
+  // Vision analysis commonly describes an editable estimate as "about 100 g"
+  // or "approximately 1 serving". These qualifiers do not change the value;
+  // rejecting them here incorrectly disables Save for otherwise valid drafts.
+  const match = input.match(/^(?:(?:about|around|approximately|approx\.?|estimated|est\.?|~)\s*)?([0-9]+(?:[.,][0-9]+)?)\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)?(?:\s|$)/i);
   if (!match) return { valid: false, error: 'Enter a quantity such as 9.4 g or 2 servings.' };
   const quantity = Number(match[1].replace(',', '.'));
   if (!Number.isFinite(quantity) || quantity <= 0) return { valid: false, error: 'Quantity must be greater than zero.' };
