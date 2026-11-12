@@ -25,6 +25,7 @@ jobs:
         id: compare
         env:
           RELEASE_HANDOFF_REPORT: ${{ runner.temp }}/release-handoff-report.md
+          RELEASE_HANDOFF_MANIFEST: ${{ runner.temp }}/release-handoff-manifest.json
         run: |
           git fetch origin main release/calora-production --prune
           node scripts/prepare-release-handoff.mjs
@@ -34,7 +35,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: calora-release-handoff-${{ github.run_id }}
-          path: ${{ runner.temp }}/release-handoff-report.md
+          path: |
+            ${{ runner.temp }}/release-handoff-report.md
+            ${{ runner.temp }}/release-handoff-manifest.json
           retention-days: 30
 
       - name: Stop safely when promotion needs owner review
@@ -47,13 +50,22 @@ jobs:
         if: steps.compare.outputs.status == 'READY_FOR_RELEASE_PR'
         id: prepare
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_HANDOFF_MANIFEST: ${{ runner.temp }}/release-handoff-manifest.json
         run: |
           branch="release-handoff/${GITHUB_SHA:0:12}"
           git switch --create "$branch" origin/release/calora-production
-          mapfile -t files < <(git diff --name-only origin/release/calora-production..origin/main)
-          git checkout origin/main -- "${files[@]}"
-          git add -- "${files[@]}"
+          test "$(jq -r '.version' "$RELEASE_HANDOFF_MANIFEST")" = "1"
+          test "$(jq -r '.status' "$RELEASE_HANDOFF_MANIFEST")" = "READY_FOR_RELEASE_PR"
+          test "$(jq -r '.base' "$RELEASE_HANDOFF_MANIFEST")" = "origin/release/calora-production"
+          test "$(jq -r '.head' "$RELEASE_HANDOFF_MANIFEST")" = "origin/main"
+          while IFS=$'\t' read -r status path; do
+            test -n "$path" || continue
+            case "$status" in
+              D) git rm --ignore-unmatch -- "$path" ;;
+              A|M|R|C) git checkout origin/main -- "$path"; git add -- "$path" ;;
+              *) echo "Unsupported manifest status: $status $path" >&2; exit 1 ;;
+            esac
+          done < <(jq -r '.files[] | [.status, .path] | @tsv' "$RELEASE_HANDOFF_MANIFEST")
           if git diff --cached --quiet; then
             echo 'No promotable changes remain.'
             exit 0
