@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FOOD_MEMORY_SCHEMA_VERSION,
   nutritionForComponents,
+  parseServingInput,
   type FoodMemoryComponent,
   type FoodMemoryDraft,
 } from '../foodMemory';
@@ -51,6 +52,12 @@ function draft(components: FoodMemoryComponent[]): FoodMemoryDraft {
 }
 
 describe('Scan-to-Save deterministic workflow', () => {
+  it('keeps a qualified AI portion estimate saveable', () => {
+    expect(parseServingInput('about 100 g', estimate())).toEqual({ valid: true, quantity: 100, unit: 'g' });
+    expect(parseServingInput('approximately 1 serving', estimate({ serving: '1 serving', servingQuantity: 1, servingUnit: 'serving', servingWeightG: null, nutritionBasis: 'per_serving' }))).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+    expect(parseServingInput('about one bowl', estimate())).toMatchObject({ valid: false });
+  });
+
   it('matches a straightforward food, scales grams once, and saves the same nutrition', () => {
     const result = reconcileComponentWithRestaurantFood(estimate(), providerFood(), { quantity: 200, unit: 'g' });
     expect(result.ok).toBe(true);
