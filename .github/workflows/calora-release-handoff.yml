@@ -1,0 +1,94 @@
+name: Calora release handoff
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  detect-and-prepare:
+    name: Detect production release drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out protected release refs
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare main and production release
+        id: compare
+        env:
+          RELEASE_HANDOFF_REPORT: ${{ runner.temp }}/release-handoff-report.md
+        run: |
+          git fetch origin main release/calora-production --prune
+          node scripts/prepare-release-handoff.mjs
+          cat "$RELEASE_HANDOFF_REPORT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload drift report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: calora-release-handoff-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-handoff-report.md
+          retention-days: 30
+
+      - name: Stop safely when promotion needs owner review
+        if: steps.compare.outputs.status == 'ACTION_REQUIRED'
+        run: |
+          echo 'Release drift contains unallowlisted changes; no release PR will be created.'
+          exit 0
+
+      - name: Prepare focused release branch
+        if: steps.compare.outputs.status == 'READY_FOR_RELEASE_PR'
+        id: prepare
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="release-handoff/${GITHUB_SHA:0:12}"
+          git switch --create "$branch" origin/release/calora-production
+          mapfile -t files < <(git diff --name-only origin/release/calora-production..origin/main)
+          git checkout origin/main -- "${files[@]}"
+          git add -- "${files[@]}"
+          if git diff --cached --quiet; then
+            echo 'No promotable changes remain.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "release: promote protected main changes"
+          git push --set-upstream origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Open focused release PR
+        if: steps.prepare.outputs.branch != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          RELEASE_BRANCH: ${{ steps.prepare.outputs.branch }}
+        with:
+          script: |
+            const head = process.env.RELEASE_BRANCH;
+            const { data: existing } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${head}`,
+              base: 'release/calora-production',
+              state: 'open',
+            });
+            if (existing.length) {
+              core.info(`Release PR #${existing[0].number} already exists.`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head,
+              base: 'release/calora-production',
+              title: 'release: promote protected main changes',
+              body: 'Automatically prepared from protected main. This workflow never deploys production or starts native builds; protected CI and owner-authorized deployment remain required.',
+            });
+            core.info(`Opened focused release PR #${pr.number}: ${pr.html_url}`);
