@@ -49,6 +49,7 @@ import { applyDiscoverCataloguePage, createDiscoverCatalogueState, discoverCatal
 import { createDiscoverVisitSessionSalt, reconcileDiscoverVisitComposition, type DiscoverVisitEntry } from '@/lib/discoverRecipeMix';
 import { ensureGeneratedRecipeImage, handleGeneratedRecipeImageError, isGeneratedRecipeImageCandidate, markGeneratedRecipeImageRendered, requestGeneratedRecipeImageReviewPreview, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
+import { buildCatalogRecipeSuggestionRows } from '@/lib/recipeSuggestions';
 import { inspectDiscoverRecipeImage } from '@/lib/discoverRecipeImage';
 import { normalizeExternalHttpsUrl } from '@workspace/api-zod/image-source-policy';
 import { RECIPE_GENERATION_NUTRITION_NOTE } from '@workspace/api-zod/recipe-generation';
@@ -71,8 +72,7 @@ const PREMIUM_RECIPE_PREFETCH_DISTANCE = 3200;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;
 const RECIPE_SUGGESTION_ROW_COUNT = 2;
-const RECIPE_SUGGESTIONS_PER_ROW = 6;
-const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW;
+const RECIPE_SUGGESTIONS_PER_ROW = 20;
 type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type DiscoverFeedRecipe = Recipe & { feedEntryKey: string };
 
@@ -99,27 +99,6 @@ function recipeSavedMealInput(recipe: BrowseRecipe): Omit<SavedMeal, 'id'> | nul
   const { calories, proteinG, carbsG, fatG } = recipe;
   if (typeof calories !== 'number' || !Number.isFinite(calories) || typeof proteinG !== 'number' || !Number.isFinite(proteinG) || typeof carbsG !== 'number' || !Number.isFinite(carbsG) || typeof fatG !== 'number' || !Number.isFinite(fatG)) return null;
   return { name: recipe.name, kind: 'recipe', foodIds: [recipe.id], calories, protein: proteinG, carbs: carbsG, fat: fatG, mealType: normalizeSavedMealType(recipeMealType(recipe)) };
-}
-
-function recipeSuggestionScore(candidate: BrowseRecipe, current: BrowseRecipe): number {
-  let score = 0;
-  if (candidate.category && current.category && candidate.category.toLowerCase() === current.category.toLowerCase()) score += 4;
-  if (candidate.area && current.area && candidate.area.toLowerCase() === current.area.toLowerCase()) score += 3;
-  const candidateMealType = recipeMealType(candidate);
-  const currentMealType = recipeMealType(current);
-  if (candidateMealType && currentMealType && candidateMealType.toLowerCase() === currentMealType.toLowerCase()) score += 3;
-  const currentTags = new Set((current.tags ?? []).map((tag) => tag.toLowerCase()));
-  score += (candidate.tags ?? []).filter((tag) => currentTags.has(tag.toLowerCase())).length;
-  return score;
-}
-
-function getRecipeSuggestions(pool: BrowseRecipe[], current: BrowseRecipe | null): BrowseRecipe[] {
-  if (!current) return [];
-  const seen = new Set<string>();
-  return pool
-    .filter((candidate) => candidate.id !== current.id && !seen.has(candidate.id) && seen.add(candidate.id))
-    .sort((a, b) => recipeSuggestionScore(b, current) - recipeSuggestionScore(a, current) || a.name.localeCompare(b.name))
-    .slice(0, RECIPE_SUGGESTION_LIMIT);
 }
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
@@ -1532,7 +1511,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   );
 }
 
-export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onEditPersonalRecipe, onPremiumAccessDenied, suggestedRecipes = [], suggestedRecipeRows, onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onEditPersonalRecipe: (recipe: CaloraRecipe) => void; onPremiumAccessDenied: () => void; suggestedRecipes?: BrowseRecipe[]; suggestedRecipeRows?: BrowseRecipe[][]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, savedMeals, deleteSavedMeal, saveMeal, updateRecipe, deletePersonalRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const local = recipe ? isLocalRecipe(recipe) : false;
@@ -1707,7 +1686,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
   const sourceName = detail.source.trim() || provenance.sourceProvider;
   const sourceUrl = normalizeExternalHttpsUrl(detail.sourceUrl);
-  const suggestionRows = useMemo(() => Array.from({ length: RECIPE_SUGGESTION_ROW_COUNT }, (_, rowIndex) => suggestedRecipes.slice(rowIndex * RECIPE_SUGGESTIONS_PER_ROW, (rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW)).filter((row) => row.length > 0), [suggestedRecipes]);
+  const fallbackSuggestionRows = useMemo(() => Array.from({ length: RECIPE_SUGGESTION_ROW_COUNT }, (_, rowIndex) => suggestedRecipes.slice(rowIndex * RECIPE_SUGGESTIONS_PER_ROW, (rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW)).filter((row) => row.length > 0), [suggestedRecipes]);
+  const suggestionRows = suggestedRecipeRows ?? fallbackSuggestionRows;
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
@@ -2453,7 +2433,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
                     <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
                     <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Swipe either row to keep exploring.</Text>
                   </View>
-                  <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions · up to 6 per row</Text>
+                  <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestionRows.reduce((total, row) => total + row.length, 0)} suggestions · up to 20 per row</Text>
                 </View>
                 <View style={styles.suggestionRows}>
                   {suggestionRows.map((row, rowIndex) => (
@@ -3332,12 +3312,13 @@ export default function RecipesScreen() {
     : discoverVisitComposition?.seed === discoverVisitSeed
       ? discoverVisitComposition.entries.map((entry) => entry.recipe)
       : [];
-  const allOpenRecipeSuggestions = useMemo(() => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes], [freshRemoteRecipes, localRecipes]);
-  const recipeSuggestions = useMemo(() => {
-    const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
-    const pool: BrowseRecipe[] = premiumSelected ? premiumCatalogueRecipes : allOpenRecipeSuggestions;
-    return getRecipeSuggestions(pool, selectedRecipe);
-  }, [allOpenRecipeSuggestions, premiumCatalogueRecipes, selectedRecipe]);
+  const discoverCatalogRecipes = useMemo(() => [...caloraOriginalRecipes, ...freshRemoteRecipes], [freshRemoteRecipes]);
+  const recipeSuggestionRows = useMemo(() => buildCatalogRecipeSuggestionRows<BrowseRecipe>({
+    plus: premiumCatalogueRecipes,
+    discover: discoverCatalogRecipes,
+    current: selectedRecipe,
+    perRow: RECIPE_SUGGESTIONS_PER_ROW,
+  }), [discoverCatalogRecipes, premiumCatalogueRecipes, selectedRecipe]);
   const savedRecipes = [...localRecipes, ...caloraOriginalRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
   const refreshDiscoverCatalogue = () => {
@@ -3659,7 +3640,7 @@ export default function RecipesScreen() {
             savedPremiumRecipes={premiumSavedRecipes}
             onLoadMoreRef={premiumLoadMoreRef}
             onLoadedRecipesChange={setPremiumCatalogueRecipes}
-            suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0}
+            suggestionMinimumRecipeCount={selectedRecipe ? RECIPE_SUGGESTIONS_PER_ROW + 1 : 0}
           />
         ) : section === 'create' ? (
           <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} updateRecipe={updateRecipe} />
@@ -3873,7 +3854,7 @@ export default function RecipesScreen() {
           setSelected(null);
           setEditingPersonalRecipe(recipe);
         }}
-        suggestedRecipes={recipeSuggestions}
+          suggestedRecipeRows={recipeSuggestionRows}
         onSelectSuggestion={handleCardPress}
         onPlanned={(message) => {
           setSaveMessage(message);
