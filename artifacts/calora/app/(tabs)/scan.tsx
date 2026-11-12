@@ -1,4 +1,4 @@
-import { type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
+import { getListRestaurantFoodsQueryKey, type CaptureAnalysis, type CaptureAnalyzeInput, useListRestaurantFoods } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult, type CameraMode } from 'expo-camera';
 import { Audio } from 'expo-av';
@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
 import { includedComponentCount, nutritionMultiplierForComponent, servingInputErrorForComponent, type FoodMemoryComponent, updateComponentServing } from '@/lib/foodMemory';
+import { rankNutritionMatches, reconcileComponentWithRestaurantFood } from '@/lib/nutritionReconciliation';
 import { router, useLocalSearchParams } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { syncCaptureApprovals } from '@/lib/captureApprovalSync';
@@ -33,6 +34,34 @@ type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
+  const appliedSuggestionRef = useRef<string | null>(null);
+  const providerSearch = useListRestaurantFoods(
+    { query: component.name.trim(), limit: 5, offset: 0 },
+    {
+      query: {
+        queryKey: getListRestaurantFoodsQueryKey({ query: component.name.trim(), limit: 5, offset: 0 }),
+        enabled: component.provenance === 'photo_estimate' && component.included && component.name.trim().length >= 2,
+        staleTime: 5 * 60_000,
+        retry: false,
+      },
+    },
+  );
+  const providerSuggestion = React.useMemo(() => {
+    if (component.provenance !== 'photo_estimate' || providerSearch.data?.status !== 'available') return null;
+    const ranked = rankNutritionMatches(component.name, providerSearch.data.foods);
+    const top = ranked[0];
+    const second = ranked[1];
+    if (!top || top.score < 0.8 || (second && top.score - second.score < 0.15)) return null;
+    const reconciled = reconcileComponentWithRestaurantFood(component, top.food);
+    return reconciled.ok ? { component: reconciled.component, name: reconciled.matchedName } : null;
+  }, [component, providerSearch.data]);
+  React.useEffect(() => {
+    if (!providerSuggestion || component.provenance !== 'photo_estimate') return;
+    const key = `${component.id}:${providerSuggestion.component.sourceLabel}:${providerSuggestion.component.name}`;
+    if (appliedSuggestionRef.current === key) return;
+    appliedSuggestionRef.current = key;
+    onChange(providerSuggestion.component);
+  }, [component.id, component.provenance, onChange, providerSuggestion]);
   const servingMultiplier = nutritionMultiplierForComponent(component);
   const servingError = servingInputErrorForComponent(component);
   return (
@@ -43,7 +72,7 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.candidateName, { color: colors.foreground }]}>{component.name}</Text>
-          <Text style={[styles.candidateBrand, { color: colors.mutedForeground }]}>{component.brand ? `${component.brand} · ` : ''}{component.sourceLabel}</Text>
+          <Text style={[styles.candidateBrand, { color: colors.mutedForeground }]}>{component.brand ? `${component.brand} Ãƒâ€šÃ‚Â· ` : ''}{component.sourceLabel}</Text>
         </View>
         <Text style={[styles.confidence, { color: component.provenance === 'photo_estimate' ? colors.warning : colors.success }]}>{component.confidence}%</Text>
       </View>
@@ -63,6 +92,23 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
       {servingError ? <Text accessibilityLiveRegion="polite" style={[styles.servingError, { color: colors.warningForeground }]}>{servingError}</Text> : null}
       <Pressable accessibilityLabel={`${component.included ? 'Remove' : 'Include'} ${component.name}`} onPress={() => onChange({ ...component, included: !component.included })} style={[styles.includeButton, { borderColor: colors.border }]}><Feather name={component.included ? 'eye-off' : 'eye'} size={14} color={colors.mutedForeground} /><Text style={[styles.includeButtonText, { color: colors.mutedForeground }]}>{component.included ? 'Remove from meal' : 'Include in meal'}</Text></Pressable>
       {component.reviewQuestions.length ? <Text style={[styles.questionText, { color: colors.warningForeground }]}>{component.reviewQuestions[0]}</Text> : null}
+      {component.provenance === 'photo_estimate' && providerSearch.data?.status === 'available' && providerSearch.data.foods.length > 0 ? (
+        <View style={[styles.providerSuggestion, { backgroundColor: colors.accent }]}>
+          <Text style={[styles.providerSuggestionText, { color: colors.foreground }]}>Nutrition match available ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â review before using</Text>
+          <Pressable
+            accessibilityLabel={`Use verified nutrition match for ${component.name}`}
+            onPress={() => {
+              const top = rankNutritionMatches(component.name, providerSearch.data?.foods ?? [])[0];
+              if (!top) return;
+              const reconciled = reconcileComponentWithRestaurantFood(component, top.food);
+              if (reconciled.ok) onChange(reconciled.component);
+            }}
+            style={[styles.providerSuggestionButton, { backgroundColor: colors.primary }]}
+          >
+            <Text style={[styles.providerSuggestionButtonText, { color: colors.primaryForeground }]}>Use match</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Surface>
   );
 }
@@ -207,7 +253,7 @@ export default function ScanScreen() {
     if (!permission.granted) void requestPermission();
   }, [params.capture, permission, requestPermission]);
 
-  // Viewfinder corner pulse — breathes while waiting, stops when a result is in-flight
+  // Viewfinder corner pulse ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â breathes while waiting, stops when a result is in-flight
   const cornerPulse = useSharedValue(1);
   useEffect(() => {
     if (hasScanned) {
@@ -538,7 +584,7 @@ export default function ScanScreen() {
       return;
     }
     try {
-      setAltCaptureBanner('Listening… tap Voice again when you are done.');
+      setAltCaptureBanner('ListeningÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ tap Voice again when you are done.');
       setVoiceRecording(true);
     } catch (error) {
       setVoiceRecording(false);
@@ -561,7 +607,7 @@ export default function ScanScreen() {
   const onVoicePress = () => {
     if (voiceRecording) {
       void voiceRecordingRef.current?.stopAndUnloadAsync().catch(() => undefined).finally(() => voiceStopResolverRef.current?.());
-      setAltCaptureBanner('Finishing your recording…');
+      setAltCaptureBanner('Finishing your recordingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦');
       return;
     }
     void startVoiceCapture();
@@ -862,7 +908,7 @@ export default function ScanScreen() {
                 <Pressable accessibilityLabel="Choose receipt from library" onPress={chooseReceiptFromLibrary} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="clipboard" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Receipt</Text></Pressable>
               </View>
               {altCaptureBanner ? <View style={[styles.altCaptureBanner, { backgroundColor: colors.accent }]}><Feather name="info" size={14} color={colors.accentForeground} /><Text style={[styles.altCaptureBannerText, { color: colors.foreground }]}>{altCaptureBanner}</Text></View> : null}
-              {showTextEntry ? <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.background }]}><Text style={[styles.textEntryHeading, { color: colors.foreground }]}>{textEntryKind === 'voice' ? 'Check what we heard' : 'Describe your meal'}</Text><TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus /><Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || captureBusy} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() && !captureBusy ? colors.primary : colors.muted }]}><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() && !captureBusy ? colors.primaryForeground : colors.mutedForeground }]}>{captureBusy ? 'Estimating…' : 'Estimate nutrition'}</Text></Pressable></View> : null}
+              {showTextEntry ? <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.background }]}><Text style={[styles.textEntryHeading, { color: colors.foreground }]}>{textEntryKind === 'voice' ? 'Check what we heard' : 'Describe your meal'}</Text><TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus /><Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || captureBusy} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() && !captureBusy ? colors.primary : colors.muted }]}><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() && !captureBusy ? colors.primaryForeground : colors.mutedForeground }]}>{captureBusy ? 'EstimatingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Estimate nutrition'}</Text></Pressable></View> : null}
             </View>
           </>
         ) : (
@@ -893,7 +939,7 @@ export default function ScanScreen() {
                 </>
               )}
             </View>
-            {!cameraReady && !cameraIssue ? <Text accessibilityLiveRegion="polite" style={[styles.cameraStatus, { color: colors.mutedForeground }]}>Starting camera preview…</Text> : null}
+            {!cameraReady && !cameraIssue ? <Text accessibilityLiveRegion="polite" style={[styles.cameraStatus, { color: colors.mutedForeground }]}>Starting camera previewÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</Text> : null}
             {cameraIssue ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="camera-off" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{cameraIssue}</Text><Pressable accessibilityLabel="Retry camera preview" onPress={retryCameraPreview}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable><Pressable accessibilityLabel="Open device settings for camera access" onPress={openCameraSettings}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Settings</Text></Pressable></View> : null}
             {captureFlow.stage === 'error' && captureFlow.failure ? <View style={[styles.captureFailureCard, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={16} color={colors.accentForeground} /><Text accessibilityLiveRegion="assertive" style={[styles.captureFailureText, { color: colors.foreground }]}>{captureFlow.failure.message}</Text>{captureFlow.failure.kind === 'authentication' ? <Pressable accessibilityLabel="Sign in again for Scan" onPress={() => router.push('/auth/sign-in')}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Sign in</Text></Pressable> : captureFlow.failure.kind === 'endpoint' ? null : retryInputRef.current ? <Pressable accessibilityLabel="Retry capture analysis" onPress={retryCapture} disabled={captureBusy}><Text style={[styles.captureRetryText, { color: colors.primary }]}>Retry</Text></Pressable> : null}</View> : null}
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
@@ -915,7 +961,7 @@ export default function ScanScreen() {
               {showTextEntry ? (
                 <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
                   <Text style={[styles.textEntryHeading, { color: colors.foreground }]}>{textEntryKind === 'voice' ? 'Check what we heard' : 'Describe your meal'}</Text>
-                  <TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus />
+                  <TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus />
                   <Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || captureBusy} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() && !captureBusy ? colors.primary : colors.muted }]}>{captureBusy ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <><Feather name="zap" size={14} color={textEntry.trim() ? colors.primaryForeground : colors.mutedForeground} /><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() ? colors.primaryForeground : colors.mutedForeground }]}>Estimate nutrition</Text></>}</Pressable>
                 </View>
               ) : null}
@@ -928,7 +974,7 @@ export default function ScanScreen() {
           <Animated.View entering={enterMotion('modal')} style={styles.resultSheet}>
             <View style={styles.sheetHandle} />
              <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{modeEyebrow(analysis?.mode)}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
-              {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<KeyboardAwareScrollViewCompat style={styles.resultScroll} contentContainerStyle={styles.resultScrollContent} showsVerticalScrollIndicator={false} bottomOffset={80}><Text style={[styles.mealLabel, { color: colors.mutedForeground }]}>ADD TO</Text><View style={[styles.mealPicker, { backgroundColor: colors.muted }]}>{(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map((meal) => <Pressable key={meal} accessibilityLabel={`Add scan to ${meal}`} disabled={isSavingReview} onPress={() => updateReviewMeal(meal)} style={[styles.mealButton, reviewMeal === meal && { backgroundColor: colors.card }]}><Text style={[styles.mealButtonText, { color: reviewMeal === meal ? colors.foreground : colors.mutedForeground }]}>{meal}</Text></Pressable>)}</View>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<Surface tier="raised" radius="lg" style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{formatWhole(reviewDraft?.nutrition.calories)}</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {formatGrams(reviewDraft?.nutrition.proteinG)} · C {formatGrams(reviewDraft?.nutrition.carbsG)} · F {formatGrams(reviewDraft?.nutrition.fatG)}</Text></Surface>{reviewDraft && includedComponentCount(reviewDraft.components) === 0 ? <Text accessibilityLiveRegion="polite" style={[styles.reviewGuardText, { color: colors.warningForeground }]}>Include at least one food before adding this meal.</Text> : null}<Pressable accessibilityLabel="Approve and add meal to diary" disabled={approveDisabled} onPress={acceptDraft} style={[styles.addButton, { backgroundColor: approveDisabled ? colors.muted : colors.primary }]}>{isSavingReview ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <Feather name="check-circle" size={16} color={approveDisabled ? colors.mutedForeground : colors.primaryForeground} />}<Text style={[styles.addButtonText, { color: approveDisabled ? colors.mutedForeground : colors.primaryForeground }]}>{isSavingReview ? 'Saving meal…' : 'Approve and add to diary'}</Text></Pressable><SaveAsMealButton colors={colors} onPress={saveReviewedMeal} disabled={approveDisabled} accessibilityLabel={approveDisabled ? 'Save reviewed meal unavailable' : 'Save reviewed meal as meal'} /><Pressable accessibilityLabel="Discard food review" disabled={isSavingReview} onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>{isSavingReview ? 'Saving…' : 'Not this meal'}</Text></Pressable></KeyboardAwareScrollViewCompat></>}
+              {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' Ãƒâ€šÃ‚Â· ')}</Text></View> : null}<KeyboardAwareScrollViewCompat style={styles.resultScroll} contentContainerStyle={styles.resultScrollContent} showsVerticalScrollIndicator={false} bottomOffset={80}><Text style={[styles.mealLabel, { color: colors.mutedForeground }]}>ADD TO</Text><View style={[styles.mealPicker, { backgroundColor: colors.muted }]}>{(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map((meal) => <Pressable key={meal} accessibilityLabel={`Add scan to ${meal}`} disabled={isSavingReview} onPress={() => updateReviewMeal(meal)} style={[styles.mealButton, reviewMeal === meal && { backgroundColor: colors.card }]}><Text style={[styles.mealButtonText, { color: reviewMeal === meal ? colors.foreground : colors.mutedForeground }]}>{meal}</Text></Pressable>)}</View>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<Surface tier="raised" radius="lg" style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{formatWhole(reviewDraft?.nutrition.calories)}</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {formatGrams(reviewDraft?.nutrition.proteinG)} Ãƒâ€šÃ‚Â· C {formatGrams(reviewDraft?.nutrition.carbsG)} Ãƒâ€šÃ‚Â· F {formatGrams(reviewDraft?.nutrition.fatG)}</Text></Surface>{reviewDraft && includedComponentCount(reviewDraft.components) === 0 ? <Text accessibilityLiveRegion="polite" style={[styles.reviewGuardText, { color: colors.warningForeground }]}>Include at least one food before adding this meal.</Text> : null}<Pressable accessibilityLabel="Approve and add meal to diary" disabled={approveDisabled} onPress={acceptDraft} style={[styles.addButton, { backgroundColor: approveDisabled ? colors.muted : colors.primary }]}>{isSavingReview ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <Feather name="check-circle" size={16} color={approveDisabled ? colors.mutedForeground : colors.primaryForeground} />}<Text style={[styles.addButtonText, { color: approveDisabled ? colors.mutedForeground : colors.primaryForeground }]}>{isSavingReview ? 'Saving mealÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Approve and add to diary'}</Text></Pressable><SaveAsMealButton colors={colors} onPress={saveReviewedMeal} disabled={approveDisabled} accessibilityLabel={approveDisabled ? 'Save reviewed meal unavailable' : 'Save reviewed meal as meal'} /><Pressable accessibilityLabel="Discard food review" disabled={isSavingReview} onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>{isSavingReview ? 'SavingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Not this meal'}</Text></Pressable></KeyboardAwareScrollViewCompat></>}
           </Animated.View>
         </BottomSheetFrame>
       </Modal>
@@ -1012,6 +1058,10 @@ const styles = StyleSheet.create({
   includeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingVertical: 8, marginTop: 9 },
   includeButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   questionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 15, marginTop: 9 },
+  providerSuggestion: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, padding: 9, marginTop: 9 },
+  providerSuggestionText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 14 },
+  providerSuggestionButton: { borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7 },
+  providerSuggestionButtonText: { fontFamily: 'Inter_700Bold', fontSize: 9 },
   addButton: { height: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 11 },
   addButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   assumptionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginBottom: 12 },

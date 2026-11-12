@@ -53,10 +53,10 @@ export function foodIdentityScore(estimate: string, candidate: string): number {
   return overlap / Math.max(left.size, right.size);
 }
 
-export function rankNutritionMatches(
+export function rankNutritionMatches<T extends Pick<RestaurantFood, 'name' | 'brandName'>>(
   estimate: string,
-  foods: readonly Pick<RestaurantFood, 'name' | 'brandName'>[],
-): Array<{ food: Pick<RestaurantFood, 'name' | 'brandName'>; score: number }> {
+  foods: readonly T[],
+): Array<{ food: T; score: number }> {
   return foods
     .map((food) => ({
       food,
@@ -130,8 +130,10 @@ export function reconcileComponentWithRestaurantFood(
     name: food.name,
     brand: food.brandName,
     serving: nextServing,
-    servingQuantity: portion.quantity,
-    servingUnit: portion.unit,
+    // Nutrition values below are already scaled to the selected portion. Keep
+    // one logical serving so FoodMemory does not apply the quantity again.
+    servingQuantity: 1,
+    servingUnit: 'serving',
     servingWeightG,
     nutritionBasis: 'per_serving',
     servingMetadataSource: food.nutritionSource,

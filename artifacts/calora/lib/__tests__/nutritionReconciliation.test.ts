@@ -5,6 +5,7 @@ import {
   rankNutritionMatches,
   reconcileComponentWithRestaurantFood,
 } from '../nutritionReconciliation';
+import { nutritionMultiplierForComponent } from '../foodMemory';
 import type { FoodMemoryComponent } from '../foodMemory';
 import type { RestaurantFood } from '@workspace/api-client-react';
 
@@ -52,6 +53,7 @@ describe('nutrition reconciliation', () => {
       expect(result.component.servingWeightG).toBe(200);
       expect(result.component.calories).toBe(60);
       expect(result.component.proteinG).toBe(3);
+      expect(nutritionMultiplierForComponent(result.component)).toBe(1);
       expect(result.component.reviewQuestions).toEqual([]);
     }
   });

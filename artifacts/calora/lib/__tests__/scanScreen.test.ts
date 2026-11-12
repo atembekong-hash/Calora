@@ -57,6 +57,15 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('|| hasInvalidServing;');
   });
 
+  it('automatically applies only conservative provider matches and keeps an explicit fallback action', () => {
+    expect(source).toContain('useListRestaurantFoods(');
+    expect(source).toContain('rankNutritionMatches(component.name, providerSearch.data.foods)');
+    expect(source).toContain('top.score < 0.8');
+    expect(source).toContain('top.score - second.score < 0.15');
+    expect(source).toContain('reconcileComponentWithRestaurantFood(component, top.food)');
+    expect(source).toContain('Use verified nutrition match for');
+  });
+
   it('gives Barcode capture a food-photo fallback when product lookup cannot match', () => {
     expect(source).toContain("mode === 'auto' || mode === 'barcode' ? 'auto' : 'food'");
     expect(source).toContain("...(detectedBarcode && captureMode === 'auto' ? { barcode: detectedBarcode } : {}),");
