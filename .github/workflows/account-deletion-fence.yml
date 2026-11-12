@@ -10,14 +10,9 @@ permissions:
 
 jobs:
   verify:
-    name: Verify fresh-schema deletion fences (PostgreSQL ${{ matrix.postgres_major }})
+    name: Account-deletion fence validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        postgres_major:
-          - "16"
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/calora_deletion_fence_ci
       CALORA_RUN_DB_INTEGRATION_TESTS: "true"
@@ -78,9 +73,9 @@ jobs:
       - name: Capture sanitized PostgreSQL diagnostics
         if: failure()
         env:
-          POSTGRES_MAJOR: ${{ matrix.postgres_major }}
+          POSTGRES_MAJOR: "16"
           WORKFLOW_RUN_ID: ${{ github.run_id }}
-          DIAGNOSTICS_PATH: ${{ runner.temp }}/account-deletion-fence-postgres-${{ matrix.postgres_major }}-${{ github.run_id }}.log
+          DIAGNOSTICS_PATH: ${{ runner.temp }}/account-deletion-fence-postgres-16-${{ github.run_id }}.log
         run: |
           set -o pipefail
           mkdir -p "$(dirname "$DIAGNOSTICS_PATH")"
@@ -124,7 +119,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: account-deletion-fence-postgres-${{ matrix.postgres_major }}-run-${{ github.run_id }}
-          path: ${{ runner.temp }}/account-deletion-fence-postgres-${{ matrix.postgres_major }}-${{ github.run_id }}.log
+          name: account-deletion-fence-postgres-16-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/account-deletion-fence-postgres-16-${{ github.run_id }}.log
           if-no-files-found: error
           retention-days: 30

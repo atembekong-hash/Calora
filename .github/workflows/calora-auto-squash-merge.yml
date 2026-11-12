@@ -1,0 +1,86 @@
+name: Calora protected squash auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  enable-protected-auto-merge:
+    name: Enable protected squash auto-merge
+    if: >-
+      (github.event_name == 'pull_request_target' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify checks and protected-main policy
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const requiredChecks = [
+              'Run release validation suite',
+              'Run portable fresh-schema integrations (PostgreSQL 16)',
+              'Account-deletion fence validation',
+            ];
+            let pullRequests = [];
+            if (context.eventName === 'pull_request_target') {
+              pullRequests = [context.payload.pull_request];
+            } else {
+              pullRequests = context.payload.check_suite.pull_requests || [];
+            }
+
+            for (const pullRequest of pullRequests) {
+              if (pullRequest.base?.ref !== 'main' || pullRequest.draft) continue;
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pullRequest.head.sha,
+                per_page: 100,
+              });
+              const latest = new Map();
+              for (const check of checks.check_runs) {
+                const previous = latest.get(check.name);
+                if (!previous || new Date(check.started_at || 0) > new Date(previous.started_at || 0)) {
+                  latest.set(check.name, check);
+                }
+              }
+              const missingOrUnsuccessful = requiredChecks.filter((name) => latest.get(name)?.conclusion !== 'success');
+              if (missingOrUnsuccessful.length) {
+                core.info(`PR #${pullRequest.number} is not eligible yet: ${missingOrUnsuccessful.join(', ')}`);
+                continue;
+              }
+
+              const { data: protection } = await github.rest.repos.getBranchProtection({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch: 'main',
+              });
+              const configured = new Set(protection.required_status_checks?.contexts || []);
+              if (!protection.required_status_checks?.strict || requiredChecks.some((name) => !configured.has(name))) {
+                core.setFailed('main protection is missing strict required checks; refusing auto-merge.');
+                continue;
+              }
+              if (protection.required_pull_request_reviews?.required_approving_review_count !== 0 || protection.allow_force_pushes?.enabled || protection.allow_deletions?.enabled) {
+                core.setFailed('main protection policy is unsafe for this automation; refusing auto-merge.');
+                continue;
+              }
+
+              const result = await github.graphql(`
+                mutation EnableAutoMerge($input: EnablePullRequestAutoMergeInput!) {
+                  enablePullRequestAutoMerge(input: $input) {
+                    pullRequest { number autoMergeRequest { mergeMethod } }
+                  }
+                }
+              `, {
+                input: { pullRequestId: pullRequest.node_id, mergeMethod: 'SQUASH' },
+              });
+              core.info(`Enabled protected squash auto-merge for PR #${result.enablePullRequestAutoMerge.pullRequest.number}.`);
+            }
