@@ -240,6 +240,28 @@ describe('generated recipe image renewal service', () => {
     });
   });
 
+  it('clears an expired review preview in pure reconciliation', () => {
+    const current = generatedRecipe({
+      image: null,
+      imageStatus: 'stored',
+      imageReviewState: 'needs_review',
+      imageMediaId: 'media-7',
+      imagePreviewUrl: 'https://storage.example/review-preview-old.png',
+      imagePreviewUrlExpiresAt: new Date(NOW - 1).toISOString(),
+    });
+    const returned = {
+      mediaId: 'media-7', clientRecipeId: current.id, contentHash: 'a'.repeat(64), imageId: IMAGE_ID,
+      modelVersion: 'model-1', promptVersion: 'prompt-1', status: 'stored' as const, semanticReviewState: 'needs_review' as const, attempts: 1,
+      createdAt: '2026-09-23T00:00:00.000Z', updatedAt: '2026-09-23T00:00:00.000Z',
+    };
+
+    expect(reconcileGeneratedRecipeMedia(current, returned, GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS)).toMatchObject({
+      imagePreviewUrl: null,
+      imagePreviewUrlExpiresAt: null,
+      imageReviewState: 'needs_review',
+    });
+  });
+
   it('uses a renewed locator once a rendered image reaches its renewal window', () => {
     const current = generatedRecipe({
       image: 'https://storage.example/signed-expiring.png',
