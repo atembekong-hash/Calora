@@ -42,7 +42,7 @@ import type { AuthError, AuthResult } from '@/lib/auth';
 import {
   getSafeSessionStorageErrorCategory,
 } from '@/lib/supabaseSessionStorage';
-import type { PostAuthIntent } from '@/lib/postAuthNavigation';
+import type { PostAuthDestination, PostAuthIntent } from '@/lib/postAuthNavigation';
 import { withTimeout } from '@/lib/withTimeout';
 
 // ---------------------------------------------------------------------------
@@ -63,6 +63,8 @@ interface AuthState {
   restoreError: AuthRestoreError | null;
   /** Callback navigation state consumed by the root-level navigation owner. */
   postAuthIntent: PostAuthIntent;
+  /** Optional validated destination captured before authentication began. */
+  postAuthDestination: PostAuthDestination | null;
   /**
    * True after Supabase fires PASSWORD_RECOVERY.  The auth/callback screen
    * reads this to route to /auth/reset-password instead of the main tabs.
@@ -72,9 +74,9 @@ interface AuthState {
 }
 
 interface AuthActions {
-  signInWithGoogle: () => Promise<AuthResult>;
-  signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
-  signUpWithEmail: (email: string, password: string) => Promise<AuthResult>;
+  signInWithGoogle: (destination?: PostAuthDestination) => Promise<AuthResult>;
+  signInWithEmail: (email: string, password: string, destination?: PostAuthDestination) => Promise<AuthResult>;
+  signUpWithEmail: (email: string, password: string, destination?: PostAuthDestination) => Promise<AuthResult>;
   sendPasswordReset: typeof doPasswordReset;
   updatePassword: typeof doUpdatePassword;
   resendVerificationEmail: typeof doResendVerification;
@@ -104,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [restoreStatus, setRestoreStatus] = useState<AuthRestoreStatus>('loading');
   const [restoreError, setRestoreError] = useState<AuthRestoreError | null>(null);
   const [postAuthIntent, setPostAuthIntent] = useState<PostAuthIntent>('none');
+  const [postAuthDestination, setPostAuthDestination] = useState<PostAuthDestination | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const signingIn = useRef(false);
@@ -196,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (event === 'SIGNED_OUT') {
           setPostAuthIntent('none');
+          setPostAuthDestination(null);
         }
       },
     );
@@ -212,12 +216,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Actions
   // -------------------------------------------------------------------------
 
-  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+  const signInWithGoogle = useCallback(async (destination?: PostAuthDestination): Promise<AuthResult> => {
     if (signingIn.current) {
       return { success: false, error: { code: 'unknown', message: 'A sign-in is already in progress.' } };
     }
     signingIn.current = true;
     setPostAuthIntent('pending');
+    setPostAuthDestination(destination ?? null);
     try {
       const result = await doGoogleSignIn();
       if (result.success) {
@@ -225,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPostAuthIntent(result.callbackIntent ?? 'ordinary');
       } else {
         setPostAuthIntent('none');
+        setPostAuthDestination(null);
       }
       return result;
     } finally {
@@ -232,7 +238,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [adoptAuthenticatedSession]);
 
-  const signInWithEmail = useCallback(async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string, destination?: PostAuthDestination) => {
+    setPostAuthDestination(destination ?? null);
     const result = await doEmailSignIn(email, password);
     if (result.success) {
       adoptAuthenticatedSession(result.session);
@@ -241,7 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [adoptAuthenticatedSession]);
 
-  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+  const signUpWithEmail = useCallback(async (email: string, password: string, destination?: PostAuthDestination) => {
+    setPostAuthDestination(destination ?? null);
     const result = await doEmailSignUp(email, password);
     if (result.success) {
       adoptAuthenticatedSession(result.session);
@@ -286,6 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPostAuthIntent(result.callbackIntent ?? 'ordinary');
     } else {
       setPostAuthIntent('none');
+      setPostAuthDestination(null);
     }
   }, [adoptAuthenticatedSession]);
 
@@ -301,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       restoreStatus,
       restoreError,
       postAuthIntent,
+      postAuthDestination,
       isPasswordRecovery,
       signInWithGoogle,
       signInWithEmail,
@@ -314,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeAuthCallback,
     }),
     [
-      session, user, restoreStatus, restoreError, postAuthIntent, isPasswordRecovery,
+      session, user, restoreStatus, restoreError, postAuthIntent, postAuthDestination, isPasswordRecovery,
       signInWithGoogle, signInWithEmail, signUpWithEmail,
       sendPasswordReset, updatePassword, resendVerificationEmail, signOutAction,
       retrySessionRestore, beginAuthCallback, completeAuthCallback,

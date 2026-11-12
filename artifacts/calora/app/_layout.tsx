@@ -331,7 +331,7 @@ function RootLayoutNav({
   const { mode } = useGlobalSearchParams<{ mode?: string | string[] }>();
   const router = useRouter();
   const segments = useSegments();
-  const { user, restoreStatus, postAuthIntent, isPasswordRecovery } = useAuth();
+  const { user, restoreStatus, postAuthIntent, postAuthDestination, isPasswordRecovery } = useAuth();
   const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
   const applicationShellIsActive = segments.some((segment) => String(segment) === '(tabs)');
   if (applicationShellIsActive) applicationShellEnteredRef.current = true;
@@ -394,6 +394,7 @@ function RootLayoutNav({
     applicationReady: allowApplication,
     authRouteIsActive,
     applicationShellEntered: applicationShellEnteredRef.current,
+    destination: postAuthDestination,
   });
 
   useEffect(() => {
