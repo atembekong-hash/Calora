@@ -221,6 +221,22 @@ function numberOrZero(value: unknown) {
   return Number.isFinite(number) && number >= 0 ? number : 0;
 }
 
+function explicitServingWeightG(serving: string, value: unknown) {
+  if (value != null) return numberOrZero(value) || null;
+  const match = serving.match(/(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*(?:g|grams)\b/i);
+  if (!match) return null;
+  const grams = Number(match[1]);
+  return Number.isFinite(grams) && grams > 0 && grams <= 2500 ? grams : null;
+}
+
+function normalizedComponentName(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function addUniqueReview(items: string[], value: string, max = 6) {
+  return items.includes(value) ? items : [...items, value].slice(0, max);
+}
+
 function normalizeBarcode(value: string) {
   return value.replace(/\D/g, "").slice(0, 32);
 }
@@ -251,7 +267,7 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     serving: candidate.serving?.trim() || "1 serving",
     servingQuantity: candidate.servingQuantity == null ? null : numberOrZero(candidate.servingQuantity),
     servingUnit: candidate.servingUnit?.trim() || null,
-    servingWeightG: candidate.servingWeightG == null ? null : numberOrZero(candidate.servingWeightG),
+    servingWeightG: explicitServingWeightG(candidate.serving?.trim() || "1 serving", candidate.servingWeightG),
     nutritionBasis: candidate.nutritionBasis ?? "unknown",
     servingMetadataSource: candidate.servingMetadataSource?.trim() || null,
     calories: numberOrZero(candidate.calories),
@@ -282,6 +298,21 @@ function ensureComponent(candidate: Partial<CaptureComponent>, index: number, pr
   const preparation = confidence(candidate.confidenceDimensions?.preparation, base.provenance === "Photo estimate" ? Math.max(base.confidence - 15, 0) : base.confidence);
   const low = numberOrZero(candidate.nutritionRange?.caloriesLow) || Math.max(0, Math.round(base.calories * (portion < 70 ? 0.75 : 0.9)));
   const high = numberOrZero(candidate.nutritionRange?.caloriesHigh) || Math.round(base.calories * (portion < 70 ? 1.3 : 1.1));
+  const ambiguousIdentity = provenance === "Photo estimate" && (
+    identity < 70
+    || /\b(likely|possible|may be|could be|or another|unknown|unclear)\b/i.test(base.name)
+    || /\bor\b/i.test(base.name)
+  );
+  const assumptions = [
+    ...(Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 5) : []),
+    ...(provenance === "Photo estimate" ? ["Nutrition is a visual estimate and was not verified against a nutrition database."] : []),
+    ...(ambiguousIdentity ? ["Food identity is uncertain; nutrition should remain editable until the user confirms the match."] : []),
+  ].slice(0, 6);
+  const reviewQuestions = [
+    ...(Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 3) : []),
+    ...(provenance === "Photo estimate" ? ["Confirm the food identity and portion size before saving."] : []),
+    ...(ambiguousIdentity ? ["Please confirm the food identity before relying on its nutrition estimate."] : []),
+  ].slice(0, 4);
   return {
     ...base,
     componentId: candidate.componentId || base.id || `component-${index + 1}`,
@@ -289,15 +320,9 @@ function ensureComponent(candidate: Partial<CaptureComponent>, index: number, pr
     included: candidate.included !== false,
     eatenFraction: Math.min(Math.max(Number(candidate.eatenFraction ?? 1), 0), 1),
     confidenceDimensions: { identity, portion, nutritionSource, preparation },
-    assumptions: [
-      ...(Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 5) : []),
-      ...(provenance === "Photo estimate" ? ["Nutrition is a visual estimate and was not verified against a nutrition database."] : []),
-    ].slice(0, 6),
+    assumptions,
     nutritionRange: { caloriesLow: Math.min(low, high), caloriesHigh: Math.max(low, high) },
-    reviewQuestions: [
-      ...(Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 3) : []),
-      ...(provenance === "Photo estimate" ? ["Confirm the food identity and portion size before saving."] : []),
-    ].slice(0, 4),
+    reviewQuestions,
   };
 }
 
@@ -491,7 +516,7 @@ async function lookupBarcode(barcode: string) {
   return openFoodFactsFallback ? { candidate: openFoodFactsFallback, provider: "Open Food Facts" } : null;
 }
 
-function parseVisionResponse(content: string, provenance = "Photo estimate", sourceLabel = "Managed vision estimate") {
+export function parseVisionResponse(content: string, provenance = "Photo estimate", sourceLabel = "Managed vision estimate") {
   const cleaned = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
   const parsed = JSON.parse(cleaned) as {
     title?: string;
@@ -501,14 +526,32 @@ function parseVisionResponse(content: string, provenance = "Photo estimate", sou
     reviewQuestions?: string[];
   };
   const rawComponents = parsed.components ?? parsed.candidates ?? [];
-  const components = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index, provenance, sourceLabel)).filter((candidate) => candidate.name !== "Unidentified food");
+  const normalized = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index, provenance, sourceLabel)).filter((candidate) => candidate.name !== "Unidentified food");
+  const components: CaptureComponent[] = [];
+  for (const component of normalized) {
+    const duplicate = components.find((existing) =>
+      normalizedComponentName(existing.name) === normalizedComponentName(component.name)
+      && existing.servingWeightG === component.servingWeightG
+      && existing.calories === component.calories
+      && existing.proteinG === component.proteinG
+      && existing.carbsG === component.carbsG
+      && existing.fatG === component.fatG,
+    );
+    if (!duplicate) components.push(component);
+  }
+  const knownWeightG = components.reduce((sum, component) => sum + (component.servingWeightG ?? 0), 0);
+  const unusuallyLargePortion = knownWeightG > 1200 || components.some((component) => (component.servingWeightG ?? 0) > 1000);
   const candidates = components.map(({ componentId: _componentId, preparation: _preparation, included: _included, eatenFraction: _eatenFraction, confidenceDimensions: _confidenceDimensions, assumptions: _assumptions, nutritionRange: _nutritionRange, reviewQuestions: _reviewQuestions, ...candidate }) => candidate);
   return {
     title: parsed.title?.trim() || (components[0]?.name ?? "Food photo review"),
     candidates,
     components,
-    assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
-    reviewQuestions: Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
+    assumptions: unusuallyLargePortion
+      ? addUniqueReview(Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [], "The estimated total portion is unusually large; confirm the amount before saving.", 8)
+      : Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
+    reviewQuestions: unusuallyLargePortion
+      ? addUniqueReview(Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6), "Please confirm the total amount shown before saving.", 6)
+      : Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
   };
 }
 
@@ -579,7 +622,23 @@ async function analyzeNutritionLabel(imageBase64: string, imageMimeType: Capture
   return parseVisionResponse(content, "Nutrition label", "Label extract");
 }
 
-async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImageMimeType) {
+export type FoodPhotoProviderUsage = {
+  responseId?: string;
+  requestId?: string;
+  model?: string;
+  created?: number;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  } | null;
+};
+
+export async function analyzeFoodPhoto(
+  imageBase64: string,
+  imageMimeType: CaptureImageMimeType,
+  options?: { onProviderUsage?: (usage: FoodPhotoProviderUsage) => void },
+) {
   const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 4096,
@@ -591,8 +650,10 @@ async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImage
           `You are ${BRAND_NAME}'s food recognition engine.`,
           "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
           "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
-          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
+          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, servingWeightG, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+          "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Never duplicate the same visible item or split one uncertain item into multiple varieties without clear visual evidence. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
+          "When a defensible gram estimate is available, put it in numeric servingWeightG and also describe it in serving. If it is not defensible, set servingWeightG to null rather than inventing precision.",
+          "When two foods are plausible, name the uncertainty explicitly, lower identity confidence, and ask the user to confirm before relying on nutrition. Do not substitute a nutritionally different food merely because it is visually plausible.",
           "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
           "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
         ].join(" "),
@@ -602,7 +663,7 @@ async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImage
         content: [
           {
             type: "text",
-            text: "Identify every food or drink you can see and estimate one serving for each. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
+            text: "Identify every distinct food or drink you can see and estimate one serving for each. Include servingWeightG only when defensible from visible scale or a clear serving reference. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
           },
           {
             type: "image_url",
@@ -612,6 +673,18 @@ async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImage
       },
     ],
   }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
+  const completionMetadata = completion as typeof completion & { _request_id?: string };
+  options?.onProviderUsage?.({
+    responseId: completion.id,
+    requestId: completionMetadata._request_id,
+    model: completion.model,
+    created: completion.created,
+    usage: completion.usage ? {
+      prompt_tokens: completion.usage.prompt_tokens,
+      completion_tokens: completion.usage.completion_tokens,
+      total_tokens: completion.usage.total_tokens,
+    } : null,
+  });
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Vision provider returned no analysis");
   return parseVisionResponse(content);

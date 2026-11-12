@@ -1,0 +1,1109 @@
+{
+  "version": "cal-scan-accuracy-005-direct-openai",
+  "model": "gpt-5.6-terra",
+  "endpoint_kind": "direct-openai",
+  "executed_calls": 3,
+  "results": [
+    {
+      "benchmarkId": "VLM-002",
+      "imagePath": "C:\\Users\\DynaBook\\Calora\\benchmarks\\cal-scan-accuracy-002-v1\\images\\vlm-food-benchmark\\002.jpg",
+      "latencyMs": 12358,
+      "analysis": {
+        "title": "Mixed salad with chicken and a partially visible green-coated fried ball",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Mixed cabbage and leafy salad greens",
+            "brand": null,
+            "serving": "About 2 cups (110 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 28,
+            "proteinG": 1.5,
+            "carbsG": 6,
+            "fatG": 0.2,
+            "confidence": 86,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Tomato slices",
+            "brand": null,
+            "serving": "About 1 medium tomato (120 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 22,
+            "proteinG": 1.1,
+            "carbsG": 4.8,
+            "fatG": 0.2,
+            "confidence": 89,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Cucumber slice",
+            "brand": null,
+            "serving": "About 1 thick slice (20 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 3,
+            "proteinG": 0.1,
+            "carbsG": 0.7,
+            "fatG": 0,
+            "confidence": 90,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-4",
+            "name": "Shredded carrot",
+            "brand": null,
+            "serving": "About 2 tablespoons (15 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 6,
+            "proteinG": 0.1,
+            "carbsG": 1.4,
+            "fatG": 0,
+            "confidence": 82,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-5",
+            "name": "Chicken breast strip",
+            "brand": null,
+            "serving": "About 1 oz cooked (28 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 46,
+            "proteinG": 8.7,
+            "carbsG": 0,
+            "fatG": 1,
+            "confidence": 61,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-6",
+            "name": "Green herb-coated fried ball (possibly falafel)",
+            "brand": null,
+            "serving": "About 1 small ball, partially visible (30 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 100,
+            "proteinG": 4,
+            "carbsG": 10,
+            "fatG": 5,
+            "confidence": 43,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Mixed cabbage and leafy salad greens",
+            "brand": null,
+            "serving": "About 2 cups (110 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 28,
+            "proteinG": 1.5,
+            "carbsG": 6,
+            "fatG": 0.2,
+            "confidence": 86,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Raw, shredded/chopped",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 93,
+              "portion": 78,
+              "nutritionSource": 84,
+              "preparation": 91
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 25,
+              "caloriesHigh": 31
+            },
+            "reviewQuestions": [
+              "Was dressing or oil added to the salad, and approximately how much?",
+              "Was the full bowl eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Tomato slices",
+            "brand": null,
+            "serving": "About 1 medium tomato (120 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 22,
+            "proteinG": 1.1,
+            "carbsG": 4.8,
+            "fatG": 0.2,
+            "confidence": 89,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Raw",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 98,
+              "portion": 82,
+              "nutritionSource": 88,
+              "preparation": 97
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 20,
+              "caloriesHigh": 24
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Cucumber slice",
+            "brand": null,
+            "serving": "About 1 thick slice (20 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 3,
+            "proteinG": 0.1,
+            "carbsG": 0.7,
+            "fatG": 0,
+            "confidence": 90,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-3",
+            "preparation": "Raw",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 98,
+              "portion": 88,
+              "nutritionSource": 88,
+              "preparation": 97
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 3,
+              "caloriesHigh": 3
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-4",
+            "name": "Shredded carrot",
+            "brand": null,
+            "serving": "About 2 tablespoons (15 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 6,
+            "proteinG": 0.1,
+            "carbsG": 1.4,
+            "fatG": 0,
+            "confidence": 82,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-4",
+            "preparation": "Raw",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 92,
+              "portion": 70,
+              "nutritionSource": 88,
+              "preparation": 95
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 5,
+              "caloriesHigh": 7
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-5",
+            "name": "Chicken breast strip",
+            "brand": null,
+            "serving": "About 1 oz cooked (28 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 46,
+            "proteinG": 8.7,
+            "carbsG": 0,
+            "fatG": 1,
+            "confidence": 61,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-5",
+            "preparation": "Cooked; exact method unknown",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 63,
+              "portion": 68,
+              "nutritionSource": 78,
+              "preparation": 45
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 35,
+              "caloriesHigh": 60
+            },
+            "reviewQuestions": [
+              "Is the pale strip chicken, and was it grilled, breaded, or dressed with sauce?",
+              "Are there additional chicken pieces mixed under the vegetables?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-6",
+            "name": "Green herb-coated fried ball (possibly falafel)",
+            "brand": null,
+            "serving": "About 1 small ball, partially visible (30 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 100,
+            "proteinG": 4,
+            "carbsG": 10,
+            "fatG": 5,
+            "confidence": 43,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-6",
+            "preparation": "Likely fried; exact item unknown",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 35,
+              "portion": 52,
+              "nutritionSource": 55,
+              "preparation": 48
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 75,
+              "caloriesHigh": 130
+            },
+            "reviewQuestions": [
+              "What is the green-coated round item at the lower left (for example, falafel, croquette, or another side)?",
+              "Was the entire item eaten?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "No measurable dressing, oil, cheese, croutons, nuts, or sauce was clearly visible, so these are not included.",
+          "Portions are visual estimates of edible food visible in the image only.",
+          "The partially visible red item at the upper left is not identifiable enough to log as a drink or food."
+        ],
+        "reviewQuestions": [
+          "Was any salad dressing, oil, or sauce added? This could substantially change calories and fat.",
+          "Was the entire salad bowl eaten?",
+          "Can you confirm the identity and amount of the chicken and the green-coated round side item?"
+        ]
+      },
+      "reference": {
+        "calories": null,
+        "protein_g": null,
+        "carbs_g": null,
+        "fat_g": null,
+        "nutrition_status": "unavailable in published item labels"
+      }
+    },
+    {
+      "benchmarkId": "VLM-004",
+      "imagePath": "C:\\Users\\DynaBook\\Calora\\benchmarks\\cal-scan-accuracy-002-v1\\images\\vlm-food-benchmark\\004.jpg",
+      "latencyMs": 13882,
+      "analysis": {
+        "title": "Tuna, mozzarella, olive and tomato salad with banana and bread roll",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Banana",
+            "brand": "Unknown",
+            "serving": "1 medium banana, about 118 g edible portion",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 105,
+            "proteinG": 1.3,
+            "carbsG": 27,
+            "fatG": 0.4,
+            "confidence": 94,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Bread roll",
+            "brand": "Unknown",
+            "serving": "1 small plain bread roll, about 65 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 175,
+            "proteinG": 5.8,
+            "carbsG": 34,
+            "fatG": 2.1,
+            "confidence": 67,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Leafy green salad",
+            "brand": "Unknown",
+            "serving": "About 2 cups loose greens, 60 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 10,
+            "proteinG": 0.9,
+            "carbsG": 1.7,
+            "fatG": 0.1,
+            "confidence": 80,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-4",
+            "name": "Tuna",
+            "brand": "Unknown",
+            "serving": "About 85 g, approximately 3 oz drained",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 100,
+            "proteinG": 22,
+            "carbsG": 0,
+            "fatG": 0.8,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-5",
+            "name": "Cherry tomatoes",
+            "brand": "Unknown",
+            "serving": "About 6 to 8 cherry tomatoes, 90 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 16,
+            "proteinG": 0.8,
+            "carbsG": 3.5,
+            "fatG": 0.2,
+            "confidence": 88,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-6",
+            "name": "Black olives",
+            "brand": "Unknown",
+            "serving": "About 6 olives, 20 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 23,
+            "proteinG": 0.2,
+            "carbsG": 1.2,
+            "fatG": 2.1,
+            "confidence": 80,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-7",
+            "name": "Fresh mozzarella",
+            "brand": "Unknown",
+            "serving": "About 3 small mozzarella balls, 60 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 150,
+            "proteinG": 10.8,
+            "carbsG": 1.8,
+            "fatG": 10.8,
+            "confidence": 77,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Banana",
+            "brand": "Unknown",
+            "serving": "1 medium banana, about 118 g edible portion",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 105,
+            "proteinG": 1.3,
+            "carbsG": 27,
+            "fatG": 0.4,
+            "confidence": 94,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Raw, peeled before eating",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 99,
+              "portion": 88,
+              "nutritionSource": 92,
+              "preparation": 99
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 95,
+              "caloriesHigh": 116
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Bread roll",
+            "brand": "Unknown",
+            "serving": "1 small plain bread roll, about 65 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 175,
+            "proteinG": 5.8,
+            "carbsG": 34,
+            "fatG": 2.1,
+            "confidence": 67,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Appears plain and packaged; no visible spread or filling",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 71,
+              "portion": 65,
+              "nutritionSource": 62,
+              "preparation": 83
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 131,
+              "caloriesHigh": 228
+            },
+            "reviewQuestions": [
+              "Was this a plain bread roll, or was it a brioche, milk bread, or another enriched type?",
+              "Was the entire roll eaten, and was anything added to it?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Leafy green salad",
+            "brand": "Unknown",
+            "serving": "About 2 cups loose greens, 60 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 10,
+            "proteinG": 0.9,
+            "carbsG": 1.7,
+            "fatG": 0.1,
+            "confidence": 80,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-3",
+            "preparation": "Raw mixed leafy greens",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 85,
+              "portion": 72,
+              "nutritionSource": 88,
+              "preparation": 96
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 9,
+              "caloriesHigh": 11
+            },
+            "reviewQuestions": [
+              "Was any salad dressing, oil, vinaigrette, or mayonnaise added?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-4",
+            "name": "Tuna",
+            "brand": "Unknown",
+            "serving": "About 85 g, approximately 3 oz drained",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 100,
+            "proteinG": 22,
+            "carbsG": 0,
+            "fatG": 0.8,
+            "confidence": 72,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-4",
+            "preparation": "Flaked tuna, likely canned; estimated as tuna packed in water and drained",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 78,
+              "portion": 67,
+              "nutritionSource": 72,
+              "preparation": 55
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 75,
+              "caloriesHigh": 130
+            },
+            "reviewQuestions": [
+              "Is the fish tuna, and was it packed in water or oil?",
+              "Was mayonnaise, olive oil, or another dressing mixed into the tuna?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-5",
+            "name": "Cherry tomatoes",
+            "brand": "Unknown",
+            "serving": "About 6 to 8 cherry tomatoes, 90 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 16,
+            "proteinG": 0.8,
+            "carbsG": 3.5,
+            "fatG": 0.2,
+            "confidence": 88,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-5",
+            "preparation": "Raw, cut",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 97,
+              "portion": 80,
+              "nutritionSource": 91,
+              "preparation": 98
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 14,
+              "caloriesHigh": 18
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-6",
+            "name": "Black olives",
+            "brand": "Unknown",
+            "serving": "About 6 olives, 20 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 23,
+            "proteinG": 0.2,
+            "carbsG": 1.2,
+            "fatG": 2.1,
+            "confidence": 80,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-6",
+            "preparation": "Brined olives, served whole",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 91,
+              "portion": 69,
+              "nutritionSource": 83,
+              "preparation": 94
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 17,
+              "caloriesHigh": 30
+            },
+            "reviewQuestions": [
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-7",
+            "name": "Fresh mozzarella",
+            "brand": "Unknown",
+            "serving": "About 3 small mozzarella balls, 60 g",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 150,
+            "proteinG": 10.8,
+            "carbsG": 1.8,
+            "fatG": 10.8,
+            "confidence": 77,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-7",
+            "preparation": "Fresh mozzarella, served cold",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 89,
+              "portion": 66,
+              "nutritionSource": 77,
+              "preparation": 96
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 113,
+              "caloriesHigh": 195
+            },
+            "reviewQuestions": [
+              "Were these standard fresh mozzarella balls, or a reduced-fat/large mozzarella product?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "No visible dressing, oil, vinaigrette, mayonnaise, or other sauce has been counted.",
+          "Nutrition estimates represent the pictured servings and may differ from the amounts actually eaten.",
+          "The salad is estimated as lettuce/greens, tuna, cherry tomatoes, black olives, and fresh mozzarella."
+        ],
+        "reviewQuestions": [
+          "Was there any dressing, oil, vinaigrette, or sauce on the salad or tuna?",
+          "Was the tuna packed in water or oil, and was the full visible portion eaten?",
+          "What type and approximate weight was the bread roll, and was the whole roll eaten?",
+          "Was the entire meal consumed, including the banana and all salad components?"
+        ]
+      },
+      "reference": {
+        "calories": null,
+        "protein_g": null,
+        "carbs_g": null,
+        "fat_g": null,
+        "nutrition_status": "unavailable in published item labels"
+      }
+    },
+    {
+      "benchmarkId": "VLM-100",
+      "imagePath": "C:\\Users\\DynaBook\\Calora\\benchmarks\\cal-scan-accuracy-002-v1\\images\\vlm-food-benchmark\\100.jpg",
+      "latencyMs": 9062,
+      "analysis": {
+        "title": "Pasta with tomato sauce and cheese, cooked zucchini, and a bread roll",
+        "candidates": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Baked penne pasta with tomato-based sauce and melted/grated cheese",
+            "brand": "Unknown",
+            "serving": "About 1.25 cups (approximately 250 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 430,
+            "proteinG": 17,
+            "carbsG": 62,
+            "fatG": 14,
+            "confidence": 68,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Cooked diced zucchini (possibly with onion)",
+            "brand": "Unknown",
+            "serving": "About 3/4 cup (approximately 120 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 70,
+            "proteinG": 2,
+            "carbsG": 7,
+            "fatG": 4,
+            "confidence": 64,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Bread roll",
+            "brand": "Unknown",
+            "serving": "1 small roll (approximately 55 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 150,
+            "proteinG": 5,
+            "carbsG": 29,
+            "fatG": 2,
+            "confidence": 76,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null
+          }
+        ],
+        "components": [
+          {
+            "id": "capture-candidate-1",
+            "name": "Baked penne pasta with tomato-based sauce and melted/grated cheese",
+            "brand": "Unknown",
+            "serving": "About 1.25 cups (approximately 250 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 430,
+            "proteinG": 17,
+            "carbsG": 62,
+            "fatG": 14,
+            "confidence": 68,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-1",
+            "preparation": "Appears to be cooked penne pasta mixed with a red tomato-based sauce and cheese, possibly baked or reheated.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 78,
+              "portion": 65,
+              "nutritionSource": 60,
+              "preparation": 67
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 323,
+              "caloriesHigh": 559
+            },
+            "reviewQuestions": [
+              "Was this pasta vegetarian, or did the sauce include meat or sausage?",
+              "Was it made with a substantial amount of cheese, butter, olive oil, or cream beyond what is visible?",
+              "Did you eat the full portion shown?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-2",
+            "name": "Cooked diced zucchini (possibly with onion)",
+            "brand": "Unknown",
+            "serving": "About 3/4 cup (approximately 120 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 70,
+            "proteinG": 2,
+            "carbsG": 7,
+            "fatG": 4,
+            "confidence": 64,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-2",
+            "preparation": "Appears to be diced zucchini cooked until soft; pale diced pieces may be onion or another vegetable.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 72,
+              "portion": 68,
+              "nutritionSource": 60,
+              "preparation": 55
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 53,
+              "caloriesHigh": 91
+            },
+            "reviewQuestions": [
+              "Are the pale pieces onion, potato, or another vegetable?",
+              "How much cooking oil or butter was used for the vegetables?",
+              "Did you eat the entire vegetable serving shown?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          },
+          {
+            "id": "capture-candidate-3",
+            "name": "Bread roll",
+            "brand": "Unknown",
+            "serving": "1 small roll (approximately 55 g)",
+            "servingQuantity": null,
+            "servingUnit": null,
+            "servingWeightG": null,
+            "nutritionBasis": "unknown",
+            "servingMetadataSource": null,
+            "calories": 150,
+            "proteinG": 5,
+            "carbsG": 29,
+            "fatG": 2,
+            "confidence": 76,
+            "provenance": "Photo estimate",
+            "sourceLabel": "Managed vision estimate",
+            "editable": true,
+            "imageUrl": null,
+            "imageSource": null,
+            "componentId": "capture-candidate-3",
+            "preparation": "Plain packaged bread roll; no spread is visible.",
+            "included": true,
+            "eatenFraction": 1,
+            "confidenceDimensions": {
+              "identity": 83,
+              "portion": 72,
+              "nutritionSource": 70,
+              "preparation": 88
+            },
+            "assumptions": [
+              "Nutrition is a visual estimate and was not verified against a nutrition database."
+            ],
+            "nutritionRange": {
+              "caloriesLow": 135,
+              "caloriesHigh": 165
+            },
+            "reviewQuestions": [
+              "What type or brand of roll is this, and what is its package weight if available?",
+              "Was butter, margarine, cheese, or another spread added?",
+              "Did you eat the whole roll?",
+              "Confirm the food identity and portion size before saving."
+            ]
+          }
+        ],
+        "assumptions": [
+          "No drink is visible.",
+          "No hidden oils, sauces, meat, or spreads were added beyond the limited cooking oil assumed for the vegetables.",
+          "Nutrition values are image-based estimates and may vary substantially with recipe and actual serving weight."
+        ],
+        "reviewQuestions": [
+          "Was the entire meal eaten, including the bread roll?",
+          "Was there meat, extra cheese, or oil in the pasta dish that is not clearly visible?",
+          "Can you provide the bread package nutrition label or weight, if available?"
+        ]
+      },
+      "reference": {
+        "calories": null,
+        "protein_g": null,
+        "carbs_g": null,
+        "fat_g": null,
+        "nutrition_status": "unavailable in published item labels"
+      }
+    }
+  ]
+}
