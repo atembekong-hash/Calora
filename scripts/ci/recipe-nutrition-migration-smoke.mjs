@@ -508,7 +508,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
   const historicalUpgrade = await verifyExpectedColumns(
     "historical 0008 no-cache upgrade",
-    15,
+    16,
   );
 try {
   await verifyCaptureRateLimiter(
