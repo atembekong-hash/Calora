@@ -29,8 +29,12 @@ import {
   type DatabaseQueryExecutor,
 } from "../lib/database-identity.js";
 import { logger, safeErrorDetails } from "../lib/logger";
+import { recordProviderUsage } from "../lib/provider-cost-telemetry.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
-import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
+import {
+  hasActivePremiumEntitlement,
+  RevenueCatProviderError,
+} from "../lib/revenuecat.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import {
   accountDeletionFenceSignal,
@@ -122,12 +126,10 @@ async function enforceRecipeGenLimit(
         accountDeletionFenceSignal(route),
         "Account deletion fence rejected recipe request",
       );
-      res
-        .status(503)
-        .json({
-          message:
-            "Recipe ideas are temporarily unavailable. Please try again shortly.",
-        });
+      res.status(503).json({
+        message:
+          "Recipe ideas are temporarily unavailable. Please try again shortly.",
+      });
       return false;
     }
     throw error;
@@ -396,6 +398,7 @@ async function generateConcepts(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONCEPT_TIMEOUT_MS);
   try {
+    const startedAt = Date.now();
     const completion = await openai.chat.completions.create(
       {
         model: "gpt-5.4-mini",
@@ -425,6 +428,13 @@ async function generateConcepts(
       },
       { signal: controller.signal },
     );
+    recordProviderUsage({
+      feature: "recipe_creation",
+      model: completion.model ?? "gpt-5.4-mini",
+      elapsedMs: Date.now() - startedAt,
+      succeeded: true,
+      usage: completion.usage,
+    });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as { concepts?: unknown[] };
     const concepts = (parsed.concepts ?? [])
@@ -462,12 +472,10 @@ async function generateConcepts(
   } catch (error) {
     await lease?.release();
     logger.warn(safeErrorDetails(error), "Recipe concept generation failed");
-    res
-      .status(502)
-      .json({
-        message:
-          "Calora couldn’t generate ideas right now. Your request is still here—try again shortly.",
-      });
+    res.status(502).json({
+      message:
+        "Calora couldn’t generate ideas right now. Your request is still here—try again shortly.",
+    });
     return;
   } finally {
     clearTimeout(timer);
@@ -522,7 +530,12 @@ router.post("/v1/recipes/generated", async (req, res) => {
   const recipeLease = await reserveFreeAllowance(req, res, {
     userId: user.id,
     feature: "recipe_creation",
-    key: operationKey(req, typeof req.body?.clientCorrelationId === "string" ? req.body.clientCorrelationId : undefined),
+    key: operationKey(
+      req,
+      typeof req.body?.clientCorrelationId === "string"
+        ? req.body.clientCorrelationId
+        : undefined,
+    ),
   });
   if (!recipeLease) return;
   const title = input.data.title.trim();
@@ -531,6 +544,7 @@ router.post("/v1/recipes/generated", async (req, res) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONCEPT_TIMEOUT_MS);
   try {
+    const startedAt = Date.now();
     const completion = await openai.chat.completions.create(
       {
         model: "gpt-5.4-mini",
@@ -549,6 +563,13 @@ router.post("/v1/recipes/generated", async (req, res) => {
       },
       { signal: controller.signal },
     );
+    recordProviderUsage({
+      feature: "recipe_creation",
+      model: completion.model ?? "gpt-5.4-mini",
+      elapsedMs: Date.now() - startedAt,
+      succeeded: true,
+      usage: completion.usage,
+    });
     const parsed = JSON.parse(
       completion.choices[0]?.message?.content ?? "{}",
     ) as Record<string, unknown>;
@@ -606,12 +627,10 @@ router.post("/v1/recipes/generated", async (req, res) => {
     return res.json(response.data);
   } catch {
     await recipeLease.release().catch(() => undefined);
-    return res
-      .status(502)
-      .json({
-        message:
-          "Calora couldn’t finish that recipe right now. Your idea is still available to retry.",
-      });
+    return res.status(502).json({
+      message:
+        "Calora couldn’t finish that recipe right now. Your idea is still available to retry.",
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -740,20 +759,44 @@ router.post("/v1/recipes/photo", async (req, res) => {
         );
       } catch (error) {
         if (classifyAccountDeletionError(error)) {
-          logger.warn(accountDeletionFenceSignal("/v1/recipes/photo"), "Account deletion fence rejected recipe photo request");
-          await markRecipeMediaError(user.id, claim.row.id, "account_unavailable", claim.row.attempts);
-          res.status(503).json({ code: "account_unavailable", retryable: true, message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+          logger.warn(
+            accountDeletionFenceSignal("/v1/recipes/photo"),
+            "Account deletion fence rejected recipe photo request",
+          );
+          await markRecipeMediaError(
+            user.id,
+            claim.row.id,
+            "account_unavailable",
+            claim.row.attempts,
+          );
+          res
+            .status(503)
+            .json({
+              code: "account_unavailable",
+              retryable: true,
+              message:
+                "Recipe photo generation is temporarily unavailable. Please try again shortly.",
+            });
           return;
         }
         throw error;
       }
       if (!rate.allowed) {
-        await markRecipeMediaError(user.id, claim.row.id, rate.degraded ? "rate_limiter_unavailable" : "rate_limited", claim.row.attempts);
+        await markRecipeMediaError(
+          user.id,
+          claim.row.id,
+          rate.degraded ? "rate_limiter_unavailable" : "rate_limited",
+          claim.row.attempts,
+        );
         res.setHeader("Retry-After", String(rate.retryAfterSecs));
         res.status(rate.degraded ? 503 : 429).json({
-          code: rate.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+          code: rate.degraded
+            ? "recipe_photo_temporarily_unavailable"
+            : "recipe_photo_rate_limited",
           retryable: true,
-          message: rate.degraded ? "Recipe photo generation is temporarily unavailable. Please try again shortly." : "You’ve reached the recipe photo limit. Please try again later.",
+          message: rate.degraded
+            ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
+            : "You’ve reached the recipe photo limit. Please try again later.",
           retryAfterSecs: rate.retryAfterSecs,
         });
         return;
@@ -769,24 +812,20 @@ router.post("/v1/recipes/photo", async (req, res) => {
         accountDeletionFenceSignal("/v1/recipes/photo"),
         "Account deletion fence rejected recipe photo request",
       );
-      return res
-        .status(503)
-        .json({
-          code: "account_unavailable",
-          retryable: true,
-          message:
-            "Recipe photo generation is temporarily unavailable. Please try again shortly.",
-        });
-    }
-    logger.warn(safeErrorDetails(error), "Recipe photo generation failed");
-    return res
-      .status(502)
-      .json({
-        code: "recipe_photo_retryable",
+      return res.status(503).json({
+        code: "account_unavailable",
         retryable: true,
         message:
-          "Calora couldn’t create that recipe photo right now. Your recipe is still saved.",
+          "Recipe photo generation is temporarily unavailable. Please try again shortly.",
       });
+    }
+    logger.warn(safeErrorDetails(error), "Recipe photo generation failed");
+    return res.status(502).json({
+      code: "recipe_photo_retryable",
+      retryable: true,
+      message:
+        "Calora couldn’t create that recipe photo right now. Your recipe is still saved.",
+    });
   }
 });
 
@@ -819,21 +858,17 @@ router.post("/v1/recipes/photo-url", async (req, res) => {
       ),
     );
     if (!row)
-      return res
-        .status(404)
-        .json({
-          code: "recipe_media_not_found",
-          message: "Recipe photo is unavailable.",
-        });
-    return res.json(await locatorForRecipeMedia(user.id, row));
-  } catch (error) {
-    logger.warn(safeErrorDetails(error), "Recipe photo URL refresh failed");
-    return res
-      .status(404)
-      .json({
+      return res.status(404).json({
         code: "recipe_media_not_found",
         message: "Recipe photo is unavailable.",
       });
+    return res.json(await locatorForRecipeMedia(user.id, row));
+  } catch (error) {
+    logger.warn(safeErrorDetails(error), "Recipe photo URL refresh failed");
+    return res.status(404).json({
+      code: "recipe_media_not_found",
+      message: "Recipe photo is unavailable.",
+    });
   }
 });
 
@@ -873,21 +908,17 @@ router.get("/v1/recipes/media/:mediaId/review-preview", async (req, res) => {
       findOwnerRecipeMedia(user.id, { mediaId: req.params.mediaId }, executor),
     );
     if (!row)
-      return res
-        .status(404)
-        .json({
-          code: "recipe_media_not_found",
-          message: "Recipe photo is unavailable.",
-        });
+      return res.status(404).json({
+        code: "recipe_media_not_found",
+        message: "Recipe photo is unavailable.",
+      });
     return res.json(await reviewPreviewLocatorForRecipeMedia(user.id, row));
   } catch (error) {
     logger.warn(safeErrorDetails(error), "Recipe photo review preview failed");
-    return res
-      .status(404)
-      .json({
-        code: "recipe_media_not_found",
-        message: "Recipe photo preview is unavailable.",
-      });
+    return res.status(404).json({
+      code: "recipe_media_not_found",
+      message: "Recipe photo preview is unavailable.",
+    });
   }
 });
 
@@ -906,12 +937,10 @@ router.get("/v1/recipes/media/:mediaId", async (req, res) => {
     findOwnerRecipeMedia(user.id, { mediaId: req.params.mediaId }, executor),
   );
   if (!row)
-    return res
-      .status(404)
-      .json({
-        code: "recipe_media_not_found",
-        message: "Recipe photo is unavailable.",
-      });
+    return res.status(404).json({
+      code: "recipe_media_not_found",
+      message: "Recipe photo is unavailable.",
+    });
   return res.json(
     await locatorForRecipeMedia(user.id, row).catch(() =>
       toRecipeMediaResource(row),
@@ -924,12 +953,10 @@ function respondRecipePhotoRetryDeletionFence(res: Response): Response {
     accountDeletionFenceSignal("/v1/recipes/media/:mediaId/retry"),
     "Account deletion fence rejected recipe photo retry",
   );
-  return res
-    .status(503)
-    .json({
-      message:
-        "Recipe photo retry is temporarily unavailable. Please try again shortly.",
-    });
+  return res.status(503).json({
+    message:
+      "Recipe photo retry is temporarily unavailable. Please try again shortly.",
+  });
 }
 
 router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
@@ -963,48 +990,63 @@ router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
           );
         } catch (error) {
           if (classifyAccountDeletionError(error)) {
-            await markRecipeMediaError(user.id, row.id, "account_unavailable", row.attempts);
+            await markRecipeMediaError(
+              user.id,
+              row.id,
+              "account_unavailable",
+              row.attempts,
+            );
             return { deletionFence: true as const };
           }
           throw error;
         }
         if (!rate.allowed) {
-          await markRecipeMediaError(user.id, row.id, rate.degraded ? "rate_limiter_unavailable" : "rate_limited", row.attempts);
-          return { rateLimited: true as const, degraded: rate.degraded, retryAfterSecs: rate.retryAfterSecs };
+          await markRecipeMediaError(
+            user.id,
+            row.id,
+            rate.degraded ? "rate_limiter_unavailable" : "rate_limited",
+            row.attempts,
+          );
+          return {
+            rateLimited: true as const,
+            degraded: rate.degraded,
+            retryAfterSecs: rate.retryAfterSecs,
+          };
         }
         return generateClaimedRecipeMedia(user.id, row);
       },
     );
-    if (generated && "deletionFence" in generated) return respondRecipePhotoRetryDeletionFence(res);
+    if (generated && "deletionFence" in generated)
+      return respondRecipePhotoRetryDeletionFence(res);
     if (generated && "rateLimited" in generated) {
       res.setHeader("Retry-After", String(generated.retryAfterSecs));
       return res.status(generated.degraded ? 503 : 429).json({
-        code: generated.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+        code: generated.degraded
+          ? "recipe_photo_temporarily_unavailable"
+          : "recipe_photo_rate_limited",
         retryable: true,
-        message: generated.degraded ? "Recipe photo generation is temporarily unavailable. Please try again shortly." : "You’ve reached the recipe photo limit. Please try again later.",
+        message: generated.degraded
+          ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
+          : "You’ve reached the recipe photo limit. Please try again later.",
         retryAfterSecs: generated.retryAfterSecs,
       });
     }
     if (!generated) {
-      return res
-        .status(409)
-        .json({
-          code: "recipe_media_not_retryable",
-          message: "That recipe photo is not currently retryable.",
-        });
+      return res.status(409).json({
+        code: "recipe_media_not_retryable",
+        message: "That recipe photo is not currently retryable.",
+      });
     }
     return res.json(generated);
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
       return respondRecipePhotoRetryDeletionFence(res);
     }
-    return res
-      .status(502)
-      .json({
-        code: "recipe_photo_retryable",
-        retryable: true,
-        message: "Recipe photo generation is temporarily unavailable.",
-      });
+    return res.status(502).json({
+      code: "recipe_photo_retryable",
+      retryable: true,
+      message: "Recipe photo generation is temporarily unavailable.",
+    });
   }
 });
 
@@ -1032,12 +1074,10 @@ router.post("/v1/recipes/media/:mediaId/review", async (req, res) => {
     ),
   );
   if (!row)
-    return res
-      .status(404)
-      .json({
-        code: "recipe_media_not_found",
-        message: "Recipe photo is unavailable.",
-      });
+    return res.status(404).json({
+      code: "recipe_media_not_found",
+      message: "Recipe photo is unavailable.",
+    });
   return res.json(toRecipeMediaResource(row));
 });
 
@@ -1060,12 +1100,10 @@ router.post("/v1/recipes/media/:mediaId/rendered", async (req, res) => {
       ),
     ))
   ) {
-    return res
-      .status(404)
-      .json({
-        code: "recipe_media_not_found",
-        message: "Recipe photo is unavailable.",
-      });
+    return res.status(404).json({
+      code: "recipe_media_not_found",
+      message: "Recipe photo is unavailable.",
+    });
   }
   return res.status(204).end();
 });
@@ -1180,9 +1218,7 @@ async function estimateNutritionCoalesced(
  *  Returns the original `createdAtMs` epoch so callers can propagate it into
  *  the L1 cache — this ensures the L1 TTL is anchored to when the estimate was
  *  computed, not to when the DB row was read. */
-async function getNutritionFromDb(
-  mealId: string,
-): Promise<{
+async function getNutritionFromDb(mealId: string): Promise<{
   estimate: NutritionEstimate;
   createdAtMs: number;
   isStale: boolean;
@@ -1257,6 +1293,7 @@ async function estimateNutrition(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
+    const startedAt = Date.now();
     const completion = await openai.chat.completions.create(
       {
         model: "gpt-5.4-mini",
@@ -1279,6 +1316,13 @@ async function estimateNutrition(
       },
       { signal: controller.signal },
     );
+    recordProviderUsage({
+      feature: "recipe_creation",
+      model: completion.model ?? "gpt-5.4-mini",
+      elapsedMs: Date.now() - startedAt,
+      succeeded: true,
+      usage: completion.usage,
+    });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return parseNutritionEstimate(parsed);
@@ -1813,7 +1857,9 @@ router.get("/v1/recipes", async (req, res) => {
       : 0;
     const browsePoolSize = continuousBrowse ? meals.length : null;
     const catalogueSnapshot = createHash("sha256")
-      .update(`${SOURCE}|${query ?? ""}|${category ?? ""}|${meals.map((meal) => meal.id).join(",")}`)
+      .update(
+        `${SOURCE}|${query ?? ""}|${category ?? ""}|${meals.map((meal) => meal.id).join(",")}`,
+      )
       .digest("hex")
       .slice(0, 16);
     res.json({
@@ -1835,11 +1881,9 @@ router.get("/v1/recipes", async (req, res) => {
           : null,
     });
   } catch {
-    res
-      .status(502)
-      .json({
-        message: "Recipe provider unavailable. Please try again shortly.",
-      });
+    res.status(502).json({
+      message: "Recipe provider unavailable. Please try again shortly.",
+    });
   }
 });
 
@@ -1852,12 +1896,22 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
   }
   try {
     if (!(await hasActivePremiumEntitlement(user.id))) {
-      res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for full recipe details." });
+      res
+        .status(403)
+        .json({
+          message:
+            "An active Calora Pro subscription or Pro trial is required for full recipe details.",
+        });
       return;
     }
   } catch (error) {
     if (error instanceof RevenueCatProviderError) {
-      res.status(503).json({ message: "Recipe details are temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Recipe details are temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     throw error;
@@ -1930,11 +1984,9 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     res.json({ ...base, nutritionUnavailable: true });
     return;
   } catch {
-    res
-      .status(502)
-      .json({
-        message: "Recipe provider unavailable. Please try again shortly.",
-      });
+    res.status(502).json({
+      message: "Recipe provider unavailable. Please try again shortly.",
+    });
     return;
   }
 });

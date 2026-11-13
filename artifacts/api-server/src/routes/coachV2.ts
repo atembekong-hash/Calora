@@ -31,6 +31,7 @@ import {
 } from "../lib/account-deletion-state.js";
 import { isCoachReportIntakeEnabled } from "../lib/admin-feature-flags.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
+import { recordProviderUsage } from "../lib/provider-cost-telemetry.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
@@ -300,6 +301,7 @@ async function requestCoachReply(
     .find((kind): kind is CoachSafetyKind => kind !== null);
   if (safetyKind) return coachSafetyReply(safetyKind);
 
+  const startedAt = Date.now();
   const completion = await withAiProviderDeadline(
     (signal) =>
       openai.chat.completions.create(
@@ -312,6 +314,13 @@ async function requestCoachReply(
       ),
     COACH_V2_PROVIDER_TIMEOUT_MS,
   );
+  recordProviderUsage({
+    feature: "coach",
+    model: completion.model ?? "gpt-5.4-mini",
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    usage: completion.usage,
+  });
   const reply = completion.choices[0]?.message?.content;
   if (!isSafeProviderReply(reply))
     throw new Error("Coach provider returned an invalid response");
