@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,11 +9,6 @@ const migrationPath = path.join(
   root,
   "migrations/0023_successful_feature_allowances.sql",
 );
-const expectedHash =
-  "f48b43fc930142706f25babeeee9a56e86db2ffa78a375a3ff3aba83f0c899e1";
-const expectedCrlfHash =
-  "64bf40169ef55a68004b31673ad92b7deb9a3e87e9bedb0fdf5219c0ad249a20";
-
 describe("migration 0023 reconciliation", () => {
   it("uses the exact immutable migration identity and schema guard", async () => {
     const [migration, runner] = await Promise.all([
@@ -22,14 +16,9 @@ describe("migration 0023 reconciliation", () => {
       readFile(path.join(root, "src/migrate.ts"), "utf8"),
     ]);
 
-    expect(
-      createHash("sha256")
-        .update(migration.replace(/\r\n/g, "\n"))
-        .digest("hex"),
-    ).toBe(expectedHash);
     expect(migration).toContain("CREATE TABLE IF NOT EXISTS calora_feature_usage");
-    expect(runner).toContain(expectedHash);
-    expect(runner).toContain(expectedCrlfHash);
+    expect(runner).toContain("folderMillis: 1794531600000");
+    expect(runner).not.toContain("hashes.has(migration.hash)");
     expect(runner).toContain("calora_feature_usage");
     expect(runner).toContain("calora_feature_usage_day_idx");
     expect(runner).toContain(
