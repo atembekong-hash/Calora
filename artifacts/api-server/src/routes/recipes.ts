@@ -56,6 +56,7 @@ import {
   reviewPreviewLocatorForRecipeMedia,
 } from "../lib/recipe-media-generation.js";
 import { parseRecipeListFilters } from "../lib/recipeQuery.js";
+import { operationKey, reserveFreeAllowance } from "../lib/allowance-gate.js";
 
 const router: IRouter = Router();
 
@@ -505,6 +506,12 @@ router.post("/v1/recipes/generated", async (req, res) => {
     return;
   const input = parseGeneratedRecipeInput(req.body);
   if (!input.success) return invalidRecipeInput(res);
+  const recipeLease = await reserveFreeAllowance(req, res, {
+    userId: user.id,
+    feature: "recipe_creation",
+    key: operationKey(req, typeof req.body?.clientCorrelationId === "string" ? req.body.clientCorrelationId : undefined),
+  });
+  if (!recipeLease) return;
   const title = input.data.title.trim();
   const summary = input.data.summary?.trim() ?? "";
   const servings = input.data.servings ?? 2;
@@ -582,8 +589,10 @@ router.post("/v1/recipes/generated", async (req, res) => {
     });
     if (!response.success)
       throw new Error("Invalid generated recipe response contract");
+    await recipeLease.finalize();
     return res.json(response.data);
   } catch {
+    await recipeLease.release().catch(() => undefined);
     return res
       .status(502)
       .json({
