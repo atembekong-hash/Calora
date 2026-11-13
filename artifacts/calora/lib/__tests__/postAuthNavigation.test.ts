@@ -113,6 +113,34 @@ describe('post-auth navigation policy', () => {
     });
   });
 
+  it('returns to the requested Plus section when sign-in started inside the application shell', () => {
+    expect(getPostAuthNavigationPlan({
+      restoreStatus: 'ready',
+      hasSession: true,
+      intent: 'ordinary',
+      applicationReady: true,
+      authRouteIsActive: true,
+      applicationShellEntered: true,
+      destination: '/(tabs)/recipes?section=premium',
+    })).toEqual({
+      authRoutesEnabled: true,
+      destination: '/(tabs)/recipes?section=premium',
+    });
+  });
+
+  it('uses the requested Plus section instead of Today after cold authentication', () => {
+    expect(getPostAuthNavigationPlan({
+      restoreStatus: 'ready',
+      hasSession: true,
+      intent: 'ordinary',
+      applicationReady: true,
+      destination: '/(tabs)/recipes?section=premium',
+    })).toEqual({
+      authRoutesEnabled: true,
+      destination: '/(tabs)/recipes?section=premium',
+    });
+  });
+
   it('prunes stack history and executes only one Home transition for duplicate callback delivery', () => {
     const router = { dismissAll: vi.fn(), replace: vi.fn() };
     const coordinator = createPostAuthNavigationCoordinator(router);

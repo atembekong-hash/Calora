@@ -179,24 +179,23 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Source: {sourceName}');
   });
 
-  it('renders up to twelve related recipes in two independently swipeable six-card rows', () => {
+  it('renders up to forty catalog recipes in two independently swipeable twenty-card rows', () => {
     expect(source).toContain('const RECIPE_SUGGESTION_ROW_COUNT = 2');
-    expect(source).toContain('const RECIPE_SUGGESTIONS_PER_ROW = 6');
-    expect(source).toContain('const RECIPE_SUGGESTION_LIMIT = RECIPE_SUGGESTION_ROW_COUNT * RECIPE_SUGGESTIONS_PER_ROW');
+    expect(source).toContain('const RECIPE_SUGGESTIONS_PER_ROW = 20');
     expect(source).toContain('suggestedRecipes.slice(');
     expect(source).toContain('rowIndex * RECIPE_SUGGESTIONS_PER_ROW');
     expect(source).toContain('(rowIndex + 1) * RECIPE_SUGGESTIONS_PER_ROW');
     expect(source).toContain('testID={`recipe-suggestions-row-${rowIndex + 1}`}');
     expect(source).toContain('accessibilityLabel={`Recipe suggestions row ${rowIndex + 1} of ${suggestionRows.length}`}');
-    expect(source).toContain('const allOpenRecipeSuggestions = useMemo(');
-    expect(source).toContain('() => [...localRecipes, ...caloraOriginalRecipes, ...freshRemoteRecipes]');
+    expect(source).toContain('const discoverCatalogRecipes = useMemo(');
+    expect(source).toContain('buildCatalogRecipeSuggestionRows');
   });
 
   it('loads extra Plus pages only after a Plus recipe needs a complete suggestion pool', () => {
     expect(source).toContain('suggestionMinimumRecipeCount = 0');
     expect(source).toContain('mergeRecipePages(loadedRecipes, data?.recipes ?? []).length');
     expect(source).toContain('availableRecipeCount >= suggestionMinimumRecipeCount');
-    expect(source).toContain("suggestionMinimumRecipeCount={selectedRecipe && recipeProvenance(selectedRecipe).sourceType === 'premium' ? RECIPE_SUGGESTION_LIMIT + 1 : 0}");
+    expect(source).toContain('suggestionMinimumRecipeCount={selectedRecipe ? RECIPE_SUGGESTIONS_PER_ROW + 1 : 0}');
     expect(source).toContain('never manufacture repeated cards or prefetch this volume while browsing');
   });
 

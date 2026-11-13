@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppChrome";
@@ -9,11 +9,13 @@ import {
   CONFIGURABLE_DASHBOARD_WIDGET_IDS,
   DASHBOARD_WIDGET_IDS,
   RESPONSIVE_DASHBOARD_WIDGET_IDS,
+  applyDashboardPreset,
   reorderDashboardWidget,
   toggleDashboardWidgetVisibility,
   type DashboardWidgetId,
 } from "@/lib/dashboardPreferences";
 import { useCalora } from "@/context/CaloraContext";
+import { LocalSaveNotice } from "@/components/LocalSaveNotice";
 
 const widgetCopy: Partial<Record<
   DashboardWidgetId,
@@ -83,7 +85,29 @@ export default function DashboardLayoutScreen() {
     dashboardPreferences,
     updateDashboardPreferences,
   } = useCalora();
+  const [undoPreferences, setUndoPreferences] = useState<typeof dashboardPreferences | null>(null);
+  const [presetNotice, setPresetNotice] = useState<string | null>(null);
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
   const styles = makeStyles(colors, fontScale);
+  useEffect(() => {
+    if (!presetNotice) return;
+    const timeout = setTimeout(() => {
+      setPresetNotice(null);
+      setUndoPreferences(null);
+    }, 6000);
+    return () => clearTimeout(timeout);
+  }, [presetNotice]);
+  const applyPreset = (preset: "compact" | "extended") => {
+    setUndoPreferences(dashboardPreferences);
+    updateDashboardPreferences((current) => applyDashboardPreset(current, preset));
+    setPresetNotice(`Default ${preset === "compact" ? "Compact" : "Extended"} dashboard applied.`);
+  };
+  const undoPreset = () => {
+    if (!undoPreferences) return;
+    updateDashboardPreferences(() => undoPreferences);
+    setUndoPreferences(null);
+    setPresetNotice(null);
+  };
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <AppHeader title="Customize dashboard" back onBack={() => router.back()} />
@@ -94,6 +118,29 @@ export default function DashboardLayoutScreen() {
         <Text style={styles.intro}>
           Make Today your own. Every dashboard section except calorie progress can be shown, hidden, reordered, or resized here. Your choices stay on this device.
         </Text>
+        <View style={styles.presetHeader}>
+          <Text style={styles.sectionTitle}>Restore a default</Text>
+          <Text style={styles.sectionDescription}>Presets restore every standard widget. You can customize the result afterward.</Text>
+        </View>
+        <View style={styles.presetRow}>
+          <ScalePressable accessibilityRole="button" accessibilityLabel="Apply Default Compact dashboard" testID="dashboard-preset-compact" onPress={() => applyPreset("compact")} style={styles.presetButton}>
+            <Feather name="columns" size={16} color={colors.success} />
+            <Text style={styles.presetButtonText}>Default Compact</Text>
+          </ScalePressable>
+          <ScalePressable accessibilityRole="button" accessibilityLabel="Apply Default Extended dashboard" testID="dashboard-preset-extended" onPress={() => applyPreset("extended")} style={styles.presetButton}>
+            <Feather name="maximize" size={16} color={colors.success} />
+            <Text style={styles.presetButtonText}>Default Extended</Text>
+          </ScalePressable>
+        </View>
+        <View style={styles.guidanceCard}>
+          <ScalePressable accessibilityRole="button" accessibilityState={{ expanded: guidanceOpen }} accessibilityLabel="How to customize your dashboard" onPress={() => setGuidanceOpen((open) => !open)} style={styles.guidanceButton}>
+            <View style={styles.guidanceCopy}>
+              <Text style={styles.guidanceTitle}>How to customize your dashboard</Text>
+              {guidanceOpen && <Text style={styles.guidanceText}>Use a preset to restore all standard widgets, then use the switches to choose visibility and the arrows to change order. Compact and Extended are available only for Fasting, Steps, Macro balance, and Mood. Compact cards can be placed left or right. Your layout is saved locally and can be restored here at any time.</Text>}
+            </View>
+            <Feather name={guidanceOpen ? "chevron-up" : "chevron-down"} size={18} color={colors.foreground} />
+          </ScalePressable>
+        </View>
         {dashboardPreferences.order
           .filter(
             (id): id is DashboardWidgetId =>
@@ -191,7 +238,7 @@ export default function DashboardLayoutScreen() {
                       />
                     </ScalePressable>
                   </View>
-                  <ScalePressable
+                  {RESPONSIVE_DASHBOARD_WIDGET_IDS.includes(id) && <ScalePressable
                     accessibilityRole="button"
                     accessibilityLabel={`Set ${item.title} to ${density === "compact" ? "expanded" : "compact"} display`}
                     onPress={() =>
@@ -216,7 +263,7 @@ export default function DashboardLayoutScreen() {
                     <Text style={styles.densityText}>
                       {density === "compact" ? "Compact" : "Expanded"}
                     </Text>
-                  </ScalePressable>
+                  </ScalePressable>}
                   {RESPONSIVE_DASHBOARD_WIDGET_IDS.includes(id) && density === "compact" && (
                     <View style={styles.placementGroup}>
                       <Text style={styles.placementLabel}>Position</Text>
@@ -252,6 +299,7 @@ export default function DashboardLayoutScreen() {
           </Text>
         </View>
       </ScrollView>
+      <LocalSaveNotice visible={Boolean(presetNotice)} message={presetNotice ?? ""} colors={colors} actionLabel={undoPreferences ? "Undo" : undefined} onAction={undoPreset} bottomOffset={24} />
     </SafeAreaView>
   );
 }
@@ -268,6 +316,17 @@ const makeStyles = (
       lineHeight: 19 * scale,
       marginBottom: 5,
     },
+    presetHeader: { gap: 3, marginTop: 4 },
+    sectionTitle: { color: colors.foreground, fontSize: 14 * scale, fontFamily: "Inter_700Bold" },
+    sectionDescription: { color: colors.mutedForeground, fontSize: 12 * scale, lineHeight: 17 * scale },
+    presetRow: { flexDirection: "row", gap: 9 },
+    presetButton: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: colors.border, borderRadius: 14, backgroundColor: colors.card, paddingHorizontal: 8 },
+    presetButtonText: { color: colors.foreground, fontSize: 11 * scale, fontFamily: "Inter_700Bold" },
+    guidanceCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.muted, paddingHorizontal: 12, paddingVertical: 2 },
+    guidanceButton: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8 },
+    guidanceCopy: { flex: 1, gap: 5 },
+    guidanceTitle: { color: colors.foreground, fontSize: 12 * scale, fontFamily: "Inter_700Bold" },
+    guidanceText: { color: colors.mutedForeground, fontSize: 11 * scale, lineHeight: 16 * scale, paddingBottom: 8 },
     card: {
       backgroundColor: colors.card,
       borderWidth: 1,

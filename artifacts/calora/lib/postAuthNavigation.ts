@@ -7,7 +7,7 @@
  */
 
 export type PostAuthIntent = 'none' | 'pending' | 'ordinary' | 'recovery';
-export type PostAuthDestination = '/(tabs)' | '/' | '/auth/reset-password';
+export type PostAuthDestination = '/(tabs)' | '/(tabs)/recipes?section=premium' | '/' | '/auth/reset-password';
 
 export type PostAuthNavigationPlan = {
   /**
@@ -97,6 +97,7 @@ export function getPostAuthNavigationPlan({
   applicationReady,
   authRouteIsActive = true,
   applicationShellEntered = false,
+  destination = null,
 }: {
   restoreStatus: 'loading' | 'ready' | 'failed';
   hasSession: boolean;
@@ -106,6 +107,8 @@ export function getPostAuthNavigationPlan({
   authRouteIsActive?: boolean;
   /** Sticky ownership prevents a stale native route snapshot from replacing a tab. */
   applicationShellEntered?: boolean;
+  /** A validated destination captured before sign-in, such as Recipes Plus. */
+  destination?: PostAuthDestination | null;
 }): PostAuthNavigationPlan {
   // A storage fault is neither a guest decision nor a completed auth flow.
   // Keep the auth stack available for explicit user recovery after the error
@@ -131,7 +134,7 @@ export function getPostAuthNavigationPlan({
   // application shell has been entered, ordinary auth reconciliation no longer
   // owns navigation, even if a stale snapshot still reports an auth route.
   if (applicationShellEntered) {
-    return { authRoutesEnabled: true, destination: null };
+    return { authRoutesEnabled: true, destination: destination ?? null };
   }
 
   // Once the user is already inside the application, ordinary auth state
@@ -149,6 +152,6 @@ export function getPostAuthNavigationPlan({
   // received on an already signed-in device.
   return {
     authRoutesEnabled: true,
-    destination: applicationReady ? '/(tabs)' : '/',
+    destination: applicationReady ? (destination ?? '/(tabs)') : '/',
   };
 }

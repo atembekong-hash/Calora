@@ -472,6 +472,23 @@ export function useGeneratedRecipeImageRefresh({ accountId, recipes, updateRecip
         recipesRef.current.forEach((recipe) => {
           const media = byRecipe.get(recipe.id);
           if (!media) return;
+          const previewNeedsRenewal = media.status === 'stored'
+            && media.semanticReviewState === 'needs_review'
+            && Boolean(recipe.imagePreviewUrl)
+            && isNearExpiry(recipe.imagePreviewUrlExpiresAt, Date.now(), renewalWindowMs ?? GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS);
+          if (previewNeedsRenewal) {
+            // Request the replacement before applying the expired-preview
+            // clearing patch. This keeps the selected detail image mounted
+            // without ever authorizing an expired locator as a durable image.
+            void requestGeneratedRecipeImageReviewPreview({
+              accountId: currentAccount,
+              recipe,
+              updateRecipe: updateRef.current,
+              isAccountActive: (id) => accountRef.current === id,
+              force: true,
+            });
+            return;
+          }
           const patch = reconcileGeneratedRecipeMedia(recipe, media, renewalWindowMs);
           if (mediaPatchChanged(recipe, patch)) updateRef.current(recipe.id, patch);
           const reconciledRecipe = { ...recipe, ...patch };
