@@ -53,16 +53,22 @@ async function isAlreadyAppliedSuccessfulFeatureAllowances(
 
   const result = await client.query<{ matches: boolean }>(`
     SELECT (
-      (SELECT count(*) FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'calora_feature_usage'
-          AND column_name IN ('user_id', 'feature', 'day_key', 'successful_count',
-                              'pending_keys', 'completed_keys', 'updated_at')) = 7
-      AND EXISTS (SELECT 1 FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename = 'calora_feature_usage'
-          AND indexname = 'calora_feature_usage_pkey')
-      AND EXISTS (SELECT 1 FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename = 'calora_feature_usage'
-          AND indexname = 'calora_feature_usage_day_idx')
+      (SELECT count(*) FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'calora_feature_usage'
+          AND a.attnum > 0 AND NOT a.attisdropped
+          AND a.attname IN ('user_id', 'feature', 'day_key', 'successful_count',
+                            'pending_keys', 'completed_keys', 'updated_at')) = 7
+      AND EXISTS (SELECT 1 FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'calora_feature_usage'
+          AND con.conname = 'calora_feature_usage_pkey' AND con.contype = 'p')
+      AND EXISTS (SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'calora_feature_usage_day_idx'
+          AND c.relkind = 'i')
     ) AS matches
   `);
   return result.rows[0]?.matches === true;
