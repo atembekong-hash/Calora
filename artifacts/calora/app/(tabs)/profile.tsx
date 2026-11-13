@@ -75,7 +75,9 @@ import {
   useSubscription,
 } from "@/lib/revenuecat";
 import {
+  formatStoreAnnualSavingsPercent,
   formatStoreMonthlyEquivalent,
+  formatStoreWeeklyEquivalent,
   getSubscriptionManagementUrl,
   hasActiveRevenueCatEntitlement,
 } from "@/lib/revenuecatBilling";
@@ -278,6 +280,18 @@ export default function ProfileScreen({
   const monthlyPriceString = monthlyPkg?.product.priceString ?? null;
   const annualPriceString = annualPkg?.product.priceString ?? null;
   const annualMonthlyEquivalent = formatStoreMonthlyEquivalent(
+    annualPkg?.product,
+  );
+  const monthlyWeeklyEquivalent = formatStoreWeeklyEquivalent(
+    monthlyPkg?.product,
+    4.345,
+  );
+  const annualWeeklyEquivalent = formatStoreWeeklyEquivalent(
+    annualPkg?.product,
+    52,
+  );
+  const annualSavingsPercent = formatStoreAnnualSavingsPercent(
+    monthlyPkg?.product,
     annualPkg?.product,
   );
   const selectedPrice =
@@ -3067,7 +3081,9 @@ export default function ProfileScreen({
                             { color: colors.mutedForeground },
                           ]}
                         >
-                          Cancel anytime
+                          {monthlyWeeklyEquivalent
+                            ? `About ${monthlyWeeklyEquivalent} / week · billed monthly`
+                            : "Billed monthly"}
                         </Text>
                       </View>
                       <Text
@@ -3082,7 +3098,7 @@ export default function ProfileScreen({
                             ]}
                           >
                             {" "}
-                            / mo
+                            / month
                           </Text>
                         )}
                       </Text>
@@ -3145,8 +3161,19 @@ export default function ProfileScreen({
                           ]}
                         >
                           {annualMonthlyEquivalent
-                            ? `Approx. ${annualMonthlyEquivalent} / mo · billed annually`
+                            ? `About ${annualMonthlyEquivalent} / month`
                             : "Billed annually"}
+                          {annualWeeklyEquivalent && (
+                            <>
+                              {" "}· about {annualWeeklyEquivalent} / week
+                            </>
+                          )}
+                          {annualSavingsPercent && (
+                            <>
+                              {" "}· save {annualSavingsPercent}
+                            </>
+                          )}
+                          {annualMonthlyEquivalent && " · billed annually"}
                         </Text>
                       </View>
                       <Text
@@ -3161,7 +3188,7 @@ export default function ProfileScreen({
                             ]}
                           >
                             {" "}
-                            / yr
+                            / year
                           </Text>
                         )}
                       </Text>
