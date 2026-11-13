@@ -38,10 +38,6 @@ const pool = new Pool(buildDatabasePoolConfig(migrationDatabaseUrl));
 type MigrationJournalRow = { hash: string; created_at: string | number };
 
 const successfulFeatureAllowancesMigration = {
-  hashes: new Set([
-    "f48b43fc930142706f25babeeee9a56e86db2ffa78a375a3ff3aba83f0c899e1",
-    "64bf40169ef55a68004b31673ad92b7deb9a3e87e9bedb0fdf5219c0ad249a20",
-  ]),
   folderMillis: 1794531600000,
 };
 
@@ -50,7 +46,6 @@ async function isAlreadyAppliedSuccessfulFeatureAllowances(
   migration: MigrationMeta,
 ): Promise<boolean> {
   if (
-    !successfulFeatureAllowancesMigration.hashes.has(migration.hash) ||
     migration.folderMillis !== successfulFeatureAllowancesMigration.folderMillis
   ) {
     return false;
