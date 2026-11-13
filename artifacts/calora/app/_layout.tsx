@@ -429,6 +429,7 @@ function RootLayoutNav({
         <Stack.Protected guard={allowApplication}>
           <Stack.Screen name="saved-recipes" options={{ headerShown: false }} />
           <Stack.Screen name="saved-meals" options={{ headerShown: false }} />
+          <Stack.Screen name="food-history" options={{ headerShown: false }} />
           <Stack.Screen name="fasting" options={{ headerShown: false }} />
           <Stack.Screen name="hydration" options={{ headerShown: false }} />
           <Stack.Screen name="learning" options={{ headerShown: false }} />

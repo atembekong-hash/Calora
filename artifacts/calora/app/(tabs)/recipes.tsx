@@ -994,7 +994,9 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   const query = useListPremiumRecipes(premiumParams, {
     query: {
       queryKey: premiumQueryKey,
-      enabled: Boolean(userId),
+      // Catalogue browsing is public; the API enforces abuse limits while
+      // complete recipe details remain entitlement-protected.
+      enabled: true,
       placeholderData: offset > 0 ? (previousData) => previousData : undefined,
       queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(premiumParams, { ...PREMIUM_RECIPE_REQUEST_OPTIONS, signal }),
       ...PREMIUM_RECIPE_REFRESH_POLICY,
@@ -1111,7 +1113,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
     // effect are asynchronous, so looking only at loadedRecipes could schedule
     // one unnecessary page after the second row is already filled.
     const availableRecipeCount = mergeRecipePages(loadedRecipes, data?.recipes ?? []).length;
-    if (suggestionMinimumRecipeCount <= 0 || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null || availableRecipeCount >= suggestionMinimumRecipeCount || query.isFetching || loadingMoreRef.current) return;
+    if (suggestionMinimumRecipeCount <= 0 || accessDenied || data?.status !== 'available' || data.nextOffset == null || availableRecipeCount >= suggestionMinimumRecipeCount || query.isFetching || loadingMoreRef.current) return;
 
     // A person opened a Plus recipe and asked to browse related choices. Load
     // only the additional provider pages needed to fill both suggestion rows;
@@ -1123,7 +1125,6 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
     setOffset(data.nextOffset);
   }, [accessDenied, data?.nextOffset, data?.recipes?.length, data?.status, loadedRecipes.length, query.isFetching, suggestionMinimumRecipeCount, userId]);
   useEffect(() => {
-    if (!userId) return;
     const today = utcFreshnessDay();
     if (!search && !category && today !== freshnessDay) {
       setFreshnessDay(today);
