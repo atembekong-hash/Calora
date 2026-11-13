@@ -15,6 +15,12 @@ const {
   hasActivePremiumEntitlement: vi.fn(),
 }));
 const loggerWarn = vi.hoisted(() => vi.fn());
+const allowanceFinalize = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const allowanceRelease = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const reserveFreeAllowance = vi.hoisted(() => vi.fn().mockResolvedValue({
+  finalize: allowanceFinalize,
+  release: allowanceRelease,
+}));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: mockOpenAiCreate } }, images: { generate: mockOpenAiImageGenerate } },
@@ -52,6 +58,11 @@ vi.mock("../lib/account-deletion-state.js", () => ({
 vi.mock("../lib/revenuecat.js", () => ({
   hasActivePremiumEntitlement: (...args: unknown[]) => hasActivePremiumEntitlement(...args),
   RevenueCatProviderError: class RevenueCatProviderError extends Error {},
+}));
+vi.mock("../lib/allowance-gate.js", () => ({
+  operationKey: (req: { headers?: Record<string, unknown>; method?: string; originalUrl?: string }) =>
+    req.headers?.["idempotency-key"] ?? `${req.method}:${req.originalUrl}`,
+  reserveFreeAllowance: (...args: unknown[]) => reserveFreeAllowance(...args),
 }));
 vi.mock("../lib/logger.js", () => ({
   safeErrorDetails: () => ({ errorClass: "test_error" }),
@@ -141,6 +152,40 @@ describe("AI recipe creation endpoints", () => {
     vi.stubEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "test-secret-key");
     vi.stubEnv("RECIPE_PHOTO_STORAGE_REGION", "auto");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+  });
+
+  it("reserves and finalizes one recipe allowance for authenticated concepts", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      concepts: [{ title: "Lentil bowl", summary: "A quick dinner.", whyItFits: "Uses lentils.", keyIngredients: ["lentils"], estimatedMinutes: 25 }],
+    }));
+
+    const response = await request(app)
+      .post("/v1/recipes/concepts")
+      .set("Idempotency-Key", "concept-action-1")
+      .send({ request: "A lentil dinner" });
+
+    expect(response.status).toBe(200);
+    expect(reserveFreeAllowance).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        userId: USER.id,
+        feature: "recipe_creation",
+        key: "concept-action-1",
+      }),
+    );
+    expect(allowanceFinalize).toHaveBeenCalledOnce();
+    expect(allowanceRelease).not.toHaveBeenCalled();
+  });
+
+  it("does not reserve a recipe allowance for invalid authenticated concepts", async () => {
+    const response = await request(app)
+      .post("/v1/recipes/concepts")
+      .send({ ingredients: [], request: "" });
+
+    expect(response.status).toBe(400);
+    expect(reserveFreeAllowance).not.toHaveBeenCalled();
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
   it("returns 429 and never calls the model when the per-account quota is exceeded", async () => {

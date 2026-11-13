@@ -56,7 +56,11 @@ import {
   reviewPreviewLocatorForRecipeMedia,
 } from "../lib/recipe-media-generation.js";
 import { parseRecipeListFilters } from "../lib/recipeQuery.js";
-import { operationKey, reserveFreeAllowance } from "../lib/allowance-gate.js";
+import {
+  operationKey,
+  reserveFreeAllowance,
+  type AllowanceLease,
+} from "../lib/allowance-gate.js";
 
 const router: IRouter = Router();
 
@@ -381,6 +385,7 @@ function boundedInteger(
 async function generateConcepts(
   body: RecipeGenerationConceptInput,
   res: Response,
+  lease?: AllowanceLease,
 ) {
   const ingredients = body.ingredients?.map((item) => item.trim()) ?? [];
   const mealType = body.mealType?.trim() ?? "";
@@ -451,9 +456,11 @@ async function generateConcepts(
         "These are AI-generated ideas, not nutrition guidance or full recipes.",
     });
     if (!response.success) throw new Error("Invalid concept response contract");
+    await lease?.finalize();
     res.json(response.data);
     return;
   } catch (error) {
+    await lease?.release();
     logger.warn(safeErrorDetails(error), "Recipe concept generation failed");
     res
       .status(502)
@@ -486,7 +493,13 @@ router.post("/v1/recipes/concepts", async (req, res) => {
     return;
   const input = parseRecipeConceptInput(req.body);
   if (!input.success) return invalidRecipeInput(res);
-  return generateConcepts(input.data, res);
+  const recipeLease = await reserveFreeAllowance(req, res, {
+    userId: user.id,
+    feature: "recipe_creation",
+    key: operationKey(req),
+  });
+  if (!recipeLease) return;
+  return generateConcepts(input.data, res, recipeLease);
 });
 
 router.post("/v1/recipes/guest-concepts", async (req, res) => {

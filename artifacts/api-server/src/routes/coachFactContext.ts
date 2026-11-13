@@ -21,6 +21,7 @@ import {
 } from "../lib/account-deletion-state.js";
 import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
+import { reserveFreeAllowance } from "../lib/allowance-gate.js";
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
@@ -944,6 +945,13 @@ router.post(
       return;
     }
 
+    const coachLease = await reserveFreeAllowance(req, res, {
+      userId: user.id,
+      feature: "coach_message",
+      key: factContext.requestNonce,
+    });
+    if (!coachLease) return;
+
     try {
       const completion = await createDarkCoachCompletion({
         model: COACH_MODEL,
@@ -977,15 +985,18 @@ router.post(
         messages,
       );
       if (!(await authorizationStillCurrent(req, user))) {
+        await coachLease.release();
         res.status(404).json({ message: "Coach Fact Context is unavailable." });
         return;
       }
+      await coachLease.finalize();
       res.json(
         RespondCoachFactContextResponse.parse(
           safe ?? safeResponse(factContext.requestNonce, "limited"),
         ),
       );
     } catch {
+      await coachLease.release();
       res
         .status(502)
         .json(
