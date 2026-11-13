@@ -1102,6 +1102,12 @@ const ACCOUNT_DELETION_FENCE_CALL_SITES = [
     countSource: "builder default count",
   },
   {
+    file: "premiumRecipes.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/premium-recipes")',
+    routes: ["/v1/premium-recipes"],
+    countSource: "builder default count",
+  },
+  {
     file: "recipes.ts",
     invocation: "accountDeletionFenceSignal(route)",
     routes: ["/v1/recipes/concepts", "/v1/recipes/generated"],
