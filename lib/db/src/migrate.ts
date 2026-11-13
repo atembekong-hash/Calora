@@ -37,6 +37,39 @@ const pool = new Pool(buildDatabasePoolConfig(migrationDatabaseUrl));
 
 type MigrationJournalRow = { hash: string; created_at: string | number };
 
+const successfulFeatureAllowancesMigration = {
+  hash: "f48b43fc930142706f25babeeee9a56e86db2ffa78a375a3ff3aba83f0c899e1",
+  folderMillis: 1794531600000,
+};
+
+async function isAlreadyAppliedSuccessfulFeatureAllowances(
+  client: pg.PoolClient,
+  migration: MigrationMeta,
+): Promise<boolean> {
+  if (
+    migration.hash !== successfulFeatureAllowancesMigration.hash ||
+    migration.folderMillis !== successfulFeatureAllowancesMigration.folderMillis
+  ) {
+    return false;
+  }
+
+  const result = await client.query<{ matches: boolean }>(`
+    SELECT (
+      (SELECT count(*) FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'calora_feature_usage'
+          AND column_name IN ('user_id', 'feature', 'day_key', 'successful_count',
+                              'pending_keys', 'completed_keys', 'updated_at')) = 7
+      AND EXISTS (SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'calora_feature_usage'
+          AND indexname = 'calora_feature_usage_pkey')
+      AND EXISTS (SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'calora_feature_usage'
+          AND indexname = 'calora_feature_usage_day_idx')
+    ) AS matches
+  `);
+  return result.rows[0]?.matches === true;
+}
+
 function migrationIsPending(
   migration: MigrationMeta,
   lastApplied: MigrationJournalRow | undefined,
@@ -81,8 +114,14 @@ async function runMigrations(): Promise<void> {
 
     for (const migration of migrations) {
       if (!migrationIsPending(migration, lastApplied)) continue;
-      for (const statement of migration.sql) {
-        if (statement.trim()) await client.query(statement);
+      const alreadyApplied = await isAlreadyAppliedSuccessfulFeatureAllowances(
+        client,
+        migration,
+      );
+      if (!alreadyApplied) {
+        for (const statement of migration.sql) {
+          if (statement.trim()) await client.query(statement);
+        }
       }
       await client.query(
         `INSERT INTO ${migrationsSchema}.${migrationsTable} (hash, created_at) VALUES ($1, $2)`,
