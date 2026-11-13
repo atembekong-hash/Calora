@@ -133,7 +133,7 @@ test("creates separate non-secret API database and Supabase Auth source provenan
     manifest.apiDatabase.journal.find(
       (entry) => entry.tag === "0008_recipe_nutrition_facts",
     )?.sha256,
-    "cbf89c1b25c212517d11abc383d55917b30a4f889b76867ceff9ae0e8006e568",
+    "6924b4fcc069f67496123a9dc069f40c05e7b03b3446d7c7d3a42da088b1ba96",
   );
   assert.equal(
     manifest.apiDatabase.files.some((file) =>
