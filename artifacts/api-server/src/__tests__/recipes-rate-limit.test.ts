@@ -9,13 +9,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 
-const { mockOpenAiCreate, mockCheckRateLimit, mockLimit, mockVerifyBearerToken } = vi.hoisted(() => {
+const { mockOpenAiCreate, mockCheckRateLimit, mockLimit, mockVerifyBearerToken, mockHasActivePremiumEntitlement } = vi.hoisted(() => {
   process.env.OPENAI_TIMEOUT_MS_OVERRIDE = "300";
   return {
     mockOpenAiCreate: vi.fn(),
     mockCheckRateLimit: vi.fn(),
     mockLimit: vi.fn(),
     mockVerifyBearerToken: vi.fn(),
+    mockHasActivePremiumEntitlement: vi.fn(),
   };
 });
 
@@ -39,6 +40,11 @@ vi.mock("../lib/rate-limit.js", () => ({
 
 vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: (...args: unknown[]) => mockVerifyBearerToken(...args),
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: (...args: unknown[]) => mockHasActivePremiumEntitlement(...args),
+  RevenueCatProviderError: class RevenueCatProviderError extends Error {},
 }));
 
 import express from "express";
@@ -84,6 +90,7 @@ describe("public recipe routes — rate limiting", () => {
     vi.stubGlobal("fetch", mockFetch);
     mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     mockVerifyBearerToken.mockResolvedValue(null);
+    mockHasActivePremiumEntitlement.mockResolvedValue(true);
     mockLimit.mockResolvedValue([]); // L2 miss by default
     resetRecipeAiBudgetForTests();
   });
@@ -224,6 +231,7 @@ describe("public recipe routes — rate limiting", () => {
   });
 
   it("coalesces concurrent cold cache misses for the same meal into exactly one OpenAI call", async () => {
+    mockVerifyBearerToken.mockResolvedValue({ id: "account-1", email: "test@example.com" });
     const mealId = "99001";
     mockFetch.mockResolvedValue(jsonResponse(mealLookupResponse(mealId)));
 

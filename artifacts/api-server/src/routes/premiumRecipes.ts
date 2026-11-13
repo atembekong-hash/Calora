@@ -167,6 +167,65 @@ async function requirePremiumAccess(
   return null;
 }
 
+/**
+ * Catalogue browsing is intentionally available to Free and signed-out users.
+ * Only the complete detail endpoint requires Pro. Keep the provider request
+ * protected by IP/account abuse controls without turning a catalogue preview
+ * into an authentication or entitlement error.
+ */
+async function optionalCatalogueAccess(req: Request, res: Response): Promise<string | undefined> {
+  let user;
+  try {
+    user = await verifyBearerToken(req);
+  } catch {
+    user = null;
+  }
+  const accountKey = user?.id ?? `ip:${requestIp(req)}`;
+  const [accountRateResult, ipRateResult] = await Promise.allSettled([
+    checkRateLimit(
+      `premium-catalogue:user:${accountKey}`,
+      ACCOUNT_RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
+      { failClosed: true, ...(user ? { rethrowAccountDeletionFence: true } : {}) },
+    ),
+    checkRateLimit(
+      `premium-catalogue:ip:${requestIp(req)}`,
+      IP_RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
+      { failClosed: true },
+    ),
+  ]);
+  if (accountRateResult.status === "rejected" || ipRateResult.status === "rejected") {
+    const failedRateLimitReasons = [
+      ...(accountRateResult.status === "rejected" ? [accountRateResult.reason] : []),
+      ...(ipRateResult.status === "rejected" ? [ipRateResult.reason] : []),
+    ];
+    if (failedRateLimitReasons.some((reason) => classifyAccountDeletionError(reason))) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/premium-recipes"),
+        "Account deletion fence rejected premium recipe catalogue request",
+      );
+    }
+    res.status(503).json({ message: "Premium recipes are temporarily unavailable. Please try again shortly." });
+    return undefined;
+  }
+  const deniedRate = !accountRateResult.value.allowed
+    ? accountRateResult.value
+    : !ipRateResult.value.allowed
+      ? ipRateResult.value
+      : null;
+  if (deniedRate) {
+    res.setHeader("Retry-After", String(deniedRate.retryAfterSecs));
+    res.status(deniedRate.degraded ? 503 : 429).json({
+      message: deniedRate.degraded
+        ? "Recipes are temporarily unavailable. Please try again shortly."
+        : "Too many recipe requests. Please wait before trying again.",
+    });
+    return undefined;
+  }
+  return user?.id;
+}
+
 function validatedFreshnessDay(value: unknown): string | undefined {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
     return undefined;
@@ -178,8 +237,8 @@ function validatedFreshnessDay(value: unknown): string | undefined {
 }
 
 router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
-  const accountId = await requirePremiumAccess(req, res);
-  if (!accountId) return;
+  const accountId = await optionalCatalogueAccess(req, res);
+  if (res.headersSent) return;
   const filters = parseRecipeListFilters(req.query as Record<string, unknown>);
   if (!filters.ok) {
     res.status(400).json({ message: filters.message });

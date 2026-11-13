@@ -89,9 +89,9 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
         await import("../routes/restaurantFoods.js");
       const run = randomUUID().slice(0, 8);
       const externalUserId = `premium-fence-${run}`;
-      const premiumAccountKey = `premium-recipes:user:${externalUserId}`;
+      const premiumAccountKey = `premium-catalogue:user:${externalUserId}`;
       const restaurantAccountKey = `restaurant-foods:user:${externalUserId}`;
-      const premiumIpKey = "premium-recipes:ip:198.51.100.42";
+      const premiumIpKey = "premium-catalogue:ip:198.51.100.42";
       const accountKeys = [
         premiumAccountKey,
         restaurantAccountKey,
@@ -165,7 +165,7 @@ describe.skipIf(!RUN_DB_INTEGRATION_TESTS)(
               count: 1,
               schemaVersion: "calora.account-deletion-fence-signal.v1",
             },
-            "Account deletion fence rejected premium recipe request",
+            "Account deletion fence rejected premium recipe catalogue request",
           ],
           [
             {

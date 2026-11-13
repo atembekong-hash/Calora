@@ -30,6 +30,7 @@ import {
 } from "../lib/database-identity.js";
 import { logger, safeErrorDetails } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import {
   accountDeletionFenceSignal,
@@ -1822,6 +1823,23 @@ router.get("/v1/recipes", async (req, res) => {
 
 router.get("/v1/recipes/:recipeId", async (req, res) => {
   if (!(await enforceRecipeIpLimit(req, res, "detail"))) return;
+  const user = await verifyBearerToken(req);
+  if (!user) {
+    res.status(401).json({ message: "Sign in to view full recipe details." });
+    return;
+  }
+  try {
+    if (!(await hasActivePremiumEntitlement(user.id))) {
+      res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for full recipe details." });
+      return;
+    }
+  } catch (error) {
+    if (error instanceof RevenueCatProviderError) {
+      res.status(503).json({ message: "Recipe details are temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    throw error;
+  }
   try {
     const data = await fetchJson(
       `${API_ROOT}/lookup.php?i=${encodeURIComponent(req.params.recipeId)}`,

@@ -211,55 +211,56 @@ describe("Premium recipe routes", () => {
     ]);
   });
 
-  it("rejects anonymous requests before entitlement, quota, or provider work", async () => {
+  it("allows anonymous catalogue browsing without entitlement or provider authentication", async () => {
     verifyBearerTokenMock.mockResolvedValue(null);
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ recipes: [], nextOffset: null }),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
 
     const res = await request(app).get("/v1/premium-recipes");
 
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ message: "Sign in to access Plus recipes." });
+    expect(res.status).toBe(200);
     expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
-    expect(checkRateLimitMock).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(checkRateLimitMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalled();
   }, 15_000);
 
-  it("rejects a signed-in account without an active RevenueCat entitlement", async () => {
+  it("allows a signed-in Free account to browse the catalogue without entitlement", async () => {
     hasActivePremiumEntitlementMock.mockResolvedValue(false);
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ recipes: [], nextOffset: null }),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
 
     const res = await request(app).get("/v1/premium-recipes");
 
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({
-      message: "An active Calora Pro subscription is required for Plus recipes.",
-    });
-    expect(hasActivePremiumEntitlementMock).toHaveBeenCalledWith("premium-user");
+    expect(res.status).toBe(200);
+    expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
     expect(checkRateLimitMock).toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalled();
   });
 
-  it("fails closed when RevenueCat entitlement verification is unavailable", async () => {
+  it("does not require entitlement verification for catalogue browsing", async () => {
     hasActivePremiumEntitlementMock.mockRejectedValue(
       new Error("provider diagnostics must not reach the response"),
     );
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ recipes: [], nextOffset: null }),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
 
     const res = await request(app).get("/v1/premium-recipes");
 
-    expect(res.status).toBe(503);
-    expect(res.body).toEqual({
-      message:
-        "Premium recipes are temporarily unavailable. Please try again shortly.",
-    });
-    expect(JSON.stringify(res.body)).not.toContain("provider diagnostics");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalled();
   });
 
   it("marks account-scoped Plus responses private and non-storable", async () => {
@@ -581,13 +582,13 @@ describe("Premium recipe routes", () => {
     expect(res.status).toBe(429);
     expect(res.headers["retry-after"]).toBe("23");
     expect(checkRateLimitMock).toHaveBeenCalledWith(
-      "premium-recipes:user:premium-user",
+      "premium-catalogue:user:premium-user",
       60,
       60 * 60,
       { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(checkRateLimitMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^premium-recipes:ip:/),
+      expect.stringMatching(/^premium-catalogue:ip:/),
       120,
       60 * 60,
       { failClosed: true },
@@ -613,7 +614,7 @@ describe("Premium recipe routes", () => {
         "Premium recipes are temporarily unavailable. Please try again shortly.",
     });
     expect(checkRateLimitMock).toHaveBeenCalledWith(
-      "premium-recipes:user:premium-user",
+      "premium-catalogue:user:premium-user",
       60,
       60 * 60,
       { failClosed: true, rethrowAccountDeletionFence: true },
@@ -625,7 +626,7 @@ describe("Premium recipe routes", () => {
         count: 1,
         schemaVersion: "calora.account-deletion-fence-signal.v1",
       },
-      "Account deletion fence rejected premium recipe request",
+      "Account deletion fence rejected premium recipe catalogue request",
     );
     expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("55000");
     expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain(

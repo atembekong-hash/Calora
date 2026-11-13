@@ -174,6 +174,7 @@ export default function MoreScreen() {
   const quick = useMemo(() => [
     { label: "Insights", icon: "sun" as const, route: "/progress-insights", tint: "#f4c34f" },
     { label: "Saved recipes", icon: "bookmark" as const, route: "/saved-recipes", tint: PURPLE },
+    { label: "Food history", icon: "calendar" as const, route: "/food-history", tint: "#62b7e8" },
     { label: "Coach", icon: "message-circle" as const, route: "/coach", tint: "#63aaf8" },
     { label: "Customize dashboard", icon: "sliders" as const, route: "/dashboard-layout", tint: colors.accentForeground },
     { label: "Goals", icon: "target" as const, route: "/profile?tab=you&open=goals", tint: "#ef7868" },

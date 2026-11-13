@@ -8,6 +8,7 @@ import { isPlannerProgramId, type PlannerProgramId } from "@workspace/api-zod/pl
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
@@ -87,6 +88,18 @@ router.post("/v1/planner/generate", async (req, res) => {
   if (!user) {
     res.status(401).json({ message: "Please sign in to generate a meal plan." });
     return;
+  }
+  try {
+    if (!(await hasActivePremiumEntitlement(user.id))) {
+      res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for Meal Planner." });
+      return;
+    }
+  } catch (error) {
+    if (error instanceof RevenueCatProviderError) {
+      res.status(503).json({ message: "Meal Planner is temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    throw error;
   }
 
   let rate;

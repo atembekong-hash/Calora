@@ -137,7 +137,7 @@ function runMigrations(scenario) {
   }
 }
 
-async function verifyExpectedColumns(scenario, expectedMigrationCount = 22) {
+async function verifyExpectedColumns(scenario, expectedMigrationCount = 23) {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -508,7 +508,7 @@ try {
 runMigrations("historical 0008 no-cache upgrade");
   const historicalUpgrade = await verifyExpectedColumns(
     "historical 0008 no-cache upgrade",
-    15,
+    16,
   );
 try {
   await verifyCaptureRateLimiter(
@@ -536,7 +536,7 @@ try {
   );
   assert.equal(
     history.rows[0]?.count,
-    15,
+    16,
     "historical upgrade must record the expected migration suffix",
   );
 } finally {

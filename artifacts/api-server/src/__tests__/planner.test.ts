@@ -19,6 +19,12 @@ vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
 }));
 
+const hasActivePremiumEntitlement = vi.fn();
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: (...args: unknown[]) => hasActivePremiumEntitlement(...args),
+  RevenueCatProviderError: class RevenueCatProviderError extends Error {},
+}));
+
 const checkRateLimit = vi.fn();
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
@@ -53,6 +59,7 @@ describe("POST /v1/planner/generate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue({ id: "user-a", email: "a@example.com" });
+    hasActivePremiumEntitlement.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
   });
 
@@ -67,6 +74,16 @@ describe("POST /v1/planner/generate", () => {
     const response = await request(app).post("/v1/planner/generate").send(validBody());
 
     expect(response.status).toBe(401);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects Free callers before rate limiting or model work", async () => {
+    hasActivePremiumEntitlement.mockResolvedValueOnce(false);
+    const response = await request(app).post("/v1/planner/generate").send(validBody());
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toMatch(/Pro subscription or Pro trial/i);
+    expect(checkRateLimit).not.toHaveBeenCalled();
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 

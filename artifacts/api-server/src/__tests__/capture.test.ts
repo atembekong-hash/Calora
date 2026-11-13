@@ -165,6 +165,11 @@ vi.mock('../lib/supabase-auth.js', () => ({
   verifyBearerToken: vi.fn().mockResolvedValue({ id: 'capture-test-user', email: 'capture-test@example.com' }),
 }));
 
+vi.mock('../lib/revenuecat.js', () => ({
+  hasActivePremiumEntitlement: vi.fn().mockResolvedValue(true),
+  RevenueCatProviderError: class RevenueCatProviderError extends Error {},
+}));
+
 // Keep the capture route focused on session persistence in these tests. The
 // user-row bridge has its own coverage and would otherwise require a second
 // Drizzle query chain before the session insert can be exercised.
@@ -178,6 +183,7 @@ vi.mock('../lib/user-rows.js', () => ({
 import { openai } from '@workspace/integrations-openai-ai-server';
 import { pool } from '@workspace/db';
 import { verifyBearerToken } from '../lib/supabase-auth.js';
+import { hasActivePremiumEntitlement } from '../lib/revenuecat.js';
 import express from 'express';
 import captureRouter, { resetCaptureRateLimiter } from '../routes/capture.js';
 
@@ -325,6 +331,7 @@ describe('/v1/capture/analyze', () => {
       id: 'capture-test-user',
       email: 'capture-test@example.com',
     });
+    vi.mocked(hasActivePremiumEntitlement).mockResolvedValue(true);
     vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
   });
 
@@ -602,6 +609,17 @@ describe('/v1/capture/analyze', () => {
       expect(res.body.mode).toBe('receipt');
       expect(res.body.components[0].provenance).toBe('Receipt estimate');
       expect(res.body.components[0].sourceLabel).toBe('Receipt line-item estimate');
+    });
+
+    it('denies a valid Receipt request for a Free user before provider work', async () => {
+      vi.mocked(hasActivePremiumEntitlement).mockResolvedValueOnce(false);
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'receipt', imageBase64: validJpegBase64, imageMimeType: 'image/jpeg' })
+        .set('Content-Type', 'application/json');
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/Pro|trial/i);
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
     });
 
     it('returns nutrition-label values as editable review data', async () => {

@@ -17,6 +17,7 @@ import {
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import { lookupFatSecretFoodByBarcode } from "../lib/premiumRecipes.js";
+import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -940,6 +941,24 @@ router.post("/v1/capture/analyze", async (req, res) => {
   if (body.mode === "auto" && !hasBarcode && !hasImage) {
     res.status(400).json({ message: "Provide a barcode or camera image" });
     return;
+  }
+
+  // Validate request shape before consulting RevenueCat. Malformed requests
+  // remain deterministic (400), while valid Receipt scans stay Pro/trial
+  // gated immediately before any provider work begins.
+  if (body.mode === "receipt") {
+    try {
+      if (!(await hasActivePremiumEntitlement(verifiedUser.id))) {
+        res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for Receipt scanning." });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof RevenueCatProviderError) {
+        res.status(503).json({ message: "Receipt scanning is temporarily unavailable. Please try again shortly." });
+        return;
+      }
+      throw error;
+    }
   }
 
   try {

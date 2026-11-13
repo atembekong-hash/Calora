@@ -155,6 +155,13 @@
       "when": 1794304725000,
       "tag": "0022_revenuecat_webhook_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794531600000,
+      "tag": "0023_successful_feature_allowances",
+      "breakpoints": true
     }
   ]
 }
