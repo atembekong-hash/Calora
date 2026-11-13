@@ -103,6 +103,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('membershipRequired');
   });
 
+  it('does not relabel an authenticated 403 entitlement denial as a sign-in failure', () => {
+    expect(source).toContain('const subscriptionDenied = accessDeniedStatus === 403;');
+    expect(source).toContain('Plus access requires Calora Pro');
+    expect(source).toContain('You are signed in. An active Calora Pro subscription is required');
+    expect(source).toContain('const premiumDetailRequiresSignIn = premiumDetailErrorStatus === 401;');
+    expect(source).toContain('const premiumDetailSubscriptionDenied = premiumDetailErrorStatus === 403;');
+    expect(source).not.toContain('const requiresSignIn = !session?.user.id || premiumDetailDenied;');
+  });
+
   it('removes goal-fit and Calora-original badges without leaving badge containers', () => {
     expect(source).not.toContain('FITS YOUR GOAL');
     expect(source).not.toContain('CALORA ORIGINAL');

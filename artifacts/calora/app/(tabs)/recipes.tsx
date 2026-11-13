@@ -1004,6 +1004,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   const queryErrorStatus = premiumRecipeErrorStatus(query.error);
   const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
+  const subscriptionDenied = accessDeniedStatus === 403;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
   const currentAccess = hasCurrentPremiumAccess({
@@ -1236,12 +1237,13 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   if (accessDenied)
     return (
       <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name="log-in" size={22} color={colors.warning} />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
-        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text>
-        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+        <Feather name={subscriptionDenied ? 'lock' : 'log-in'} size={22} color={colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{subscriptionDenied ? 'Plus access requires Calora Pro' : 'Sign in for Plus recipes'}</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{subscriptionDenied ? 'You are signed in. An active Calora Pro subscription is required to open Plus recipes.' : 'Your session ended. Sign in again.'}</Text>
+        {!subscriptionDenied && <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
           <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
         </Pressable>
+        }
       </View>
     );
   // A new offset has its own React Query key. Do not replace an existing grid
@@ -1547,7 +1549,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
   const premiumDetailErrorStatus = premiumRecipeErrorStatus(premiumDetailQuery.error);
-  const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
+  const premiumDetailRequiresSignIn = premiumDetailErrorStatus === 401;
+  const premiumDetailSubscriptionDenied = premiumDetailErrorStatus === 403;
   useEffect(() => {
     if (!premium) return;
     applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied);
@@ -1587,7 +1590,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
   if (premium && (!session?.user.id || premiumDetailQuery.isError)) {
-    const requiresSignIn = !session?.user.id || premiumDetailDenied;
+    const requiresSignIn = !session?.user.id || premiumDetailRequiresSignIn;
+    const requiresSubscription = premiumDetailSubscriptionDenied;
     return (
       <Modal visible transparent animationType="none" onRequestClose={onClose}>
         <View
@@ -1613,13 +1617,13 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
             ]}
           >
             <View style={[styles.accessMessageIcon, { backgroundColor: colors.accent }]}>
-              <Feather name={requiresSignIn ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />
+              <Feather name={requiresSignIn ? 'log-in' : requiresSubscription ? 'lock' : 'wifi-off'} size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{requiresSignIn ? 'Sign in again' : 'Plus recipe unavailable'}</Text>
-            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>{requiresSignIn ? 'Sign in to reopen this protected Plus recipe.' : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}</Text>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{requiresSignIn ? 'Sign in again' : requiresSubscription ? 'Plus access requires Calora Pro' : 'Plus recipe unavailable'}</Text>
+            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>{requiresSignIn ? 'Sign in to reopen this protected Plus recipe.' : requiresSubscription ? 'You are signed in. An active Calora Pro subscription is required to open this Plus recipe.' : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={requiresSignIn ? 'Sign in again' : 'Retry Plus recipe'}
+              accessibilityLabel={requiresSignIn ? 'Sign in again' : requiresSubscription ? 'Retry Plus access' : 'Retry Plus recipe'}
               onPress={() => {
                 if (requiresSignIn) {
                   onClose();
