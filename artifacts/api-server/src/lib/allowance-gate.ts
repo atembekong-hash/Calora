@@ -35,10 +35,14 @@ export async function reserveFreeAllowance(
     premium = await hasActivePremiumEntitlement(input.userId);
   } catch (error) {
     if (error instanceof RevenueCatProviderError) {
-      res.status(503).json({ message: "Usage availability is temporarily unavailable. Please try again shortly." });
-      return null;
+      // Do not make a third-party entitlement outage block basic Free food
+      // logging. The server-authoritative Free ledger still bounds usage. A
+      // Pro user may temporarily consume a Free unit during the outage, which
+      // is safer than denying the core product or bypassing the quota.
+      premium = false;
+    } else {
+      throw error;
     }
-    throw error;
   }
   if (premium) {
     res.setHeader("X-Calora-Allowance-Plan", "pro");

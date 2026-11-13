@@ -3,7 +3,7 @@ import request from "supertest";
 
 const {
   mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateLimit,
-  photoLockQuery, photoMediaQuery, assertAccountWritable,
+  photoLockQuery, photoMediaQuery, assertAccountWritable, hasActivePremiumEntitlement,
 } = vi.hoisted(() => ({
   mockOpenAiCreate: vi.fn(),
   mockOpenAiImageGenerate: vi.fn(),
@@ -12,6 +12,7 @@ const {
   photoLockQuery: vi.fn().mockResolvedValue({ rows: [] }),
   photoMediaQuery: vi.fn(),
   assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  hasActivePremiumEntitlement: vi.fn(),
 }));
 const loggerWarn = vi.hoisted(() => vi.fn());
 
@@ -47,6 +48,10 @@ vi.mock("../lib/account-deletion-state.js", () => ({
       ? "account_deletion_fence"
       : null
   ),
+}));
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: (...args: unknown[]) => hasActivePremiumEntitlement(...args),
+  RevenueCatProviderError: class RevenueCatProviderError extends Error {},
 }));
 vi.mock("../lib/logger.js", () => ({
   safeErrorDetails: () => ({ errorClass: "test_error" }),
@@ -84,6 +89,7 @@ describe("AI recipe creation endpoints", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue(USER);
+    hasActivePremiumEntitlement.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     photoLockQuery.mockResolvedValue({ rows: [] });
     photoMediaQuery.mockImplementation(async (query: unknown) => {
