@@ -137,6 +137,10 @@ const normalizeServingUnit = (value: string | null | undefined): ServingUnit | u
   if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') return 'ml';
   if (unit === 'fl oz' || unit === 'floz' || unit === 'fluid ounce' || unit === 'fluid ounces') return 'fl_oz';
   if (unit === 'serving' || unit === 'servings') return 'serving';
+  // Capture analysis may describe a provider serving by its household label.
+  // These are safe aliases only when the nutrition basis supports a serving
+  // quantity; they must not be guessed as grams.
+  if (['bottle', 'bottles', 'can', 'cans', 'glass', 'glasses', 'piece', 'pieces', 'item', 'items', 'container', 'containers', 'bar', 'bars'].includes(unit)) return 'serving';
   return undefined;
 };
 
