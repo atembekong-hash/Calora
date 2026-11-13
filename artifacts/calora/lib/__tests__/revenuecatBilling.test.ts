@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertRevenueCatBillingIdentityReady,
+  formatStoreAnnualSavingsPercent,
   formatStoreMonthlyEquivalent,
+  formatStoreWeeklyEquivalent,
   getSubscriptionManagementUrl,
   hasActiveRevenueCatEntitlement,
   isRevenueCatBillingIdentityReady,
@@ -75,5 +77,12 @@ describe('RevenueCat billing integrity', () => {
     expect(formatStoreMonthlyEquivalent({ price: 34.99, currencyCode: 'USD' })).toMatch(/\$2\.92|2\.92\s+USD/);
     expect(formatStoreMonthlyEquivalent({ price: 0, currencyCode: 'USD' })).toBeNull();
     expect(formatStoreMonthlyEquivalent(undefined)).toBeNull();
+  });
+
+  it('derives secondary weekly equivalents and annual savings from live store prices', () => {
+    expect(formatStoreWeeklyEquivalent({ price: 4.99, currencyCode: 'USD' }, 4.345)).toMatch(/\$1\.15|1\.15\s+USD/);
+    expect(formatStoreWeeklyEquivalent({ price: 34.99, currencyCode: 'USD' }, 52)).toMatch(/\$0\.67|0\.67\s+USD/);
+    expect(formatStoreAnnualSavingsPercent({ price: 4.99 }, { price: 34.99 })).toBe('42%');
+    expect(formatStoreAnnualSavingsPercent({ price: 4.99 }, { price: 59.99 })).toBeNull();
   });
 });

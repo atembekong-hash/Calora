@@ -88,3 +88,50 @@ export function formatStoreMonthlyEquivalent(
     return `${monthlyEquivalent.toFixed(2)} ${currencyCode}`;
   }
 }
+
+export function formatStoreWeeklyEquivalent(
+  product: { price?: number; currencyCode?: string } | null | undefined,
+  weeksInBillingPeriod: number,
+): string | null {
+  if (!Number.isFinite(weeksInBillingPeriod) || weeksInBillingPeriod <= 0) return null;
+  if (!product || typeof product.price !== 'number' || !Number.isFinite(product.price) || product.price <= 0) {
+    return null;
+  }
+
+  const weeklyEquivalent = product.price / weeksInBillingPeriod;
+  const currencyCode = product.currencyCode?.trim().toUpperCase();
+  if (!currencyCode) return weeklyEquivalent.toFixed(2);
+
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(weeklyEquivalent);
+  } catch {
+    return `${weeklyEquivalent.toFixed(2)} ${currencyCode}`;
+  }
+}
+
+export function formatStoreAnnualSavingsPercent(
+  monthlyProduct: { price?: number } | null | undefined,
+  annualProduct: { price?: number } | null | undefined,
+): string | null {
+  if (
+    !monthlyProduct ||
+    !annualProduct ||
+    typeof monthlyProduct.price !== 'number' ||
+    typeof annualProduct.price !== 'number' ||
+    !Number.isFinite(monthlyProduct.price) ||
+    !Number.isFinite(annualProduct.price) ||
+    monthlyProduct.price <= 0 ||
+    annualProduct.price <= 0
+  ) {
+    return null;
+  }
+
+  const savingsPercent = (1 - annualProduct.price / (monthlyProduct.price * 12)) * 100;
+  if (!Number.isFinite(savingsPercent) || savingsPercent <= 0) return null;
+  return `${Math.round(savingsPercent)}%`;
+}

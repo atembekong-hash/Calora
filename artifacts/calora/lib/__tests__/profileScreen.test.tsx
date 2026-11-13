@@ -488,8 +488,10 @@ describe("Profile rendered interactions", () => {
     ).toContain("$34.99");
     expect(screen.getByText(/\$4\.99/)).toBeTruthy();
     expect(
-      screen.getByText(/Approx\. \$2\.92 \/ mo · billed annually/),
+      screen.getByText(/About \$2\.92 \/ month/),
     ).toBeTruthy();
+    expect(screen.getByText(/about \$0\.67 \/ week/)).toBeTruthy();
+    expect(screen.getByText(/save 42%/)).toBeTruthy();
     expect(screen.getByText(/7-day free trial/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
