@@ -13,6 +13,15 @@ const checkRateLimit = vi.fn();
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
 }));
+const allowanceFinalize = vi.fn().mockResolvedValue(undefined);
+const allowanceRelease = vi.fn().mockResolvedValue(undefined);
+const reserveFreeAllowance = vi.fn().mockResolvedValue({
+  finalize: allowanceFinalize,
+  release: allowanceRelease,
+});
+vi.mock("../lib/allowance-gate.js", () => ({
+  reserveFreeAllowance: (...args: unknown[]) => reserveFreeAllowance(...args),
+}));
 const hasCurrentCoachFactConsent = vi.fn();
 vi.mock("../lib/coach-fact-consent.js", () => ({
   hasCurrentCoachFactConsent: (...args: unknown[]) =>
@@ -167,6 +176,17 @@ describe("Coach Fact Context access for registered users", () => {
       { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(openai.chat.completions.create).toHaveBeenCalledOnce();
+    expect(reserveFreeAllowance).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        userId: "ordinary-free-user",
+        feature: "coach_message",
+        key: nonce,
+      }),
+    );
+    expect(allowanceFinalize).toHaveBeenCalledOnce();
+    expect(allowanceRelease).not.toHaveBeenCalled();
   });
 
   it("denies an unauthenticated request before consent, rate-limit, nonce, or provider work", async () => {

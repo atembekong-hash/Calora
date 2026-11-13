@@ -35,6 +35,7 @@ import { checkRateLimit } from "../lib/rate-limit.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
 import { currentDatabaseContext } from "../lib/database-identity.js";
+import { operationKey, reserveFreeAllowance } from "../lib/allowance-gate.js";
 
 const router: IRouter = Router();
 const COACH_V2_ACCOUNT_RATE_LIMIT = 30;
@@ -395,6 +396,12 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
       },
     );
 
+    const coachLease = await reserveFreeAllowance(req, res, {
+      userId: verified.id,
+      feature: "coach_message",
+      key: operationKey(req, prepared.turn.turnId),
+    });
+    if (!coachLease) return;
     let response: { message: string; ok: boolean };
     try {
       const message = await requestCoachReply(
@@ -408,6 +415,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
           message,
         );
       });
+      await coachLease.finalize();
       response = { message, ok: true };
     } catch (error) {
       logger.error(safeErrorDetails(error), "Coach provider request failed");
@@ -418,6 +426,7 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
           COACH_V2_PROVIDER_FAILURE,
         );
       });
+      await coachLease.release().catch(() => undefined);
       response = { message: COACH_V2_PROVIDER_FAILURE, ok: false };
     }
 

@@ -23,6 +23,7 @@ import {
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 import { withVerifiedDatabaseIdentity } from "../lib/database-identity.js";
+import { operationKey, reserveFreeAllowance } from "../lib/allowance-gate.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -995,31 +996,45 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Voice is deliberately a two-step path: raw audio becomes an editable
     // transcript, then the user explicitly requests the normal text estimate.
     if (body.mode === "voice" && body.audioBase64) {
-      const transcript = await transcribeVoice(body.audioBase64, body.audioFormat);
-      if (!transcript) {
+      const voiceLease = await reserveFreeAllowance( req, res, {
+        userId: verifiedUser.id,
+        feature: "voice_log",
+        key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId),
+      });
+      if (!voiceLease) return;
+      let voiceSucceeded = false;
+      try {
+        const transcript = await transcribeVoice(body.audioBase64, body.audioFormat);
+        if (!transcript) {
+          await voiceLease.release();
+          res.json({
+            ...captureResponseIds(body),
+            mode: "voice",
+            status: "unavailable",
+            title: "We could not hear a meal description",
+            reviewMessage: "Try recording again in a quieter place, or type what you ate instead.",
+            provider: "OpenAI transcription",
+            candidates: [],
+            imageRetention: "not_collected",
+          });
+          return;
+        }
+        await voiceLease.finalize();
+        voiceSucceeded = true;
         res.json({
           ...captureResponseIds(body),
           mode: "voice",
-          status: "unavailable",
-          title: "We could not hear a meal description",
-          reviewMessage: "Try recording again in a quieter place, or type what you ate instead.",
+          status: "transcript",
+          title: "Check what we heard",
+          reviewMessage: "Edit this transcript if needed, then estimate nutrition. Calora does not store your recording after this request; provider retention follows the configured service terms.",
           provider: "OpenAI transcription",
+          transcript,
           candidates: [],
           imageRetention: "not_collected",
         });
-        return;
+      } finally {
+        if (!voiceSucceeded) await voiceLease.release().catch(() => undefined);
       }
-      res.json({
-        ...captureResponseIds(body),
-        mode: "voice",
-        status: "transcript",
-        title: "Check what we heard",
-        reviewMessage: "Edit this transcript if needed, then estimate nutrition. Calora does not store your recording after this request; provider retention follows the configured service terms.",
-        provider: "OpenAI transcription",
-        transcript,
-        candidates: [],
-        imageRetention: "not_collected",
-      });
       return;
     }
 
@@ -1057,9 +1072,15 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
-      const result = await analyzeNutritionLabel(body.imageBase64, imageMimeType!);
-      const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
-      res.json({
+      const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "nutrition_label_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+      if (!lease) return;
+      let finalized = false;
+      try {
+        const result = await analyzeNutritionLabel(body.imageBase64, imageMimeType!);
+        const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
+        await lease.finalize();
+        finalized = true;
+        res.json({
         ...captureResponseIds(body, serverSessionId),
         mode: "nutrition_label",
         status: result.candidates.length ? "review" : "unavailable",
@@ -1081,15 +1102,24 @@ router.post("/v1/capture/analyze", async (req, res) => {
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "delete_after_analysis",
-      });
+        });
+      } finally {
+        if (!finalized) await lease.release().catch(() => undefined);
+      }
       return;
     }
 
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
-        const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
-        res.json({
+        const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "barcode_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+        if (!lease) return;
+        let finalized = false;
+        try {
+          const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
+          await lease.finalize();
+          finalized = true;
+          res.json({
           ...captureResponseIds(body, serverSessionId),
           mode: "barcode",
           status: "review",
@@ -1101,7 +1131,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
            assumptions: [],
            reviewQuestions: ["Is this the serving size you ate?"],
            imageRetention: "delete_after_analysis",
-        });
+          });
+        } finally {
+          if (!finalized) await lease.release().catch(() => undefined);
+        }
         return;
       }
       // An Auto camera callback contains only the detected barcode. It has no
@@ -1127,9 +1160,15 @@ router.post("/v1/capture/analyze", async (req, res) => {
       res.status(400).json({ message: "No usable capture input remained" });
       return;
     }
-    const result = await analyzeFoodPhoto(body.imageBase64, imageMimeType!);
-    const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
-    res.json({
+    const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "photo_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+    if (!lease) return;
+    let finalized = false;
+    try {
+      const result = await analyzeFoodPhoto(body.imageBase64, imageMimeType!);
+      const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
+      await lease.finalize();
+      finalized = true;
+      res.json({
       ...captureResponseIds(body, serverSessionId),
       mode: "food",
       status: result.candidates.length ? "review" : "unavailable",
@@ -1147,7 +1186,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
        assumptions: result.assumptions,
        reviewQuestions: result.reviewQuestions,
        imageRetention: "delete_after_analysis",
-    });
+      });
+    } finally {
+      if (!finalized) await lease.release().catch(() => undefined);
+    }
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
       logger.warn(
