@@ -34,7 +34,6 @@ type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
-  const appliedSuggestionRef = useRef<string | null>(null);
   const providerSearch = useListRestaurantFoods(
     { query: component.name.trim(), limit: 5, offset: 0 },
     {
@@ -50,23 +49,17 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
     if (component.provenance !== 'photo_estimate' || providerSearch.data?.status !== 'available') return null;
     const ranked = rankNutritionMatches(component.name, providerSearch.data.foods);
     const top = ranked[0];
-    const second = ranked[1];
-    if (!top) return null;
+    if (!top || top.score < 0.5) return null;
     const reconciled = reconcileComponentWithRestaurantFood(component, top.food);
     if (!reconciled.ok) return null;
     return {
       component: reconciled.component,
       name: reconciled.matchedName,
-      autoApply: top.score >= 0.8 && (!second || top.score - second.score >= 0.15),
+      // A provider record must never silently replace a visual identity. Even
+      // a high token score is only a suggestion until the user accepts it.
+      autoApply: false,
     };
   }, [component, providerSearch.data]);
-  React.useEffect(() => {
-    if (!providerMatch?.autoApply || component.provenance !== 'photo_estimate') return;
-    const key = `${component.id}:${providerMatch.component.sourceLabel}:${providerMatch.component.name}`;
-    if (appliedSuggestionRef.current === key) return;
-    appliedSuggestionRef.current = key;
-    onChange(providerMatch.component);
-  }, [component.id, component.provenance, onChange, providerMatch]);
   const servingMultiplier = nutritionMultiplierForComponent(component);
   const servingError = servingInputErrorForComponent(component);
   return (

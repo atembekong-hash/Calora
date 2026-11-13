@@ -3005,6 +3005,7 @@ export default function RecipesScreen() {
   }, [plannerMeals, shoppingItems, shoppingWeekDays]);
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const loadingMoreRef = useRef(false);
+  const discoverAutoFillAttemptedRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
   const premiumBoundaryHandledForUserRef = useRef<string | null>(null);
   const clearPremiumAccountBoundary = useCallback(() => {
@@ -3133,6 +3134,7 @@ export default function RecipesScreen() {
     setRemoteOffset(0);
     setDiscoverCatalogue((current) => resetDiscoverCatalogueState(current, discoverFilterKey));
     loadingMoreRef.current = false;
+    discoverAutoFillAttemptedRef.current = false;
   }, [discoverFilterKey]);
   useEffect(() => {
     const response = recipesQuery.data;
@@ -3150,26 +3152,10 @@ export default function RecipesScreen() {
       browsePoolSize: response?.browsePoolSize ?? null,
       terminalReason: response?.terminalReason ?? null,
     }));
-    const metrics = discoverRecipeScrollMetricsRef.current;
-    const shouldContinue = nextOffset != null
-      && nextOffset !== remoteOffset
-      && shouldLoadMoreRecipePage({
-        section: 'discover',
-        activeSection,
-        offsetY: metrics.offsetY,
-        viewportHeight: metrics.viewportHeight,
-        contentHeight: metrics.contentHeight,
-        nextOffset,
-        isFetching: false,
-        isLoadingMore: false,
-        prefetchDistance: RECIPE_PREFETCH_DISTANCE,
-      });
-    if (shouldContinue) {
-      loadingMoreRef.current = true;
-      setRemoteOffset(nextOffset);
-    } else {
-      loadingMoreRef.current = false;
-    }
+    // Android can report stale/small content metrics while a native list is
+    // committing a page. Do not chain another request from query completion;
+    // scroll/layout events are the authoritative continuation signal.
+    loadingMoreRef.current = false;
   }, [activeSection, discoverCatalogue.generation, discoverFilterKey, recipesQuery.data, remoteOffset]);
   useEffect(() => {
     // A failed continuation has no page to reconcile, so release the cursor
@@ -3326,6 +3312,7 @@ export default function RecipesScreen() {
     setDiscoverCatalogue((current) => resetDiscoverCatalogueState(current, discoverFilterKey));
     beginDiscoverVisit(true);
     loadingMoreRef.current = false;
+    discoverAutoFillAttemptedRef.current = false;
   };
   const loadMoreRecipes = () => {
     if (!discoverRemoteEnabled) return;
@@ -3372,6 +3359,11 @@ export default function RecipesScreen() {
       loadMoreRecipes();
     }
   };
+  const autoFillDiscoverRecipesIfAtEnd = () => {
+    if (discoverAutoFillAttemptedRef.current) return;
+    discoverAutoFillAttemptedRef.current = true;
+    loadMoreDiscoverRecipesIfAtEnd('discover');
+  };
   const loadMorePremiumRecipesIfAtEnd = (section: RecipeSection) => {
     const { offsetY, viewportHeight, contentHeight } = premiumRecipeScrollMetricsRef.current;
     if (shouldLoadMorePremiumRecipes({ section, activeSection, offsetY, viewportHeight, contentHeight, prefetchDistance: PREMIUM_RECIPE_PREFETCH_DISTANCE })) {
@@ -3380,7 +3372,7 @@ export default function RecipesScreen() {
   };
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');
+      if (activeSection === 'discover') autoFillDiscoverRecipesIfAtEnd();
       if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');
     }, 0);
     return () => clearTimeout(timer);
@@ -3428,7 +3420,7 @@ export default function RecipesScreen() {
   useEffect(() => {
     if (activeSection !== 'discover' || discoverGridEntries.length === 0) return;
     const timer = setTimeout(() => {
-      loadMoreDiscoverRecipesIfAtEnd('discover');
+      autoFillDiscoverRecipesIfAtEnd();
     }, 0);
     return () => clearTimeout(timer);
   }, [activeSection, discoverGridEntries.length, remoteNextOffset, recipesQuery.isFetching]);

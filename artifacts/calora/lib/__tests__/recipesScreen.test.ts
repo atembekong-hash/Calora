@@ -312,7 +312,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('failedOffsetRef.current = requestedOffsetRef.current ?? (offset > 0 ? offset : null);');
     expect(source).toContain('const retryingFailedOffset = query.isError && failedOffsetRef.current === nextOffset;');
     expect(source).toContain('void query.refetch().finally(() =>');
-    expect(source).toContain("if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');");
+    expect(source).toContain("if (activeSection === 'discover') autoFillDiscoverRecipesIfAtEnd();");
     expect(source).toContain("if (activeSection === 'premium') loadMorePremiumRecipesIfAtEnd('premium');");
   });
 
@@ -461,8 +461,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('accessibilityLabel="Refresh Discover recipes"');
     expect(source).toContain('onPress={refreshDiscoverCatalogue}');
   });
-  it('rechecks the end-of-feed continuation after each page and offset reconciliation', () => {
-    const effectStart = source.indexOf("if (activeSection === 'discover') loadMoreDiscoverRecipesIfAtEnd('discover');");
+  it('bounds automatic Discover filling while retaining scroll-authoritative continuation', () => {
+    const effectStart = source.indexOf("if (activeSection === 'discover') autoFillDiscoverRecipesIfAtEnd();");
     const effectEnd = source.indexOf('const handleRecipeScroll', effectStart);
     const continuationEffect = source.slice(effectStart, effectEnd);
     expect(effectStart).toBeGreaterThan(-1);
@@ -470,6 +470,8 @@ describe('Recipes Discover layout contracts', () => {
     expect(continuationEffect).toContain('remoteNextOffset');
     expect(continuationEffect).toContain('remoteOffset');
     expect(continuationEffect).toContain('remoteRecipes.length');
+    expect(source).toContain('const discoverAutoFillAttemptedRef = useRef(false);');
+    expect(source).toContain('if (discoverAutoFillAttemptedRef.current) return;');
   });
 
   it('rechecks Discover after the final rendered grid grows on web', () => {
@@ -477,19 +479,19 @@ describe('Recipes Discover layout contracts', () => {
     const renderStart = source.indexOf('const renderDiscoverSection = () =>', renderedGridStart);
     const renderedGridBlock = source.slice(renderedGridStart, renderStart);
     expect(renderedGridBlock).toContain('discoverGridEntries.length');
-    expect(renderedGridBlock).toContain("loadMoreDiscoverRecipesIfAtEnd('discover')");
+    expect(renderedGridBlock).toContain('autoFillDiscoverRecipesIfAtEnd()');
     expect(renderedGridBlock).toContain('remoteNextOffset');
     expect(renderedGridBlock).toContain('recipesQuery.isFetching');
   });
 
-  it('hands off an advancing Discover cursor when a reconciled page is already near the rendered end', () => {
+  it('does not cascade Discover cursors from stale query-completion layout metrics', () => {
     const reconciliationStart = source.indexOf('const response = recipesQuery.data;');
     const reconciliationEnd = source.indexOf("if (recipesQuery.isError) loadingMoreRef.current = false;", reconciliationStart);
     const reconciliationBlock = source.slice(reconciliationStart, reconciliationEnd);
     expect(reconciliationBlock).toContain('const nextOffset = response?.nextOffset ?? null;');
-    expect(reconciliationBlock).toContain('shouldLoadMoreRecipePage');
-    expect(reconciliationBlock).toContain('setRemoteOffset(nextOffset);');
-    expect(reconciliationBlock).toContain('nextOffset !== remoteOffset');
+    expect(reconciliationBlock).toContain('scroll/layout events are the authoritative continuation signal');
+    expect(reconciliationBlock).toContain('loadingMoreRef.current = false;');
+    expect(reconciliationBlock).not.toContain('setRemoteOffset(nextOffset);');
   });
 
   it('starts a new deterministic Discover visit whenever the Recipes tab regains focus and keeps an already-read visit prefix stable while loading later pages', () => {

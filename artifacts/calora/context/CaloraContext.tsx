@@ -864,6 +864,10 @@ export function CaloraProvider({
   const [plannerPreferences, setPlannerPreferencesState] = useState<import('@/lib/planType').PlannerPreferences | null>(null);
   const [fasting, setFastingState] = useState<FastingState>(() => ({ ...EMPTY_FASTING_STATE, history: [] }));
   const [dashboardPreferences, setDashboardPreferencesState] = useState<DashboardPreferences>(() => normalizeDashboardPreferences(DEFAULT_DASHBOARD_PREFERENCES));
+  // Dashboard settings must not participate in the autosave effect until the
+  // account-scoped snapshot has been read. Otherwise the default first render
+  // can race hydration and overwrite a saved Compact/Extended layout.
+  const dashboardHydrationAppliedRef = useRef(false);
   const [learningReaderState, setLearningReaderState] = useState<LearningReaderState>(() => EMPTY_LEARNING_READER_STATE);
   const [fontSizeScale, setFontSizeScaleState] = useState<'small' | 'default' | 'large' | 'xlarge'>('default');
   // Keep xlarge as a legacy persisted value, but render it at the new maximum
@@ -1001,6 +1005,7 @@ export function CaloraProvider({
       setNotificationPreferencesState(initial);
       notificationHydrationAppliedRef.current = true;
       pendingNotificationUpdatesRef.current = [];
+      dashboardHydrationAppliedRef.current = true;
       return;
     }
     const saved = removeExactLegacyStarterFixtures(rawSaved);
@@ -1112,6 +1117,7 @@ export function CaloraProvider({
      if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(normalizePlannerPreferences(saved.plannerPreferences));
      if (saved.fasting !== undefined) setFastingState(normalizeFastingState(saved.fasting));
      if (saved.dashboardPreferences !== undefined) setDashboardPreferencesState(normalizeDashboardPreferences(saved.dashboardPreferences));
+     dashboardHydrationAppliedRef.current = true;
      if (saved.learningReaderState !== undefined) setLearningReaderState(normalizeLearningReaderState(saved.learningReaderState));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      // Apply the field even when it is absent. A truthy-only assignment leaves
@@ -1817,7 +1823,7 @@ export function CaloraProvider({
   }, [clearLiveStepReconciliationRetries, clockNow, commitLiveStepTracking, hydrated, reconcileLiveStepSubscription]);
 
   useEffect(() => {
-    if (!shouldAutosave({ hydrated, error: hydrationError })) return;
+    if (!shouldAutosave({ hydrated, error: hydrationError }) || !dashboardHydrationAppliedRef.current) return;
     const pendingProfileSyncRefValue = pendingProfileSyncRef.current;
     const pendingProfileSync = pendingProfileSyncRefValue && pendingProfileSyncRefValue.accountId === accountId
       ? { profile: pendingProfileSyncRefValue.profile, queuedAt: pendingProfileSyncRefValue.queuedAt }
@@ -2064,11 +2070,10 @@ export function CaloraProvider({
     },
     dashboardPreferences,
     updateDashboardPreferences: (updater) => {
-      setDashboardPreferencesState((current) => {
-        const next = normalizeDashboardPreferences(updater(current));
-        patchExportSnapshot({ dashboardPreferences: next });
-        return next;
-      });
+      const current = (exportSnapshotRef.current?.dashboardPreferences ?? dashboardPreferences) as DashboardPreferences;
+      const next = normalizeDashboardPreferences(updater(current));
+      patchExportSnapshot({ dashboardPreferences: next });
+      setDashboardPreferencesState(next);
       queueMutation('settings', 'upsert');
     },
     learningReaderState,
