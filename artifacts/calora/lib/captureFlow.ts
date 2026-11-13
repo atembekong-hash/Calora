@@ -23,6 +23,7 @@ export type CaptureFlowState = {
     kind: CaptureFailureKind;
     message: string;
     retryAfterSeconds?: number;
+    resetAt?: string;
   };
 };
 
@@ -129,6 +130,21 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
   }
   if (status === 429) {
     const retryAfter = retryAfterSeconds(candidate);
+    const data = candidate.data && typeof candidate.data === 'object'
+      ? candidate.data as { code?: unknown; resetAt?: unknown; feature?: unknown }
+      : {};
+    const resetAt = typeof data.resetAt === 'string' ? data.resetAt : undefined;
+    if (data.code === 'free_allowance_exhausted' || data.code === 'pro_allowance_exhausted') {
+      const feature = typeof data.feature === 'string' ? data.feature.replaceAll('_', ' ') : 'this feature';
+      return {
+        kind: 'rate_limited',
+        message: resetAt
+          ? `Your ${feature} allowance is used for this period. It resets at ${new Date(resetAt).toLocaleString()}. Other Calora features remain available.`
+          : `Your ${feature} allowance is used for this period. Other Calora features remain available.`,
+        retryAfterSeconds: retryAfter,
+        resetAt,
+      };
+    }
     return {
       kind: 'rate_limited',
       message: retryAfter

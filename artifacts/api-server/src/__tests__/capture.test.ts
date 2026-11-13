@@ -105,9 +105,30 @@ vi.mock('@workspace/db', () => {
 
     return { rows: [] };
   });
+  const mockConnect = vi.fn(async () => ({
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      const trimmed = (sql ?? '').trim();
+      if (/^(BEGIN|COMMIT|ROLLBACK|SELECT pg_advisory)/.test(trimmed)) {
+        return { rows: [] };
+      }
+      if (trimmed.startsWith('SELECT day_key, successful_count')) {
+        return {
+          rows: [{
+            day_key: String((params as unknown[] | undefined)?.[2] ?? '2026-01-01'),
+            successful_count: 0,
+            pending_keys: [],
+            completed_keys: [],
+            updated_at: new Date(),
+          }],
+        };
+      }
+      return { rows: [] };
+    }),
+    release: vi.fn(),
+  }));
 
   return {
-    pool: { query: mockQuery },
+    pool: { query: mockQuery, connect: mockConnect },
     db: { insert: mockInsert, transaction: mockTransaction, update: mockUpdate, select: mockSelect },
     aiCaptureSessionsTable: {},
     aiCaptureCandidatesTable: {},
