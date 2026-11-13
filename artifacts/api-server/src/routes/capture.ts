@@ -1626,7 +1626,18 @@ router.post("/v1/capture/analyze", async (req, res) => {
     }
 
     if (body.mode === "receipt" && body.imageBase64) {
-      const result = await analyzeReceipt(body.imageBase64, imageMimeType!);
+      const receiptLease = await reserveFreeAllowance(req, res, {
+        userId: verifiedUser.id,
+        feature: "receipt_scan",
+        key: operationKey(
+          req,
+          body.clientCorrelationId ?? body.clientSessionId,
+        ),
+      });
+      if (!receiptLease) return;
+      let receiptFinalized = false;
+      try {
+        const result = await analyzeReceipt(body.imageBase64, imageMimeType!);
       const serverSessionId = await persistCaptureSession(
         verifiedUser,
         "receipt",
@@ -1669,10 +1680,14 @@ router.post("/v1/capture/analyze", async (req, res) => {
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "delete_after_analysis",
-      });
+        });
+        await receiptLease.finalize();
+        receiptFinalized = true;
+      } finally {
+        if (!receiptFinalized) await receiptLease.release().catch(() => undefined);
+      }
       return;
     }
-
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
       const lease = await reserveFreeAllowance(req, res, {

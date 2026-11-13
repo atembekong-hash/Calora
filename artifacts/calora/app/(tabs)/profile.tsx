@@ -3215,6 +3215,18 @@ export default function ProfileScreen({
                       apply.
                     </Text>
                   </View>
+                  <Text
+                    style={[
+                      styles.billingNote,
+                      { color: colors.foreground },
+                    ]}
+                  >
+                    Pro includes separate monthly allowances: 40 photo scans,
+                    100 barcode scans, 40 label scans, 40 voice logs, 3 receipt
+                    scans, 120 Coach messages, and 8 AI recipe creations.
+                    Allowances reset independently each month; using one does
+                    not block the others. Meal Planner remains Pro-only.
+                  </Text>
                   {offeringMismatch && !isSubscribed && (
                     <Text
                       accessibilityRole="alert"
