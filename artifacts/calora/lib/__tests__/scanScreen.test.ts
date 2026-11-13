@@ -57,13 +57,13 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain('|| hasInvalidServing;');
   });
 
-  it('automatically applies only conservative provider matches and keeps an explicit fallback action', () => {
+  it('never silently replaces a detected photo identity with a provider match', () => {
     expect(source).toContain('useListRestaurantFoods(');
     expect(source).toContain('rankNutritionMatches(component.name, providerSearch.data.foods)');
-    expect(source).toContain('top.score >= 0.8');
-    expect(source).toContain('top.score - second.score >= 0.15');
-    expect(source).toContain('reconcileComponentWithRestaurantFood(component, top.food)');
+    expect(source).toContain('if (!top || top.score < 0.5) return null;');
+    expect(source).toContain('autoApply: false');
     expect(source).toContain('Possible nutrition match — review before using');
+    expect(source).toContain('reconcileComponentWithRestaurantFood(component, top.food)');
     expect(source).toContain('Use top match');
   });
 

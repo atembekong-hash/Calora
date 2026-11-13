@@ -58,6 +58,13 @@ describe('Scan-to-Save deterministic workflow', () => {
     expect(parseServingInput('about one bowl', estimate())).toMatchObject({ valid: false });
   });
 
+  it('keeps a valid AI bottle estimate editable and saveable without rewriting it as serving', () => {
+    expect(parseServingInput('about 1 bottle', estimate({
+      serving: 'about 1 bottle', servingQuantity: 1, servingUnit: 'serving',
+      servingWeightG: null, nutritionBasis: 'per_serving',
+    }))).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+  });
+
   it('matches a straightforward food, scales grams once, and saves the same nutrition', () => {
     const result = reconcileComponentWithRestaurantFood(estimate(), providerFood(), { quantity: 200, unit: 'g' });
     expect(result.ok).toBe(true);
