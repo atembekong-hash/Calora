@@ -1822,6 +1822,7 @@ router.get("/v1/recipes", async (req, res) => {
 });
 
 router.get("/v1/recipes/:recipeId", async (req, res) => {
+  if (!(await enforceRecipeIpLimit(req, res, "detail"))) return;
   const user = await verifyBearerToken(req);
   if (!user) {
     res.status(401).json({ message: "Sign in to view full recipe details." });
@@ -1839,7 +1840,6 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     }
     throw error;
   }
-  if (!(await enforceRecipeIpLimit(req, res, "detail"))) return;
   try {
     const data = await fetchJson(
       `${API_ROOT}/lookup.php?i=${encodeURIComponent(req.params.recipeId)}`,

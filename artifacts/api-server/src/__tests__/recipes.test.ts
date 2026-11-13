@@ -25,6 +25,8 @@ const {
   mockValues,
   mockInsert,
   mockOpenAiCreate,
+  mockVerifyBearerToken,
+  mockHasActivePremiumEntitlement,
 } = vi.hoisted(() => {
   // Shorten the OpenAI timeout so the slow-response test completes in real
   // time without fake timers.  Production default is 8 000 ms; 300 ms is
@@ -42,8 +44,10 @@ const {
   const mockInsert = vi.fn(() => ({ values: mockValues }));
 
   const mockOpenAiCreate = vi.fn();
+  const mockVerifyBearerToken = vi.fn();
+  const mockHasActivePremiumEntitlement = vi.fn();
 
-  return { mockLimit, mockWhere, mockFrom, mockSelect, mockOnConflictDoUpdate, mockValues, mockInsert, mockOpenAiCreate };
+  return { mockLimit, mockWhere, mockFrom, mockSelect, mockOnConflictDoUpdate, mockValues, mockInsert, mockOpenAiCreate, mockVerifyBearerToken, mockHasActivePremiumEntitlement };
 });
 
 // ---------------------------------------------------------------------------
@@ -58,6 +62,15 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
       },
     },
   },
+}));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: (...args: unknown[]) => mockVerifyBearerToken(...args),
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: (...args: unknown[]) => mockHasActivePremiumEntitlement(...args),
+  RevenueCatProviderError: class RevenueCatProviderError extends Error {},
 }));
 
 // ---------------------------------------------------------------------------
@@ -472,6 +485,8 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     mockFetch = vi.fn();
     vi.stubGlobal("fetch", mockFetch);
     vi.clearAllMocks();
+    mockVerifyBearerToken.mockResolvedValue({ id: "pro-user", email: "pro@example.com" });
+    mockHasActivePremiumEntitlement.mockResolvedValue(true);
 
     // Restore chain stubs that clearAllMocks wipes
     mockSelect.mockReturnValue({ from: mockFrom });
