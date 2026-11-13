@@ -22,6 +22,7 @@ const {
   completeCoachV2Turn,
   buildCoachV2Snapshot,
   isCoachReportIntakeEnabled,
+  reserveFreeAllowance,
 } = vi.hoisted(() => ({
   openAiCreate: vi.fn(),
   verifyBearerToken: vi.fn(),
@@ -42,6 +43,7 @@ const {
   completeCoachV2Turn: vi.fn(),
   buildCoachV2Snapshot: vi.fn(),
   isCoachReportIntakeEnabled: vi.fn(),
+  reserveFreeAllowance: vi.fn(),
 }));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
@@ -54,6 +56,12 @@ vi.mock("../lib/supabase-auth.js", () => ({
 
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+}));
+
+vi.mock("../lib/allowance-gate.js", () => ({
+  operationKey: (req: { headers?: Record<string, unknown>; method?: string; originalUrl?: string }) =>
+    req.headers?.["idempotency-key"] ?? `${req.method}:${req.originalUrl}`,
+  reserveFreeAllowance: (...args: unknown[]) => reserveFreeAllowance(...args),
 }));
 
 vi.mock("@workspace/db", () => ({
@@ -134,6 +142,10 @@ describe("clean-room Coach V2", () => {
       history: [{ role: "user", content: "How is my day?" }],
     });
     completeCoachV2Turn.mockResolvedValue(true);
+    reserveFreeAllowance.mockResolvedValue({
+      finalize: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn().mockResolvedValue(undefined),
+    });
     buildCoachV2Snapshot.mockResolvedValue({
       snapshotDate: "2026-10-06",
       profile: {
