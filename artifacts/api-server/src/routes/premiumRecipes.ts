@@ -186,7 +186,7 @@ async function optionalCatalogueAccess(req: Request, res: Response): Promise<str
       `premium-catalogue:user:${accountKey}`,
       ACCOUNT_RATE_LIMIT,
       RATE_WINDOW_SECONDS,
-      { failClosed: true },
+      { failClosed: true, ...(user ? { rethrowAccountDeletionFence: true } : {}) },
     ),
     checkRateLimit(
       `premium-catalogue:ip:${requestIp(req)}`,
@@ -196,7 +196,17 @@ async function optionalCatalogueAccess(req: Request, res: Response): Promise<str
     ),
   ]);
   if (accountRateResult.status === "rejected" || ipRateResult.status === "rejected") {
-    res.status(503).json({ message: "Recipes are temporarily unavailable. Please try again shortly." });
+    const failedRateLimitReasons = [
+      ...(accountRateResult.status === "rejected" ? [accountRateResult.reason] : []),
+      ...(ipRateResult.status === "rejected" ? [ipRateResult.reason] : []),
+    ];
+    if (failedRateLimitReasons.some((reason) => classifyAccountDeletionError(reason))) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/premium-recipes"),
+        "Account deletion fence rejected premium recipe catalogue request",
+      );
+    }
+    res.status(503).json({ message: "Premium recipes are temporarily unavailable. Please try again shortly." });
     return undefined;
   }
   const deniedRate = !accountRateResult.value.allowed

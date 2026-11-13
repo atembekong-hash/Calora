@@ -7,13 +7,13 @@ describe("subscription policy", () => {
       photo_scan: 1,
       barcode_scan: 1,
       nutrition_label_scan: 1,
-      receipt_scan: 1,
       voice_log: 1,
       coach_message: 3,
       recipe_creation: 1,
     });
-    expect(FREE_SUCCESSFUL_WEEKLY_ALLOWANCES).toEqual({ meal_planner: 2 });
-    expect(isFreeAllowanceFeature("receipt_scan")).toBe(true);
+    expect(FREE_SUCCESSFUL_WEEKLY_ALLOWANCES).toEqual({});
+    expect(isFreeAllowanceFeature("receipt_scan")).toBe(false);
+    expect(isFreeAllowanceFeature("meal_planner")).toBe(false);
   });
 
   it("fails closed until numerical Pro fair-use limits are approved", () => {

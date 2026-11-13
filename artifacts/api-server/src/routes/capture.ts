@@ -17,6 +17,7 @@ import {
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import { lookupFatSecretFoodByBarcode } from "../lib/premiumRecipes.js";
+import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -886,6 +887,20 @@ router.post("/v1/capture/analyze", async (req, res) => {
   }
 
   const body = parsed.data;
+  if (body.mode === "receipt") {
+    try {
+      if (!(await hasActivePremiumEntitlement(verifiedUser.id))) {
+        res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for Receipt scanning." });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof RevenueCatProviderError) {
+        res.status(503).json({ message: "Receipt scanning is temporarily unavailable. Please try again shortly." });
+        return;
+      }
+      throw error;
+    }
+  }
   const barcode = body.barcode ? normalizeBarcode(body.barcode) : "";
   const hasBarcode = barcode.length >= 8;
   const hasImage = Boolean(body.imageBase64);
