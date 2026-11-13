@@ -2,7 +2,13 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
-import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable, type CaloraDatabase } from "@workspace/db";
+import {
+  db,
+  pool,
+  aiCaptureSessionsTable,
+  aiCaptureCandidatesTable,
+  type CaloraDatabase,
+} from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
@@ -16,8 +22,15 @@ import {
 } from "../lib/image-metadata.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
+import {
+  recordExternalLookup,
+  recordProviderUsage,
+} from "../lib/provider-cost-telemetry.js";
 import { lookupFatSecretFoodByBarcode } from "../lib/premiumRecipes.js";
-import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
+import {
+  hasActivePremiumEntitlement,
+  RevenueCatProviderError,
+} from "../lib/revenuecat.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -80,52 +93,62 @@ async function persistCaptureSession(
   if (candidates.length === 0) return null;
   try {
     const sessionId = randomUUID();
-    await withVerifiedDatabaseIdentity(user.id, async (database, inTransaction) => {
-      const userId = await ensureUserRow(user.id, user.email, database, inTransaction);
-      type CaptureExecutor =
-        | CaloraDatabase
-        | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
-      const writeSession = async (executor: CaptureExecutor) => {
-        await executor.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
-        await executor.insert(aiCaptureCandidatesTable).values(
-          candidates.map((candidate) => {
-            const imageEvidence = normalizeImageEvidence(
-              candidate.imageEvidence,
-              user.id,
-              {
-                imageUrl: candidate.imageUrl,
-                imageSource: candidate.imageSource,
-              },
-              { allowExact: true },
-            );
-            // Return exactly the evidence persisted for this authenticated
-            // caller. The account scope is server-issued and cannot be selected
-            // by a client or inferred from a URL.
-            candidate.imageEvidence = imageEvidence ?? undefined;
-            return {
-              sessionId,
-              name: candidate.name,
-              calories: String(candidate.calories),
-              proteinG: String(candidate.proteinG),
-              carbsG: String(candidate.carbsG),
-              fatG: String(candidate.fatG),
-              confidence: candidate.confidence,
-              evidence: {
-                serving: candidate.serving,
-                provenance: candidate.provenance,
-                sourceLabel: candidate.sourceLabel,
-                ...(imageEvidence ? { imageEvidence } : {}),
-              },
-            };
-          }),
+    await withVerifiedDatabaseIdentity(
+      user.id,
+      async (database, inTransaction) => {
+        const userId = await ensureUserRow(
+          user.id,
+          user.email,
+          database,
+          inTransaction,
         );
-      };
-      // Keep the session and candidates atomic. In staged mode the verified
-      // outer transaction is already active; legacy mode retains the prior
-      // nested transaction behavior.
-      if (inTransaction) await writeSession(database);
-      else await database.transaction(writeSession);
-    });
+        type CaptureExecutor =
+          | CaloraDatabase
+          | Parameters<Parameters<CaloraDatabase["transaction"]>[0]>[0];
+        const writeSession = async (executor: CaptureExecutor) => {
+          await executor
+            .insert(aiCaptureSessionsTable)
+            .values({ id: sessionId, userId, mode, status: "review" });
+          await executor.insert(aiCaptureCandidatesTable).values(
+            candidates.map((candidate) => {
+              const imageEvidence = normalizeImageEvidence(
+                candidate.imageEvidence,
+                user.id,
+                {
+                  imageUrl: candidate.imageUrl,
+                  imageSource: candidate.imageSource,
+                },
+                { allowExact: true },
+              );
+              // Return exactly the evidence persisted for this authenticated
+              // caller. The account scope is server-issued and cannot be selected
+              // by a client or inferred from a URL.
+              candidate.imageEvidence = imageEvidence ?? undefined;
+              return {
+                sessionId,
+                name: candidate.name,
+                calories: String(candidate.calories),
+                proteinG: String(candidate.proteinG),
+                carbsG: String(candidate.carbsG),
+                fatG: String(candidate.fatG),
+                confidence: candidate.confidence,
+                evidence: {
+                  serving: candidate.serving,
+                  provenance: candidate.provenance,
+                  sourceLabel: candidate.sourceLabel,
+                  ...(imageEvidence ? { imageEvidence } : {}),
+                },
+              };
+            }),
+          );
+        };
+        // Keep the session and candidates atomic. In staged mode the verified
+        // outer transaction is already active; legacy mode retains the prior
+        // nested transaction behavior.
+        if (inTransaction) await writeSession(database);
+        else await database.transaction(writeSession);
+      },
+    );
     return sessionId;
   } catch (err) {
     if (classifyAccountDeletionError(err)) throw err;
@@ -143,7 +166,8 @@ const TEXT_MODEL = "gpt-5.4-mini";
 const TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 export const CAPTURE_PROVIDER_TIMEOUT_MS = 15_000;
 const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
-const CAPTURE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CAPTURE_SESSION_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_CAPTURE_IMAGE_BYTES = 9 * 1024 * 1024;
 type CaptureImageMimeType = "image/jpeg" | "image/png";
 
@@ -195,26 +219,51 @@ function captureResponseIds(
   body: { clientCorrelationId?: string; clientSessionId?: string },
   captureSessionId: string | null = null,
 ) {
-  const clientCorrelationId = body.clientCorrelationId || body.clientSessionId || randomUUID();
+  const clientCorrelationId =
+    body.clientCorrelationId || body.clientSessionId || randomUUID();
   // sessionId is retained for older clients only. It must never be mistaken for
   // a server-issued capture session after a persistence failure.
-  return { sessionId: clientCorrelationId, clientCorrelationId, captureSessionId };
+  return {
+    sessionId: clientCorrelationId,
+    clientCorrelationId,
+    captureSessionId,
+  };
 }
 
 function detectedImageMimeType(bytes: Buffer): CaptureImageMimeType | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
-  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  )
+    return "image/jpeg";
+  if (
+    bytes.length >= 8 &&
+    bytes
+      .subarray(0, 8)
+      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  )
+    return "image/png";
   return null;
 }
 
-function validateCaptureImage(imageBase64: string, declaredMimeType?: string): CaptureImageMimeType {
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64) || imageBase64.length % 4 === 1) {
+function validateCaptureImage(
+  imageBase64: string,
+  declaredMimeType?: string,
+): CaptureImageMimeType {
+  if (
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64) ||
+    imageBase64.length % 4 === 1
+  ) {
     throw new Error("INVALID_CAPTURE_IMAGE");
   }
   const bytes = Buffer.from(imageBase64, "base64");
-  if (bytes.length === 0 || bytes.length > MAX_CAPTURE_IMAGE_BYTES) throw new Error("INVALID_CAPTURE_IMAGE");
+  if (bytes.length === 0 || bytes.length > MAX_CAPTURE_IMAGE_BYTES)
+    throw new Error("INVALID_CAPTURE_IMAGE");
   const detected = detectedImageMimeType(bytes);
-  if (!detected || (declaredMimeType && declaredMimeType !== detected)) throw new Error("INVALID_CAPTURE_IMAGE");
+  if (!detected || (declaredMimeType && declaredMimeType !== detected))
+    throw new Error("INVALID_CAPTURE_IMAGE");
   return detected;
 }
 
@@ -225,14 +274,20 @@ function numberOrZero(value: unknown) {
 
 function explicitServingWeightG(serving: string, value: unknown) {
   if (value != null) return numberOrZero(value) || null;
-  const match = serving.match(/(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*(?:g|grams)\b/i);
+  const match = serving.match(
+    /(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*(?:g|grams)\b/i,
+  );
   if (!match) return null;
   const grams = Number(match[1]);
   return Number.isFinite(grams) && grams > 0 && grams <= 2500 ? grams : null;
 }
 
 function normalizedComponentName(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function addUniqueReview(items: string[], value: string, max = 6) {
@@ -254,12 +309,17 @@ function barcodeMatches(scanned: string, providerValue: string) {
   if (!normalizedScanned || !normalizedProvider) return false;
   if (normalizedScanned === normalizedProvider) return true;
   return (
-    (normalizedScanned.length === 12 && normalizedProvider === `0${normalizedScanned}`) ||
-    (normalizedProvider.length === 12 && normalizedScanned === `0${normalizedProvider}`)
+    (normalizedScanned.length === 12 &&
+      normalizedProvider === `0${normalizedScanned}`) ||
+    (normalizedProvider.length === 12 &&
+      normalizedScanned === `0${normalizedProvider}`)
   );
 }
 
-function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): CaptureCandidate {
+function ensureCandidate(
+  candidate: Partial<CaptureCandidate>,
+  index: number,
+): CaptureCandidate {
   // Validate the image URL once; a source label without a valid URL is dropped.
   const imageUrl = safeImageUrl(candidate.imageUrl);
   return {
@@ -267,16 +327,25 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     name: candidate.name?.trim() || "Unidentified food",
     brand: candidate.brand?.trim() || null,
     serving: candidate.serving?.trim() || "1 serving",
-    servingQuantity: candidate.servingQuantity == null ? null : numberOrZero(candidate.servingQuantity),
+    servingQuantity:
+      candidate.servingQuantity == null
+        ? null
+        : numberOrZero(candidate.servingQuantity),
     servingUnit: candidate.servingUnit?.trim() || null,
-    servingWeightG: explicitServingWeightG(candidate.serving?.trim() || "1 serving", candidate.servingWeightG),
+    servingWeightG: explicitServingWeightG(
+      candidate.serving?.trim() || "1 serving",
+      candidate.servingWeightG,
+    ),
     nutritionBasis: candidate.nutritionBasis ?? "unknown",
     servingMetadataSource: candidate.servingMetadataSource?.trim() || null,
     calories: numberOrZero(candidate.calories),
     proteinG: numberOrZero(candidate.proteinG),
     carbsG: numberOrZero(candidate.carbsG),
     fatG: numberOrZero(candidate.fatG),
-    confidence: Math.min(Math.max(Math.round(numberOrZero(candidate.confidence)), 0), 100),
+    confidence: Math.min(
+      Math.max(Math.round(numberOrZero(candidate.confidence)), 0),
+      100,
+    ),
     provenance: candidate.provenance || "Photo estimate",
     sourceLabel: candidate.sourceLabel || "Managed vision estimate",
     editable: true,
@@ -289,71 +358,188 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
 }
 
 function confidence(value: unknown, fallback: number) {
-  return Math.min(Math.max(Math.round(numberOrZero(value) || fallback), 0), 100);
+  return Math.min(
+    Math.max(Math.round(numberOrZero(value) || fallback), 0),
+    100,
+  );
 }
 
-function ensureComponent(candidate: Partial<CaptureComponent>, index: number, provenance = "Photo estimate", sourceLabel = "Managed vision estimate"): CaptureComponent {
-  const base = ensureCandidate({ ...candidate, provenance, sourceLabel }, index);
-  const identity = confidence(candidate.confidenceDimensions?.identity, base.confidence);
-  const portion = confidence(candidate.confidenceDimensions?.portion, base.provenance === "Photo estimate" ? Math.max(base.confidence - 8, 0) : base.confidence);
-  const nutritionSource = confidence(candidate.confidenceDimensions?.nutritionSource, base.provenance.includes("verified") ? base.confidence : Math.max(base.confidence - 12, 0));
-  const preparation = confidence(candidate.confidenceDimensions?.preparation, base.provenance === "Photo estimate" ? Math.max(base.confidence - 15, 0) : base.confidence);
-  const low = numberOrZero(candidate.nutritionRange?.caloriesLow) || Math.max(0, Math.round(base.calories * (portion < 70 ? 0.75 : 0.9)));
-  const high = numberOrZero(candidate.nutritionRange?.caloriesHigh) || Math.round(base.calories * (portion < 70 ? 1.3 : 1.1));
-  const ambiguousIdentity = provenance === "Photo estimate" && (
-    identity < 70
-    || /\b(likely|possible|may be|could be|or another|unknown|unclear)\b/i.test(base.name)
-    || /\bor\b/i.test(base.name)
+function ensureComponent(
+  candidate: Partial<CaptureComponent>,
+  index: number,
+  provenance = "Photo estimate",
+  sourceLabel = "Managed vision estimate",
+): CaptureComponent {
+  const base = ensureCandidate(
+    { ...candidate, provenance, sourceLabel },
+    index,
   );
+  const identity = confidence(
+    candidate.confidenceDimensions?.identity,
+    base.confidence,
+  );
+  const portion = confidence(
+    candidate.confidenceDimensions?.portion,
+    base.provenance === "Photo estimate"
+      ? Math.max(base.confidence - 8, 0)
+      : base.confidence,
+  );
+  const nutritionSource = confidence(
+    candidate.confidenceDimensions?.nutritionSource,
+    base.provenance.includes("verified")
+      ? base.confidence
+      : Math.max(base.confidence - 12, 0),
+  );
+  const preparation = confidence(
+    candidate.confidenceDimensions?.preparation,
+    base.provenance === "Photo estimate"
+      ? Math.max(base.confidence - 15, 0)
+      : base.confidence,
+  );
+  const low =
+    numberOrZero(candidate.nutritionRange?.caloriesLow) ||
+    Math.max(0, Math.round(base.calories * (portion < 70 ? 0.75 : 0.9)));
+  const high =
+    numberOrZero(candidate.nutritionRange?.caloriesHigh) ||
+    Math.round(base.calories * (portion < 70 ? 1.3 : 1.1));
+  const ambiguousIdentity =
+    provenance === "Photo estimate" &&
+    (identity < 70 ||
+      /\b(likely|possible|may be|could be|or another|unknown|unclear)\b/i.test(
+        base.name,
+      ) ||
+      /\bor\b/i.test(base.name));
   const assumptions = [
-    ...(Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 5) : []),
-    ...(provenance === "Photo estimate" ? ["Nutrition is a visual estimate and was not verified against a nutrition database."] : []),
-    ...(ambiguousIdentity ? ["Food identity is uncertain; nutrition should remain editable until the user confirms the match."] : []),
+    ...(Array.isArray(candidate.assumptions)
+      ? candidate.assumptions
+          .filter((item): item is string => typeof item === "string")
+          .slice(0, 5)
+      : []),
+    ...(provenance === "Photo estimate"
+      ? [
+          "Nutrition is a visual estimate and was not verified against a nutrition database.",
+        ]
+      : []),
+    ...(ambiguousIdentity
+      ? [
+          "Food identity is uncertain; nutrition should remain editable until the user confirms the match.",
+        ]
+      : []),
   ].slice(0, 6);
   const reviewQuestions = [
-    ...(Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 3) : []),
-    ...(provenance === "Photo estimate" ? ["Confirm the food identity and portion size before saving."] : []),
-    ...(ambiguousIdentity ? ["Please confirm the food identity before relying on its nutrition estimate."] : []),
+    ...(Array.isArray(candidate.reviewQuestions)
+      ? candidate.reviewQuestions
+          .filter((item): item is string => typeof item === "string")
+          .slice(0, 3)
+      : []),
+    ...(provenance === "Photo estimate"
+      ? ["Confirm the food identity and portion size before saving."]
+      : []),
+    ...(ambiguousIdentity
+      ? [
+          "Please confirm the food identity before relying on its nutrition estimate.",
+        ]
+      : []),
   ].slice(0, 4);
   return {
     ...base,
     componentId: candidate.componentId || base.id || `component-${index + 1}`,
     preparation: candidate.preparation?.trim() || null,
     included: candidate.included !== false,
-    eatenFraction: Math.min(Math.max(Number(candidate.eatenFraction ?? 1), 0), 1),
+    eatenFraction: Math.min(
+      Math.max(Number(candidate.eatenFraction ?? 1), 0),
+      1,
+    ),
     confidenceDimensions: { identity, portion, nutritionSource, preparation },
     assumptions,
-    nutritionRange: { caloriesLow: Math.min(low, high), caloriesHigh: Math.max(low, high) },
+    nutritionRange: {
+      caloriesLow: Math.min(low, high),
+      caloriesHigh: Math.max(low, high),
+    },
     reviewQuestions,
   };
 }
 
 async function fetchJson(url: string, init?: RequestInit) {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(12_000) });
+  const response = await fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(12_000),
+  });
   if (!response.ok) throw new Error(`Provider returned ${response.status}`);
   return response.json() as Promise<Record<string, any>>;
 }
 
-export function offCandidate(product: Record<string, any>, barcode: string): CaptureCandidate | null {
-  const productCode = String(product.code ?? '').replace(/\D/g, '');
+export function offCandidate(
+  product: Record<string, any>,
+  barcode: string,
+): CaptureCandidate | null {
+  const productCode = String(product.code ?? "").replace(/\D/g, "");
   if (productCode && !barcodeMatches(barcode, productCode)) return null;
   const nutriments = product.nutriments ?? {};
-  const hasServingNutrition = nutriments["energy-kcal_serving"] != null || nutriments["proteins_serving"] != null || nutriments["carbohydrates_serving"] != null || nutriments["fat_serving"] != null;
-  const nutritionBasis = hasServingNutrition ? "per_serving" : nutriments["energy-kcal_100ml"] != null ? "per_100ml" : "per_100g";
+  const hasServingNutrition =
+    nutriments["energy-kcal_serving"] != null ||
+    nutriments["proteins_serving"] != null ||
+    nutriments["carbohydrates_serving"] != null ||
+    nutriments["fat_serving"] != null;
+  const nutritionBasis = hasServingNutrition
+    ? "per_serving"
+    : nutriments["energy-kcal_100ml"] != null
+      ? "per_100ml"
+      : "per_100g";
   const declaredQuantity = String(product.quantity ?? "").trim();
-  const rawServing = String(product.serving_size ?? "").trim() || (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity) ? declaredQuantity : "");
+  const rawServing =
+    String(product.serving_size ?? "").trim() ||
+    (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity)
+      ? declaredQuantity
+      : "");
   const weightMatch = rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i);
   const quantityMatch = rawServing.match(/^(\d+(?:\.\d+)?)/);
-  const rawServingUnit = rawServing.match(/\d+(?:\.\d+)?\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)/i)?.[1]?.toLowerCase().replace(/\s+/g, " ") ?? null;
-  const isProviderFluidOunceServing = nutritionBasis === "per_serving" && (rawServingUnit === "fl oz" || rawServingUnit === "fluid ounce" || rawServingUnit === "fluid ounces");
-  const parsedServing = rawServing ? { serving: rawServing, servingQuantity: isProviderFluidOunceServing ? 1 : quantityMatch ? Number(quantityMatch[1]) : null, servingUnit: isProviderFluidOunceServing ? "serving" : rawServingUnit, servingWeightG: weightMatch ? Number(weightMatch[1]) : null, source: "Open Food Facts" } : null;
-  const serving = parsedServing ?? { serving: nutritionBasis === "per_100ml" ? "100 ml (reference quantity)" : "100 g (reference quantity)", servingQuantity: 100, servingUnit: nutritionBasis === "per_100ml" ? "ml" : "g", servingWeightG: nutritionBasis === "per_100ml" ? null : 100, source: "Open Food Facts nutrition reference" };
-  const referenceSuffix = nutritionBasis === "per_serving" ? "_serving" : nutritionBasis === "per_100ml" ? "_100ml" : "_100g";
+  const rawServingUnit =
+    rawServing
+      .match(/\d+(?:\.\d+)?\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)/i)?.[1]
+      ?.toLowerCase()
+      .replace(/\s+/g, " ") ?? null;
+  const isProviderFluidOunceServing =
+    nutritionBasis === "per_serving" &&
+    (rawServingUnit === "fl oz" ||
+      rawServingUnit === "fluid ounce" ||
+      rawServingUnit === "fluid ounces");
+  const parsedServing = rawServing
+    ? {
+        serving: rawServing,
+        servingQuantity: isProviderFluidOunceServing
+          ? 1
+          : quantityMatch
+            ? Number(quantityMatch[1])
+            : null,
+        servingUnit: isProviderFluidOunceServing ? "serving" : rawServingUnit,
+        servingWeightG: weightMatch ? Number(weightMatch[1]) : null,
+        source: "Open Food Facts",
+      }
+    : null;
+  const serving = parsedServing ?? {
+    serving:
+      nutritionBasis === "per_100ml"
+        ? "100 ml (reference quantity)"
+        : "100 g (reference quantity)",
+    servingQuantity: 100,
+    servingUnit: nutritionBasis === "per_100ml" ? "ml" : "g",
+    servingWeightG: nutritionBasis === "per_100ml" ? null : 100,
+    source: "Open Food Facts nutrition reference",
+  };
+  const referenceSuffix =
+    nutritionBasis === "per_serving"
+      ? "_serving"
+      : nutritionBasis === "per_100ml"
+        ? "_100ml"
+        : "_100g";
   const calories = numberOrZero(nutriments[`energy-kcal${referenceSuffix}`]);
   const proteinG = numberOrZero(nutriments[`proteins${referenceSuffix}`]);
   const carbsG = numberOrZero(nutriments[`carbohydrates${referenceSuffix}`]);
   const fatG = numberOrZero(nutriments[`fat${referenceSuffix}`]);
-  const name = String(product.product_name ?? product.product_name_en ?? "").trim();
+  const name = String(
+    product.product_name ?? product.product_name_en ?? "",
+  ).trim();
   if (!name) return null;
   const hasMacros = calories > 0 && (proteinG > 0 || carbsG > 0 || fatG > 0);
   // Open Food Facts exposes several product image fields; prefer the front
@@ -364,162 +550,288 @@ export function offCandidate(product: Record<string, any>, barcode: string): Cap
     product.image_url ??
     product.image_front_small_url ??
     null;
-  return ensureCandidate({
-    id: `off-${barcode}`,
-    name,
-    brand: product.brands || null,
-    serving: serving.serving,
-    servingQuantity: serving.servingQuantity,
-    servingUnit: serving.servingUnit,
-    servingWeightG: serving.servingWeightG,
-    nutritionBasis,
-    servingMetadataSource: serving.source,
-    calories,
-    proteinG,
-    carbsG,
-    fatG,
-    confidence: hasMacros ? 94 : 78,
-    provenance: hasMacros ? "Barcode verified" : "Barcode product match",
-    sourceLabel: "Open Food Facts",
-    imageUrl: typeof offImageUrl === "string" ? offImageUrl : null,
-    imageSource: typeof offImageUrl === "string" ? "Open Food Facts" : null,
-    imageEvidence: typeof offImageUrl === "string"
-      ? {
-          version: 1,
-          semanticRole: "exact",
-          contentId: `food-product:open-food-facts:${barcode}`,
-          source: "open-food-facts-product-record",
-          provider: "Open Food Facts",
-          providerItemId: barcode,
-          imageId: product.image_front_url ? "front" : "product",
-          ...(product.last_modified_t ? { imageVersion: String(product.last_modified_t) } : {}),
-          locator: offImageUrl,
-          retrievedAt: new Date().toISOString(),
-          attribution: "Open Food Facts contributors · product image CC BY-SA · https://openfoodfacts.org",
-          rightsReviewState: "approved",
-        }
-      : undefined,
-  }, 0);
+  return ensureCandidate(
+    {
+      id: `off-${barcode}`,
+      name,
+      brand: product.brands || null,
+      serving: serving.serving,
+      servingQuantity: serving.servingQuantity,
+      servingUnit: serving.servingUnit,
+      servingWeightG: serving.servingWeightG,
+      nutritionBasis,
+      servingMetadataSource: serving.source,
+      calories,
+      proteinG,
+      carbsG,
+      fatG,
+      confidence: hasMacros ? 94 : 78,
+      provenance: hasMacros ? "Barcode verified" : "Barcode product match",
+      sourceLabel: "Open Food Facts",
+      imageUrl: typeof offImageUrl === "string" ? offImageUrl : null,
+      imageSource: typeof offImageUrl === "string" ? "Open Food Facts" : null,
+      imageEvidence:
+        typeof offImageUrl === "string"
+          ? {
+              version: 1,
+              semanticRole: "exact",
+              contentId: `food-product:open-food-facts:${barcode}`,
+              source: "open-food-facts-product-record",
+              provider: "Open Food Facts",
+              providerItemId: barcode,
+              imageId: product.image_front_url ? "front" : "product",
+              ...(product.last_modified_t
+                ? { imageVersion: String(product.last_modified_t) }
+                : {}),
+              locator: offImageUrl,
+              retrievedAt: new Date().toISOString(),
+              attribution:
+                "Open Food Facts contributors · product image CC BY-SA · https://openfoodfacts.org",
+              rightsReviewState: "approved",
+            }
+          : undefined,
+    },
+    0,
+  );
 }
 
-export function fatSecretCandidate(food: {
-  id: string;
-  name: string;
-  brandName: string | null;
-  serving: string | null;
-  servings: Array<{
-    description: string;
-    metricServingAmount?: number | null;
-    metricServingUnit?: string | null;
-    numberOfUnits?: number | null;
-    measurementDescription?: string | null;
-    isDefault?: boolean;
-    calories: number | null;
-    proteinG: number | null;
-    carbsG: number | null;
-    fatG: number | null;
-  }>;
-}, barcode: string): CaptureCandidate | null {
-  const complete = food.servings.filter((serving) =>
-    serving.metricServingAmount != null
-    && serving.metricServingAmount > 0
-    && (serving.metricServingUnit === "g" || serving.metricServingUnit === "ml")
-    && serving.calories !== null
-    && serving.proteinG !== null
-    && serving.carbsG !== null
-    && serving.fatG !== null,
+export function fatSecretCandidate(
+  food: {
+    id: string;
+    name: string;
+    brandName: string | null;
+    serving: string | null;
+    servings: Array<{
+      description: string;
+      metricServingAmount?: number | null;
+      metricServingUnit?: string | null;
+      numberOfUnits?: number | null;
+      measurementDescription?: string | null;
+      isDefault?: boolean;
+      calories: number | null;
+      proteinG: number | null;
+      carbsG: number | null;
+      fatG: number | null;
+    }>;
+  },
+  barcode: string,
+): CaptureCandidate | null {
+  const complete = food.servings.filter(
+    (serving) =>
+      serving.metricServingAmount != null &&
+      serving.metricServingAmount > 0 &&
+      (serving.metricServingUnit === "g" ||
+        serving.metricServingUnit === "ml") &&
+      serving.calories !== null &&
+      serving.proteinG !== null &&
+      serving.carbsG !== null &&
+      serving.fatG !== null,
   );
   const serving = complete.find((item) => item.isDefault) ?? complete[0];
   if (!serving) return null;
-  if (serving.calories === null || serving.proteinG === null || serving.carbsG === null || serving.fatG === null) return null;
+  if (
+    serving.calories === null ||
+    serving.proteinG === null ||
+    serving.carbsG === null ||
+    serving.fatG === null
+  )
+    return null;
   const metricUnit = serving.metricServingUnit!;
   const description = serving.description.trim() || food.serving?.trim();
   if (!description) return null;
-  const displayUnit = description.match(/^\s*\d+(?:\.\d+)?\s*([a-zA-Z]+)/)?.[1]?.toLowerCase() ?? "serving";
-  const quantity = serving.numberOfUnits && serving.numberOfUnits > 0 ? serving.numberOfUnits : 1;
-  const displayServing = metricUnit === "g" && !/\b\d+(?:\.\d+)?\s*g\b/i.test(description)
-    ? `${description} (${serving.metricServingAmount} g)`
-    : description;
-  return ensureCandidate({
-    id: `fatsecret-${barcode}`,
-    name: food.name,
-    brand: food.brandName,
-    serving: displayServing,
-    servingQuantity: quantity,
-    servingUnit: displayUnit,
-    servingWeightG: metricUnit === "g" ? serving.metricServingAmount : null,
-    nutritionBasis: "per_serving",
-    servingMetadataSource: "FatSecret exact barcode serving",
-    calories: serving.calories,
-    proteinG: serving.proteinG,
-    carbsG: serving.carbsG,
-    fatG: serving.fatG,
-    confidence: 92,
-    provenance: "Barcode verified",
-    sourceLabel: "FatSecret",
-  }, 0);
+  const displayUnit =
+    description.match(/^\s*\d+(?:\.\d+)?\s*([a-zA-Z]+)/)?.[1]?.toLowerCase() ??
+    "serving";
+  const quantity =
+    serving.numberOfUnits && serving.numberOfUnits > 0
+      ? serving.numberOfUnits
+      : 1;
+  const displayServing =
+    metricUnit === "g" && !/\b\d+(?:\.\d+)?\s*g\b/i.test(description)
+      ? `${description} (${serving.metricServingAmount} g)`
+      : description;
+  return ensureCandidate(
+    {
+      id: `fatsecret-${barcode}`,
+      name: food.name,
+      brand: food.brandName,
+      serving: displayServing,
+      servingQuantity: quantity,
+      servingUnit: displayUnit,
+      servingWeightG: metricUnit === "g" ? serving.metricServingAmount : null,
+      nutritionBasis: "per_serving",
+      servingMetadataSource: "FatSecret exact barcode serving",
+      calories: serving.calories,
+      proteinG: serving.proteinG,
+      carbsG: serving.carbsG,
+      fatG: serving.fatG,
+      confidence: 92,
+      provenance: "Barcode verified",
+      sourceLabel: "FatSecret",
+    },
+    0,
+  );
 }
 
 async function lookupBarcode(barcode: string) {
   let openFoodFactsFallback: CaptureCandidate | null = null;
+  let lookupStartedAt = Date.now();
   try {
-    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,quantity,serving_size,serving_quantity,serving_quantity_unit,nutrition_data_per,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
-    const returnedCode = String(data.code ?? data.product?.code ?? '').replace(/\D/g, '');
-    if (data.status === 1 && data.product && barcodeMatches(barcode, returnedCode)) {
+    const data = await fetchJson(
+      `${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,quantity,serving_size,serving_quantity,serving_quantity_unit,nutrition_data_per,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`,
+    );
+    const returnedCode = String(data.code ?? data.product?.code ?? "").replace(
+      /\D/g,
+      "",
+    );
+    if (
+      data.status === 1 &&
+      data.product &&
+      barcodeMatches(barcode, returnedCode)
+    ) {
       const candidate = offCandidate(data.product, barcode);
-      if (candidate && candidate.servingMetadataSource === "Open Food Facts nutrition reference") {
+      if (
+        candidate &&
+        candidate.servingMetadataSource ===
+          "Open Food Facts nutrition reference"
+      ) {
         openFoodFactsFallback = candidate;
       } else if (candidate) {
+        recordExternalLookup({
+          feature: "barcode_scan",
+          provider: "open_food_facts",
+          elapsedMs: Date.now() - lookupStartedAt,
+          succeeded: true,
+        });
         return { candidate, provider: "Open Food Facts" };
       }
     }
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "open_food_facts",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: true,
+    });
   } catch {
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "open_food_facts",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: false,
+    });
     // Continue to USDA when the public product service is unavailable.
   }
 
+  lookupStartedAt = Date.now();
   try {
     const food = await lookupFatSecretFoodByBarcode(barcode);
     const candidate = food ? fatSecretCandidate(food, barcode) : null;
-    if (candidate) return { candidate, provider: "FatSecret" };
+    if (candidate) {
+      recordExternalLookup({
+        feature: "barcode_scan",
+        provider: "fatsecret",
+        elapsedMs: Date.now() - lookupStartedAt,
+        succeeded: true,
+      });
+      return { candidate, provider: "FatSecret" };
+    }
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "fatsecret",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: true,
+    });
   } catch {
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "fatsecret",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: false,
+    });
     // An unavailable or restricted secondary provider must not block the safe
     // USDA/reference fallback and must never create a fabricated serving.
   }
 
+  lookupStartedAt = Date.now();
   try {
-    const search = await fetchJson(`${USDA_ROOT}/foods/search?api_key=${encodeURIComponent(USDA_KEY)}&query=${encodeURIComponent(barcode)}&pageSize=5&dataType=Branded,SR%20Legacy,Foundation`);
+    const search = await fetchJson(
+      `${USDA_ROOT}/foods/search?api_key=${encodeURIComponent(USDA_KEY)}&query=${encodeURIComponent(barcode)}&pageSize=5&dataType=Branded,SR%20Legacy,Foundation`,
+    );
     const food = search.foods?.[0];
     if (food && barcodeMatches(barcode, String(food.gtinUpc ?? ""))) {
-      const nutrients = new Map((food.foodNutrients ?? []).map((item: any) => [item.nutrientName, item.value]));
-      const candidate = ensureCandidate({
-        id: `usda-${food.fdcId ?? barcode}`,
-        name: food.description,
-        brand: food.brandOwner ?? null,
-        serving: food.servingSize ? `${food.servingSize} ${food.servingSizeUnit ?? "g"}` : "100 g",
-        servingQuantity: food.servingSize ? numberOrZero(food.servingSize) : 100,
-        servingUnit: food.servingSizeUnit ?? "g",
-        servingWeightG: String(food.servingSizeUnit ?? "g").toLowerCase() === "g" ? numberOrZero(food.servingSize) : null,
-        nutritionBasis: "per_serving",
-        servingMetadataSource: "USDA FoodData Central",
-        calories: numberOrZero(nutrients.get("Energy")),
-        proteinG: numberOrZero(nutrients.get("Protein")),
-        carbsG: numberOrZero(nutrients.get("Carbohydrate, by difference")),
-        fatG: numberOrZero(nutrients.get("Total lipid (fat)")),
-        confidence: 88,
-        provenance: "USDA verified",
-        sourceLabel: "USDA FoodData Central",
-      }, 0);
+      const nutrients = new Map(
+        (food.foodNutrients ?? []).map((item: any) => [
+          item.nutrientName,
+          item.value,
+        ]),
+      );
+      const candidate = ensureCandidate(
+        {
+          id: `usda-${food.fdcId ?? barcode}`,
+          name: food.description,
+          brand: food.brandOwner ?? null,
+          serving: food.servingSize
+            ? `${food.servingSize} ${food.servingSizeUnit ?? "g"}`
+            : "100 g",
+          servingQuantity: food.servingSize
+            ? numberOrZero(food.servingSize)
+            : 100,
+          servingUnit: food.servingSizeUnit ?? "g",
+          servingWeightG:
+            String(food.servingSizeUnit ?? "g").toLowerCase() === "g"
+              ? numberOrZero(food.servingSize)
+              : null,
+          nutritionBasis: "per_serving",
+          servingMetadataSource: "USDA FoodData Central",
+          calories: numberOrZero(nutrients.get("Energy")),
+          proteinG: numberOrZero(nutrients.get("Protein")),
+          carbsG: numberOrZero(nutrients.get("Carbohydrate, by difference")),
+          fatG: numberOrZero(nutrients.get("Total lipid (fat)")),
+          confidence: 88,
+          provenance: "USDA verified",
+          sourceLabel: "USDA FoodData Central",
+        },
+        0,
+      );
+      recordExternalLookup({
+        feature: "barcode_scan",
+        provider: "usda",
+        elapsedMs: Date.now() - lookupStartedAt,
+        succeeded: true,
+      });
       return { candidate, provider: "USDA FoodData Central" };
     }
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "usda",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: true,
+    });
   } catch {
+    recordExternalLookup({
+      feature: "barcode_scan",
+      provider: "usda",
+      elapsedMs: Date.now() - lookupStartedAt,
+      succeeded: false,
+    });
     // Fall through to a clear unavailable response.
   }
 
-  return openFoodFactsFallback ? { candidate: openFoodFactsFallback, provider: "Open Food Facts" } : null;
+  return openFoodFactsFallback
+    ? { candidate: openFoodFactsFallback, provider: "Open Food Facts" }
+    : null;
 }
 
-export function parseVisionResponse(content: string, provenance = "Photo estimate", sourceLabel = "Managed vision estimate") {
-  const cleaned = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+export function parseVisionResponse(
+  content: string,
+  provenance = "Photo estimate",
+  sourceLabel = "Managed vision estimate",
+) {
+  const cleaned = content
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
   const parsed = JSON.parse(cleaned) as {
     title?: string;
     candidates?: Partial<CaptureCandidate>[];
@@ -528,97 +840,187 @@ export function parseVisionResponse(content: string, provenance = "Photo estimat
     reviewQuestions?: string[];
   };
   const rawComponents = parsed.components ?? parsed.candidates ?? [];
-  const normalized = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index, provenance, sourceLabel)).filter((candidate) => candidate.name !== "Unidentified food");
+  const normalized = rawComponents
+    .slice(0, 8)
+    .map((candidate, index) =>
+      ensureComponent(candidate, index, provenance, sourceLabel),
+    )
+    .filter((candidate) => candidate.name !== "Unidentified food");
   const components: CaptureComponent[] = [];
   for (const component of normalized) {
-    const duplicate = components.find((existing) =>
-      normalizedComponentName(existing.name) === normalizedComponentName(component.name)
-      && existing.servingWeightG === component.servingWeightG
-      && existing.calories === component.calories
-      && existing.proteinG === component.proteinG
-      && existing.carbsG === component.carbsG
-      && existing.fatG === component.fatG,
+    const duplicate = components.find(
+      (existing) =>
+        normalizedComponentName(existing.name) ===
+          normalizedComponentName(component.name) &&
+        existing.servingWeightG === component.servingWeightG &&
+        existing.calories === component.calories &&
+        existing.proteinG === component.proteinG &&
+        existing.carbsG === component.carbsG &&
+        existing.fatG === component.fatG,
     );
     if (!duplicate) components.push(component);
   }
-  const knownWeightG = components.reduce((sum, component) => sum + (component.servingWeightG ?? 0), 0);
-  const unusuallyLargePortion = knownWeightG > 1200 || components.some((component) => (component.servingWeightG ?? 0) > 1000);
-  const candidates = components.map(({ componentId: _componentId, preparation: _preparation, included: _included, eatenFraction: _eatenFraction, confidenceDimensions: _confidenceDimensions, assumptions: _assumptions, nutritionRange: _nutritionRange, reviewQuestions: _reviewQuestions, ...candidate }) => candidate);
+  const knownWeightG = components.reduce(
+    (sum, component) => sum + (component.servingWeightG ?? 0),
+    0,
+  );
+  const unusuallyLargePortion =
+    knownWeightG > 1200 ||
+    components.some((component) => (component.servingWeightG ?? 0) > 1000);
+  const candidates = components.map(
+    ({
+      componentId: _componentId,
+      preparation: _preparation,
+      included: _included,
+      eatenFraction: _eatenFraction,
+      confidenceDimensions: _confidenceDimensions,
+      assumptions: _assumptions,
+      nutritionRange: _nutritionRange,
+      reviewQuestions: _reviewQuestions,
+      ...candidate
+    }) => candidate,
+  );
   return {
     title: parsed.title?.trim() || (components[0]?.name ?? "Food photo review"),
     candidates,
     components,
     assumptions: unusuallyLargePortion
-      ? addUniqueReview(Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [], "The estimated total portion is unusually large; confirm the amount before saving.", 8)
-      : Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
+      ? addUniqueReview(
+          Array.isArray(parsed.assumptions)
+            ? parsed.assumptions
+                .filter((item): item is string => typeof item === "string")
+                .slice(0, 8)
+            : [],
+          "The estimated total portion is unusually large; confirm the amount before saving.",
+          8,
+        )
+      : Array.isArray(parsed.assumptions)
+        ? parsed.assumptions
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 8)
+        : [],
     reviewQuestions: unusuallyLargePortion
-      ? addUniqueReview(Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6), "Please confirm the total amount shown before saving.", 6)
-      : Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
+      ? addUniqueReview(
+          Array.isArray(parsed.reviewQuestions)
+            ? parsed.reviewQuestions
+                .filter((item): item is string => typeof item === "string")
+                .slice(0, 6)
+            : components
+                .flatMap((component) => component.reviewQuestions)
+                .slice(0, 6),
+          "Please confirm the total amount shown before saving.",
+          6,
+        )
+      : Array.isArray(parsed.reviewQuestions)
+        ? parsed.reviewQuestions
+            .filter((item): item is string => typeof item === "string")
+            .slice(0, 6)
+        : components
+            .flatMap((component) => component.reviewQuestions)
+            .slice(0, 6),
   };
 }
 
 async function analyzeTextInput(textInput: string) {
-  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
-    model: TEXT_MODEL,
-    max_completion_tokens: 2048,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: [
-          `You are ${BRAND_NAME}'s food recognition engine.`,
-          "Parse natural-language food descriptions into structured nutrition estimates.",
-          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "Use USDA average values for the described food if no brand is specified. Split mixed meals into one component per distinct item.",
-          "Confidence guidance for text input: identity 70-88, portion 55-75 (serving size is uncertain), nutritionSource 60-78, preparation 65-82.",
-          "Never describe nutrition as verified. Always ask at least one review question about portion size.",
-          "Keep calories and macros non-negative. Use edible portion estimates.",
-        ].join(" "),
-      },
-      {
-        role: "user",
-        content: `Parse this food description and estimate nutrition per item: "${textInput}"`,
-      },
-    ],
-  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
+  const startedAt = Date.now();
+  const completion = await withAiProviderDeadline(
+    (signal) =>
+      openai.chat.completions.create(
+        {
+          model: TEXT_MODEL,
+          max_completion_tokens: 2048,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                `You are ${BRAND_NAME}'s food recognition engine.`,
+                "Parse natural-language food descriptions into structured nutrition estimates.",
+                "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+                "Use USDA average values for the described food if no brand is specified. Split mixed meals into one component per distinct item.",
+                "Confidence guidance for text input: identity 70-88, portion 55-75 (serving size is uncertain), nutritionSource 60-78, preparation 65-82.",
+                "Never describe nutrition as verified. Always ask at least one review question about portion size.",
+                "Keep calories and macros non-negative. Use edible portion estimates.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: `Parse this food description and estimate nutrition per item: "${textInput}"`,
+            },
+          ],
+        },
+        { signal },
+      ),
+    CAPTURE_PROVIDER_TIMEOUT_MS,
+  );
+  recordProviderUsage({
+    feature: "text_log",
+    model: completion.model ?? TEXT_MODEL,
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    usage: completion.usage,
+    inputBytes: Buffer.byteLength(textInput, "utf8"),
+  });
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Text provider returned no analysis");
   return parseVisionResponse(content);
 }
 
-async function analyzeNutritionLabel(imageBase64: string, imageMimeType: CaptureImageMimeType) {
-  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
-    model: VISION_MODEL,
-    max_completion_tokens: 2048,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: [
-          `You are ${BRAND_NAME}'s nutrition label reader.`,
-          "Extract the exact nutrition facts from the visible nutrition label in the image.",
-          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
-          "When the label is clearly legible: identity 92, nutritionSource 95, portion 70 (user may eat a different amount), preparation 85.",
-          "If the label is partially obscured or unclear, reduce confidence and add a review question to verify values.",
-          "Always ask one review question about whether the portion eaten matches the label serving size.",
-        ].join(" "),
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Read the nutrition label and extract the product name, brand, serving size, and macronutrients (calories, protein, carbohydrates, fat).",
-          },
-          {
-            type: "image_url",
-            image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" },
-          },
-        ],
-      },
-    ],
-  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
+async function analyzeNutritionLabel(
+  imageBase64: string,
+  imageMimeType: CaptureImageMimeType,
+) {
+  const startedAt = Date.now();
+  const completion = await withAiProviderDeadline(
+    (signal) =>
+      openai.chat.completions.create(
+        {
+          model: VISION_MODEL,
+          max_completion_tokens: 2048,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                `You are ${BRAND_NAME}'s nutrition label reader.`,
+                "Extract the exact nutrition facts from the visible nutrition label in the image.",
+                "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+                "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
+                "When the label is clearly legible: identity 92, nutritionSource 95, portion 70 (user may eat a different amount), preparation 85.",
+                "If the label is partially obscured or unclear, reduce confidence and add a review question to verify values.",
+                "Always ask one review question about whether the portion eaten matches the label serving size.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Read the nutrition label and extract the product name, brand, serving size, and macronutrients (calories, protein, carbohydrates, fat).",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${imageMimeType};base64,${imageBase64}`,
+                    detail: "high",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        { signal },
+      ),
+    CAPTURE_PROVIDER_TIMEOUT_MS,
+  );
+  recordProviderUsage({
+    feature: "nutrition_label_scan",
+    model: completion.model ?? VISION_MODEL,
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    usage: completion.usage,
+    inputBytes: Buffer.byteLength(imageBase64, "base64"),
+  });
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Label reader returned no analysis");
   return parseVisionResponse(content, "Nutrition label", "Label extract");
@@ -641,99 +1043,177 @@ export async function analyzeFoodPhoto(
   imageMimeType: CaptureImageMimeType,
   options?: { onProviderUsage?: (usage: FoodPhotoProviderUsage) => void },
 ) {
-  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
-    model: VISION_MODEL,
-    max_completion_tokens: 4096,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: [
-          `You are ${BRAND_NAME}'s food recognition engine.`,
-          "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
-          "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
-          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, servingWeightG, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Never duplicate the same visible item or split one uncertain item into multiple varieties without clear visual evidence. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
-          "When a defensible gram estimate is available, put it in numeric servingWeightG and also describe it in serving. If it is not defensible, set servingWeightG to null rather than inventing precision.",
-          "When two foods are plausible, name the uncertainty explicitly, lower identity confidence, and ask the user to confirm before relying on nutrition. Do not substitute a nutritionally different food merely because it is visually plausible.",
-          "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
-          "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
-        ].join(" "),
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Identify every distinct food or drink you can see and estimate one serving for each. Include servingWeightG only when defensible from visible scale or a clear serving reference. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
-          },
-          {
-            type: "image_url",
-            image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" },
-          },
-        ],
-      },
-    ],
-  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
-  const completionMetadata = completion as typeof completion & { _request_id?: string };
+  const startedAt = Date.now();
+  const completion = await withAiProviderDeadline(
+    (signal) =>
+      openai.chat.completions.create(
+        {
+          model: VISION_MODEL,
+          max_completion_tokens: 4096,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                `You are ${BRAND_NAME}'s food recognition engine.`,
+                "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
+                "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
+                "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, servingWeightG, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+                "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Never duplicate the same visible item or split one uncertain item into multiple varieties without clear visual evidence. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
+                "When a defensible gram estimate is available, put it in numeric servingWeightG and also describe it in serving. If it is not defensible, set servingWeightG to null rather than inventing precision.",
+                "When two foods are plausible, name the uncertainty explicitly, lower identity confidence, and ask the user to confirm before relying on nutrition. Do not substitute a nutritionally different food merely because it is visually plausible.",
+                "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
+                "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Identify every distinct food or drink you can see and estimate one serving for each. Include servingWeightG only when defensible from visible scale or a clear serving reference. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${imageMimeType};base64,${imageBase64}`,
+                    detail: "high",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        { signal },
+      ),
+    CAPTURE_PROVIDER_TIMEOUT_MS,
+  );
+  recordProviderUsage({
+    feature: "photo_scan",
+    model: completion.model ?? VISION_MODEL,
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    usage: completion.usage,
+    inputBytes: Buffer.byteLength(imageBase64, "base64"),
+  });
+  const completionMetadata = completion as typeof completion & {
+    _request_id?: string;
+  };
   options?.onProviderUsage?.({
     responseId: completion.id,
     requestId: completionMetadata._request_id,
     model: completion.model,
     created: completion.created,
-    usage: completion.usage ? {
-      prompt_tokens: completion.usage.prompt_tokens,
-      completion_tokens: completion.usage.completion_tokens,
-      total_tokens: completion.usage.total_tokens,
-    } : null,
+    usage: completion.usage
+      ? {
+          prompt_tokens: completion.usage.prompt_tokens,
+          completion_tokens: completion.usage.completion_tokens,
+          total_tokens: completion.usage.total_tokens,
+        }
+      : null,
   });
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Vision provider returned no analysis");
   return parseVisionResponse(content);
 }
 
-async function analyzeReceipt(imageBase64: string, imageMimeType: CaptureImageMimeType) {
-  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
-    model: VISION_MODEL,
-    max_completion_tokens: 4096,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: [
-          `You are ${BRAND_NAME}'s receipt-to-food review engine.`,
-          "Read a grocery or restaurant receipt and return only plausible food or drink line items as components.",
-          "Never include prices, taxes, tips, payment, loyalty data, merchant details, bag fees, or purchase history.",
-          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-          "Receipt line names and quantities are often abbreviated. Treat every nutrition value as an estimate, use low confidence for uncertain abbreviations, and add a concise review question for ambiguous items.",
-          "If no plausible food or drink line item is readable, return an empty components array and explain why in assumptions.",
-        ].join(" "),
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Extract food and drink items from this receipt into editable nutrition candidates. Exclude non-food lines rather than guessing." },
-          { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" } },
-        ],
-      },
-    ],
-  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
+async function analyzeReceipt(
+  imageBase64: string,
+  imageMimeType: CaptureImageMimeType,
+) {
+  const startedAt = Date.now();
+  const completion = await withAiProviderDeadline(
+    (signal) =>
+      openai.chat.completions.create(
+        {
+          model: VISION_MODEL,
+          max_completion_tokens: 4096,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: [
+                `You are ${BRAND_NAME}'s receipt-to-food review engine.`,
+                "Read a grocery or restaurant receipt and return only plausible food or drink line items as components.",
+                "Never include prices, taxes, tips, payment, loyalty data, merchant details, bag fees, or purchase history.",
+                "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+                "Receipt line names and quantities are often abbreviated. Treat every nutrition value as an estimate, use low confidence for uncertain abbreviations, and add a concise review question for ambiguous items.",
+                "If no plausible food or drink line item is readable, return an empty components array and explain why in assumptions.",
+              ].join(" "),
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract food and drink items from this receipt into editable nutrition candidates. Exclude non-food lines rather than guessing.",
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${imageMimeType};base64,${imageBase64}`,
+                    detail: "high",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        { signal },
+      ),
+    CAPTURE_PROVIDER_TIMEOUT_MS,
+  );
+  recordProviderUsage({
+    feature: "receipt_scan",
+    model: completion.model ?? VISION_MODEL,
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    usage: completion.usage,
+    inputBytes: Buffer.byteLength(imageBase64, "base64"),
+  });
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Receipt reader returned no analysis");
-  return parseVisionResponse(content, "Receipt estimate", "Receipt line-item estimate");
+  return parseVisionResponse(
+    content,
+    "Receipt estimate",
+    "Receipt line-item estimate",
+  );
 }
 
-async function transcribeVoice(audioBase64: string, audioFormat: "mp4" | "m4a" | "wav" | "webm" = "mp4") {
+async function transcribeVoice(
+  audioBase64: string,
+  audioFormat: "mp4" | "m4a" | "wav" | "webm" = "mp4",
+) {
   const audio = Buffer.from(audioBase64, "base64");
   if (audio.length === 0 || audio.length > MAX_AUDIO_BYTES) {
-    throw new Error("That recording is too large. Please keep your meal description under 15 seconds.");
+    throw new Error(
+      "That recording is too large. Please keep your meal description under 15 seconds.",
+    );
   }
-  const file = new File([audio], `calora-voice.${audioFormat}`, { type: `audio/${audioFormat}` });
-  const result = await withAiProviderDeadline((signal) => openai.audio.transcriptions.create({
-    file,
+  const file = new File([audio], `calora-voice.${audioFormat}`, {
+    type: `audio/${audioFormat}`,
+  });
+  const startedAt = Date.now();
+  const result = await withAiProviderDeadline(
+    (signal) =>
+      openai.audio.transcriptions.create(
+        {
+          file,
+          model: TRANSCRIPTION_MODEL,
+          prompt:
+            "This is a short meal description. Preserve food names, portions, brands, and preparation details.",
+        },
+        { signal },
+      ),
+    CAPTURE_PROVIDER_TIMEOUT_MS,
+  );
+  recordProviderUsage({
+    feature: "voice_log",
     model: TRANSCRIPTION_MODEL,
-    prompt: "This is a short meal description. Preserve food names, portions, brands, and preparation details.",
-  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
+    elapsedMs: Date.now() - startedAt,
+    succeeded: true,
+    audioBytes: audio.length,
+  });
   return result.text.trim();
 }
 
@@ -763,7 +1243,12 @@ router.post("/v1/capture/:sessionId/approve", async (req, res) => {
         accountDeletionFenceSignal("/v1/capture/:sessionId/approve"),
         "Account deletion fence rejected capture approval",
       );
-      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Capture is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     res.status(401).json({ message: "Please sign in first." });
@@ -775,48 +1260,74 @@ router.post("/v1/capture/:sessionId/approve", async (req, res) => {
   }
 
   try {
-    const approved = await withVerifiedDatabaseIdentity(user.id, async (database, inTransaction) => {
-      const userId = await ensureUserRow(user.id, user.email, database, inTransaction);
-      const updated = await database
-        .update(aiCaptureSessionsTable)
-        .set({ status: "approved" })
-        .where(and(
-          eq(aiCaptureSessionsTable.id, sessionId),
-          eq(aiCaptureSessionsTable.userId, userId),
-          eq(aiCaptureSessionsTable.status, "review"),
-        ))
-        .returning({ id: aiCaptureSessionsTable.id });
-      if (updated.length > 0) return true;
+    const approved = await withVerifiedDatabaseIdentity(
+      user.id,
+      async (database, inTransaction) => {
+        const userId = await ensureUserRow(
+          user.id,
+          user.email,
+          database,
+          inTransaction,
+        );
+        const updated = await database
+          .update(aiCaptureSessionsTable)
+          .set({ status: "approved" })
+          .where(
+            and(
+              eq(aiCaptureSessionsTable.id, sessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
+              eq(aiCaptureSessionsTable.status, "review"),
+            ),
+          )
+          .returning({ id: aiCaptureSessionsTable.id });
+        if (updated.length > 0) return true;
 
-      // Do not reveal whether a session is missing or belongs to another
-      // account. An already-approved session owned by this caller is the only
-      // idempotent success case.
-      const owned = await database
-        .select({ status: aiCaptureSessionsTable.status })
-        .from(aiCaptureSessionsTable)
-        .where(and(
-          eq(aiCaptureSessionsTable.id, sessionId),
-          eq(aiCaptureSessionsTable.userId, userId),
-        ))
-        .limit(1);
-      return owned[0]?.status === "approved";
-    });
+        // Do not reveal whether a session is missing or belongs to another
+        // account. An already-approved session owned by this caller is the only
+        // idempotent success case.
+        const owned = await database
+          .select({ status: aiCaptureSessionsTable.status })
+          .from(aiCaptureSessionsTable)
+          .where(
+            and(
+              eq(aiCaptureSessionsTable.id, sessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
+            ),
+          )
+          .limit(1);
+        return owned[0]?.status === "approved";
+      },
+    );
     if (approved) {
       res.status(204).end();
       return;
     }
-    res.status(409).json({ message: "This capture is unavailable or belongs to another account." });
+    res
+      .status(409)
+      .json({
+        message: "This capture is unavailable or belongs to another account.",
+      });
   } catch (error) {
     if (classifyAccountDeletionError(error)) {
       logger.warn(
         accountDeletionFenceSignal("/v1/capture/:sessionId/approve"),
         "Account deletion fence rejected capture approval",
       );
-      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Capture is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     logger.error(safeErrorDetails(error), "Failed to approve capture session");
-    res.status(503).json({ message: "Capture approval is temporarily unavailable. Please try again shortly." });
+    res
+      .status(503)
+      .json({
+        message:
+          "Capture approval is temporarily unavailable. Please try again shortly.",
+      });
   }
 });
 
@@ -834,11 +1345,24 @@ router.post("/v1/capture/analyze", async (req, res) => {
         accountDeletionFenceSignal("/v1/capture/analyze"),
         "Account deletion fence rejected capture write",
       );
-      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Capture is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
-    logger.error(safeErrorDetails(error), "Capture authentication verification failed");
-    res.status(503).json({ message: "Capture authentication is temporarily unavailable. Please try again shortly." });
+    logger.error(
+      safeErrorDetails(error),
+      "Capture authentication verification failed",
+    );
+    res
+      .status(503)
+      .json({
+        message:
+          "Capture authentication is temporarily unavailable. Please try again shortly.",
+      });
     return;
   }
   if (!verifiedUser) {
@@ -860,7 +1384,12 @@ router.post("/v1/capture/analyze", async (req, res) => {
         accountDeletionFenceSignal("/v1/capture/analyze"),
         "Account deletion fence rejected capture write",
       );
-      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Capture is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     throw error;
@@ -869,7 +1398,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     if (rate.degraded) {
       res.status(503).json({
-        message: "Capture is temporarily unavailable. Please try again shortly.",
+        message:
+          "Capture is temporarily unavailable. Please try again shortly.",
         retryAfterSecs: rate.retryAfterSecs,
       });
     } else {
@@ -883,7 +1413,11 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
   const parsed = AnalyzeCaptureBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid capture input" });
+    res
+      .status(400)
+      .json({
+        message: parsed.error.issues[0]?.message ?? "Invalid capture input",
+      });
     return;
   }
 
@@ -896,9 +1430,17 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
   if (body.imageBase64) {
     try {
-      imageMimeType = validateCaptureImage(body.imageBase64, body.imageMimeType);
+      imageMimeType = validateCaptureImage(
+        body.imageBase64,
+        body.imageMimeType,
+      );
     } catch {
-      res.status(400).json({ message: "The image bytes are invalid, unsupported, or do not match the declared format." });
+      res
+        .status(400)
+        .json({
+          message:
+            "The image bytes are invalid, unsupported, or do not match the declared format.",
+        });
       return;
     }
   }
@@ -910,7 +1452,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
         mode: "voice",
         status: "unavailable",
         title: "Record a meal description",
-        reviewMessage: "No recording was received. Try recording again, or type your meal description instead.",
+        reviewMessage:
+          "No recording was received. Try recording again, or type your meal description instead.",
         provider: "OpenAI transcription",
         candidates: [],
         imageRetention: "not_collected",
@@ -920,23 +1463,33 @@ router.post("/v1/capture/analyze", async (req, res) => {
   }
 
   if (body.mode === "text" && !hasText) {
-    res.status(400).json({ message: "A food description is required for text mode" });
+    res
+      .status(400)
+      .json({ message: "A food description is required for text mode" });
     return;
   }
   if (body.mode === "nutrition_label" && !hasImage) {
-    res.status(400).json({ message: "A label image is required for nutrition_label mode" });
+    res
+      .status(400)
+      .json({ message: "A label image is required for nutrition_label mode" });
     return;
   }
   if (body.mode === "barcode" && !hasBarcode) {
-    res.status(400).json({ message: "A valid barcode is required for barcode mode" });
+    res
+      .status(400)
+      .json({ message: "A valid barcode is required for barcode mode" });
     return;
   }
   if (body.mode === "food" && !hasImage) {
-    res.status(400).json({ message: "A camera image is required for food mode" });
+    res
+      .status(400)
+      .json({ message: "A camera image is required for food mode" });
     return;
   }
   if (body.mode === "receipt" && !hasImage) {
-    res.status(400).json({ message: "A receipt image is required for receipt mode" });
+    res
+      .status(400)
+      .json({ message: "A receipt image is required for receipt mode" });
     return;
   }
   if (body.mode === "auto" && !hasBarcode && !hasImage) {
@@ -950,12 +1503,22 @@ router.post("/v1/capture/analyze", async (req, res) => {
   if (body.mode === "receipt") {
     try {
       if (!(await hasActivePremiumEntitlement(verifiedUser.id))) {
-        res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for Receipt scanning." });
+        res
+          .status(403)
+          .json({
+            message:
+              "An active Calora Pro subscription or Pro trial is required for Receipt scanning.",
+          });
         return;
       }
     } catch (error) {
       if (error instanceof RevenueCatProviderError) {
-        res.status(503).json({ message: "Receipt scanning is temporarily unavailable. Please try again shortly." });
+        res
+          .status(503)
+          .json({
+            message:
+              "Receipt scanning is temporarily unavailable. Please try again shortly.",
+          });
         return;
       }
       throw error;
@@ -966,26 +1529,42 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Text mode — parse natural-language description with AI.
     if (body.mode === "text" && hasText) {
       const result = await analyzeTextInput(body.textInput!.trim());
-      const serverSessionId = await persistCaptureSession(verifiedUser, "text", result.candidates);
+      const serverSessionId = await persistCaptureSession(
+        verifiedUser,
+        "text",
+        result.candidates,
+      );
       res.json({
         ...captureResponseIds(body, serverSessionId),
         mode: "text",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
-        reviewMessage: "Nutrition is estimated from your description. Review the foods and portions before adding them.",
+        reviewMessage:
+          "Nutrition is estimated from your description. Review the foods and portions before adding them.",
         provider: "Managed language model",
-        candidates: result.candidates.map((candidate, index) => ensureCandidate({
-          ...candidate,
-          id: `text-${index + 1}`,
-          provenance: "Text estimate",
-          sourceLabel: "Managed language model",
-          editable: true,
-        }, index)),
-        components: result.components.map((component, index) => ensureComponent({
-          ...component,
-          provenance: "Text estimate",
-          sourceLabel: "Managed language model",
-        }, index, "Text estimate")),
+        candidates: result.candidates.map((candidate, index) =>
+          ensureCandidate(
+            {
+              ...candidate,
+              id: `text-${index + 1}`,
+              provenance: "Text estimate",
+              sourceLabel: "Managed language model",
+              editable: true,
+            },
+            index,
+          ),
+        ),
+        components: result.components.map((component, index) =>
+          ensureComponent(
+            {
+              ...component,
+              provenance: "Text estimate",
+              sourceLabel: "Managed language model",
+            },
+            index,
+            "Text estimate",
+          ),
+        ),
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "not_collected",
@@ -996,15 +1575,21 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Voice is deliberately a two-step path: raw audio becomes an editable
     // transcript, then the user explicitly requests the normal text estimate.
     if (body.mode === "voice" && body.audioBase64) {
-      const voiceLease = await reserveFreeAllowance( req, res, {
+      const voiceLease = await reserveFreeAllowance(req, res, {
         userId: verifiedUser.id,
         feature: "voice_log",
-        key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId),
+        key: operationKey(
+          req,
+          body.clientCorrelationId ?? body.clientSessionId,
+        ),
       });
       if (!voiceLease) return;
       let voiceSucceeded = false;
       try {
-        const transcript = await transcribeVoice(body.audioBase64, body.audioFormat);
+        const transcript = await transcribeVoice(
+          body.audioBase64,
+          body.audioFormat,
+        );
         if (!transcript) {
           await voiceLease.release();
           res.json({
@@ -1012,7 +1597,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
             mode: "voice",
             status: "unavailable",
             title: "We could not hear a meal description",
-            reviewMessage: "Try recording again in a quieter place, or type what you ate instead.",
+            reviewMessage:
+              "Try recording again in a quieter place, or type what you ate instead.",
             provider: "OpenAI transcription",
             candidates: [],
             imageRetention: "not_collected",
@@ -1026,7 +1612,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
           mode: "voice",
           status: "transcript",
           title: "Check what we heard",
-          reviewMessage: "Edit this transcript if needed, then estimate nutrition. Calora does not store your recording after this request; provider retention follows the configured service terms.",
+          reviewMessage:
+            "Edit this transcript if needed, then estimate nutrition. Calora does not store your recording after this request; provider retention follows the configured service terms.",
           provider: "OpenAI transcription",
           transcript,
           candidates: [],
@@ -1040,7 +1627,11 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
     if (body.mode === "receipt" && body.imageBase64) {
       const result = await analyzeReceipt(body.imageBase64, imageMimeType!);
-      const serverSessionId = await persistCaptureSession(verifiedUser, "receipt", result.candidates);
+      const serverSessionId = await persistCaptureSession(
+        verifiedUser,
+        "receipt",
+        result.candidates,
+      );
       res.json({
         ...captureResponseIds(body, serverSessionId),
         mode: "receipt",
@@ -1050,19 +1641,31 @@ router.post("/v1/capture/analyze", async (req, res) => {
           ? "These are receipt-based estimates. Check each item and remove anything you did not eat before adding it."
           : "No clear food or drink items were found. Try a brighter, flatter photo or type your meal instead.",
         provider: "Managed vision (receipt reader)",
-        candidates: result.candidates.map((candidate, index) => ensureCandidate({
-          ...candidate,
-          id: `receipt-${index + 1}`,
-          provenance: "Receipt estimate",
-          sourceLabel: "Receipt line-item estimate",
-          editable: true,
-        }, index)),
-        components: result.components.map((component, index) => ensureComponent({
-          ...component,
-          provenance: "Receipt estimate",
-          sourceLabel: "Receipt line-item estimate",
-          included: component.confidence >= 55,
-        }, index, "Receipt estimate", "Receipt line-item estimate")),
+        candidates: result.candidates.map((candidate, index) =>
+          ensureCandidate(
+            {
+              ...candidate,
+              id: `receipt-${index + 1}`,
+              provenance: "Receipt estimate",
+              sourceLabel: "Receipt line-item estimate",
+              editable: true,
+            },
+            index,
+          ),
+        ),
+        components: result.components.map((component, index) =>
+          ensureComponent(
+            {
+              ...component,
+              provenance: "Receipt estimate",
+              sourceLabel: "Receipt line-item estimate",
+              included: component.confidence >= 55,
+            },
+            index,
+            "Receipt estimate",
+            "Receipt line-item estimate",
+          ),
+        ),
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "delete_after_analysis",
@@ -1072,36 +1675,63 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
-      const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "nutrition_label_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+      const lease = await reserveFreeAllowance(req, res, {
+        userId: verifiedUser.id,
+        feature: "nutrition_label_scan",
+        key: operationKey(
+          req,
+          body.clientCorrelationId ?? body.clientSessionId,
+        ),
+      });
       if (!lease) return;
       let finalized = false;
       try {
-        const result = await analyzeNutritionLabel(body.imageBase64, imageMimeType!);
-        const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
+        const result = await analyzeNutritionLabel(
+          body.imageBase64,
+          imageMimeType!,
+        );
+        const serverSessionId = await persistCaptureSession(
+          verifiedUser,
+          "nutrition_label",
+          result.candidates,
+        );
         await lease.finalize();
         finalized = true;
         res.json({
-        ...captureResponseIds(body, serverSessionId),
-        mode: "nutrition_label",
-        status: result.candidates.length ? "review" : "unavailable",
-        title: result.title,
-        reviewMessage: "Nutrition extracted from the label. Confirm the serving size matches what you actually ate.",
-        provider: "Managed vision (label reader)",
-        candidates: result.candidates.map((candidate, index) => ensureCandidate({
-          ...candidate,
-          id: `label-${index + 1}`,
-          provenance: candidate.provenance || "Nutrition label",
-          sourceLabel: candidate.sourceLabel || "Label extract",
-          editable: true,
-        }, index)),
-        components: result.components.map((component, index) => ensureComponent({
-          ...component,
-          provenance: component.provenance || "Nutrition label",
-          sourceLabel: component.sourceLabel || "Label extract",
-        }, index, "Nutrition label", "Label extract")),
-        assumptions: result.assumptions,
-        reviewQuestions: result.reviewQuestions,
-        imageRetention: "delete_after_analysis",
+          ...captureResponseIds(body, serverSessionId),
+          mode: "nutrition_label",
+          status: result.candidates.length ? "review" : "unavailable",
+          title: result.title,
+          reviewMessage:
+            "Nutrition extracted from the label. Confirm the serving size matches what you actually ate.",
+          provider: "Managed vision (label reader)",
+          candidates: result.candidates.map((candidate, index) =>
+            ensureCandidate(
+              {
+                ...candidate,
+                id: `label-${index + 1}`,
+                provenance: candidate.provenance || "Nutrition label",
+                sourceLabel: candidate.sourceLabel || "Label extract",
+                editable: true,
+              },
+              index,
+            ),
+          ),
+          components: result.components.map((component, index) =>
+            ensureComponent(
+              {
+                ...component,
+                provenance: component.provenance || "Nutrition label",
+                sourceLabel: component.sourceLabel || "Label extract",
+              },
+              index,
+              "Nutrition label",
+              "Label extract",
+            ),
+          ),
+          assumptions: result.assumptions,
+          reviewQuestions: result.reviewQuestions,
+          imageRetention: "delete_after_analysis",
         });
       } finally {
         if (!finalized) await lease.release().catch(() => undefined);
@@ -1112,25 +1742,39 @@ router.post("/v1/capture/analyze", async (req, res) => {
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
-        const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "barcode_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+        const lease = await reserveFreeAllowance(req, res, {
+          userId: verifiedUser.id,
+          feature: "barcode_scan",
+          key: operationKey(
+            req,
+            body.clientCorrelationId ?? body.clientSessionId,
+          ),
+        });
         if (!lease) return;
         let finalized = false;
         try {
-          const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
+          const serverSessionId = await persistCaptureSession(
+            verifiedUser,
+            "barcode",
+            [result.candidate],
+          );
           await lease.finalize();
           finalized = true;
           res.json({
-          ...captureResponseIds(body, serverSessionId),
-          mode: "barcode",
-          status: "review",
-          title: result.candidate.name,
-          reviewMessage: "Product nutrition matched from a barcode. Confirm the serving before adding it.",
-          provider: result.provider,
-          candidates: [result.candidate],
-           components: [ensureComponent(result.candidate, 0, result.candidate.provenance)],
-           assumptions: [],
-           reviewQuestions: ["Is this the serving size you ate?"],
-           imageRetention: "delete_after_analysis",
+            ...captureResponseIds(body, serverSessionId),
+            mode: "barcode",
+            status: "review",
+            title: result.candidate.name,
+            reviewMessage:
+              "Product nutrition matched from a barcode. Confirm the serving before adding it.",
+            provider: result.provider,
+            candidates: [result.candidate],
+            components: [
+              ensureComponent(result.candidate, 0, result.candidate.provenance),
+            ],
+            assumptions: [],
+            reviewQuestions: ["Is this the serving size you ate?"],
+            imageRetention: "delete_after_analysis",
           });
         } finally {
           if (!finalized) await lease.release().catch(() => undefined);
@@ -1148,7 +1792,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
           mode: "barcode",
           status: "unavailable",
           title: "Barcode not found",
-          reviewMessage: "We could not match this barcode yet. Search for the product or enter its nutrition manually.",
+          reviewMessage:
+            "We could not match this barcode yet. Search for the product or enter its nutrition manually.",
           provider: "Open Food Facts + USDA FoodData Central",
           candidates: [],
         });
@@ -1160,32 +1805,46 @@ router.post("/v1/capture/analyze", async (req, res) => {
       res.status(400).json({ message: "No usable capture input remained" });
       return;
     }
-    const lease = await reserveFreeAllowance(req, res, { userId: verifiedUser.id, feature: "photo_scan", key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId) });
+    const lease = await reserveFreeAllowance(req, res, {
+      userId: verifiedUser.id,
+      feature: "photo_scan",
+      key: operationKey(req, body.clientCorrelationId ?? body.clientSessionId),
+    });
     if (!lease) return;
     let finalized = false;
     try {
       const result = await analyzeFoodPhoto(body.imageBase64, imageMimeType!);
-      const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
+      const serverSessionId = await persistCaptureSession(
+        verifiedUser,
+        "food",
+        result.candidates,
+      );
       await lease.finalize();
       finalized = true;
       res.json({
-      ...captureResponseIds(body, serverSessionId),
-      mode: "food",
-      status: result.candidates.length ? "review" : "unavailable",
-      title: result.title,
-      reviewMessage: "Photo nutrition is an estimate. Review the foods and portions before adding them.",
-      provider: "Managed vision",
-      candidates: result.candidates.map((candidate, index) => ensureCandidate({
-        ...candidate,
-        id: `vision-${index + 1}`,
-        provenance: "Photo estimate",
-        sourceLabel: "Managed vision estimate",
-        editable: true,
-      }, index)),
-       components: result.components,
-       assumptions: result.assumptions,
-       reviewQuestions: result.reviewQuestions,
-       imageRetention: "delete_after_analysis",
+        ...captureResponseIds(body, serverSessionId),
+        mode: "food",
+        status: result.candidates.length ? "review" : "unavailable",
+        title: result.title,
+        reviewMessage:
+          "Photo nutrition is an estimate. Review the foods and portions before adding them.",
+        provider: "Managed vision",
+        candidates: result.candidates.map((candidate, index) =>
+          ensureCandidate(
+            {
+              ...candidate,
+              id: `vision-${index + 1}`,
+              provenance: "Photo estimate",
+              sourceLabel: "Managed vision estimate",
+              editable: true,
+            },
+            index,
+          ),
+        ),
+        components: result.components,
+        assumptions: result.assumptions,
+        reviewQuestions: result.reviewQuestions,
+        imageRetention: "delete_after_analysis",
       });
     } finally {
       if (!finalized) await lease.release().catch(() => undefined);
@@ -1196,19 +1855,38 @@ router.post("/v1/capture/analyze", async (req, res) => {
         accountDeletionFenceSignal("/v1/capture/analyze"),
         "Account deletion fence rejected capture write",
       );
-      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Capture is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     logger.error(safeErrorDetails(error), "Capture provider request failed");
     if (error instanceof Error && /deadline exceeded/i.test(error.message)) {
-      res.status(504).json({ message: "Capture analysis timed out. Please retry; your photo was not retained." });
+      res
+        .status(504)
+        .json({
+          message:
+            "Capture analysis timed out. Please retry; your photo was not retained.",
+        });
       return;
     }
     if (error instanceof SyntaxError) {
-      res.status(502).json({ message: "Capture provider returned an invalid analysis. Please retry." });
+      res
+        .status(502)
+        .json({
+          message:
+            "Capture provider returned an invalid analysis. Please retry.",
+        });
       return;
     }
-    res.status(502).json({ message: "Capture provider unavailable. Please try again shortly." });
+    res
+      .status(502)
+      .json({
+        message: "Capture provider unavailable. Please try again shortly.",
+      });
   }
 });
 

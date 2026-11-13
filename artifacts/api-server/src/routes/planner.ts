@@ -2,15 +2,29 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
 import { plannerImageKeyForMeal } from "@workspace/api-zod/planner-image-identity";
-import { PLANNER_CATALOG, type PlannerCatalogMeal, type PlannerDiet } from "../../../../lib/api-zod/src/planner-catalog.js";
-import { orderProgramMeals, selectDiverseProgramMeal } from "@workspace/api-zod/planner-program-eligibility";
-import { isPlannerProgramId, type PlannerProgramId } from "@workspace/api-zod/planner-program-pools";
+import {
+  PLANNER_CATALOG,
+  type PlannerCatalogMeal,
+  type PlannerDiet,
+} from "../../../../lib/api-zod/src/planner-catalog.js";
+import {
+  orderProgramMeals,
+  selectDiverseProgramMeal,
+} from "@workspace/api-zod/planner-program-eligibility";
+import {
+  isPlannerProgramId,
+  type PlannerProgramId,
+} from "@workspace/api-zod/planner-program-pools";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
-import { hasActivePremiumEntitlement, RevenueCatProviderError } from "../lib/revenuecat.js";
+import {
+  hasActivePremiumEntitlement,
+  RevenueCatProviderError,
+} from "../lib/revenuecat.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { logger, safeErrorDetails } from "../lib/logger.js";
+import { recordProviderUsage } from "../lib/provider-cost-telemetry.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   accountDeletionFenceSignal,
@@ -53,7 +67,10 @@ function makeMeal(meal: CatalogMeal, day: string, index: number) {
   };
 }
 
-function catalogForPlanType(meals: CatalogMeal[], planType: PlannerProgramId | null): CatalogMeal[] {
+function catalogForPlanType(
+  meals: CatalogMeal[],
+  planType: PlannerProgramId | null,
+): CatalogMeal[] {
   return orderProgramMeals(planType ?? undefined, meals);
 }
 
@@ -65,20 +82,40 @@ function buildStarterWeek(catalog: CatalogMeal[], weekStart: string) {
     ]),
   );
   return Array.from({ length: 7 }, (_, dayIndex) =>
-    (["Breakfast", "Lunch", "Dinner", "Snack"] as const).map((role, mealIndex) => {
-      const candidates = byRole.get(role) ?? [];
-      // Deterministically rotate each role pool. A one-candidate role remains
-      // repeatable, while every larger pool avoids adjacent repetition.
-      const meal = selectDiverseProgramMeal(candidates, dayIndex + mealIndex);
-      if (!meal) throw new Error(`No eligible ${role} meals are available for this Program.`);
-      return makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex);
-    }),
+    (["Breakfast", "Lunch", "Dinner", "Snack"] as const).map(
+      (role, mealIndex) => {
+        const candidates = byRole.get(role) ?? [];
+        // Deterministically rotate each role pool. A one-candidate role remains
+        // repeatable, while every larger pool avoids adjacent repetition.
+        const meal = selectDiverseProgramMeal(candidates, dayIndex + mealIndex);
+        if (!meal)
+          throw new Error(
+            `No eligible ${role} meals are available for this Program.`,
+          );
+        return makeMeal(
+          meal,
+          dateFromWeekStart(weekStart, dayIndex),
+          mealIndex,
+        );
+      },
+    ),
   ).flat();
 }
 
 function parseSelection(content: string) {
-  const clean = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-  return JSON.parse(clean) as { days?: Array<{ breakfast?: string; lunch?: string; dinner?: string; snack?: string }> };
+  const clean = content
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  return JSON.parse(clean) as {
+    days?: Array<{
+      breakfast?: string;
+      lunch?: string;
+      dinner?: string;
+      snack?: string;
+    }>;
+  };
 }
 
 router.post("/v1/planner/generate", async (req, res) => {
@@ -86,17 +123,29 @@ router.post("/v1/planner/generate", async (req, res) => {
   // account so anonymous callers cannot drive cost/DoS abuse.
   const user = await verifyBearerToken(req);
   if (!user) {
-    res.status(401).json({ message: "Please sign in to generate a meal plan." });
+    res
+      .status(401)
+      .json({ message: "Please sign in to generate a meal plan." });
     return;
   }
   try {
     if (!(await hasActivePremiumEntitlement(user.id))) {
-      res.status(403).json({ message: "An active Calora Pro subscription or Pro trial is required for Meal Planner." });
+      res
+        .status(403)
+        .json({
+          message:
+            "An active Calora Pro subscription or Pro trial is required for Meal Planner.",
+        });
       return;
     }
   } catch (error) {
     if (error instanceof RevenueCatProviderError) {
-      res.status(503).json({ message: "Meal Planner is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Meal Planner is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     throw error;
@@ -116,7 +165,12 @@ router.post("/v1/planner/generate", async (req, res) => {
         accountDeletionFenceSignal("/v1/planner/generate"),
         "Account deletion fence rejected planner request",
       );
-      res.status(503).json({ message: "Meal-plan generation is temporarily unavailable. Please try again shortly." });
+      res
+        .status(503)
+        .json({
+          message:
+            "Meal-plan generation is temporarily unavailable. Please try again shortly.",
+        });
       return;
     }
     throw error;
@@ -137,11 +191,12 @@ router.post("/v1/planner/generate", async (req, res) => {
     const issue = parsed.error.issues[0];
     const isPlanTypeEnumError =
       issue?.path[0] === "planType" &&
-      (String(issue.code) === "invalid_enum_value" || String(issue.code) === "invalid_value");
+      (String(issue.code) === "invalid_enum_value" ||
+        String(issue.code) === "invalid_value");
     res.status(400).json({
       message: isPlanTypeEnumError
         ? "Invalid enum value for planner Program."
-        : issue?.message ?? "Invalid planner input",
+        : (issue?.message ?? "Invalid planner input"),
     });
     return;
   }
@@ -156,63 +211,105 @@ router.post("/v1/planner/generate", async (req, res) => {
     return;
   }
   const planType: PlannerProgramId | null = requestedPlanType;
-  const available = catalog.filter((meal) => meal.diets.includes(profile.diet) || profile.diet === "Everything");
+  const available = catalog.filter(
+    (meal) =>
+      meal.diets.includes(profile.diet) || profile.diet === "Everything",
+  );
   const programCatalog = catalogForPlanType(available, planType);
-  const hasEveryRole = (["Breakfast", "Lunch", "Dinner", "Snack"] as const)
-    .every((role) => programCatalog.some((meal) => meal.meal === role));
+  const hasEveryRole = (
+    ["Breakfast", "Lunch", "Dinner", "Snack"] as const
+  ).every((role) => programCatalog.some((meal) => meal.meal === role));
   if (!hasEveryRole) {
-    res.status(400).json({ message: "No complete planner week satisfies the selected Program and dietary preference." });
+    res
+      .status(400)
+      .json({
+        message:
+          "No complete planner week satisfies the selected Program and dietary preference.",
+      });
     return;
   }
-  const catalogPrompt = programCatalog.map((meal) => `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein, ${meal.carbsG}g carbs, ${meal.fatG}g fat, ${meal.prepMinutes} min prep)`).join("\n");
+  const catalogPrompt = programCatalog
+    .map(
+      (meal) =>
+        `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein, ${meal.carbsG}g carbs, ${meal.fatG}g fat, ${meal.prepMinutes} min prep)`,
+    )
+    .join("\n");
 
   // Plan-type-specific AI guidance — each entry maps a plan type id to
   // a targeted instruction that steers meal selection from the catalog.
   const PLAN_TYPE_PROMPTS: Record<PlannerProgramId, string> = {
-    "balanced-nutrition": "Prioritise balanced macronutrients across all meals. Vary protein sources, include plenty of vegetables, and distribute carbohydrates evenly. Maximise variety across the week.",
-    "high-protein-power": "Maximise protein in every meal and snack. Strongly prefer the highest-protein options in the catalog. Target at least 35–40% of calories from protein across the week.",
-    "low-carb-living": "Minimise carbohydrate-heavy meals. Avoid meals where pasta, oats, or rice is the primary ingredient wherever alternatives exist. Favour protein and fat-forward meals with non-starchy vegetables.",
-    "mediterranean-diet": "Select meals inspired by Mediterranean eating: fish, legumes, whole grains, and abundant colourful vegetables. Limit red meat. Prioritise variety and colour across the week.",
-    "plant-based-week": "Select only vegetarian or vegan meals from the catalog. Prioritise plant protein sources such as legumes, tofu, and nuts. Ensure adequate protein across the week with no meat or fish.",
-    "keto-kickstart": "Prioritise the lowest-carbohydrate meals available. Strongly avoid grain- or starch-based meals. Favour high-fat, moderate-protein options across the entire week.",
-    "intermittent-fasting": "Structure meals to support an intermittent fasting eating window. Keep breakfast lighter and lower in calories. Concentrate more nutrition in lunch and dinner. Snacks should be protein-forward and satisfying.",
-    "budget-friendly": "Prioritise cost-effective meals using affordable, widely available ingredients: eggs, lentils, oats, beans, and vegetables. Minimise expensive proteins. Favour simple recipes that reduce waste.",
-    "quick-and-easy": "Prioritise the meals with the shortest preparation times in the catalog. Avoid anything complex or time-consuming. Every meal should be achievable in 20 minutes or less.",
-    "athletic-performance": "Optimise for athletic performance. Prioritise higher-calorie, higher-protein meals with adequate carbohydrates for sustained energy. Support both pre- and post-workout nutrition across the week.",
-    "anti-inflammatory": "Select meals rich in anti-inflammatory foods: fatty fish, berries, leafy greens, nuts, seeds, and colourful vegetables. Minimise processed or heavily fried options. Emphasise variety and colour.",
-    "healthy-habits-week": "Create a simple, balanced week of whole-food meals. Prioritise familiar, easy-to-eat foods from across all food groups. Avoid extremes in any macro. This is about building sustainable habits with nourishing, approachable meals.",
+    "balanced-nutrition":
+      "Prioritise balanced macronutrients across all meals. Vary protein sources, include plenty of vegetables, and distribute carbohydrates evenly. Maximise variety across the week.",
+    "high-protein-power":
+      "Maximise protein in every meal and snack. Strongly prefer the highest-protein options in the catalog. Target at least 35–40% of calories from protein across the week.",
+    "low-carb-living":
+      "Minimise carbohydrate-heavy meals. Avoid meals where pasta, oats, or rice is the primary ingredient wherever alternatives exist. Favour protein and fat-forward meals with non-starchy vegetables.",
+    "mediterranean-diet":
+      "Select meals inspired by Mediterranean eating: fish, legumes, whole grains, and abundant colourful vegetables. Limit red meat. Prioritise variety and colour across the week.",
+    "plant-based-week":
+      "Select only vegetarian or vegan meals from the catalog. Prioritise plant protein sources such as legumes, tofu, and nuts. Ensure adequate protein across the week with no meat or fish.",
+    "keto-kickstart":
+      "Prioritise the lowest-carbohydrate meals available. Strongly avoid grain- or starch-based meals. Favour high-fat, moderate-protein options across the entire week.",
+    "intermittent-fasting":
+      "Structure meals to support an intermittent fasting eating window. Keep breakfast lighter and lower in calories. Concentrate more nutrition in lunch and dinner. Snacks should be protein-forward and satisfying.",
+    "budget-friendly":
+      "Prioritise cost-effective meals using affordable, widely available ingredients: eggs, lentils, oats, beans, and vegetables. Minimise expensive proteins. Favour simple recipes that reduce waste.",
+    "quick-and-easy":
+      "Prioritise the meals with the shortest preparation times in the catalog. Avoid anything complex or time-consuming. Every meal should be achievable in 20 minutes or less.",
+    "athletic-performance":
+      "Optimise for athletic performance. Prioritise higher-calorie, higher-protein meals with adequate carbohydrates for sustained energy. Support both pre- and post-workout nutrition across the week.",
+    "anti-inflammatory":
+      "Select meals rich in anti-inflammatory foods: fatty fish, berries, leafy greens, nuts, seeds, and colourful vegetables. Minimise processed or heavily fried options. Emphasise variety and colour.",
+    "healthy-habits-week":
+      "Create a simple, balanced week of whole-food meals. Prioritise familiar, easy-to-eat foods from across all food groups. Avoid extremes in any macro. This is about building sustainable habits with nourishing, approachable meals.",
   };
 
-  const planTypeInstruction = planType && PLAN_TYPE_PROMPTS[planType]
-    ? `Plan type: ${planType}. Specific guidance: ${PLAN_TYPE_PROMPTS[planType]}`
-    : "Balance variety, protein, vegetables, and realistic preparation.";
+  const planTypeInstruction =
+    planType && PLAN_TYPE_PROMPTS[planType]
+      ? `Plan type: ${planType}. Specific guidance: ${PLAN_TYPE_PROMPTS[planType]}`
+      : "Balance variety, protein, vegetables, and realistic preparation.";
 
   try {
-    const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
-      model: VISION_MODEL,
-      max_completion_tokens: 2048,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: [
-            `You are ${BRAND_NAME}'s weekly meal planner.`,
-            "Select meals only from the supplied catalog. Return JSON only.",
-            "Return { days: [{ breakfast: id, lunch: id, dinner: id, snack: id }] } with exactly 7 day objects.",
-            "Match the calorie target without making medical claims. Do not repeat the same meal on consecutive days.",
-            `User profile — Goal: ${profile.goal}; activity: ${profile.activity}; diet: ${profile.diet}; daily calorie target: ${profile.calorieTarget} kcal.`,
-            planTypeInstruction,
-            "Catalog (id: name, type, calories, protein, carbs, fat, prep time):",
-            catalogPrompt,
-          ].join("\n"),
-        },
-        { role: "user", content: "Generate this week's plan." },
-      ],
-    }, { signal }), PLANNER_PROVIDER_TIMEOUT_MS);
+    const startedAt = Date.now();
+    const completion = await withAiProviderDeadline(
+      (signal) =>
+        openai.chat.completions.create(
+          {
+            model: VISION_MODEL,
+            max_completion_tokens: 2048,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: [
+                  `You are ${BRAND_NAME}'s weekly meal planner.`,
+                  "Select meals only from the supplied catalog. Return JSON only.",
+                  "Return { days: [{ breakfast: id, lunch: id, dinner: id, snack: id }] } with exactly 7 day objects.",
+                  "Match the calorie target without making medical claims. Do not repeat the same meal on consecutive days.",
+                  `User profile — Goal: ${profile.goal}; activity: ${profile.activity}; diet: ${profile.diet}; daily calorie target: ${profile.calorieTarget} kcal.`,
+                  planTypeInstruction,
+                  "Catalog (id: name, type, calories, protein, carbs, fat, prep time):",
+                  catalogPrompt,
+                ].join("\n"),
+              },
+              { role: "user", content: "Generate this week's plan." },
+            ],
+          },
+          { signal },
+        ),
+      PLANNER_PROVIDER_TIMEOUT_MS,
+    );
+    recordProviderUsage({
+      feature: "meal_planner",
+      model: completion.model ?? VISION_MODEL,
+      elapsedMs: Date.now() - startedAt,
+      succeeded: true,
+      usage: completion.usage,
+    });
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("Planner provider returned no plan");
     const selection = parseSelection(content);
-     const byId = new Map(programCatalog.map((meal) => [meal.id, meal]));
+    const byId = new Map(programCatalog.map((meal) => [meal.id, meal]));
     const fallback = buildStarterWeek(programCatalog, weekStart);
     const meals = Array.from({ length: 7 }, (_, dayIndex) => {
       const chosen = selection.days?.[dayIndex] ?? {};
@@ -222,9 +319,16 @@ router.post("/v1/planner/generate", async (req, res) => {
         byId.get(chosen.lunch ?? "") ?? fallbackDay[1],
         byId.get(chosen.dinner ?? "") ?? fallbackDay[2],
         byId.get(chosen.snack ?? "") ?? fallbackDay[3],
-      ].map((meal, mealIndex) => makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex));
+      ].map((meal, mealIndex) =>
+        makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex),
+      );
     }).flat();
-    res.json({ weekStart, provider: `${BRAND_NAME} AI planner`, message: "Your week is balanced around your goals and preferences.", meals });
+    res.json({
+      weekStart,
+      provider: `${BRAND_NAME} AI planner`,
+      message: "Your week is balanced around your goals and preferences.",
+      meals,
+    });
   } catch (error) {
     // A generated plan is a convenience, not a reason to leave the planning
     // workspace in an error state. Keep the response contract intact when the
@@ -234,7 +338,8 @@ router.post("/v1/planner/generate", async (req, res) => {
     res.json({
       weekStart,
       provider: `${BRAND_NAME} starter planner`,
-      message: "Starter week ready. Customize anything that does not fit your day.",
+      message:
+        "Starter week ready. Customize anything that does not fit your day.",
       meals,
     });
   }

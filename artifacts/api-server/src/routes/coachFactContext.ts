@@ -14,6 +14,7 @@ import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { logger } from "../lib/logger.js";
+import { recordProviderUsage } from "../lib/provider-cost-telemetry.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -953,6 +954,7 @@ router.post(
     if (!coachLease) return;
 
     try {
+      const startedAt = Date.now();
       const completion = await createDarkCoachCompletion({
         model: COACH_MODEL,
         max_completion_tokens: 900,
@@ -974,6 +976,13 @@ router.post(
           },
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ],
+      });
+      recordProviderUsage({
+        feature: "coach",
+        model: COACH_MODEL,
+        elapsedMs: Date.now() - startedAt,
+        succeeded: true,
+        usage: "usage" in completion ? completion.usage : undefined,
       });
       if (!("choices" in completion))
         throw new Error("unexpected streaming provider response");
