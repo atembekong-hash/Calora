@@ -39,4 +39,17 @@ describe('Customize Today ordering controls', () => {
     expect(source).toContain('{RESPONSIVE_DASHBOARD_WIDGET_IDS.includes(id) && <ScalePressable');
     expect(source).toContain('Compact and Extended are available only for Fasting, Steps, Macro balance, and Mood.');
   });
+
+  it('does not autosave startup defaults before the persisted dashboard has hydrated', () => {
+    const context = readFileSync(resolve(__dirname, '../../context/CaloraContext.tsx'), 'utf8');
+    expect(context).toContain('const dashboardHydrationAppliedRef = useRef(false);');
+    expect(context).toContain('!dashboardHydrationAppliedRef.current');
+    expect(context).toContain('dashboardHydrationAppliedRef.current = true;');
+  });
+
+  it('derives rapid dashboard edits from the authoritative snapshot', () => {
+    const context = readFileSync(resolve(__dirname, '../../context/CaloraContext.tsx'), 'utf8');
+    expect(context).toContain('exportSnapshotRef.current?.dashboardPreferences ?? dashboardPreferences');
+    expect(context).toContain('patchExportSnapshot({ dashboardPreferences: next });');
+  });
 });
