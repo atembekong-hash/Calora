@@ -62,7 +62,7 @@ export async function reserveFreeAllowance(
   const key = input.key ?? operationKey(req);
   const period = premium ? ALLOWANCE_PERIODS[input.feature] : freePeriod(input.feature);
   const limit = premium
-    ? getProAllowanceLimit(input.feature, PRO_SUCCESSFUL_MONTHLY_ALLOWANCES[input.feature])
+    ? getProAllowanceLimit(input.feature, PRO_SUCCESSFUL_MONTHLY_ALLOWANCES[input.feature], undefined, input.userId)
     : freeLimit(input.feature);
 
   if (!period || limit === undefined) {
