@@ -3221,12 +3221,12 @@ export default function ProfileScreen({
                       { color: colors.foreground },
                     ]}
                   >
-                    Pro is designed for generous everyday use: AI-powered meal
-                    scanning, barcode and voice logging, complete premium
-                    recipes, AI Coach, AI recipe creation, Meal Planner, and
-                    advanced insights. Fair-use protection applies separately
-                    to each feature so unusual activity in one feature does not
-                    block the others.
+                    Pro includes AI-powered meal scanning, barcode and voice
+                    logging, complete premium recipes, AI Coach, AI recipe
+                    creation, Meal Planner, and advanced insights. Active plan
+                    limits and fair-use safeguards apply separately to each
+                    feature, so unusual activity in one feature does not block
+                    the others.
                   </Text>
                   <Pressable
                     accessibilityRole="button"

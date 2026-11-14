@@ -882,11 +882,12 @@ describe("Profile rendered interactions", () => {
     expect(screen.queryByRole("tab", { name: "You profile tab" })).toBeNull();
   });
 
-  it("discloses generous Pro benefits without publishing restrictive quota copy", () => {
+  it("discloses Pro benefits without promising inactive generous quotas", () => {
     harness.state.tab = "membership";
     render(<ProfileScreen />);
-    expect(screen.getByText(/generous everyday use/i)).toBeTruthy();
+    expect(screen.getByText(/Active plan limits and fair-use safeguards/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "How fair use works" })).toBeTruthy();
+    expect(screen.queryByText(/generous everyday use/i)).toBeNull();
     expect(screen.queryByText(/40 photo scans/i)).toBeNull();
   });
 
