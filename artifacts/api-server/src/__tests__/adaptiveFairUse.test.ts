@@ -4,13 +4,32 @@ import {
   ADAPTIVE_PRO_FEATURE_POLICY,
   evaluateAdaptiveWindow,
   getProAllowanceLimit,
+  isAdaptiveFairUseEnabledForUser,
 } from "../lib/adaptiveFairUse.js";
 
 describe("adaptive Pro fair use", () => {
   it("remains disabled unless explicitly dark-launched", () => {
     expect(ADAPTIVE_FAIR_USE_ENABLED).toBe(false);
     expect(getProAllowanceLimit("photo_scan", 40)).toBe(40);
-    expect(getProAllowanceLimit("photo_scan", 40, true)).toBe(600);
+    expect(getProAllowanceLimit("photo_scan", 40, true)).toBe(40);
+  });
+
+  it("supports a fail-closed account-level pilot without changing the global default", () => {
+    const pilot = new Set(["pilot-user"]);
+    expect(isAdaptiveFairUseEnabledForUser("pilot-user", true, pilot, true)).toBe(true);
+    expect(isAdaptiveFairUseEnabledForUser("regular-user", true, pilot, true)).toBe(false);
+    expect(getProAllowanceLimit("photo_scan", 40, true, "pilot-user", pilot, true)).toBe(600);
+    expect(getProAllowanceLimit("photo_scan", 40, true, "regular-user", pilot, true)).toBe(40);
+  });
+
+  it("fails closed when the pilot variable is present but empty", () => {
+    expect(isAdaptiveFairUseEnabledForUser("any-user", true, new Set(), true)).toBe(false);
+    expect(getProAllowanceLimit("photo_scan", 40, true, "any-user", new Set(), true)).toBe(40);
+  });
+
+  it("fails closed when adaptive mode is enabled without a pilot variable", () => {
+    expect(isAdaptiveFairUseEnabledForUser(undefined, true, new Set(), false)).toBe(false);
+    expect(isAdaptiveFairUseEnabledForUser("regular-user", true, new Set(), false)).toBe(false);
   });
 
   it("defines explicit daily, monthly, burst, and emergency-cost protections", () => {

@@ -2,10 +2,29 @@ import type { AllowanceFeature } from "./successful-allowance.js";
 
 /**
  * CAL-PRO-012 is deliberately dark-launched. The existing monthly policy remains
- * authoritative until this environment flag is explicitly enabled and telemetry
- * has been reviewed by the owner.
+ * authoritative until the environment flag and an explicit pilot allowlist are
+ * both configured after telemetry review by the owner.
  */
 export const ADAPTIVE_FAIR_USE_ENABLED = process.env.CALORA_ADAPTIVE_FAIR_USE === "1";
+
+const pilotUserIdsConfigured = process.env.CALORA_ADAPTIVE_FAIR_USE_USER_IDS !== undefined;
+export const ADAPTIVE_FAIR_USE_PILOT_USER_IDS = new Set(
+  (process.env.CALORA_ADAPTIVE_FAIR_USE_USER_IDS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+
+export function isAdaptiveFairUseEnabledForUser(
+  userId: string | undefined,
+  adaptiveEnabled = ADAPTIVE_FAIR_USE_ENABLED,
+  pilotUserIds = ADAPTIVE_FAIR_USE_PILOT_USER_IDS,
+  pilotConfigured = pilotUserIdsConfigured,
+): boolean {
+  if (!adaptiveEnabled) return false;
+  if (!pilotConfigured) return false;
+  return Boolean(userId && pilotUserIds.has(userId.trim()));
+}
 
 export type AdaptiveFeaturePolicy = {
   monthlySafetyCeiling: number;
@@ -60,8 +79,11 @@ export function getProAllowanceLimit(
   feature: AllowanceFeature,
   legacyLimit: number,
   adaptiveEnabled = ADAPTIVE_FAIR_USE_ENABLED,
+  userId?: string,
+  pilotUserIds = ADAPTIVE_FAIR_USE_PILOT_USER_IDS,
+  pilotConfigured = pilotUserIdsConfigured,
 ): number {
-  return adaptiveEnabled
+  return isAdaptiveFairUseEnabledForUser(userId, adaptiveEnabled, pilotUserIds, pilotConfigured)
     ? ADAPTIVE_PRO_FEATURE_POLICY[feature].monthlySafetyCeiling
     : legacyLimit;
 }
