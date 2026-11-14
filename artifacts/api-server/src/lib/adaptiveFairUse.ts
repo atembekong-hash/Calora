@@ -9,10 +9,12 @@ export const ADAPTIVE_FAIR_USE_ENABLED = process.env.CALORA_ADAPTIVE_FAIR_USE ==
 
 export type AdaptiveFeaturePolicy = {
   monthlySafetyCeiling: number;
+  dailySafetyCeiling: number;
   burst10Minute: number;
-  burst24Hour: number;
+  emergencyDailySpendUsd: number;
+  emergencyMonthlySpendUsd: number;
   cooldownSeconds: number;
-  estimatedCostReserveUsd: number;
+  costReservePerOperationUsd: number;
 };
 
 /**
@@ -21,18 +23,21 @@ export type AdaptiveFeaturePolicy = {
  * ADAPTIVE_FAIR_USE_ENABLED is false.
  */
 export const ADAPTIVE_PRO_FEATURE_POLICY: Record<AllowanceFeature, AdaptiveFeaturePolicy> = {
-  photo_scan: { monthlySafetyCeiling: 600, burst10Minute: 12, burst24Hour: 80, cooldownSeconds: 300, estimatedCostReserveUsd: 0.01 },
-  barcode_scan: { monthlySafetyCeiling: 2000, burst10Minute: 60, burst24Hour: 400, cooldownSeconds: 120, estimatedCostReserveUsd: 0.002 },
-  nutrition_label_scan: { monthlySafetyCeiling: 600, burst10Minute: 12, burst24Hour: 80, cooldownSeconds: 300, estimatedCostReserveUsd: 0.012 },
-  voice_log: { monthlySafetyCeiling: 600, burst10Minute: 20, burst24Hour: 120, cooldownSeconds: 300, estimatedCostReserveUsd: 0.015 },
-  receipt_scan: { monthlySafetyCeiling: 120, burst10Minute: 6, burst24Hour: 24, cooldownSeconds: 600, estimatedCostReserveUsd: 0.03 },
-  coach_message: { monthlySafetyCeiling: 2400, burst10Minute: 30, burst24Hour: 240, cooldownSeconds: 180, estimatedCostReserveUsd: 0.005 },
-  recipe_creation: { monthlySafetyCeiling: 120, burst10Minute: 4, burst24Hour: 24, cooldownSeconds: 900, estimatedCostReserveUsd: 0.08 },
+  photo_scan: { monthlySafetyCeiling: 600, dailySafetyCeiling: 80, burst10Minute: 12, emergencyDailySpendUsd: 0.8, emergencyMonthlySpendUsd: 6, cooldownSeconds: 300, costReservePerOperationUsd: 0.01 },
+  barcode_scan: { monthlySafetyCeiling: 2000, dailySafetyCeiling: 400, burst10Minute: 60, emergencyDailySpendUsd: 0.8, emergencyMonthlySpendUsd: 4, cooldownSeconds: 120, costReservePerOperationUsd: 0.002 },
+  nutrition_label_scan: { monthlySafetyCeiling: 600, dailySafetyCeiling: 80, burst10Minute: 12, emergencyDailySpendUsd: 0.96, emergencyMonthlySpendUsd: 7.2, cooldownSeconds: 300, costReservePerOperationUsd: 0.012 },
+  voice_log: { monthlySafetyCeiling: 600, dailySafetyCeiling: 120, burst10Minute: 20, emergencyDailySpendUsd: 1.8, emergencyMonthlySpendUsd: 9, cooldownSeconds: 300, costReservePerOperationUsd: 0.015 },
+  receipt_scan: { monthlySafetyCeiling: 120, dailySafetyCeiling: 24, burst10Minute: 6, emergencyDailySpendUsd: 0.72, emergencyMonthlySpendUsd: 3.6, cooldownSeconds: 600, costReservePerOperationUsd: 0.03 },
+  coach_message: { monthlySafetyCeiling: 2400, dailySafetyCeiling: 240, burst10Minute: 30, emergencyDailySpendUsd: 1.2, emergencyMonthlySpendUsd: 12, cooldownSeconds: 180, costReservePerOperationUsd: 0.005 },
+  recipe_creation: { monthlySafetyCeiling: 120, dailySafetyCeiling: 24, burst10Minute: 4, emergencyDailySpendUsd: 1.92, emergencyMonthlySpendUsd: 9.6, cooldownSeconds: 900, costReservePerOperationUsd: 0.08 },
 };
 
 export type AdaptiveWindowSnapshot = {
   count10Minute: number;
   count24Hour: number;
+  countMonth?: number;
+  estimatedSpendDailyUsd?: number;
+  estimatedSpendMonthlyUsd?: number;
   estimatedSpendUsd: number;
   now?: Date;
 };
@@ -44,8 +49,9 @@ export type AdaptiveDecision =
 export function getProAllowanceLimit(
   feature: AllowanceFeature,
   legacyLimit: number,
+  adaptiveEnabled = ADAPTIVE_FAIR_USE_ENABLED,
 ): number {
-  return ADAPTIVE_FAIR_USE_ENABLED
+  return adaptiveEnabled
     ? ADAPTIVE_PRO_FEATURE_POLICY[feature].monthlySafetyCeiling
     : legacyLimit;
 }
@@ -55,10 +61,12 @@ export function evaluateAdaptiveWindow(
   snapshot: AdaptiveWindowSnapshot,
 ): AdaptiveDecision {
   const policy = ADAPTIVE_PRO_FEATURE_POLICY[feature];
-  if (snapshot.estimatedSpendUsd > policy.estimatedCostReserveUsd * policy.burst24Hour) {
+  const dailySpend = snapshot.estimatedSpendDailyUsd ?? snapshot.estimatedSpendUsd;
+  const monthlySpend = snapshot.estimatedSpendMonthlyUsd ?? snapshot.estimatedSpendUsd;
+  if (dailySpend > policy.emergencyDailySpendUsd || monthlySpend > policy.emergencyMonthlySpendUsd) {
     return { allowed: false, retryAfterSecs: policy.cooldownSeconds, reason: "cost" };
   }
-  if (snapshot.count10Minute >= policy.burst10Minute || snapshot.count24Hour >= policy.burst24Hour) {
+  if (snapshot.count10Minute >= policy.burst10Minute || snapshot.count24Hour >= policy.dailySafetyCeiling || (snapshot.countMonth ?? 0) >= policy.monthlySafetyCeiling) {
     return { allowed: false, retryAfterSecs: policy.cooldownSeconds, reason: "burst" };
   }
   return { allowed: true };
