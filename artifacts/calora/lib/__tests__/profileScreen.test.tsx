@@ -881,4 +881,20 @@ describe("Profile rendered interactions", () => {
     expect(screen.getByRole("switch", { name: "Toggle all notifications" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "You profile tab" })).toBeNull();
   });
+
+  it("discloses generous Pro benefits without publishing restrictive quota copy", () => {
+    harness.state.tab = "membership";
+    render(<ProfileScreen />);
+    expect(screen.getByText(/generous everyday use/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "How fair use works" })).toBeTruthy();
+    expect(screen.queryByText(/40 photo scans/i)).toBeNull();
+  });
+
+  it("explains feature-local fair-use protection in Help", () => {
+    harness.state.tab = "membership";
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "How fair use works" }));
+    expect(screen.getByText("How does Pro fair use work?")).toBeTruthy();
+    expect(screen.getByText(/only to the affected feature/i)).toBeTruthy();
+  });
 });

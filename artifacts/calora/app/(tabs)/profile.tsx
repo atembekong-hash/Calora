@@ -3221,12 +3221,21 @@ export default function ProfileScreen({
                       { color: colors.foreground },
                     ]}
                   >
-                    Pro includes separate monthly allowances: 40 photo scans,
-                    100 barcode scans, 40 label scans, 40 voice logs, 3 receipt
-                    scans, 120 Coach messages, and 8 AI recipe creations.
-                    Allowances reset independently each month; using one does
-                    not block the others. Meal Planner remains Pro-only.
+                    Pro is designed for generous everyday use: AI-powered meal
+                    scanning, barcode and voice logging, complete premium
+                    recipes, AI Coach, AI recipe creation, Meal Planner, and
+                    advanced insights. Fair-use protection applies separately
+                    to each feature so unusual activity in one feature does not
+                    block the others.
                   </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="How fair use works"
+                    onPress={() => setInfoModal("help")}
+                    style={styles.billingHelpButton}
+                  >
+                    <Text style={[styles.billingHelpText, { color: colors.primary }]}>How fair use works</Text>
+                  </Pressable>
                   {offeringMismatch && !isSubscribed && (
                     <Text
                       accessibilityRole="alert"
@@ -5602,6 +5611,10 @@ export default function ProfileScreen({
                   q: "How do I report a problem?",
                   a: "Use Export your data to capture your local state, then reach out via the feedback channel in the app store listing.",
                 },
+                {
+                  q: "How does Pro fair use work?",
+                  a: "Pro is designed for personal use. Calora may briefly slow unusually rapid or automated activity to protect service reliability. Any restriction applies only to the affected feature and shows when it will be available again. Your saved meals and Food History remain available.",
+                },
               ].map((item) => (
                 <View
                   key={item.q}
@@ -6149,6 +6162,18 @@ function makeStyles(f: number) {
       lineHeight: 14,
       textAlign: "center",
       marginTop: 12,
+    },
+    billingHelpButton: {
+      alignSelf: "center",
+      minHeight: 44,
+      justifyContent: "center",
+      paddingHorizontal: 8,
+      marginTop: 2,
+    },
+    billingHelpText: {
+      fontFamily: "Inter_600SemiBold",
+      fontSize: 10 * f,
+      textDecorationLine: "underline",
     },
     billingLinks: {
       flexDirection: "row",

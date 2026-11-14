@@ -14,6 +14,7 @@ import {
   PRO_SUCCESSFUL_MONTHLY_ALLOWANCES,
   type AllowancePeriod,
 } from "./subscriptionPolicy.js";
+import { getProAllowanceLimit } from "./adaptiveFairUse.js";
 
 export type AllowanceLease = {
   feature: AllowanceFeature;
@@ -61,7 +62,7 @@ export async function reserveFreeAllowance(
   const key = input.key ?? operationKey(req);
   const period = premium ? ALLOWANCE_PERIODS[input.feature] : freePeriod(input.feature);
   const limit = premium
-    ? PRO_SUCCESSFUL_MONTHLY_ALLOWANCES[input.feature]
+    ? getProAllowanceLimit(input.feature, PRO_SUCCESSFUL_MONTHLY_ALLOWANCES[input.feature])
     : freeLimit(input.feature);
 
   if (!period || limit === undefined) {
