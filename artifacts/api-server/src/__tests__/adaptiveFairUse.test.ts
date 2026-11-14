@@ -140,4 +140,58 @@ describe("adaptive Pro fair use", () => {
       estimatedSpendUsd: 0.01,
     })).toEqual({ allowed: true });
   });
+
+  it("reports the exact remaining 10-minute rolling-window time", () => {
+    const now = new Date("2026-11-14T12:00:00.000Z");
+    expect(evaluateAdaptiveWindow("photo_scan", {
+      count10Minute: 12,
+      count24Hour: 12,
+      estimatedSpendUsd: 0.1,
+      now,
+      oldest10MinuteAt: new Date("2026-11-14T11:59:15.000Z"),
+    })).toEqual({ allowed: false, retryAfterSecs: 555, reason: "burst" });
+  });
+
+  it("keeps the longest active daily or monthly restriction instead of repeating a short cooldown", () => {
+    const now = new Date("2026-11-14T12:00:00.000Z");
+    expect(evaluateAdaptiveWindow("photo_scan", {
+      count10Minute: 1,
+      count24Hour: 80,
+      countMonth: 600,
+      estimatedSpendUsd: 0.1,
+      now,
+      oldest24HourAt: new Date("2026-11-14T11:00:00.000Z"),
+      oldestMonthAt: new Date("2026-11-01T12:00:00.000Z"),
+    })).toEqual({ allowed: false, retryAfterSecs: 1468800, reason: "burst" });
+  });
+
+  it("uses the longest cost reset when both daily and monthly cost safeguards remain active", () => {
+    const now = new Date("2026-11-14T12:00:00.000Z");
+    expect(evaluateAdaptiveWindow("receipt_scan", {
+      count10Minute: 1,
+      count24Hour: 2,
+      estimatedSpendUsd: 1,
+      estimatedSpendDailyUsd: 1,
+      estimatedSpendMonthlyUsd: 4,
+      now,
+      nextDailyResetAt: new Date("2026-11-15T00:00:00.000Z"),
+      nextMonthlyResetAt: new Date("2026-12-01T00:00:00.000Z"),
+    })).toEqual({ allowed: false, retryAfterSecs: 1425600, reason: "cost" });
+  });
+
+  it("recovers automatically once the supplied rolling and cost windows have reset", () => {
+    const now = new Date("2026-11-14T12:00:00.000Z");
+    expect(evaluateAdaptiveWindow("photo_scan", {
+      count10Minute: 0,
+      count24Hour: 0,
+      countMonth: 0,
+      estimatedSpendUsd: 0,
+      estimatedSpendDailyUsd: 0,
+      estimatedSpendMonthlyUsd: 0,
+      now,
+      oldest10MinuteAt: new Date("2026-11-14T11:00:00.000Z"),
+      oldest24HourAt: new Date("2026-11-13T11:00:00.000Z"),
+      oldestMonthAt: new Date("2026-10-01T00:00:00.000Z"),
+    })).toEqual({ allowed: true });
+  });
 });

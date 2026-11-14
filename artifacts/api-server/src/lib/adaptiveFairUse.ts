@@ -40,11 +40,21 @@ export type AdaptiveWindowSnapshot = {
   estimatedSpendMonthlyUsd?: number;
   estimatedSpendUsd: number;
   now?: Date;
+  oldest10MinuteAt?: Date;
+  oldest24HourAt?: Date;
+  oldestMonthAt?: Date;
+  nextDailyResetAt?: Date;
+  nextMonthlyResetAt?: Date;
 };
 
 export type AdaptiveDecision =
   | { allowed: true }
   | { allowed: false; retryAfterSecs: number; reason: "burst" | "cost" };
+
+function remainingSeconds(resetAt: Date | undefined, now: Date, fallback: number): number {
+  if (!resetAt) return fallback;
+  return Math.max(1, Math.ceil((resetAt.getTime() - now.getTime()) / 1000));
+}
 
 export function getProAllowanceLimit(
   feature: AllowanceFeature,
@@ -61,13 +71,42 @@ export function evaluateAdaptiveWindow(
   snapshot: AdaptiveWindowSnapshot,
 ): AdaptiveDecision {
   const policy = ADAPTIVE_PRO_FEATURE_POLICY[feature];
+  const now = snapshot.now ?? new Date();
+  const retryAfter: number[] = [];
   const dailySpend = snapshot.estimatedSpendDailyUsd ?? snapshot.estimatedSpendUsd;
   const monthlySpend = snapshot.estimatedSpendMonthlyUsd ?? snapshot.estimatedSpendUsd;
-  if (dailySpend > policy.emergencyDailySpendUsd || monthlySpend > policy.emergencyMonthlySpendUsd) {
-    return { allowed: false, retryAfterSecs: policy.cooldownSeconds, reason: "cost" };
+  const dailyCostExceeded = dailySpend > policy.emergencyDailySpendUsd;
+  const monthlyCostExceeded = monthlySpend > policy.emergencyMonthlySpendUsd;
+  if (dailyCostExceeded) {
+    retryAfter.push(remainingSeconds(snapshot.nextDailyResetAt, now, policy.cooldownSeconds));
   }
-  if (snapshot.count10Minute >= policy.burst10Minute || snapshot.count24Hour >= policy.dailySafetyCeiling || (snapshot.countMonth ?? 0) >= policy.monthlySafetyCeiling) {
-    return { allowed: false, retryAfterSecs: policy.cooldownSeconds, reason: "burst" };
+  if (monthlyCostExceeded) {
+    retryAfter.push(remainingSeconds(snapshot.nextMonthlyResetAt, now, policy.cooldownSeconds));
+  }
+  if (snapshot.count10Minute >= policy.burst10Minute) {
+    const resetAt = snapshot.oldest10MinuteAt
+      ? new Date(snapshot.oldest10MinuteAt.getTime() + 10 * 60 * 1000)
+      : undefined;
+    retryAfter.push(remainingSeconds(resetAt, now, policy.cooldownSeconds));
+  }
+  if (snapshot.count24Hour >= policy.dailySafetyCeiling) {
+    const resetAt = snapshot.oldest24HourAt
+      ? new Date(snapshot.oldest24HourAt.getTime() + 24 * 60 * 60 * 1000)
+      : undefined;
+    retryAfter.push(remainingSeconds(resetAt, now, policy.cooldownSeconds));
+  }
+  if ((snapshot.countMonth ?? 0) >= policy.monthlySafetyCeiling) {
+    const resetAt = snapshot.oldestMonthAt
+      ? new Date(snapshot.oldestMonthAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+      : undefined;
+    retryAfter.push(remainingSeconds(resetAt, now, policy.cooldownSeconds));
+  }
+  if (retryAfter.length > 0) {
+    return {
+      allowed: false,
+      retryAfterSecs: Math.max(...retryAfter),
+      reason: dailyCostExceeded || monthlyCostExceeded ? "cost" : "burst",
+    };
   }
   return { allowed: true };
 }
