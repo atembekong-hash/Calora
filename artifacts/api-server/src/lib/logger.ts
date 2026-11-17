@@ -29,22 +29,29 @@ export function createLogger(destination?: DestinationStream) {
 export const logger = createLogger();
 
 /** Return only bounded error classification; never serialize message, stack, cause, or provider bodies. */
+function providerMetadataCandidates(error: unknown): Record<string, unknown>[] {
+  if (error === null || typeof error !== "object") return [];
+  const root = error as Record<string, unknown>;
+  const candidates: Record<string, unknown>[] = [root];
+  for (const key of ["error", "response", "cause"] as const) {
+    const nested = root[key];
+    if (nested !== null && typeof nested === "object") {
+      candidates.push(nested as Record<string, unknown>);
+    }
+  }
+  return candidates;
+}
+
 export function safeErrorDetails(error: unknown): {
   errorClass: string;
   errorCode?: string;
   errorStatus?: number;
   errorType?: string;
 } {
-  const record =
-    error !== null && typeof error === "object"
-      ? (error as Record<string, unknown>)
-      : null;
-  const name =
-    error instanceof Error
-      ? error.name.trim()
-      : typeof record?.name === "string"
-        ? record.name.trim()
-        : "";
+  const records = providerMetadataCandidates(error);
+  const name = error instanceof Error
+    ? error.name.trim()
+    : (records.map((candidate) => candidate.name).find((value) => typeof value === "string") as string | undefined) ?? "";
   const details: {
     errorClass: string;
     errorCode?: string;
@@ -55,15 +62,17 @@ export function safeErrorDetails(error: unknown): {
       ? name
       : "unknown_error",
   };
-  const code = record?.code;
+  const code = records.map((candidate) => candidate.code).find((value) => typeof value === "string");
   if (typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(code)) {
     details.errorCode = code;
   }
-  const type = record?.type;
+  const type = records.map((candidate) => candidate.type).find((value) => typeof value === "string");
   if (typeof type === "string" && /^[a-z][a-z0-9_.-]{0,63}$/.test(type)) {
     details.errorType = type;
   }
-  const status = record?.status ?? record?.statusCode ?? record?.httpStatus;
+  const status = records
+    .map((candidate) => candidate.status ?? candidate.statusCode ?? candidate.httpStatus)
+    .find((value) => typeof value === "number");
   if (
     typeof status === "number" &&
     Number.isInteger(status) &&
