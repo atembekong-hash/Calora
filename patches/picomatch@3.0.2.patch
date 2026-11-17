@@ -1,0 +1,19 @@
+﻿diff --git a/lib/parse.js b/lib/parse.js
+index f5b00bae5029cf64f41d18b7feac9d3f27a71de0..b571f544c1bc2ac945f8932195dd991a11558eef 100644
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -292,6 +292,14 @@ const analyzeRepeatedExtglob = (body, options) => {
+
+   const branches = splitTopLevel(body).map(branch => branch.trim());
+
++  // SECURITY: A single branch containing a bare wildcard under a repeated
++  // extglob (for example +(*a), +(*) or +(a*)) can compile to nested
++  // quantifiers and trigger catastrophic backtracking. Literalize it until
++  // upstream publishes a maintained fix for CVE-2026-112366.
++  if (branches.some(branch => /(^|[^\\])[*?]/.test(branch))) {
++    return { risky: true };
++  }
++
+   if (branches.length > 1) {
+     if (
+       branches.some(branch => branch === '') ||
