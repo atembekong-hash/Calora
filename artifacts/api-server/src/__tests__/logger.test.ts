@@ -379,5 +379,21 @@ describe("recovery warning summaries", () => {
       errorStatus: 429,
       errorType: "rate_limit_error",
     });
+    expect(safeErrorDetails({
+      error: {
+        status: 403,
+        type: "insufficient_quota",
+        code: "insufficient_quota",
+        message: "secret provider body",
+      },
+    })).toEqual({
+      errorClass: "unknown_error",
+      errorCode: "insufficient_quota",
+      errorStatus: 403,
+      errorType: "insufficient_quota",
+    });
+    expect(JSON.stringify(safeErrorDetails({
+      response: { error: { message: "secret provider body" } },
+    }))).not.toContain("secret provider body");
   });
 });
