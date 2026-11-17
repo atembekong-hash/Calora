@@ -11,46 +11,66 @@ let diagnosticStarted = false;
 
 type DiagnosticResult = {
   model: string;
+  variant: string;
   success: boolean;
   errorStatus?: number;
   errorType?: string;
   errorCode?: string;
 };
 
-function resultFor(model: string, error?: unknown): DiagnosticResult {
-  if (!error) return { model, success: true };
+function resultFor(
+  model: string,
+  variant: string,
+  error?: unknown,
+): DiagnosticResult {
+  if (!error) return { model, variant, success: true };
   const details = safeErrorDetails(error);
   return {
     model,
+    variant,
     success: false,
-    ...(details.errorStatus === undefined ? {} : { errorStatus: details.errorStatus }),
-    ...(details.errorType === undefined ? {} : { errorType: details.errorType }),
-    ...(details.errorCode === undefined ? {} : { errorCode: details.errorCode }),
+    ...(details.errorStatus === undefined
+      ? {}
+      : { errorStatus: details.errorStatus }),
+    ...(details.errorType === undefined
+      ? {}
+      : { errorType: details.errorType }),
+    ...(details.errorCode === undefined
+      ? {}
+      : { errorCode: details.errorCode }),
   };
 }
 
-async function probeCoachModel(): Promise<DiagnosticResult> {
+const syntheticText = (length: number) => "synthetic-context ".repeat(Math.ceil(length / 18)).slice(0, length);
+
+async function probeCoachVariant(
+  variant: string,
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  maxCompletionTokens: number,
+): Promise<DiagnosticResult> {
   const model = "gpt-5.4-mini";
   try {
     await withAiProviderDeadline(
       (signal) =>
         openai.chat.completions.create(
-          {
-            model,
-            max_completion_tokens: 8,
-            messages: [{ role: "user", content: "Reply with OK." }],
-          },
+          { model, max_completion_tokens: maxCompletionTokens, messages },
           { signal },
         ),
       DIAGNOSTIC_TIMEOUT_MS,
     );
-    return resultFor(model);
+    return resultFor(model, variant);
   } catch (error) {
-    return resultFor(model, error);
+    return resultFor(model, variant, error);
   }
 }
 
-async function probeVisionModel(): Promise<DiagnosticResult> {
+async function probeVisionVariant(
+  variant: string,
+  systemText: string,
+  userText: string,
+  detail: "low" | "high" | undefined,
+  maxCompletionTokens: number,
+): Promise<DiagnosticResult> {
   const model = "gpt-5.6-terra";
   try {
     await withAiProviderDeadline(
@@ -58,17 +78,19 @@ async function probeVisionModel(): Promise<DiagnosticResult> {
         openai.chat.completions.create(
           {
             model,
-            max_completion_tokens: 8,
+            max_completion_tokens: maxCompletionTokens,
             response_format: { type: "json_object" },
             messages: [
+              { role: "system", content: systemText },
               {
                 role: "user",
                 content: [
-                  { type: "text", text: "Return a JSON object with an empty items array." },
+                  { type: "text", text: userText },
                   {
                     type: "image_url",
                     image_url: {
                       url: `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
+                      ...(detail ? { detail } : {}),
                     },
                   },
                 ],
@@ -79,20 +101,84 @@ async function probeVisionModel(): Promise<DiagnosticResult> {
         ),
       DIAGNOSTIC_TIMEOUT_MS,
     );
-    return resultFor(model);
+    return resultFor(model, variant);
   } catch (error) {
-    return resultFor(model, error);
+    return resultFor(model, variant, error);
   }
+}
+
+async function runRequestShapeVariants(): Promise<DiagnosticResult[]> {
+  const coachSystem = syntheticText(5000);
+  const coachSnapshot = `SERVER_OWNED_SNAPSHOT:\n${syntheticText(2000)}`;
+  const coachHistory = Array.from({ length: 8 }, (_, index) => ({
+    role: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+    content: syntheticText(700),
+  }));
+  const coachResults = [
+    await probeCoachVariant(
+      "coach-minimal-max700",
+      [{ role: "user", content: "Reply with OK." }],
+      700,
+    ),
+    await probeCoachVariant(
+      "coach-long-system",
+      [
+        { role: "system", content: coachSystem },
+        { role: "user", content: "Reply with OK." },
+      ],
+      700,
+    ),
+    await probeCoachVariant(
+      "coach-snapshot-and-history",
+      [
+        { role: "system", content: `${coachSystem}\n${coachSnapshot}` },
+        ...coachHistory,
+      ],
+      700,
+    ),
+  ];
+
+  const visionResults = [
+    await probeVisionVariant(
+      "vision-json-low-max2048",
+      "Return a JSON object with an empty items array.",
+      "Identify the visible item.",
+      "low",
+      2048,
+    ),
+    await probeVisionVariant(
+      "vision-json-high-max2048",
+      "Return a JSON object with an empty items array.",
+      "Identify the visible item.",
+      "high",
+      2048,
+    ),
+    await probeVisionVariant(
+      "vision-realistic-high-max4096",
+      syntheticText(5000),
+      syntheticText(1000),
+      "high",
+      4096,
+    ),
+  ];
+
+  return [...coachResults, ...visionResults];
 }
 
 /** Runs once only when explicitly enabled; never exposes prompts, bodies, or credentials. */
 export async function runOneTimeOpenAiDiagnostic(): Promise<void> {
-  if (diagnosticStarted || process.env.CALORA_OPENAI_DIAGNOSTIC_ONCE !== DIAGNOSTIC_FLAG) {
+  if (
+    diagnosticStarted ||
+    process.env.CALORA_OPENAI_DIAGNOSTIC_ONCE !== DIAGNOSTIC_FLAG
+  ) {
     return;
   }
   diagnosticStarted = true;
-  const results = await Promise.all([probeCoachModel(), probeVisionModel()]);
+  const results = await runRequestShapeVariants();
   for (const result of results) {
-    logger.warn({ event: "openai_one_time_diagnostic", ...result }, "OpenAI diagnostic result");
+    logger.warn(
+      { event: "openai_request_shape_diagnostic", ...result },
+      "OpenAI request-shape diagnostic result",
+    );
   }
 }
