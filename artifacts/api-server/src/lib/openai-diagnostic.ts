@@ -15,7 +15,6 @@ type DiagnosticResult = {
   errorStatus?: number;
   errorType?: string;
   errorCode?: string;
-  errorClass?: string;
 };
 
 function resultFor(model: string, error?: unknown): DiagnosticResult {
@@ -27,7 +26,6 @@ function resultFor(model: string, error?: unknown): DiagnosticResult {
     ...(details.errorStatus === undefined ? {} : { errorStatus: details.errorStatus }),
     ...(details.errorType === undefined ? {} : { errorType: details.errorType }),
     ...(details.errorCode === undefined ? {} : { errorCode: details.errorCode }),
-    ...(details.errorClass === undefined ? {} : { errorClass: details.errorClass }),
   };
 }
 
