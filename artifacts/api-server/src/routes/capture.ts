@@ -23,6 +23,11 @@ import {
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
+  AiFailureStageError,
+  aiFailureCause,
+  aiFailureStage,
+} from "../lib/ai-failure-stage.js";
+import {
   recordExternalLookup,
   recordProviderUsage,
 } from "../lib/provider-cost-telemetry.js";
@@ -1044,50 +1049,55 @@ export async function analyzeFoodPhoto(
   options?: { onProviderUsage?: (usage: FoodPhotoProviderUsage) => void },
 ) {
   const startedAt = Date.now();
-  const completion = await withAiProviderDeadline(
-    (signal) =>
-      openai.chat.completions.create(
-        {
-          model: VISION_MODEL,
-          max_completion_tokens: 4096,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                `You are ${BRAND_NAME}'s food recognition engine.`,
-                "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
-                "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
-                "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, servingWeightG, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
-                "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Never duplicate the same visible item or split one uncertain item into multiple varieties without clear visual evidence. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
-                "When a defensible gram estimate is available, put it in numeric servingWeightG and also describe it in serving. If it is not defensible, set servingWeightG to null rather than inventing precision.",
-                "When two foods are plausible, name the uncertainty explicitly, lower identity confidence, and ask the user to confirm before relying on nutrition. Do not substitute a nutritionally different food merely because it is visually plausible.",
-                "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
-                "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
-              ].join(" "),
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Identify every distinct food or drink you can see and estimate one serving for each. Include servingWeightG only when defensible from visible scale or a clear serving reference. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${imageMimeType};base64,${imageBase64}`,
-                    detail: "high",
+  let completion;
+  try {
+    completion = await withAiProviderDeadline(
+      (signal) =>
+        openai.chat.completions.create(
+          {
+            model: VISION_MODEL,
+            max_completion_tokens: 4096,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: [
+                  `You are ${BRAND_NAME}'s food recognition engine.`,
+                  "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
+                  "Do not refuse because the food is unfamiliar, but never invent an unseen ingredient or claim certainty from appearance alone.",
+                  "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, servingWeightG, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+                  "For mixed meals, return one component per visually distinct food and separately list visible sauces, toppings, and sides when they materially affect nutrition. Never duplicate the same visible item or split one uncertain item into multiple varieties without clear visual evidence. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
+                  "When a defensible gram estimate is available, put it in numeric servingWeightG and also describe it in serving. If it is not defensible, set servingWeightG to null rather than inventing precision.",
+                  "When two foods are plausible, name the uncertainty explicitly, lower identity confidence, and ask the user to confirm before relying on nutrition. Do not substitute a nutritionally different food merely because it is visually plausible.",
+                  "Nutrition from an image is an estimate only. Never describe it as verified or sourced from USDA/FatSecret unless the user separately confirms a matching record.",
+                  "Use edible portion estimates, state important preparation assumptions, keep calories/macros non-negative, and add a review question whenever identity, portion, hidden ingredients, or preparation is uncertain.",
+                ].join(" "),
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Identify every distinct food or drink you can see and estimate one serving for each. Include servingWeightG only when defensible from visible scale or a clear serving reference. Do not infer hidden oils, sauces, or ingredients without an assumption. Ask high-impact review questions about uncertain identity, serving size, preparation, hidden ingredients, or whether the whole meal was eaten.",
                   },
-                },
-              ],
-            },
-          ],
-        },
-        { signal },
-      ),
-    CAPTURE_PROVIDER_TIMEOUT_MS,
-  );
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${imageMimeType};base64,${imageBase64}`,
+                      detail: "high",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          { signal },
+        ),
+      CAPTURE_PROVIDER_TIMEOUT_MS,
+    );
+  } catch (error) {
+    throw new AiFailureStageError("provider", error);
+  }
   recordProviderUsage({
     feature: "photo_scan",
     model: completion.model ?? VISION_MODEL,
@@ -1096,9 +1106,7 @@ export async function analyzeFoodPhoto(
     usage: completion.usage,
     inputBytes: Buffer.byteLength(imageBase64, "base64"),
   });
-  const completionMetadata = completion as typeof completion & {
-    _request_id?: string;
-  };
+  const completionMetadata = completion as typeof completion & { _request_id?: string };
   options?.onProviderUsage?.({
     responseId: completion.id,
     requestId: completionMetadata._request_id,
@@ -1113,8 +1121,17 @@ export async function analyzeFoodPhoto(
       : null,
   });
   const content = completion.choices[0]?.message?.content;
-  if (!content) throw new Error("Vision provider returned no analysis");
-  return parseVisionResponse(content);
+  if (!content) {
+    throw new AiFailureStageError(
+      "empty_response",
+      new Error("Vision provider returned no analysis"),
+    );
+  }
+  try {
+    return parseVisionResponse(content);
+  } catch (error) {
+    throw new AiFailureStageError("parse", error);
+  }
 }
 
 async function analyzeReceipt(
@@ -1878,7 +1895,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
         });
       return;
     }
-    logger.error(safeErrorDetails(error), "Capture provider request failed");
+    logger.error(
+      { ...safeErrorDetails(aiFailureCause(error)), aiFailureStage: aiFailureStage(error) },
+      "Capture provider request failed",
+    );
     if (error instanceof Error && /deadline exceeded/i.test(error.message)) {
       res
         .status(504)

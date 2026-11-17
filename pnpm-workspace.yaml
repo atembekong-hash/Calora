@@ -197,3 +197,8 @@ overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.28.1"
+
+patchedDependencies:
+  picomatch@2.3.2: patches/picomatch@2.3.2.patch
+  picomatch@3.0.2: patches/picomatch@3.0.2.patch
+  picomatch@4.0.5: patches/picomatch@4.0.5.patch
