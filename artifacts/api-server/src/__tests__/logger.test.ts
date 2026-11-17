@@ -347,4 +347,37 @@ describe("recovery warning summaries", () => {
       errorClass: "Error",
     });
   });
+
+  it("retains only bounded provider status and type metadata", async () => {
+    const { safeErrorDetails } = await import("../lib/logger.js");
+    const error = Object.assign(
+      new Error("provider body contains a secret and must never be logged"),
+      {
+        name: "APIError",
+        code: "model_not_found",
+        status: 404,
+        type: "invalid_request_error",
+        messageBody: "secret provider response",
+      },
+    );
+    expect(safeErrorDetails(error)).toEqual({
+      errorClass: "APIError",
+      errorCode: "model_not_found",
+      errorStatus: 404,
+      errorType: "invalid_request_error",
+    });
+    expect(JSON.stringify(safeErrorDetails(error))).not.toContain("secret");
+    expect(
+      safeErrorDetails({
+        status: 429,
+        type: "rate_limit_error",
+        code: "rate_limit_exceeded",
+      }),
+    ).toEqual({
+      errorClass: "unknown_error",
+      errorCode: "rate_limit_exceeded",
+      errorStatus: 429,
+      errorType: "rate_limit_error",
+    });
+  });
 });

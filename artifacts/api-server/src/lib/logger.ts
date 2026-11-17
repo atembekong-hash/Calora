@@ -29,19 +29,50 @@ export function createLogger(destination?: DestinationStream) {
 export const logger = createLogger();
 
 /** Return only bounded error classification; never serialize message, stack, cause, or provider bodies. */
-export function safeErrorDetails(error: unknown): { errorClass: string; errorCode?: string } {
-  if (error instanceof Error) {
-    const name = error.name.trim();
-    const details: { errorClass: string; errorCode?: string } = {
-      errorClass: /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) ? name : "Error",
-    };
-    const code = (error as Error & { code?: unknown }).code;
-    if (typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(code)) {
-      details.errorCode = code;
-    }
-    return details;
+export function safeErrorDetails(error: unknown): {
+  errorClass: string;
+  errorCode?: string;
+  errorStatus?: number;
+  errorType?: string;
+} {
+  const record =
+    error !== null && typeof error === "object"
+      ? (error as Record<string, unknown>)
+      : null;
+  const name =
+    error instanceof Error
+      ? error.name.trim()
+      : typeof record?.name === "string"
+        ? record.name.trim()
+        : "";
+  const details: {
+    errorClass: string;
+    errorCode?: string;
+    errorStatus?: number;
+    errorType?: string;
+  } = {
+    errorClass: /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name)
+      ? name
+      : "unknown_error",
+  };
+  const code = record?.code;
+  if (typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(code)) {
+    details.errorCode = code;
   }
-  return { errorClass: "unknown_error" };
+  const type = record?.type;
+  if (typeof type === "string" && /^[a-z][a-z0-9_.-]{0,63}$/.test(type)) {
+    details.errorType = type;
+  }
+  const status = record?.status ?? record?.statusCode ?? record?.httpStatus;
+  if (
+    typeof status === "number" &&
+    Number.isInteger(status) &&
+    status >= 400 &&
+    status <= 599
+  ) {
+    details.errorStatus = status;
+  }
+  return details;
 }
 
 /** Fixed classification for durable retry state; intentionally excludes error text. */
