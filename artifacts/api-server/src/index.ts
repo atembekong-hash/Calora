@@ -14,6 +14,7 @@ import { runSafeBackgroundTask } from "./lib/safe-background-task";
 import { assertStartupReady } from "./lib/startup-readiness";
 import { refreshOperationalAlerts } from "./lib/admin-alerts";
 import { assertApiRuntimeCompatible } from "./lib/runtime-compatibility";
+import { runOneTimeOpenAiDiagnostic } from "./lib/openai-diagnostic";
 
 const rawPort = process.env["PORT"];
 
@@ -114,6 +115,8 @@ async function startServer(): Promise<void> {
   // readiness rotation instead of briefly advertising an unusable listener.
   await assertStartupReady(pool);
   if (shutdownStarted) return;
+
+  await runOneTimeOpenAiDiagnostic();
 
   void startAccountDeletionRecovery().catch((err) =>
     logger.error(safeErrorDetails(err), "Account deletion recovery startup failed"),
