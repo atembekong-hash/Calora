@@ -9,6 +9,11 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
+  AiFailureStageError,
+  aiFailureCause,
+  aiFailureStage,
+} from "../lib/ai-failure-stage.js";
+import {
   buildCoachV2Snapshot,
   clearCoachV2Conversation,
   completeCoachV2Turn,
@@ -302,18 +307,23 @@ async function requestCoachReply(
   if (safetyKind) return coachSafetyReply(safetyKind);
 
   const startedAt = Date.now();
-  const completion = await withAiProviderDeadline(
-    (signal) =>
-      openai.chat.completions.create(
-        {
-          model: "gpt-5.4-mini",
-          max_completion_tokens: 700,
-          messages: buildCoachV2Messages({ history, snapshot }),
-        },
-        { signal },
-      ),
-    COACH_V2_PROVIDER_TIMEOUT_MS,
-  );
+  let completion;
+  try {
+    completion = await withAiProviderDeadline(
+      (signal) =>
+        openai.chat.completions.create(
+          {
+            model: "gpt-5.4-mini",
+            max_completion_tokens: 700,
+            messages: buildCoachV2Messages({ history, snapshot }),
+          },
+          { signal },
+        ),
+      COACH_V2_PROVIDER_TIMEOUT_MS,
+    );
+  } catch (error) {
+    throw new AiFailureStageError("provider", error);
+  }
   recordProviderUsage({
     feature: "coach",
     model: completion.model ?? "gpt-5.4-mini",
@@ -322,11 +332,19 @@ async function requestCoachReply(
     usage: completion.usage,
   });
   const reply = completion.choices[0]?.message?.content;
-  if (!isSafeProviderReply(reply))
-    throw new Error("Coach provider returned an invalid response");
+  if (!isSafeProviderReply(reply)) {
+    throw new AiFailureStageError(
+      "empty_response",
+      new Error("Coach provider returned an empty or truncated response"),
+    );
+  }
   const normalized = normalizeCoachAssistantReply(reply);
-  if (!normalized)
-    throw new Error("Coach provider returned an invalid response");
+  if (!normalized) {
+    throw new AiFailureStageError(
+      "normalization",
+      new Error("Coach provider returned a response rejected by normalization"),
+    );
+  }
   return normalized;
 }
 
@@ -427,7 +445,10 @@ router.post("/v1/coach/v2/chat", async (req, res) => {
       await coachLease.finalize();
       response = { message, ok: true };
     } catch (error) {
-      logger.error(safeErrorDetails(error), "Coach provider request failed");
+      logger.error(
+        { ...safeErrorDetails(aiFailureCause(error)), aiFailureStage: aiFailureStage(error) },
+        "Coach provider request failed",
+      );
       await withAccountDeletionReadLock(verified.id, async () => {
         await completeCoachV2Turn(
           prepared.turn.conversationId,
