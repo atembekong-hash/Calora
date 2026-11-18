@@ -284,10 +284,15 @@ function numberOrZero(value: unknown) {
 function explicitServingWeightG(serving: string, value: unknown) {
   if (value != null) return numberOrZero(value) || null;
   const match = serving.match(
-    /(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*(?:g|grams)\b/i,
+    /(?:^|[\s(])([0-9]+(?:[.,][0-9]+)?)\s*(kg|g|grams|mg)\b/i,
   );
   if (!match) return null;
-  const grams = Number(match[1]);
+  const amount = Number(match[1].replace(',', '.'));
+  const grams = match[2].toLowerCase() === 'kg'
+    ? amount * 1000
+    : match[2].toLowerCase() === 'mg'
+      ? amount / 1000
+      : amount;
   return Number.isFinite(grams) && grams > 0 && grams <= 2500 ? grams : null;
 }
 
@@ -498,7 +503,7 @@ export function offCandidate(
   const declaredQuantity = String(product.quantity ?? "").trim();
   const rawServing =
     String(product.serving_size ?? "").trim() ||
-    (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity)
+    (/[0-9]+(?:[.,][0-9]+)?\s*[a-zA-Z]+/.test(declaredQuantity)
       ? declaredQuantity
       : "");
   // Some product records say only "1 packet" in serving_size while the actual
@@ -506,14 +511,28 @@ export function offCandidate(
   // Keep the serving label, but recover that explicit weight so per-100-g
   // nutrition is scaled to the packet instead of shown as 100 g.
   const weightMatch =
-    rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i) ??
-    declaredQuantity.match(/(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*g\b/i);
-  const quantityMatch = rawServing.match(/^(\d+(?:\.\d+)?)/);
+    rawServing.match(/([0-9]+(?:[.,][0-9]+)?)\s*(kg|g|grams|mg)\b/i) ??
+    declaredQuantity.match(/(?:^|[\s(])([0-9]+(?:[.,][0-9]+)?)\s*(kg|g|grams|mg)\b/i);
+  const metricWeightG = weightMatch
+    ? (() => {
+        const amount = Number(weightMatch[1].replace(',', '.'));
+        const unit = weightMatch[2].toLowerCase();
+        return unit === 'kg' ? amount * 1000 : unit === 'mg' ? amount / 1000 : amount;
+      })()
+    : null;
+  const quantityMatch = rawServing.match(/^([0-9]+(?:[.,][0-9]+)?)/);
   const rawServingUnit =
     rawServing
-      .match(/\d+(?:\.\d+)?\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)/i)?.[1]
+      .match(/\d+(?:[.,]\d+)?\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)/i)?.[1]
       ?.toLowerCase()
       .replace(/\s+/g, " ") ?? null;
+  const metricServingUnit = rawServingUnit === "kg" || rawServingUnit === "kilogram" || rawServingUnit === "kilograms"
+    ? "g"
+    : rawServingUnit === "mg" || rawServingUnit === "milligram" || rawServingUnit === "milligrams"
+      ? "g"
+      : rawServingUnit === "l" || rawServingUnit === "liter" || rawServingUnit === "liters"
+        ? "ml"
+        : rawServingUnit;
   const isProviderFluidOunceServing =
     nutritionBasis === "per_serving" &&
     (rawServingUnit === "fl oz" ||
@@ -525,10 +544,15 @@ export function offCandidate(
         servingQuantity: isProviderFluidOunceServing
           ? 1
           : quantityMatch
-            ? Number(quantityMatch[1])
+            ? (() => {
+                const amount = Number(quantityMatch[1].replace(',', '.'));
+                if (rawServingUnit === "kg" || rawServingUnit === "kilogram" || rawServingUnit === "kilograms" || rawServingUnit === "l" || rawServingUnit === "liter" || rawServingUnit === "liters") return amount * 1000;
+                if (rawServingUnit === "mg" || rawServingUnit === "milligram" || rawServingUnit === "milligrams") return amount / 1000;
+                return amount;
+              })()
             : null,
-        servingUnit: isProviderFluidOunceServing ? "serving" : rawServingUnit,
-        servingWeightG: weightMatch ? Number(weightMatch[1]) : null,
+        servingUnit: isProviderFluidOunceServing ? "serving" : metricServingUnit,
+        servingWeightG: metricWeightG && metricWeightG > 0 && metricWeightG <= 2500 ? metricWeightG : null,
         source: "Open Food Facts",
       }
     : null;

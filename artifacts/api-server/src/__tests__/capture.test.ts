@@ -41,6 +41,28 @@ describe('photo recognition safeguards', () => {
     });
   });
 
+  it('normalizes comma-decimal kilogram and milligram serving weights', () => {
+    const kilogram = offCandidate({
+      code: '012345678902', product_name: 'Bulk food', serving_size: '0,5 kg',
+      nutriments: { 'energy-kcal_100g': 200, proteins_100g: 5, carbohydrates_100g: 20, fat_100g: 4 },
+    }, '012345678902');
+    expect(kilogram).toMatchObject({ servingQuantity: 500, servingUnit: 'g', servingWeightG: 500 });
+
+    const milligram = offCandidate({
+      code: '012345678903', product_name: 'Supplement', serving_size: '500 mg',
+      nutriments: { 'energy-kcal_100g': 200, proteins_100g: 5, carbohydrates_100g: 20, fat_100g: 4 },
+    }, '012345678903');
+    expect(milligram).toMatchObject({ servingQuantity: 0.5, servingUnit: 'g', servingWeightG: 0.5 });
+  });
+
+  it('normalizes liter servings against per-100-ml nutrition', () => {
+    const candidate = offCandidate({
+      code: '012345678904', product_name: 'Juice', serving_size: '0,75 L',
+      nutriments: { 'energy-kcal_100ml': 40, proteins_100ml: 0, carbohydrates_100ml: 10, fat_100ml: 0 },
+    }, '012345678904');
+    expect(candidate).toMatchObject({ servingQuantity: 750, servingUnit: 'ml', servingWeightG: null, nutritionBasis: 'per_100ml' });
+  });
+
   it('extracts explicit gram weights, preserves uncertainty, and removes exact duplicate components', () => {
     const result = parseVisionResponse(JSON.stringify({
       title: 'Ambiguous plate',

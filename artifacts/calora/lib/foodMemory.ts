@@ -133,14 +133,14 @@ const normalizeServingUnit = (value: string | null | undefined): ServingUnit | u
   if (!unit) return undefined;
   if (unit === 'packet' || unit === 'packets') return 'packet';
   if (unit === 'sachet' || unit === 'sachets') return 'sachet';
-  if (unit === 'g' || unit === 'gram' || unit === 'grams') return 'g';
-  if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') return 'ml';
+  if (unit === 'g' || unit === 'gram' || unit === 'grams' || unit === 'kg' || unit === 'kilogram' || unit === 'kilograms' || unit === 'mg' || unit === 'milligram' || unit === 'milligrams') return 'g';
+  if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters' || unit === 'l' || unit === 'liter' || unit === 'liters') return 'ml';
   if (unit === 'fl oz' || unit === 'floz' || unit === 'fluid ounce' || unit === 'fluid ounces') return 'fl_oz';
   if (unit === 'serving' || unit === 'servings') return 'serving';
   // Capture analysis may describe a provider serving by its household label.
   // These are safe aliases only when the nutrition basis supports a serving
   // quantity; they must not be guessed as grams.
-  if (['bottle', 'bottles', 'can', 'cans', 'glass', 'glasses', 'piece', 'pieces', 'item', 'items', 'container', 'containers', 'bar', 'bars'].includes(unit)) return 'serving';
+  if (['bottle', 'bottles', 'can', 'cans', 'glass', 'glasses', 'piece', 'pieces', 'item', 'items', 'container', 'containers', 'package', 'packages', 'packet', 'packets', 'bar', 'bars', 'bowl', 'bowls', 'plate', 'plates', 'portion', 'portions', 'meal', 'meals', 'scoop', 'scoops', 'slice', 'slices'].includes(unit)) return 'serving';
   return undefined;
 };
 
@@ -157,7 +157,15 @@ export function parseServingInput(value: string, component: Pick<FoodMemoryCompo
   // rejecting them here incorrectly disables Save for otherwise valid drafts.
   const match = input.match(/^(?:(?:about|around|approximately|approx\.?|estimated|est\.?|~)\s*)?([0-9]+(?:[.,][0-9]+)?)\s*((?:fl\s*oz|fluid\s*ounces?)|[a-zA-Z]+)?(?:\s|$)/i);
   if (!match) return { valid: false, error: 'Enter a quantity such as 9.4 g or 2 servings.' };
-  const quantity = Number(match[1].replace(',', '.'));
+  const rawQuantity = Number(match[1].replace(',', '.'));
+  const rawUnit = match[2]?.trim().toLowerCase().replace(/\s+/g, ' ');
+  const quantity = rawUnit === 'kg' || rawUnit === 'kilogram' || rawUnit === 'kilograms'
+    ? rawQuantity * 1000
+    : rawUnit === 'mg' || rawUnit === 'milligram' || rawUnit === 'milligrams'
+      ? rawQuantity / 1000
+      : rawUnit === 'l' || rawUnit === 'liter' || rawUnit === 'liters'
+        ? rawQuantity * 1000
+        : rawQuantity;
   if (!Number.isFinite(quantity) || quantity <= 0) return { valid: false, error: 'Quantity must be greater than zero.' };
   if (quantity > 10000) return { valid: false, error: 'Quantity is too large to verify.' };
   const explicitUnit = match[2] ? normalizeServingUnit(match[2]) : undefined;
@@ -166,7 +174,7 @@ export function parseServingInput(value: string, component: Pick<FoodMemoryCompo
     ?? normalizeServingUnit(component.servingUnit)
     ?? (component.nutritionBasis === 'per_100g' ? 'g'
       : component.nutritionBasis === 'per_100ml' ? 'ml'
-      : component.nutritionBasis === 'unknown' && component.servingWeightG && component.servingWeightG > 0 ? 'serving'
+      : component.nutritionBasis === 'unknown' ? 'serving'
       : undefined);
   if (!unit) return { valid: false, error: 'Include a supported unit so the quantity can be calculated.' };
   if (component.nutritionBasis === 'per_serving' && unit === 'fl_oz') return { valid: false, error: 'This food is measured by provider servings; enter the serving count instead of fluid ounces.' };
