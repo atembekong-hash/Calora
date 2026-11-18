@@ -76,6 +76,25 @@ describe('Scan-to-Save deterministic workflow', () => {
     expect(nutritionMultiplierForComponent(edited)).toBe(2);
   });
 
+  it('keeps camera estimates with household portions saveable without provider metadata', () => {
+    const bowl = estimate({
+      serving: '1 bowl', servingQuantity: null, servingUnit: null,
+      servingWeightG: null, nutritionBasis: 'unknown',
+    });
+    expect(parseServingInput(bowl.serving, bowl)).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+    const packageEstimate = { ...bowl, serving: '1 package' };
+    expect(parseServingInput(packageEstimate.serving, packageEstimate)).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+    const bareQuantity = { ...bowl, serving: '1' };
+    expect(parseServingInput(bareQuantity.serving, bareQuantity)).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+  });
+
+  it('converts comma-decimal metric quantities into the canonical nutrition basis', () => {
+    const per100g = estimate({ nutritionBasis: 'per_100g', serving: '0,5 kg', servingQuantity: 0.5, servingUnit: 'g', servingWeightG: 500 });
+    expect(parseServingInput(per100g.serving, per100g)).toEqual({ valid: true, quantity: 500, unit: 'g' });
+    const per100ml = estimate({ nutritionBasis: 'per_100ml', serving: '0,75 L', servingQuantity: 750, servingUnit: 'ml', servingWeightG: null });
+    expect(parseServingInput(per100ml.serving, per100ml)).toEqual({ valid: true, quantity: 750, unit: 'ml' });
+  });
+
   it('matches a straightforward food, scales grams once, and saves the same nutrition', () => {
     const result = reconcileComponentWithRestaurantFood(estimate(), providerFood(), { quantity: 200, unit: 'g' });
     expect(result.ok).toBe(true);
