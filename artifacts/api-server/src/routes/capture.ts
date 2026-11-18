@@ -1054,7 +1054,6 @@ export async function analyzeFoodPhoto(
   const startedAt = Date.now();
   let completion;
   try {
-    logger.info?.({ event: "ai_provider_invocation", feature: "photo_scan" }, "AI provider invocation started");
     completion = await withAiProviderDeadline(
       (signal) =>
         openai.chat.completions.create(
@@ -1099,7 +1098,6 @@ export async function analyzeFoodPhoto(
         ),
       CAPTURE_PROVIDER_TIMEOUT_MS,
     );
-    logger.info?.({ event: "ai_provider_invocation", feature: "photo_scan", result: "returned" }, "AI provider invocation returned");
   } catch (error) {
     throw new AiFailureStageError("provider", error);
   }
