@@ -23,6 +23,10 @@ import {
 import { logger, safeErrorDetails } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
+  extractJsonObjectText,
+  providerTextContent,
+} from "../lib/ai-response-contract.js";
+import {
   AiFailureStageError,
   aiFailureCause,
   aiFailureStage,
@@ -828,15 +832,14 @@ async function lookupBarcode(barcode: string) {
 }
 
 export function parseVisionResponse(
-  content: string,
+  content: unknown,
   provenance = "Photo estimate",
   sourceLabel = "Managed vision estimate",
 ) {
-  const cleaned = content
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/```$/i, "")
-    .trim();
+  const cleaned = extractJsonObjectText(content);
+  if (!cleaned) {
+    throw new Error("Vision provider returned invalid JSON content");
+  }
   const parsed = JSON.parse(cleaned) as {
     title?: string;
     candidates?: Partial<CaptureCandidate>[];
@@ -966,7 +969,7 @@ async function analyzeTextInput(textInput: string) {
     usage: completion.usage,
     inputBytes: Buffer.byteLength(textInput, "utf8"),
   });
-  const content = completion.choices[0]?.message?.content;
+  const content = providerTextContent(completion.choices[0]?.message?.content);
   if (!content) throw new Error("Text provider returned no analysis");
   return parseVisionResponse(content);
 }
@@ -1026,7 +1029,7 @@ async function analyzeNutritionLabel(
     usage: completion.usage,
     inputBytes: Buffer.byteLength(imageBase64, "base64"),
   });
-  const content = completion.choices[0]?.message?.content;
+  const content = providerTextContent(completion.choices[0]?.message?.content);
   if (!content) throw new Error("Label reader returned no analysis");
   return parseVisionResponse(content, "Nutrition label", "Label extract");
 }
@@ -1120,7 +1123,7 @@ export async function analyzeFoodPhoto(
         }
       : null,
   });
-  const content = completion.choices[0]?.message?.content;
+  const content = providerTextContent(completion.choices[0]?.message?.content);
   if (!content) {
     throw new AiFailureStageError(
       "empty_response",

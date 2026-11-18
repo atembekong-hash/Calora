@@ -8,6 +8,7 @@ import { pool } from "@workspace/db";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
+import { providerTextContent } from "../lib/ai-response-contract.js";
 import {
   AiFailureStageError,
   aiFailureCause,
@@ -331,7 +332,7 @@ async function requestCoachReply(
     succeeded: true,
     usage: completion.usage,
   });
-  const reply = completion.choices[0]?.message?.content;
+  const reply = providerTextContent(completion.choices[0]?.message?.content);
   if (!isSafeProviderReply(reply)) {
     throw new AiFailureStageError(
       "empty_response",
