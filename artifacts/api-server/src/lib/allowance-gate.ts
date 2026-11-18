@@ -52,7 +52,7 @@ export async function reserveFreeAllowance(
   let premium: boolean;
   try {
     premium = await hasActivePremiumEntitlement(input.userId);
-    logger.info(
+    logger.info?.(
       { event: "ai_gate_entitlement", feature: input.feature, result: premium ? "premium" : "free" },
       "AI gate entitlement resolved",
     );
@@ -96,7 +96,7 @@ export async function reserveFreeAllowance(
 
   let decision;
   try {
-    logger.info(
+    logger.info?.(
       { event: "ai_gate_reservation", feature: input.feature, plan: premium ? "premium" : "free" },
       "AI gate reservation started",
     );
@@ -107,7 +107,7 @@ export async function reserveFreeAllowance(
       period,
       idempotencyKey: key,
     });
-    logger.info(
+    logger.info?.(
       { event: "ai_gate_reservation", feature: input.feature, result: decision.allowed ? "allowed" : "exhausted" },
       "AI gate reservation completed",
     );

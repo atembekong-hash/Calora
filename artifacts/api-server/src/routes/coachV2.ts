@@ -310,7 +310,7 @@ async function requestCoachReply(
   const startedAt = Date.now();
   let completion;
   try {
-    logger.info({ event: "ai_provider_invocation", feature: "coach" }, "AI provider invocation started");
+    logger.info?.({ event: "ai_provider_invocation", feature: "coach" }, "AI provider invocation started");
     completion = await withAiProviderDeadline(
       (signal) =>
         openai.chat.completions.create(
@@ -323,7 +323,7 @@ async function requestCoachReply(
         ),
       COACH_V2_PROVIDER_TIMEOUT_MS,
     );
-    logger.info({ event: "ai_provider_invocation", feature: "coach", result: "returned" }, "AI provider invocation returned");
+    logger.info?.({ event: "ai_provider_invocation", feature: "coach", result: "returned" }, "AI provider invocation returned");
   } catch (error) {
     throw new AiFailureStageError("provider", error);
   }
