@@ -63,7 +63,10 @@ export function safeErrorDetails(error: unknown): {
       : "unknown_error",
   };
   const code = records.map((candidate) => candidate.code).find((value) => typeof value === "string");
-  if (typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(code)) {
+  if (
+    typeof code === "string" &&
+    (/^[a-z][a-z0-9_]{0,63}$/.test(code) || /^[0-9A-Z]{5}$/.test(code))
+  ) {
     details.errorCode = code;
   }
   const type = records.map((candidate) => candidate.type).find((value) => typeof value === "string");
