@@ -61,6 +61,10 @@ function retryAfterSecs(resetAt: Date, now: Date): number {
   return Math.max(1, Math.ceil((resetAt.getTime() - now.getTime()) / 1000));
 }
 
+export function allowanceTimestampMs(value: Date | string): number {
+  return new Date(value).getTime();
+}
+
 /**
  * Reserves one unit before a provider call. The database transaction locks the
  * user/feature bucket, duplicate operation keys are idempotent, and failed
@@ -99,7 +103,7 @@ export async function reserveSuccessfulAllowance(input: {
       successful_count: number;
       pending_keys: string[];
       completed_keys: string[];
-      updated_at: Date;
+      updated_at: Date | string;
     }>(
       `SELECT day_key, successful_count, pending_keys, completed_keys, updated_at
          FROM calora_feature_usage
@@ -111,7 +115,7 @@ export async function reserveSuccessfulAllowance(input: {
 
     const staleBefore = now.getTime() - 15 * 60 * 1000;
     for (const row of rows.rows) {
-      if (row.updated_at.getTime() < staleBefore && row.pending_keys.length > 0) {
+      if (allowanceTimestampMs(row.updated_at) < staleBefore && row.pending_keys.length > 0) {
         row.pending_keys = [];
         await client.query(
           `UPDATE calora_feature_usage SET pending_keys = ARRAY[]::text[], updated_at = now()
@@ -123,7 +127,7 @@ export async function reserveSuccessfulAllowance(input: {
     const current = rows.rows.find((row) => row.day_key === currentKey);
     if (!current) throw new Error("Allowance reservation did not return a usage row.");
     const pending = current.pending_keys;
-    if (current.updated_at.getTime() < staleBefore && pending.length > 0) {
+    if (allowanceTimestampMs(current.updated_at) < staleBefore && pending.length > 0) {
       await client.query(
         `UPDATE calora_feature_usage SET pending_keys = ARRAY[]::text[], updated_at = now()
           WHERE user_id = $1 AND feature = $2 AND day_key = $3`,
