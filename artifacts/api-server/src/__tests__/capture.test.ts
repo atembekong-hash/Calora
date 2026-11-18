@@ -14,6 +14,33 @@ import request from 'supertest';
 import { fatSecretCandidate, offCandidate, parseVisionResponse } from '../routes/capture.js';
 
 describe('photo recognition safeguards', () => {
+  it('recovers packet weight from product quantity when barcode serving_size omits grams', () => {
+    const candidate = offCandidate(
+      {
+        code: '012345678901',
+        product_name: 'Emergen-C Tangerine',
+        brands: 'Emergen-C',
+        serving_size: '1 packet',
+        quantity: '9.4 g',
+        nutriments: {
+          'energy-kcal_100g': 372,
+          proteins_100g: 0,
+          carbohydrates_100g: 85,
+          fat_100g: 0,
+        },
+      },
+      '012345678901',
+    );
+
+    expect(candidate).toMatchObject({
+      serving: '1 packet',
+      servingWeightG: 9.4,
+      nutritionBasis: 'per_100g',
+      calories: 372,
+      carbsG: 85,
+    });
+  });
+
   it('extracts explicit gram weights, preserves uncertainty, and removes exact duplicate components', () => {
     const result = parseVisionResponse(JSON.stringify({
       title: 'Ambiguous plate',

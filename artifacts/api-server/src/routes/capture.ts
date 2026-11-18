@@ -501,7 +501,13 @@ export function offCandidate(
     (/\d+(?:\.\d+)?\s*[a-zA-Z]+/.test(declaredQuantity)
       ? declaredQuantity
       : "");
-  const weightMatch = rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i);
+  // Some product records say only "1 packet" in serving_size while the actual
+  // packet weight is declared separately in quantity (for example "9.4 g").
+  // Keep the serving label, but recover that explicit weight so per-100-g
+  // nutrition is scaled to the packet instead of shown as 100 g.
+  const weightMatch =
+    rawServing.match(/(\d+(?:\.\d+)?)\s*g\b/i) ??
+    declaredQuantity.match(/(?:^|[\s(])([0-9]+(?:\.[0-9]+)?)\s*g\b/i);
   const quantityMatch = rawServing.match(/^(\d+(?:\.\d+)?)/);
   const rawServingUnit =
     rawServing
@@ -994,6 +1000,7 @@ async function analyzeNutritionLabel(
                 "Extract the exact nutrition facts from the visible nutrition label in the image.",
                 "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
                 "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
+                "Use calories and macros for the declared serving shown on the label. Do not copy per-100-g values when per-serving values are visible; keep the serving text aligned with the nutrition values.",
                 "When the label is clearly legible: identity 92, nutritionSource 95, portion 70 (user may eat a different amount), preparation 85.",
                 "If the label is partially obscured or unclear, reduce confidence and add a review question to verify values.",
                 "Always ask one review question about whether the portion eaten matches the label serving size.",
