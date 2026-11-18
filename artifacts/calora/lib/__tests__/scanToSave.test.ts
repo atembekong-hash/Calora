@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FOOD_MEMORY_SCHEMA_VERSION,
+  nutritionMultiplierForComponent,
   nutritionForComponents,
   parseServingInput,
   type FoodMemoryComponent,
@@ -63,6 +64,16 @@ describe('Scan-to-Save deterministic workflow', () => {
       serving: 'about 1 bottle', servingQuantity: 1, servingUnit: 'serving',
       servingWeightG: null, nutritionBasis: 'per_serving',
     }))).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+  });
+
+  it('keeps a weighted AI estimate saveable when basis metadata is omitted', () => {
+    const incompleteMetadata = estimate({
+      serving: '1', servingQuantity: null, servingUnit: null,
+      servingWeightG: 355, nutritionBasis: 'unknown',
+    });
+    expect(parseServingInput(incompleteMetadata.serving, incompleteMetadata)).toEqual({ valid: true, quantity: 1, unit: 'serving' });
+    const edited = { ...incompleteMetadata, serving: '2 servings', servingQuantity: 2, servingUnit: 'serving' };
+    expect(nutritionMultiplierForComponent(edited)).toBe(2);
   });
 
   it('matches a straightforward food, scales grams once, and saves the same nutrition', () => {

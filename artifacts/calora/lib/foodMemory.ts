@@ -164,7 +164,10 @@ export function parseServingInput(value: string, component: Pick<FoodMemoryCompo
   if (match[2] && !explicitUnit) return { valid: false, error: 'Use a supported unit such as g, ml, fl oz, packet, or serving.' };
   const unit = explicitUnit
     ?? normalizeServingUnit(component.servingUnit)
-    ?? (component.nutritionBasis === 'per_100g' ? 'g' : component.nutritionBasis === 'per_100ml' ? 'ml' : undefined);
+    ?? (component.nutritionBasis === 'per_100g' ? 'g'
+      : component.nutritionBasis === 'per_100ml' ? 'ml'
+      : component.nutritionBasis === 'unknown' && component.servingWeightG && component.servingWeightG > 0 ? 'serving'
+      : undefined);
   if (!unit) return { valid: false, error: 'Include a supported unit so the quantity can be calculated.' };
   if (component.nutritionBasis === 'per_serving' && unit === 'fl_oz') return { valid: false, error: 'This food is measured by provider servings; enter the serving count instead of fluid ounces.' };
   if (component.nutritionBasis === 'per_100g' && (unit === 'ml' || unit === 'fl_oz')) return { valid: false, error: 'This food is measured by weight; enter grams or a known packet size.' };
@@ -206,6 +209,9 @@ export function nutritionMultiplierForComponent(component: Pick<FoodMemoryCompon
     return milliliters / 100;
   }
   if (component.nutritionBasis === 'per_serving' && component.servingQuantity) return component.servingQuantity;
+  if (component.nutritionBasis === 'unknown' && component.servingUnit === 'serving' && component.servingQuantity) {
+    return component.servingQuantity;
+  }
   return 1;
 }
 
