@@ -65,6 +65,10 @@ export function allowanceTimestampMs(value: Date | string): number {
   return new Date(value).getTime();
 }
 
+export function allowanceDayKey(value: Date | string): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
+}
+
 /**
  * Reserves one unit before a provider call. The database transaction locks the
  * user/feature bucket, duplicate operation keys are idempotent, and failed
@@ -99,7 +103,7 @@ export async function reserveSuccessfulAllowance(input: {
       [userId, feature, currentKey],
     );
     const rows = await client.query<{
-      day_key: string;
+      day_key: Date | string;
       successful_count: number;
       pending_keys: string[];
       completed_keys: string[];
@@ -124,7 +128,7 @@ export async function reserveSuccessfulAllowance(input: {
         );
       }
     }
-    const current = rows.rows.find((row) => row.day_key === currentKey);
+    const current = rows.rows.find((row) => allowanceDayKey(row.day_key) === currentKey);
     if (!current) throw new Error("Allowance reservation did not return a usage row.");
     const pending = current.pending_keys;
     if (allowanceTimestampMs(current.updated_at) < staleBefore && pending.length > 0) {
@@ -138,7 +142,7 @@ export async function reserveSuccessfulAllowance(input: {
     const alreadyCompleted = rows.rows.some((row) => row.completed_keys.includes(key));
     const isPending = pending.includes(key);
     const successful = rows.rows.reduce((total, row) => total + Number(row.successful_count), 0);
-    const pendingCount = rows.rows.reduce((total, row) => total + (row.day_key === currentKey ? pending.length : row.pending_keys.length), 0);
+    const pendingCount = rows.rows.reduce((total, row) => total + (allowanceDayKey(row.day_key) === currentKey ? pending.length : row.pending_keys.length), 0);
     const reserved = successful + pendingCount;
     const allowed = alreadyCompleted || isPending || reserved < limit;
     if (allowed && !alreadyCompleted && !isPending) {
