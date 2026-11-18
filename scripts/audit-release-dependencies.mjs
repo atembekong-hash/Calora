@@ -27,7 +27,7 @@ const blocking = findings.filter((finding) => ["high", "critical"].includes(find
 const picomatch = blocking.filter((finding) => finding.github_advisory_id === "GHSA-fc5q-39xc-vjpf");
 const otherBlocking = blocking.filter((finding) => finding.github_advisory_id !== "GHSA-fc5q-39xc-vjpf");
 
-if (otherBlocking.length > 0 || picomatch.length !== blocking.length || picomatch.length === 0) {
+if (otherBlocking.length > 0 || picomatch.length !== blocking.length) {
   console.error(`Release dependency audit failed: ${blocking.length} high/critical finding(s) require remediation.`);
   for (const finding of blocking) console.error(`${finding.module_name}: ${finding.github_advisory_id ?? finding.id}`);
   process.exit(1);
@@ -47,4 +47,8 @@ for (const version of patchVersions) {
   }
 }
 
-console.log("PASS: the only high-severity finding is GHSA-fc5q-39xc-vjpf, and all locked picomatch majors pass the reviewed bounded ReDoS regression.");
+console.log(
+  picomatch.length > 0
+    ? "PASS: the only high-severity finding is GHSA-fc5q-39xc-vjpf, and all locked picomatch majors pass the reviewed bounded ReDoS regression."
+    : "PASS: no high/critical dependency findings; all locked picomatch majors pass the reviewed bounded ReDoS regression.",
+);
