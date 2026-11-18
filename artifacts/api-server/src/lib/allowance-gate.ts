@@ -15,6 +15,7 @@ import {
   type AllowancePeriod,
 } from "./subscriptionPolicy.js";
 import { getProAllowanceLimit } from "./adaptiveFairUse.js";
+import { logger, safeErrorDetails } from "./logger.js";
 
 export type AllowanceLease = {
   feature: AllowanceFeature;
@@ -51,10 +52,22 @@ export async function reserveFreeAllowance(
   let premium: boolean;
   try {
     premium = await hasActivePremiumEntitlement(input.userId);
+    logger.info?.(
+      { event: "ai_gate_entitlement", feature: input.feature, result: premium ? "premium" : "free" },
+      "AI gate entitlement resolved",
+    );
   } catch (error) {
     if (error instanceof RevenueCatProviderError) {
       premium = false;
+      logger.warn(
+        { event: "ai_gate_entitlement", feature: input.feature, result: "provider_fallback", ...safeErrorDetails(error) },
+        "AI gate entitlement provider fallback",
+      );
     } else {
+      logger.error(
+        { event: "ai_gate_entitlement", feature: input.feature, result: "failed", ...safeErrorDetails(error) },
+        "AI gate entitlement failed",
+      );
       throw error;
     }
   }
@@ -74,16 +87,37 @@ export async function reserveFreeAllowance(
       });
       return null;
     }
+    logger.error(
+      { event: "ai_gate_policy", feature: input.feature, result: "missing" },
+      "AI gate policy missing",
+    );
     throw new Error(`No allowance policy configured for ${input.feature}`);
   }
 
-  const decision = await reserveSuccessfulAllowance({
-    userId: input.userId,
-    feature: input.feature,
-    limit,
-    period,
-    idempotencyKey: key,
-  });
+  let decision;
+  try {
+    logger.info?.(
+      { event: "ai_gate_reservation", feature: input.feature, plan: premium ? "premium" : "free" },
+      "AI gate reservation started",
+    );
+    decision = await reserveSuccessfulAllowance({
+      userId: input.userId,
+      feature: input.feature,
+      limit,
+      period,
+      idempotencyKey: key,
+    });
+    logger.info?.(
+      { event: "ai_gate_reservation", feature: input.feature, result: decision.allowed ? "allowed" : "exhausted" },
+      "AI gate reservation completed",
+    );
+  } catch (error) {
+    logger.error(
+      { event: "ai_gate_reservation", feature: input.feature, result: "failed", ...safeErrorDetails(error) },
+      "AI gate reservation failed",
+    );
+    throw error;
+  }
   res.setHeader("X-Calora-Allowance-Plan", premium ? "pro" : "free");
   res.setHeader("X-Calora-Allowance-Feature", input.feature);
   res.setHeader("X-Calora-Allowance-Limit", String(limit));
