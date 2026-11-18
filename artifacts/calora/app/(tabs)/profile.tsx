@@ -2979,6 +2979,62 @@ export default function ProfileScreen({
               {/* prettier-ignore */}
               <View style={surface === "profile" && tab === 'membership' ? undefined : styles.hiddenSection}>
                 {/* ── Calora Pro ── */}
+                <View style={styles.proHeroCard}>
+                  <Image
+                    source={require("../../assets/images/foods/chicken-rice-bowl.jpg")}
+                    contentFit="cover"
+                    style={styles.proHeroImage}
+                    accessibilityLabel="A balanced chicken and rice meal"
+                  />
+                  <View style={styles.proHeroScrim} />
+                  <View style={styles.proHeroContent}>
+                    <Text style={styles.proHeroBrand}>CALORA PRO</Text>
+                    <Text style={styles.proHeroTitle}>
+                      Log easily. Understand more. Keep moving forward.
+                    </Text>
+                    <Text style={styles.proHeroDescription}>
+                      Track meals with less effort, make sense of your nutrition,
+                      and see your progress over time.
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.proPromiseRow}>
+                  {[
+                    { icon: "camera", title: "Easy Tracking", body: "Log meals with a photo or your voice" },
+                    { icon: "bar-chart-2", title: "Nutrition Clarity", body: "Understand calories and nutrients" },
+                    { icon: "trending-up", title: "Personal Progress", body: "See how your habits add up" },
+                  ].map((promise) => (
+                    <View key={promise.title} style={styles.proPromise}>
+                      <View style={styles.proPromiseIcon}>
+                        <Feather name={promise.icon as keyof typeof Feather.glyphMap} size={17} color="#b9f3c8" />
+                      </View>
+                      <Text style={[styles.proPromiseTitle, { color: colors.foreground }]}>{promise.title}</Text>
+                      <Text style={[styles.proPromiseBody, { color: colors.mutedForeground }]}>{promise.body}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.proFeatureCard}>
+                  <View style={styles.proFeatureList}>
+                    {[
+                      "Photo and voice logging",
+                      "Food sources and confidence",
+                      "Calorie targets and insights",
+                      "Ad-free offline diary",
+                    ].map((feature) => (
+                      <View key={feature} style={styles.proFeatureRow}>
+                        <Feather name="check-circle" size={16} color="#45d382" />
+                        <Text style={styles.proFeatureText}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.proDashboardPreview}>
+                    <Text style={styles.proDashboardTitle}>Your progress</Text>
+                    <View style={styles.proDashboardRing}><Feather name="activity" size={21} color="#ff8069" /></View>
+                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "72%", backgroundColor: "#b78cff" }]} /></View>
+                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "54%", backgroundColor: "#f6c36b" }]} /></View>
+                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
+                  </View>
+                </View>
                 <View style={styles.planHeader}>
                   <View>
                     <Text
@@ -6081,6 +6137,82 @@ function makeStyles(f: number) {
     },
 
     // Billing
+    proHeroCard: {
+      minHeight: 250,
+      borderRadius: 24,
+      overflow: "hidden",
+      backgroundColor: "#082b21",
+      marginTop: 12,
+      position: "relative",
+    },
+    proHeroImage: { ...StyleSheet.absoluteFillObject, opacity: 0.8 },
+    proHeroScrim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(3, 31, 23, 0.68)",
+    },
+    proHeroContent: { padding: 21, justifyContent: "flex-end", flex: 1 },
+    proHeroBrand: {
+      color: "#ff8069",
+      fontFamily: "Inter_700Bold",
+      fontSize: 11 * f,
+      letterSpacing: 1.4,
+      marginBottom: 12,
+    },
+    proHeroTitle: {
+      color: "#ffffff",
+      fontFamily: "Inter_700Bold",
+      fontSize: 26 * f,
+      lineHeight: 31 * f,
+      maxWidth: 330,
+    },
+    proHeroDescription: {
+      color: "#d9eee5",
+      fontFamily: "Inter_400Regular",
+      fontSize: 12 * f,
+      lineHeight: 18 * f,
+      marginTop: 11,
+      maxWidth: 330,
+    },
+    proPromiseRow: {
+      flexDirection: "row",
+      gap: 7,
+      paddingVertical: 16,
+    },
+    proPromise: { flex: 1, alignItems: "center", minWidth: 0 },
+    proPromiseIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#18513b",
+      marginBottom: 8,
+    },
+    proPromiseTitle: { fontFamily: "Inter_700Bold", fontSize: 10 * f, textAlign: "center" },
+    proPromiseBody: { fontFamily: "Inter_400Regular", fontSize: 9 * f, lineHeight: 13 * f, textAlign: "center", marginTop: 4 },
+    proFeatureCard: {
+      flexDirection: "row",
+      gap: 14,
+      borderRadius: 22,
+      padding: 15,
+      backgroundColor: "#174d38",
+      marginBottom: 6,
+    },
+    proFeatureList: { flex: 1, justifyContent: "center", gap: 11 },
+    proFeatureRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    proFeatureText: { color: "#f1fff5", fontFamily: "Inter_500Medium", fontSize: 10 * f, flex: 1 },
+    proDashboardPreview: {
+      width: 116,
+      borderRadius: 16,
+      padding: 11,
+      backgroundColor: "#09271f",
+      justifyContent: "center",
+      gap: 9,
+    },
+    proDashboardTitle: { color: "#ccebdd", fontFamily: "Inter_600SemiBold", fontSize: 9 * f },
+    proDashboardRing: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", borderWidth: 5, borderColor: "#255e47" },
+    proDashboardBar: { height: 5, borderRadius: 3, backgroundColor: "#204936", overflow: "hidden" },
+    proDashboardFill: { height: "100%", borderRadius: 3 },
     planHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
