@@ -885,7 +885,7 @@ describe("Profile rendered interactions", () => {
   it("discloses Pro benefits without promising inactive generous quotas", () => {
     harness.state.tab = "membership";
     render(<ProfileScreen />);
-    expect(screen.getByText(/Active plan limits and fair-use safeguards/i)).toBeTruthy();
+    expect(screen.getByText(/Feature-specific fair-use safeguards may apply/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "How fair use works" })).toBeTruthy();
     expect(screen.queryByText(/generous everyday use/i)).toBeNull();
     expect(screen.queryByText(/40 photo scans/i)).toBeNull();
