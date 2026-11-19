@@ -60,7 +60,7 @@ export function AppHeader({ title, back = false, onBack, action, leftAlignTitle 
 const styles = StyleSheet.create({
   wrap: { borderBottomWidth: StyleSheet.hairlineWidth },
   bar: { minHeight: 52, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  compactBar: { minHeight: 26, paddingHorizontal: 20, gap: 6 },
+  compactBar: { minHeight: 52, paddingHorizontal: 20, gap: 6 },
   backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   compactBackButton: { width: 24, height: 24, borderRadius: 12 },
   backSpacer: { width: 44 },
