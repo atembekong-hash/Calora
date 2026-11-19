@@ -66,6 +66,9 @@ describe('classifyCaptureError', () => {
       'Install the latest build',
     );
     expect(classifyCaptureError({ status: 403 }).message).toBe(
+      'This Scan feature requires Calora Pro or an active Pro trial.',
+    );
+    expect(classifyCaptureError({ status: 403 }, 'receipt').message).toBe(
       'Receipt scanning requires Calora Pro or an active Pro trial.',
     );
   });
