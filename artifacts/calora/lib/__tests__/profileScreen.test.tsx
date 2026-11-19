@@ -491,7 +491,7 @@ describe("Profile rendered interactions", () => {
       screen.getByText(/About \$2\.92 \/ month/),
     ).toBeTruthy();
     expect(screen.getByText(/about \$0\.67 \/ week/)).toBeTruthy();
-    expect(screen.getByText(/save 42%/)).toBeTruthy();
+    expect(screen.getByText(/Save 42%/)).toBeTruthy();
     expect(screen.getByText(/7-day free trial/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
