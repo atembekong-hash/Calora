@@ -3031,31 +3031,6 @@ export default function ProfileScreen({
                       <Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text>
                     </View>
                   </View>
-                  <View style={styles.proIncludedSection}>
-                    <Text style={[styles.proIncludedLabel, { color: colors.mutedForeground }]}>INCLUDED WITH PRO</Text>
-                    <View style={styles.proFeatureCard}>
-                      <View style={styles.proFeatureList}>
-                        {[
-                          "Photo and voice logging",
-                          "Food sources and confidence",
-                          "Calorie targets and insights",
-                          "Ad-free offline diary",
-                        ].map((feature) => (
-                          <View key={feature} style={styles.proFeatureRow}>
-                            <Feather name="check-circle" size={16} color="#45d382" />
-                            <Text style={styles.proFeatureText}>{feature}</Text>
-                          </View>
-                        ))}
-                      </View>
-                      <View style={styles.proDashboardPreview}>
-                        <Text style={styles.proDashboardTitle}>Your progress</Text>
-                        <View style={styles.proDashboardRing}><Feather name="activity" size={21} color="#ff8069" /></View>
-                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "72%", backgroundColor: "#b78cff" }]} /></View>
-                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "54%", backgroundColor: "#f6c36b" }]} /></View>
-                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
-                      </View>
-                    </View>
-                  </View>
                   <View style={styles.planChoices}>
                     <Pressable
                       accessibilityRole="radio"
@@ -3220,6 +3195,31 @@ export default function ProfileScreen({
                         )}
                       </Text>
                     </Pressable>
+                  </View>
+                  <View style={styles.proIncludedSection}>
+                    <Text style={[styles.proIncludedLabel, { color: colors.mutedForeground }]}>INCLUDED WITH PRO</Text>
+                    <View style={styles.proFeatureCard}>
+                      <View style={styles.proFeatureList}>
+                        {[
+                          "Photo and voice logging",
+                          "Food sources and confidence",
+                          "Calorie targets and insights",
+                          "Ad-free offline diary",
+                        ].map((feature) => (
+                          <View key={feature} style={styles.proFeatureRow}>
+                            <Feather name="check-circle" size={16} color="#45d382" />
+                            <Text style={styles.proFeatureText}>{feature}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.proDashboardPreview}>
+                        <Text style={styles.proDashboardTitle}>Your progress</Text>
+                        <View style={styles.proDashboardRing}><Feather name="activity" size={21} color="#ff8069" /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "72%", backgroundColor: "#b78cff" }]} /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "54%", backgroundColor: "#f6c36b" }]} /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
+                      </View>
+                    </View>
                   </View>
                   <View style={[styles.valueLine, styles.trialLine, { backgroundColor: colors.muted }]}>
                     <Feather
