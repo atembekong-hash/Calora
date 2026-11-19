@@ -180,6 +180,17 @@ describe('Today dashboard visual-source boundary', () => {
     expect(source).toContain('styles.emptyDiaryGlyph');
   });
 
+  it('requests thirty dashboard Recipe for you suggestions', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('useListRecipes({ limit: 30, offset: 0 }');
+  });
+
   it('centers the Expanded Steps header while keeping the arrow independently right-aligned', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

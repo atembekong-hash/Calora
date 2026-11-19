@@ -459,7 +459,7 @@ function RecipeSwipeWidget({ colors, onOpen, onViewAll }: { colors: ReturnType<t
   const recipeCardTitleColor = recipeCardIsDark ? referenceColors.foreground : '#26312b';
   const recipeCardMetaColor = recipeCardIsDark ? referenceColors.mutedForeground : '#52605a';
   const recipeCardArrowColor = recipeCardIsDark ? referenceColors.orange : '#41554a';
-  const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
+  const { data, isLoading, isError, isFetching, refetch } = useListRecipes({ limit: 30, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
   const autoScrollFrameRef = React.useRef<number | null>(null);
