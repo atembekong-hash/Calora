@@ -6,6 +6,7 @@ export type CaptureFailureKind =
   | 'local_camera'
   | 'preparation'
   | 'authentication'
+  | 'entitlement'
   | 'rate_limited'
   | 'timeout'
   | 'provider'
@@ -125,8 +126,11 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
   if (name === 'ResponseParseError' || /failed to parse response|unexpected token/i.test(message)) {
     return { kind: 'malformed_response', message: 'Calora received an invalid analysis response. Please try again.' };
   }
-  if (status === 401 || status === 403) {
+  if (status === 401) {
     return { kind: 'authentication', message: 'Sign in again before analyzing a photo.' };
+  }
+  if (status === 403) {
+    return { kind: 'entitlement', message: 'Receipt scanning requires Calora Pro or an active Pro trial.' };
   }
   if (status === 429) {
     const retryAfter = retryAfterSeconds(candidate);

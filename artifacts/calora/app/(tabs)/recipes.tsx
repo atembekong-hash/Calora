@@ -1006,6 +1006,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   const queryErrorStatus = premiumRecipeErrorStatus(query.error);
   const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
+  const requiresPro = accessDeniedStatus === 403;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
   const currentAccess = hasCurrentPremiumAccess({
@@ -1237,11 +1238,11 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   if (accessDenied)
     return (
       <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name="log-in" size={22} color={colors.warning} />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
-        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text>
-        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
+        <Feather name={requiresPro ? 'star' : 'log-in'} size={22} color={requiresPro ? colors.primary : colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{requiresPro ? 'Calora Pro required' : 'Sign in for Plus recipes'}</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{requiresPro ? 'You are signed in. An active Calora Pro subscription is required for full Plus recipe details.' : 'Your session ended. Sign in again.'}</Text>
+        <Pressable accessibilityLabel={requiresPro ? 'View Calora Pro' : 'Sign in to access Plus recipes'} onPress={() => router.push(requiresPro ? '/(tabs)/profile' : { pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{requiresPro ? 'View Pro' : 'Sign in'}</Text>
         </Pressable>
       </View>
     );

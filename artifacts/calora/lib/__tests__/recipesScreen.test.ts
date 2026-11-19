@@ -537,6 +537,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied)');
   });
 
+  it('does not show a sign-in prompt when a signed-in account is denied Plus catalogue access with 403', () => {
+    expect(source).toContain('const requiresPro = accessDeniedStatus === 403;');
+    expect(source).toContain('Calora Pro required');
+    expect(source).toContain('You are signed in. An active Calora Pro subscription is required');
+    expect(source).toContain("accessibilityLabel={requiresPro ? 'View Calora Pro'");
+    expect(source).toContain("requiresPro ? '/(tabs)/profile'");
+  });
+
   it('recovers a just-authenticated Plus session before presenting Sign In', () => {
     expect(source).toContain('retrySessionRestore');
     expect(source).toContain('authRecoveryAttemptedRef');

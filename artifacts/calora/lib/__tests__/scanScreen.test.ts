@@ -91,6 +91,11 @@ describe("Scan screen recovery contracts", () => {
     expect(source).toContain("router.push('/auth/sign-in')");
   });
 
+  it('does not offer sign-in or retry actions for a Receipt Pro entitlement denial', () => {
+    expect(source).toContain("captureFlow.failure.kind === 'entitlement'");
+    expect(source).toContain("captureFlow.failure.kind === 'entitlement' || captureFlow.failure.kind === 'endpoint'");
+  });
+
   it("binds each protected Scan request to the active account rather than a stale render token", () => {
     expect(source).toContain("requestAuthenticatedCaptureAnalysis(");
     expect(source).toContain("captureAccountId");
