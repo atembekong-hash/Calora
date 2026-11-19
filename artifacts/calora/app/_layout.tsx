@@ -441,6 +441,7 @@ function RootLayoutNav({
           <Stack.Screen name="restaurants" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="steps" options={{ headerShown: false }} />
           <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
         </Stack.Protected>
         {/*
