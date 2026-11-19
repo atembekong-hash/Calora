@@ -1376,7 +1376,7 @@ export default function ProfileScreen({
               style={styles.profilePaneScroll}
               contentContainerStyle={[
                 styles.profilePaneContent,
-                { paddingBottom: insets.bottom + 136 },
+                { paddingBottom: insets.bottom + 152 },
               ]}
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
@@ -3035,33 +3035,6 @@ export default function ProfileScreen({
                     <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
                   </View>
                 </View>
-                <View style={styles.planHeader}>
-                  <View>
-                    <Text
-                      style={[
-                        styles.sectionTitle,
-                        { color: colors.foreground },
-                      ]}
-                    >
-                      {BRAND.premiumName}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.betaPill,
-                      { backgroundColor: colors.accent },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.betaText,
-                        { color: colors.accentForeground },
-                      ]}
-                    >
-                      PRO
-                    </Text>
-                  </View>
-                </View>
                 <View
                   style={[
                     styles.planCard,
@@ -3071,14 +3044,15 @@ export default function ProfileScreen({
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.planEyebrow,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    CHOOSE A PLAN
-                  </Text>
+                  <View style={styles.planHeadingRow}>
+                    <View>
+                      <Text style={[styles.planEyebrow, { color: colors.mutedForeground }]}>CALORA PRO</Text>
+                      <Text style={[styles.planHeading, { color: colors.foreground }]}>Choose your plan</Text>
+                    </View>
+                    <View style={[styles.betaPill, { backgroundColor: colors.accent }]}>
+                      <Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text>
+                    </View>
+                  </View>
                   <View style={styles.planChoices}>
                     <Pressable
                       accessibilityRole="radio"
@@ -3202,14 +3176,14 @@ export default function ProfileScreen({
                         )}
                       </View>
                       <View style={styles.planChoiceCopy}>
-                        <Text
-                          style={[
-                            styles.planName,
-                            { color: colors.foreground },
-                          ]}
-                        >
-                          Annual
-                        </Text>
+                        <View style={styles.annualPlanNameRow}>
+                          <Text style={[styles.planName, { color: colors.foreground }]}>Annual</Text>
+                          {annualSavingsPercent && (
+                            <View style={styles.savingsBadge}>
+                              <Text style={styles.savingsBadgeText}>Save {annualSavingsPercent}</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text
                           style={[
                             styles.planHint,
@@ -3224,12 +3198,6 @@ export default function ProfileScreen({
                               {" "}· about {annualWeeklyEquivalent} / week
                             </>
                           )}
-                          {annualSavingsPercent && (
-                            <>
-                              {" "}· save {annualSavingsPercent}
-                            </>
-                          )}
-                          {annualMonthlyEquivalent && " · billed annually"}
                         </Text>
                       </View>
                       <Text
@@ -3250,12 +3218,7 @@ export default function ProfileScreen({
                       </Text>
                     </Pressable>
                   </View>
-                  <View
-                    style={[
-                      styles.valueLine,
-                      { backgroundColor: colors.muted },
-                    ]}
-                  >
+                  <View style={[styles.valueLine, styles.trialLine, { backgroundColor: colors.muted }]}>
                     <Feather
                       name="check-circle"
                       size={15}
@@ -3267,8 +3230,8 @@ export default function ProfileScreen({
                         { color: colors.foreground },
                       ]}
                     >
-                      7-day free trial. Store eligibility and localized prices
-                      apply.
+                      <Text style={styles.trialStrong}>Eligible customers: 7-day free trial.</Text>
+                      {" "}The store confirms eligibility and localized pricing.
                     </Text>
                   </View>
                   <Text
@@ -3277,12 +3240,9 @@ export default function ProfileScreen({
                       { color: colors.foreground },
                     ]}
                   >
-                    Pro includes AI-powered meal scanning, barcode and voice
-                    logging, complete premium recipes, AI Coach, AI recipe
-                    creation, Meal Planner, and advanced insights. Active plan
-                    limits and fair-use safeguards apply separately to each
-                    feature, so unusual activity in one feature does not block
-                    the others.
+                    Pro includes AI logging, premium recipes, AI Coach, recipe
+                    creation, Meal Planner, and advanced insights. Feature-specific
+                    fair-use safeguards may apply.
                   </Text>
                   <Pressable
                     accessibilityRole="button"
@@ -3358,30 +3318,6 @@ export default function ProfileScreen({
                       </Text>
                     </Pressable>
                   )}
-                  <View style={styles.featureList}>
-                    {[
-                      "Photo and voice logging",
-                      "Food sources and confidence",
-                      "Calorie targets and insights",
-                      "Ad-free offline diary",
-                    ].map((feature) => (
-                      <View key={feature} style={styles.featureRow}>
-                        <Feather
-                          name="check"
-                          size={15}
-                          color={colors.success}
-                        />
-                        <Text
-                          style={[
-                            styles.featureText,
-                            { color: colors.foreground },
-                          ]}
-                        >
-                          {feature}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={billingActionAccessibilityLabel}
@@ -3423,9 +3359,9 @@ export default function ProfileScreen({
                       { color: colors.mutedForeground },
                     ]}
                   >
-                    After the 7-day trial, your plan renews at its plan price
-                    unless changed or canceled in the store. Local taxes and
-                    currency may affect the store display.
+                    After the trial, your selected plan renews at {selectedPrice}
+                    per {selectedPeriod} unless changed or canceled in the store.
+                    Local taxes and currency may affect the store display.
                   </Text>
                   <View style={styles.billingLinks}>
                     <Pressable
@@ -6226,14 +6162,21 @@ function makeStyles(f: number) {
       fontSize: 8 * f,
       letterSpacing: 1,
     },
-    planCard: { borderWidth: 1, borderRadius: 22, padding: 16 },
+    planCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginTop: 10 },
+    planHeadingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    planHeading: { fontFamily: "Inter_700Bold", fontSize: 18 * f, marginTop: 1 },
     planEyebrow: {
       fontFamily: "Inter_600SemiBold",
       fontSize: 9 * f,
       letterSpacing: 1.1,
       marginBottom: 8,
     },
-    planChoices: { gap: 8 },
+    planChoices: { gap: 8, flexDirection: "column-reverse" },
     planChoice: {
       flexDirection: "row",
       alignItems: "center",
@@ -6252,7 +6195,10 @@ function makeStyles(f: number) {
     },
     radioSelected: { width: 9, height: 9, borderRadius: 5 },
     planChoiceCopy: { flex: 1 },
+    annualPlanNameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
     planName: { fontFamily: "Inter_700Bold", fontSize: 14 * f },
+    savingsBadge: { backgroundColor: "#ff9a78", borderRadius: 7, paddingHorizontal: 6, paddingVertical: 3 },
+    savingsBadgeText: { color: "#1a241f", fontFamily: "Inter_700Bold", fontSize: 9 * f },
     planHint: {
       fontFamily: "Inter_400Regular",
       fontSize: 10 * f,
@@ -6275,6 +6221,8 @@ function makeStyles(f: number) {
       marginTop: 10,
     },
     valueLineText: { fontFamily: "Inter_600SemiBold", fontSize: 10 * f },
+    trialLine: { borderRadius: 14, paddingVertical: 11, marginTop: 12 },
+    trialStrong: { fontFamily: "Inter_700Bold" },
     featureList: { gap: 9, paddingVertical: 15 },
     featureRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     featureText: { fontFamily: "Inter_500Medium", fontSize: 11 * f },

@@ -491,7 +491,7 @@ describe("Profile rendered interactions", () => {
       screen.getByText(/About \$2\.92 \/ month/),
     ).toBeTruthy();
     expect(screen.getByText(/about \$0\.67 \/ week/)).toBeTruthy();
-    expect(screen.getByText(/save 42%/)).toBeTruthy();
+    expect(screen.getByText(/Save 42%/)).toBeTruthy();
     expect(screen.getByText(/7-day free trial/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
@@ -885,7 +885,7 @@ describe("Profile rendered interactions", () => {
   it("discloses Pro benefits without promising inactive generous quotas", () => {
     harness.state.tab = "membership";
     render(<ProfileScreen />);
-    expect(screen.getByText(/Active plan limits and fair-use safeguards/i)).toBeTruthy();
+    expect(screen.getByText(/Feature-specific fair-use safeguards may apply/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "How fair use works" })).toBeTruthy();
     expect(screen.queryByText(/generous everyday use/i)).toBeNull();
     expect(screen.queryByText(/40 photo scans/i)).toBeNull();
