@@ -312,6 +312,27 @@ function normalizeBarcode(value: string) {
   return value.replace(/\D/g, "").slice(0, 32);
 }
 
+function explicitMetricQuantity(value: string) {
+  const match = value.match(
+    /(?:^|[\s(])[0-9]+(?:[.,][0-9]+)?\s*(kg|g|grams|mg|l|ml|liters?|milliliters?)\b/i,
+  );
+  if (!match || match.index == null) return null;
+  const amountMatch = match[0].match(/[0-9]+(?:[.,][0-9]+)?/);
+  if (!amountMatch) return null;
+  const amount = Number(amountMatch[0].replace(',', '.'));
+  const unit = match[1].toLowerCase();
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (unit === 'kg' || unit === 'mg' || unit === 'grams' || unit === 'milligram' || unit === 'milligrams') {
+    const grams = unit === 'kg' ? amount * 1000 : unit === 'mg' ? amount / 1000 : amount;
+    return grams > 0 && grams <= 2500 ? `${grams} g` : null;
+  }
+  if (unit === 'l' || unit === 'liter' || unit === 'liters' || unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') {
+    const milliliters = unit === 'l' || unit === 'liter' || unit === 'liters' ? amount * 1000 : amount;
+    return milliliters > 0 && milliliters <= 2500 ? `${milliliters} ml` : null;
+  }
+  return `${amount} g`;
+}
+
 /**
  * UPC-A is a 12-digit GTIN, while EAN-13 represents that same identifier with
  * one leading zero. Providers are inconsistent about which representation
@@ -501,11 +522,19 @@ export function offCandidate(
       ? "per_100ml"
       : "per_100g";
   const declaredQuantity = String(product.quantity ?? "").trim();
+  const providerServing = String(product.serving_size ?? "").trim();
+  const genericReferenceServing =
+    /^(?:100(?:[.,]0+)?)\s*(g|grams|ml|milliliters?)$/i.test(providerServing) &&
+    (nutritionBasis === "per_100g" || nutritionBasis === "per_100ml");
+  const packageMetricQuantity = explicitMetricQuantity(declaredQuantity);
+  // A provider may return both a generic 100 g/ml nutrition reference and the
+  // package's actual net quantity. For a barcode scan, the package quantity is
+  // the safest initial consumed amount; the user can still edit partial use.
   const rawServing =
-    String(product.serving_size ?? "").trim() ||
-    (/[0-9]+(?:[.,][0-9]+)?\s*[a-zA-Z]+/.test(declaredQuantity)
-      ? declaredQuantity
-      : "");
+    genericReferenceServing && packageMetricQuantity
+      ? packageMetricQuantity
+      : providerServing ||
+        (packageMetricQuantity ? packageMetricQuantity : "");
   // Some product records say only "1 packet" in serving_size while the actual
   // packet weight is declared separately in quantity (for example "9.4 g").
   // Keep the serving label, but recover that explicit weight so per-100-g

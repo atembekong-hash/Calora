@@ -41,6 +41,83 @@ describe('photo recognition safeguards', () => {
     });
   });
 
+  it('prefers the package quantity over a generic 100 g reference serving', () => {
+    const candidate = offCandidate(
+      {
+        code: '012345678905',
+        product_name: 'Emergen-C Tangerine',
+        brands: 'Emergen-C',
+        serving_size: '100 g',
+        quantity: '9.4 g',
+        nutriments: {
+          'energy-kcal_100g': 372,
+          proteins_100g: 0,
+          carbohydrates_100g: 85,
+          fat_100g: 0,
+        },
+      },
+      '012345678905',
+    );
+
+    expect(candidate).toMatchObject({
+      serving: '9.4 g',
+      servingQuantity: 9.4,
+      servingUnit: 'g',
+      servingWeightG: 9.4,
+      nutritionBasis: 'per_100g',
+    });
+  });
+
+  it('prefers package volume over a generic 100 ml reference serving', () => {
+    const candidate = offCandidate(
+      {
+        code: '012345678906',
+        product_name: 'Packaged drink',
+        serving_size: '100 ml',
+        quantity: '330 ml',
+        nutriments: {
+          'energy-kcal_100ml': 40,
+          proteins_100ml: 0,
+          carbohydrates_100ml: 10,
+          fat_100ml: 0,
+        },
+      },
+      '012345678906',
+    );
+
+    expect(candidate).toMatchObject({
+      serving: '330 ml',
+      servingQuantity: 330,
+      servingUnit: 'ml',
+      nutritionBasis: 'per_100ml',
+    });
+  });
+
+  it('extracts the per-unit quantity from a multipack declaration', () => {
+    const candidate = offCandidate(
+      {
+        code: '012345678907',
+        product_name: 'Supplement sachets',
+        serving_size: '100 g',
+        quantity: '30 sachets (9.4 g each)',
+        nutriments: {
+          'energy-kcal_100g': 372,
+          proteins_100g: 0,
+          carbohydrates_100g: 85,
+          fat_100g: 0,
+        },
+      },
+      '012345678907',
+    );
+
+    expect(candidate).toMatchObject({
+      serving: '9.4 g',
+      servingQuantity: 9.4,
+      servingUnit: 'g',
+      servingWeightG: 9.4,
+    });
+  });
+
   it('normalizes comma-decimal kilogram and milligram serving weights', () => {
     const kilogram = offCandidate({
       code: '012345678902', product_name: 'Bulk food', serving_size: '0,5 kg',
