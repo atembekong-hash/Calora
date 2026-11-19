@@ -537,6 +537,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied)');
   });
 
+  it('preserves saved Plus recipe IDs when entitlement access is lost', () => {
+    expect(source).toContain('Entitlement expiry must not erase the user\'s saved recipe history.');
+    expect(source).toContain('setPremiumSavedRecipes([]);');
+    expect(source).not.toContain('savedRecipeIds.filter(isPremiumRecipeId).forEach(toggleSavedRecipe);');
+  });
+
   it('does not show a sign-in prompt when a signed-in account is denied Plus catalogue access with 403', () => {
     expect(source).toContain('const requiresPro = accessDeniedStatus === 403;');
     expect(source).toContain('Calora Pro required');

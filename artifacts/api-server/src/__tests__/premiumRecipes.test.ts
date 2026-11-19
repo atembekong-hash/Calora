@@ -297,6 +297,9 @@ describe("Premium recipe routes", () => {
           {
             id: "42",
             name: "Miso bowl",
+            description: "A detailed provider recipe description that remains preview-safe.",
+            instructions: "Protected preparation steps must not be returned by the catalogue route.",
+            ingredients: ["2 cups rice", "1 tbsp miso"],
             sourceUrl: "https://provider.example/42",
             image: "http://images.provider.example/42.jpg",
             calories: 410,
@@ -342,6 +345,9 @@ describe("Premium recipe routes", () => {
       vitaminCMg: 16,
       sodiumMg: null,
     });
+    expect(res.body.recipes[0].ingredients).toEqual([]);
+    expect(res.body.recipes[0].instructions).toBeNull();
+    expect(res.body.recipes[0].description).toContain("detailed provider recipe");
     expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0][0])).toContain("query=miso");
     expect(String(fetchMock.mock.calls[0][0])).toContain("offset=0");
