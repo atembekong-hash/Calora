@@ -1006,6 +1006,7 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   const queryErrorStatus = premiumRecipeErrorStatus(query.error);
   const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
+  const requiresPro = accessDeniedStatus === 403;
   // A cached response belongs to a prior request. Never render it until a
   // request mounted for this screen has verified the current signed-in account.
   const currentAccess = hasCurrentPremiumAccess({
@@ -1237,11 +1238,11 @@ function PremiumCatalogue({ active, colors, onOpen, onSave, onSaveAsMeal, onAcce
   if (accessDenied)
     return (
       <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name="log-in" size={22} color={colors.warning} />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text>
-        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text>
-        <Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push({ pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text>
+        <Feather name={requiresPro ? 'star' : 'log-in'} size={22} color={requiresPro ? colors.primary : colors.warning} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{requiresPro ? 'Calora Pro required' : 'Sign in for Plus recipes'}</Text>
+        <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{requiresPro ? 'You are signed in. An active Calora Pro subscription is required for full Plus recipe details.' : 'Your session ended. Sign in again.'}</Text>
+        <Pressable accessibilityLabel={requiresPro ? 'View Calora Pro' : 'Sign in to access Plus recipes'} onPress={() => router.push(requiresPro ? '/(tabs)/profile' : { pathname: '/auth/sign-in', params: { returnTo: 'plus' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{requiresPro ? 'View Pro' : 'Sign in'}</Text>
         </Pressable>
       </View>
     );
@@ -1548,7 +1549,6 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
     request: PREMIUM_RECIPE_REQUEST_OPTIONS,
   });
   const premiumDetailErrorStatus = premiumRecipeErrorStatus(premiumDetailQuery.error);
-  const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
     if (!premium) return;
     applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied);
@@ -1588,7 +1588,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
   if (premium && (!session?.user.id || premiumDetailQuery.isError)) {
-    const requiresSignIn = !session?.user.id || premiumDetailDenied;
+    const requiresSignIn = !session?.user.id || premiumDetailErrorStatus === 401;
+    const requiresPro = premiumDetailErrorStatus === 403;
     return (
       <Modal visible transparent animationType="none" onRequestClose={onClose}>
         <View
@@ -1616,22 +1617,27 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, on
             <View style={[styles.accessMessageIcon, { backgroundColor: colors.accent }]}>
               <Feather name={requiresSignIn ? 'log-in' : 'wifi-off'} size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{requiresSignIn ? 'Sign in again' : 'Plus recipe unavailable'}</Text>
-            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>{requiresSignIn ? 'Sign in to reopen this protected Plus recipe.' : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}</Text>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]}>{requiresSignIn ? 'Sign in again' : requiresPro ? 'Calora Pro required' : 'Plus recipe unavailable'}</Text>
+            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>{requiresSignIn ? 'Sign in to reopen this protected Plus recipe.' : requiresPro ? 'You are signed in. An active Calora Pro subscription is required to open full Plus recipe details.' : 'The recipe source is temporarily unavailable. Your saved recipes remain on this device.'}</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={requiresSignIn ? 'Sign in again' : 'Retry Plus recipe'}
+              accessibilityLabel={requiresSignIn ? 'Sign in again' : requiresPro ? 'View Calora Pro' : 'Retry Plus recipe'}
               onPress={() => {
                 if (requiresSignIn) {
                   onClose();
                   router.push('/auth/sign-in');
                   return;
                 }
+                if (requiresPro) {
+                  onClose();
+                  router.push('/(tabs)/profile');
+                  return;
+                }
                 void premiumDetailQuery.refetch();
               }}
               style={[styles.primaryAction, { backgroundColor: colors.primary }]}
             >
-              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{requiresSignIn ? 'Sign in' : 'Retry'}</Text>
+              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{requiresSignIn ? 'Sign in' : requiresPro ? 'View Pro' : 'Retry'}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Close Plus recipe message" onPress={onClose} style={[styles.secondaryAction, { borderColor: colors.border }]}>
               <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>

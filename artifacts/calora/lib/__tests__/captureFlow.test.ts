@@ -50,6 +50,7 @@ describe('classifyCaptureError', () => {
     [{ status: 504, message: 'deadline exceeded' }, 'timeout'],
     [{ name: 'CaptureOperationTimeoutError' }, 'timeout'],
     [{ status: 401, message: 'sign in' }, 'authentication'],
+    [{ status: 403, message: 'Pro required' }, 'entitlement'],
     [{ name: 'CaptureRequestAuthenticationError' }, 'authentication'],
     [{ name: 'CaptureRequestIdentityChangedError' }, 'authentication'],
     [{ status: 404, message: 'route missing' }, 'endpoint'],
@@ -63,6 +64,9 @@ describe('classifyCaptureError', () => {
     );
     expect(classifyCaptureError({ status: 404 }).message).toContain(
       'Install the latest build',
+    );
+    expect(classifyCaptureError({ status: 403 }).message).toBe(
+      'Receipt scanning requires Calora Pro or an active Pro trial.',
     );
   });
 });
