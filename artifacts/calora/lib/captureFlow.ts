@@ -92,6 +92,8 @@ type ApiErrorShape = {
   headers?: { get?: (name: string) => string | null };
 };
 
+export type CaptureEntitlementFeature = 'scan' | 'receipt';
+
 function retryAfterSeconds(error: ApiErrorShape): number | undefined {
   const fromBody = error.data && typeof error.data === 'object'
     ? Number((error.data as { retryAfterSecs?: unknown }).retryAfterSecs)
@@ -102,7 +104,10 @@ function retryAfterSeconds(error: ApiErrorShape): number | undefined {
 }
 
 /** Maps transport outcomes to a recovery instruction without exposing image data. */
-export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowState['failure']> {
+export function classifyCaptureError(
+  error: unknown,
+  feature: CaptureEntitlementFeature = 'scan',
+): NonNullable<CaptureFlowState['failure']> {
   const candidate = (error && typeof error === 'object' ? error : {}) as ApiErrorShape;
   const status = typeof candidate.status === 'number' ? candidate.status : undefined;
   const message = typeof candidate.message === 'string' ? candidate.message : '';
@@ -130,7 +135,12 @@ export function classifyCaptureError(error: unknown): NonNullable<CaptureFlowSta
     return { kind: 'authentication', message: 'Sign in again before analyzing a photo.' };
   }
   if (status === 403) {
-    return { kind: 'entitlement', message: 'Receipt scanning requires Calora Pro or an active Pro trial.' };
+    return {
+      kind: 'entitlement',
+      message: feature === 'receipt'
+        ? 'Receipt scanning requires Calora Pro or an active Pro trial.'
+        : 'This Scan feature requires Calora Pro or an active Pro trial.',
+    };
   }
   if (status === 429) {
     const retryAfter = retryAfterSeconds(candidate);

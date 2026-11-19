@@ -334,7 +334,7 @@ export default function ScanScreen() {
 
   const failCaptureOperation = (operationId: number, error: unknown) => {
     if (!isCurrentOperation(operationId)) return;
-    const failure = classifyCaptureError(error);
+    const failure = classifyCaptureError(error, receiptCapture ? 'receipt' : 'scan');
     if (failure.kind === 'aborted') {
       dispatchCaptureFlow({ type: 'reset', operationId });
       return;
