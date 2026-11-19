@@ -41,6 +41,20 @@ export type PremiumRecipe = {
   nutritionSource: string;
 } & RecipeNutritionFacts;
 
+/**
+ * Catalogue cards are previews. Keep identity, imagery, metadata, and supplied
+ * nutrition available for browsing, but never expose protected preparation
+ * content until the Pro-gated detail route is requested.
+ */
+export function toPremiumRecipePreview(recipe: PremiumRecipe): PremiumRecipe {
+  return {
+    ...recipe,
+    description: recipe.description ? recipe.description.slice(0, 240) : null,
+    instructions: null,
+    ingredients: [],
+  };
+}
+
 export type RestaurantFoodServing = {
   servingId: string | null;
   description: string;

@@ -36,7 +36,7 @@ import { DISCOVER_RECIPE_REFRESH_POLICY, DISCOVER_RECIPE_REQUEST_OPTIONS } from 
 import { premiumRecipeRouteState, premiumSavedRecipeRestorationState, shouldLoadMorePremiumRecipes } from '@/lib/premiumRecipeReliability';
 import { shouldLoadMoreRecipePage, shouldRetryRecipePage } from '@/lib/recipePagination';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
-import { isPremiumRecipeId, mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
+import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
@@ -3023,8 +3023,10 @@ export default function RecipesScreen() {
       removeListQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipes', userId] }),
       removeDetailQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipe', userId] }),
       clearSaved: () => {
+        // Entitlement expiry must not erase the user's saved recipe history.
+        // Clear only the in-memory hydrated Plus cards; retain savedRecipeIds so
+        // the records can be restored if the user renews or re-entitles later.
         setPremiumSavedRecipes([]);
-        savedRecipeIds.filter(isPremiumRecipeId).forEach(toggleSavedRecipe);
       },
       clearCatalogue: () => setPremiumCatalogueRecipes([]),
       closePremiumDetail: () => setSelected((current) => (

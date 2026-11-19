@@ -4,6 +4,7 @@ import {
   getPremiumRecipe,
   listPremiumRecipes,
   premiumProviderStatus,
+  toPremiumRecipePreview,
 } from "../lib/premiumRecipes";
 import {
   hasActivePremiumEntitlement,
@@ -268,7 +269,10 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
       limit,
       offset,
     });
-    res.json(result);
+    res.json({
+      ...result,
+      recipes: result.recipes.map(toPremiumRecipePreview),
+    });
   } catch (error) {
     const status = premiumProviderStatus();
     if (error instanceof FatSecretProviderError) {
