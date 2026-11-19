@@ -6097,8 +6097,8 @@ function makeStyles(f: number) {
     proHeroTitle: {
       color: "#ffffff",
       fontFamily: "Inter_700Bold",
-      fontSize: 26 * f,
-      lineHeight: 31 * f,
+      fontSize: 22 * f,
+      lineHeight: 27 * f,
       maxWidth: 330,
     },
     proHeroDescription: {
