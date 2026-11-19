@@ -374,6 +374,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("if (state === 'active' && premium && session?.user.id)");
   });
 
+  it('does not mislabel a signed-in non-Pro account as signed out when Plus detail is denied', () => {
+    expect(source).toContain("const requiresSignIn = !session?.user.id || premiumDetailErrorStatus === 401;");
+    expect(source).toContain("const requiresPro = premiumDetailErrorStatus === 403;");
+    expect(source).toContain('Calora Pro required');
+    expect(source).toContain('You are signed in. An active Calora Pro subscription is required to open full Plus recipe details.');
+    expect(source).toContain("accessibilityLabel={requiresSignIn ? 'Sign in again' : requiresPro ? 'View Calora Pro' : 'Retry Plus recipe'}");
+    expect(source).toContain("router.push('/(tabs)/profile')");
+  });
+
   it('keeps routed Discover failures actionable instead of silently retaining a failed route', () => {
     expect(source).toContain('const [linkedDiscoverRouteError, setLinkedDiscoverRouteError] = useState(false)');
     expect(source).toContain('if (linkedDiscoverRecipeQuery.isError) {');
