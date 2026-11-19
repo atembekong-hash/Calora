@@ -267,7 +267,7 @@ export default function StepsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
-      <AppHeader title="Steps" back onBack={() => router.back()} action={<View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Edit daily step goal" onPress={openGoalEditor} hitSlop={10} style={[styles.headerAction, { backgroundColor: colors.successTint }]}><Feather name="target" size={17} color={colors.success} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open step settings" onPress={openHealth} hitSlop={10} style={styles.headerAction}><Feather name="settings" size={18} color={colors.foreground} /></Pressable></View>} />
+      <AppHeader compact title="Steps" back onBack={() => router.back()} action={<View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Edit daily step goal" onPress={openGoalEditor} hitSlop={10} style={[styles.headerAction, { backgroundColor: colors.successTint }]}><Feather name="target" size={14} color={colors.success} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open step settings" onPress={openHealth} hitSlop={10} style={styles.headerAction}><Feather name="settings" size={15} color={colors.foreground} /></Pressable></View>} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.eyebrowRow, { backgroundColor: colors.successTint }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.eyebrow, { color: colors.successForeground }]}>{liveStepTracking.status === 'live' ? 'LIVE TRACKING' : 'DAILY MOVEMENT'}</Text><Text style={[styles.eyebrowDate, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date())}</Text></View>
         <View style={[styles.hero, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -385,8 +385,8 @@ export default function StepsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerAction: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  headerAction: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
   eyebrowRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 7, marginTop: 16 },
   liveDot: { width: 7, height: 7, borderRadius: 4 },
