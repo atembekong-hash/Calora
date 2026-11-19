@@ -6074,7 +6074,7 @@ function makeStyles(f: number) {
 
     // Billing
     proHeroCard: {
-      minHeight: 188,
+      minHeight: 150,
       borderRadius: 24,
       overflow: "hidden",
       backgroundColor: "#082b21",
@@ -6086,27 +6086,27 @@ function makeStyles(f: number) {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: "rgba(3, 31, 23, 0.68)",
     },
-    proHeroContent: { padding: 16, justifyContent: "flex-end", flex: 1 },
+    proHeroContent: { padding: 12, justifyContent: "flex-end", flex: 1 },
     proHeroBrand: {
       color: "#ff8069",
       fontFamily: "Inter_700Bold",
       fontSize: 11 * f,
       letterSpacing: 1.4,
-      marginBottom: 12,
+      marginBottom: 8,
     },
     proHeroTitle: {
       color: "#ffffff",
       fontFamily: "Inter_700Bold",
-      fontSize: 22 * f,
-      lineHeight: 27 * f,
+      fontSize: 19 * f,
+      lineHeight: 23 * f,
       maxWidth: 330,
     },
     proHeroDescription: {
       color: "#d9eee5",
       fontFamily: "Inter_400Regular",
-      fontSize: 12 * f,
-      lineHeight: 18 * f,
-      marginTop: 11,
+      fontSize: 11 * f,
+      lineHeight: 16 * f,
+      marginTop: 8,
       maxWidth: 330,
     },
     proPromiseRow: {
