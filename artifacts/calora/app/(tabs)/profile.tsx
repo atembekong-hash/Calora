@@ -3013,28 +3013,6 @@ export default function ProfileScreen({
                     </View>
                   ))}
                 </View>
-                <View style={styles.proFeatureCard}>
-                  <View style={styles.proFeatureList}>
-                    {[
-                      "Photo and voice logging",
-                      "Food sources and confidence",
-                      "Calorie targets and insights",
-                      "Ad-free offline diary",
-                    ].map((feature) => (
-                      <View key={feature} style={styles.proFeatureRow}>
-                        <Feather name="check-circle" size={16} color="#45d382" />
-                        <Text style={styles.proFeatureText}>{feature}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.proDashboardPreview}>
-                    <Text style={styles.proDashboardTitle}>Your progress</Text>
-                    <View style={styles.proDashboardRing}><Feather name="activity" size={21} color="#ff8069" /></View>
-                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "72%", backgroundColor: "#b78cff" }]} /></View>
-                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "54%", backgroundColor: "#f6c36b" }]} /></View>
-                    <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
-                  </View>
-                </View>
                 <View
                   style={[
                     styles.planCard,
@@ -3051,6 +3029,31 @@ export default function ProfileScreen({
                     </View>
                     <View style={[styles.betaPill, { backgroundColor: colors.accent }]}>
                       <Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text>
+                    </View>
+                  </View>
+                  <View style={styles.proIncludedSection}>
+                    <Text style={[styles.proIncludedLabel, { color: colors.mutedForeground }]}>INCLUDED WITH PRO</Text>
+                    <View style={styles.proFeatureCard}>
+                      <View style={styles.proFeatureList}>
+                        {[
+                          "Photo and voice logging",
+                          "Food sources and confidence",
+                          "Calorie targets and insights",
+                          "Ad-free offline diary",
+                        ].map((feature) => (
+                          <View key={feature} style={styles.proFeatureRow}>
+                            <Feather name="check-circle" size={16} color="#45d382" />
+                            <Text style={styles.proFeatureText}>{feature}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={styles.proDashboardPreview}>
+                        <Text style={styles.proDashboardTitle}>Your progress</Text>
+                        <View style={styles.proDashboardRing}><Feather name="activity" size={21} color="#ff8069" /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "72%", backgroundColor: "#b78cff" }]} /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "54%", backgroundColor: "#f6c36b" }]} /></View>
+                        <View style={styles.proDashboardBar}><View style={[styles.proDashboardFill, { width: "40%", backgroundColor: "#ff8069" }]} /></View>
+                      </View>
                     </View>
                   </View>
                   <View style={styles.planChoices}>
@@ -6171,6 +6174,18 @@ function makeStyles(f: number) {
     },
     planHeading: { fontFamily: "Inter_700Bold", fontSize: 18 * f, marginTop: 1 },
     planEyebrow: {
+      fontFamily: "Inter_600SemiBold",
+      fontSize: 9 * f,
+      letterSpacing: 1.1,
+      marginBottom: 8,
+    },
+    proIncludedSection: {
+      borderTopWidth: 1,
+      borderTopColor: "rgba(69, 211, 130, 0.28)",
+      paddingTop: 12,
+      marginBottom: 12,
+    },
+    proIncludedLabel: {
       fontFamily: "Inter_600SemiBold",
       fontSize: 9 * f,
       letterSpacing: 1.1,
