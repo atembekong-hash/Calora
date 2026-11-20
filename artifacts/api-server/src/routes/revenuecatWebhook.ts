@@ -73,24 +73,13 @@ function verifyHmac(raw: Buffer, header: string, secret: string): boolean {
 function authenticate(req: Request, raw: Buffer): boolean {
   const signingSecret = process.env.REVENUECAT_WEBHOOK_SIGNING_SECRET;
   const signature = req.get("x-revenuecat-webhook-signature");
-  const hmacMatched = Boolean(
-    signingSecret && signature && verifyHmac(raw, signature, signingSecret),
-  );
-  if (hmacMatched) return true;
+  if (signingSecret && signature && verifyHmac(raw, signature, signingSecret))
+    return true;
   const configuredAuthorization = process.env.REVENUECAT_WEBHOOK_AUTHORIZATION;
-  const authorizationHeader = req.get("authorization");
-  const authorizationMatched = Boolean(
+  return Boolean(
     configuredAuthorization &&
-    authorizationHeader === configuredAuthorization,
+    req.get("authorization") === configuredAuthorization,
   );
-  if (process.env.CALORA_REVENUECAT_WEBHOOK_AUTH_DIAGNOSTIC === "1") {
-    console.info("RevenueCat webhook auth diagnostic", {
-      authorizationEnvironmentPresent: Boolean(configuredAuthorization),
-      authorizationHeaderPresent: Boolean(authorizationHeader),
-      authorizationExactMatch: authorizationMatched,
-    });
-  }
-  return authorizationMatched;
 }
 
 function stringValue(value: unknown): string | null {

@@ -52,7 +52,6 @@ describe("RevenueCat webhook lifecycle ingress", () => {
     vi.clearAllMocks();
     process.env.REVENUECAT_WEBHOOK_SIGNING_SECRET = "mission-429-test-secret";
     delete process.env.REVENUECAT_WEBHOOK_AUTHORIZATION;
-    delete process.env.CALORA_REVENUECAT_WEBHOOK_AUTH_DIAGNOSTIC;
     queryMock.mockReset();
     queryMock.mockResolvedValue({ rowCount: 1, rows: [] });
   });
@@ -102,30 +101,6 @@ describe("RevenueCat webhook lifecycle ingress", () => {
 
     expect(response.status).toBe(401);
     expect(queryMock).not.toHaveBeenCalled();
-  });
-
-  it("emits only boolean auth diagnostics when explicitly enabled", async () => {
-    const body = payload({ id: "evt-auth-diagnostic" });
-    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    process.env.CALORA_REVENUECAT_WEBHOOK_AUTH_DIAGNOSTIC = "1";
-    process.env.REVENUECAT_WEBHOOK_SIGNING_SECRET = "wrong-signing-secret";
-    process.env.REVENUECAT_WEBHOOK_AUTHORIZATION = "expected-auth-value";
-
-    const response = await request(buildApp())
-      .post("/api/v1/webhooks/revenuecat")
-      .set("Authorization", "wrong-auth-value")
-      .set("Content-Type", "application/json")
-      .send(body);
-
-    expect(response.status).toBe(401);
-    expect(info).toHaveBeenCalledWith("RevenueCat webhook auth diagnostic", {
-      authorizationEnvironmentPresent: true,
-      authorizationHeaderPresent: true,
-      authorizationExactMatch: false,
-    });
-    expect(JSON.stringify(info.mock.calls)).not.toContain("expected-auth-value");
-    expect(JSON.stringify(info.mock.calls)).not.toContain("wrong-auth-value");
-    info.mockRestore();
   });
 
   it("acknowledges duplicate delivery without reapplying the subscription", async () => {
