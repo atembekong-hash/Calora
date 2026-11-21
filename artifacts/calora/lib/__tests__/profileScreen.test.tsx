@@ -312,13 +312,14 @@ function makeSubscription(overrides: Record<string, unknown> = {}) {
         availablePackages: [
           {
             identifier: "$rc_monthly",
-            product: { priceString: "$4.99", price: 4.99, currencyCode: "USD" },
+            product: { identifier: "caloraapp_pro_monthly", priceString: "$9.99", price: 9.99, currencyCode: "USD" },
           },
           {
             identifier: "$rc_annual",
             product: {
-              priceString: "$34.99",
-              price: 34.99,
+              identifier: "caloraapp_pro_annual",
+              priceString: "$59.99",
+              price: 59.99,
               currencyCode: "USD",
             },
           },
@@ -473,7 +474,7 @@ describe("Profile rendered interactions", () => {
     expect(screen.queryByRole("button", { name: "Review onboarding" })).toBeNull();
   });
 
-  it("uses the approved store prices and only reports purchase success with the expected entitlement", async () => {
+  it("uses the requested store prices and only reports purchase success with the expected entitlement", async () => {
     const subscription = makeSubscription();
     harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
@@ -485,19 +486,19 @@ describe("Profile rendered interactions", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("radio", { name: "Choose annual plan" }).textContent,
-    ).toContain("$34.99");
-    expect(screen.getByText(/\$4\.99/)).toBeTruthy();
+    ).toContain("$59.99");
+    expect(screen.getByText(/\$9\.99/)).toBeTruthy();
     expect(
-      screen.getByText(/About \$2\.92 \/ month/),
+      screen.getByText(/About \$5\.00 \/ month/),
     ).toBeTruthy();
-    expect(screen.getByText(/about \$0\.67 \/ week/)).toBeTruthy();
-    expect(screen.getByText(/Save 42%/)).toBeTruthy();
-    expect(screen.getByText(/7-day free trial/)).toBeTruthy();
+    expect(screen.getByText(/about \$1\.15 \/ week/)).toBeTruthy();
+    expect(screen.getByText(/Save 50%/)).toBeTruthy();
+    expect(screen.getByText(/7-day free trial when offered/)).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "Continue to billing" }),
     );
     expect(screen.getByText("Confirm your purchase")).toBeTruthy();
-    expect(screen.getByText(/at \$34\.99 per year/)).toBeTruthy();
+    expect(screen.getByText(/at \$59\.99 per year/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Confirm purchase"));
     await waitFor(() => expect(subscription.purchase).toHaveBeenCalledOnce());
     expect(screen.getByText(/Your subscription is active/)).toBeTruthy();

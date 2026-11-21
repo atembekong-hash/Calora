@@ -57,17 +57,12 @@ export const EMAILS = {
  * configured, the registered IDs take precedence. Do not rename externally
  * registered products solely for naming consistency.
  *
- * Pricing values are informational only. The live paywall must use authoritative
- * store/RevenueCat product data — never hardcode prices as the billing authority.
+ * The live paywall must use authoritative store/RevenueCat product data. Do not
+ * add price fallbacks here: a stale fallback can misstate the amount charged.
  */
 export const SUBSCRIPTION = {
   entitlementId: 'caloraapp_pro',
   monthlyProductId: 'caloraapp_pro_monthly',
   annualProductId: 'caloraapp_pro_annual',
   offeringId: 'default',
-  /** US reference pricing. Actual charges are determined by store/RevenueCat configuration. */
-  pricing: {
-    monthly: { recurring: 4.99, trialDays: 7 },
-    annual: { recurring: 34.99, monthlyEquivalent: 2.92, trialDays: 7 },
-  },
 } as const;
