@@ -498,7 +498,7 @@ describe("Profile rendered interactions", () => {
       screen.getByRole("button", { name: "Continue to billing" }),
     );
     expect(screen.getByText("Confirm your purchase")).toBeTruthy();
-    expect(screen.getByText(/at \$34\.99 per year/)).toBeTruthy();
+    expect(screen.getByText(/at \$59\.99 per year/)).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Confirm purchase"));
     await waitFor(() => expect(subscription.purchase).toHaveBeenCalledOnce());
     expect(screen.getByText(/Your subscription is active/)).toBeTruthy();
