@@ -74,15 +74,15 @@ describe('RevenueCat billing integrity', () => {
   });
 
   it('derives an approximate monthly equivalent from the localized annual store product', () => {
-    expect(formatStoreMonthlyEquivalent({ price: 34.99, currencyCode: 'USD' })).toMatch(/\$2\.92|2\.92\s+USD/);
+    expect(formatStoreMonthlyEquivalent({ price: 59.99, currencyCode: 'USD' })).toMatch(/\$5\.00|5\.00\s+USD/);
     expect(formatStoreMonthlyEquivalent({ price: 0, currencyCode: 'USD' })).toBeNull();
     expect(formatStoreMonthlyEquivalent(undefined)).toBeNull();
   });
 
   it('derives secondary weekly equivalents and annual savings from live store prices', () => {
-    expect(formatStoreWeeklyEquivalent({ price: 4.99, currencyCode: 'USD' }, 4.345)).toMatch(/\$1\.15|1\.15\s+USD/);
-    expect(formatStoreWeeklyEquivalent({ price: 34.99, currencyCode: 'USD' }, 52)).toMatch(/\$0\.67|0\.67\s+USD/);
-    expect(formatStoreAnnualSavingsPercent({ price: 4.99 }, { price: 34.99 })).toBe('42%');
+    expect(formatStoreWeeklyEquivalent({ price: 9.99, currencyCode: 'USD' }, 4.345)).toMatch(/\$2\.30|2\.30\s+USD/);
+    expect(formatStoreWeeklyEquivalent({ price: 59.99, currencyCode: 'USD' }, 52)).toMatch(/\$1\.15|1\.15\s+USD/);
+    expect(formatStoreAnnualSavingsPercent({ price: 9.99 }, { price: 59.99 })).toBe('50%');
     expect(formatStoreAnnualSavingsPercent({ price: 4.99 }, { price: 59.99 })).toBeNull();
   });
 });

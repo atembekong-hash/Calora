@@ -267,13 +267,17 @@ export default function ProfileScreen({
       : null;
   const monthlyPkg =
     currentOffering?.availablePackages.find(
-      (p) => p.identifier === "$rc_monthly",
+      (p) =>
+        p.identifier === "$rc_monthly" ||
+        p.product.identifier === SUBSCRIPTION.monthlyProductId,
     ) ??
     currentOffering?.monthly ??
     null;
   const annualPkg =
     currentOffering?.availablePackages.find(
-      (p) => p.identifier === "$rc_annual",
+      (p) =>
+        p.identifier === "$rc_annual" ||
+        p.product.identifier === SUBSCRIPTION.annualProductId,
     ) ??
     currentOffering?.annual ??
     null;
@@ -3233,8 +3237,8 @@ export default function ProfileScreen({
                         { color: colors.foreground },
                       ]}
                     >
-                      <Text style={styles.trialStrong}>Eligible customers: 7-day free trial.</Text>
-                      {" "}The store confirms eligibility and localized pricing.
+                      <Text style={styles.trialStrong}>7-day free trial when offered.</Text>
+                      {" "}The store confirms your eligibility and localized pricing before purchase.
                     </Text>
                   </View>
                   <Text
